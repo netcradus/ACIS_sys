@@ -1,0 +1,11 @@
+<!doctype html>
+<html>
+<head><title></title></head>
+<body>
+<script>
+  // Required by keycloak-js check-sso silent mode.
+  // This page is loaded in a hidden iframe; it posts the location back to the parent.
+  parent.postMessage(location.href, location.origin);
+</script>
+</body>
+</html>

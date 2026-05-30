@@ -1,0 +1,119 @@
+{
+  "realm": "acis",
+  "enabled": true,
+  "displayName": "NETCRADUS ACIS",
+  "displayNameHtml": "<strong>NETCRADUS</strong> ACIS",
+  "sslRequired": "none",
+  "registrationAllowed": false,
+  "loginWithEmailAllowed": true,
+  "duplicateEmailsAllowed": false,
+  "resetPasswordAllowed": true,
+  "editUsernameAllowed": false,
+  "accessTokenLifespan": 300,
+  "ssoSessionIdleTimeout": 1800,
+  "ssoSessionMaxLifespan": 36000,
+  "roles": {
+    "realm": [
+      { "name": "viewer",   "description": "Read-only access to dashboards and logs" },
+      { "name": "analyst",  "description": "Alert investigation and triage" },
+      { "name": "engineer", "description": "Rule authoring and system configuration" },
+      { "name": "admin",    "description": "Full administrative access" }
+    ]
+  },
+  "clients": [
+    {
+      "clientId": "acis-frontend",
+      "name": "ACIS Frontend SPA",
+      "enabled": true,
+      "publicClient": true,
+      "standardFlowEnabled": true,
+      "directAccessGrantsEnabled": false,
+      "implicitFlowEnabled": false,
+      "serviceAccountsEnabled": false,
+      "redirectUris": [
+        "http://localhost:3000/*",
+        "http://localhost:3001/*",
+        "http://localhost:3002/*"
+      ],
+
+      "webOrigins": [
+        "http://localhost:3000",
+        "http://localhost:3001",
+        "http://localhost:3002"
+      ],
+
+      "attributes": {
+        "pkce.code.challenge.method": "S256",
+        "post.logout.redirect.uris": "http://localhost:3000/*##http://localhost:3001/*##http://localhost:3002/*"
+
+      },
+      "protocol": "openid-connect",
+      "fullScopeAllowed": true
+    },
+    {
+      "clientId": "acis-backend",
+      "name": "ACIS Backend Services",
+      "enabled": true,
+      "publicClient": false,
+      "secret": "acis-backend-secret",
+      "standardFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": true,
+      "authorizationServicesEnabled": false,
+      "protocol": "openid-connect"
+    }
+  ],
+  "users": [
+    {
+      "username": "admin",
+      "email": "admin@acme.local",
+      "firstName": "ACIS",
+      "lastName": "Admin",
+      "enabled": true,
+      "emailVerified": true,
+      "realmRoles": ["admin", "engineer", "analyst", "viewer"],
+      "credentials": [
+        {
+          "type": "password",
+          "value": "acis123",
+          "temporary": false
+        }
+      ]
+    },
+    {
+      "username": "analyst1",
+      "email": "analyst1@acme.local",
+      "firstName": "Alex",
+      "lastName": "Chen",
+      "enabled": true,
+      "emailVerified": true,
+      "realmRoles": ["analyst", "viewer"],
+      "credentials": [
+        {
+          "type": "password",
+          "value": "acis123",
+          "temporary": false
+        }
+      ]
+    },
+    {
+      "username": "analyst2",
+      "email": "analyst2@acme.local",
+      "firstName": "Sam",
+      "lastName": "Patel",
+      "enabled": true,
+      "emailVerified": true,
+      "realmRoles": ["analyst", "viewer"],
+      "credentials": [
+        {
+          "type": "password",
+          "value": "acis123",
+          "temporary": false
+        }
+      ]
+    }
+  ],
+  "clientScopes": [],
+  "defaultDefaultClientScopes": ["roles", "profile", "email", "web-origins"],
+  "defaultOptionalClientScopes": ["offline_access", "microprofile-jwt"]
+}

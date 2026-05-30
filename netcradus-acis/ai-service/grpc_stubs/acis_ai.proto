@@ -1,0 +1,23 @@
+syntax = "proto3";
+
+package acis.ai;
+
+option java_multiple_files = true;
+option java_package = "com.netcradus.acis.ai.grpc";
+option java_outer_classname = "AcisAiProto";
+
+service ThreatIntelService {
+  rpc EnrichIoc (EnrichIocRequest) returns (EnrichIocResponse);
+}
+
+message EnrichIocRequest {
+  string indicator = 1;
+  string type = 2; // e.g. "IP", "DOMAIN", "HASH"
+}
+
+message EnrichIocResponse {
+  string indicator = 1;
+  int32 threat_score = 2;
+  repeated string categories = 3;
+  string description = 4;
+}

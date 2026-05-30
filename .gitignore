@@ -1,0 +1,75 @@
+# Master gitignore for the entire repository
+
+# Dependencies
+**/node_modules/
+**/bower_components/
+
+# Python Virtual Environments
+**/venv/
+**/.venv/
+**/env/
+**/ENV/
+**/env.bak/
+**/venv.bak/
+**/__pycache__/
+**/*.py[cod]
+**/*$py.class
+
+# Maven/Java Build outputs
+**/target/
+**/build/
+**/out/
+**/*.class
+**/*.jar
+**/*.war
+**/*.ear
+
+# IDEs and Editors
+.idea/
+.vscode/
+**/.idea/
+**/.vscode/
+*.swp
+*.swo
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.iml
+**/*.iml
+**/.classpath
+**/.project
+**/.settings/
+**/.factorypath
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Logs and errors
+*.log
+*.err
+**/*.log
+**/*.err
+
+# Environment and Secrets
+.env
+.env.local
+.env.*.local
+**/.env
+**/.env.local
+**/.env.*.local
+**/*.pem
+**/*.key
+**/*.crt
+
+# Local databases / volumes
+**/data/
+**/db_data/
+**/postgres_data/
+**/mysql_data/
+
+# TypeScript build info
+*.tsbuildinfo
+**/*.tsbuildinfo

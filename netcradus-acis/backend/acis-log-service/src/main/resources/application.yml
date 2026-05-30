@@ -1,0 +1,51 @@
+server:
+  port: 8082
+
+
+spring:
+  application:
+    name: acis-log-service
+
+  # Kafka Configuration
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    consumer:
+      group-id: acis-log-group
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      properties:
+        spring.json.trusted.packages: "*"
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+
+
+  # Elasticsearch Configuration
+  elasticsearch:
+    uris: ${ES_HOST:http://localhost:9200}
+    socket-timeout: 30s
+
+
+  # Security Configuration (Keycloak)
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          jwk-set-uri: ${KEYCLOAK_URL:http://localhost:8180}/realms/${KEYCLOAK_REALM:acis}/protocol/openid-connect/certs
+
+# Actuator Configuration
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus
+  endpoint:
+    health:
+      show-details: always
+
+logging:
+  level:
+    org.springframework.data.elasticsearch: INFO
+    org.springframework.kafka: INFO
+    com.netcradus.acis: DEBUG

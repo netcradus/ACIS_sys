@@ -1,0 +1,23 @@
+# Maven build outputs
+target/
+*.class
+*.jar
+*.war
+*.ear
+
+# Logs and error outputs
+*.log
+*.err
+
+# IDEs and editors
+.idea/
+*.iml
+.classpath
+.project
+.settings/
+.factorypath
+.vscode/
+
+# Local/temporary files
+temp/
+tmp/

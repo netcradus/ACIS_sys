@@ -1,0 +1,16 @@
+# Environment and secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.crt
+
+# Local databases and volumes (if mapped locally)
+**/data/
+**/db_data/
+**/postgres_data/
+**/mysql_data/
+
+# Logs
+*.log

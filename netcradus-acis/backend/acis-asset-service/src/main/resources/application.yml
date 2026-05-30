@@ -1,0 +1,26 @@
+server:
+  port: 8086
+
+
+spring:
+  application:
+    name: acis-asset-service
+  datasource:
+    url: jdbc:postgresql://localhost:5432/acis?options=-c%20timezone=UTC
+    username: acis
+    password: acis_dev_password
+  jpa:
+    hibernate:
+      ddl-auto: update
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: http://localhost:8180/realms/acis
+
+logging:
+  level:
+    com.netcradus.acis: DEBUG

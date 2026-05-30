@@ -1,0 +1,10 @@
+# Root level gitignore
+.env
+.env.local
+.env.*.local
+.vscode/
+.idea/
+*.log
+*.err
+out/
+build/
