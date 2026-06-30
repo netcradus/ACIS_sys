@@ -9,12 +9,12 @@ export default function TopBar() {
   const [showProfile, setShowProfile] = useState(false)
 
   return (
-    <header className="h-20 border-b border-fire-border bg-black/80 backdrop-blur-md px-8 flex items-center justify-between z-10 sticky top-0">
+    <header className="h-20 border-b border-fire-border bg-black/80 backdrop-blur-md px-8 flex items-center justify-between z-20 sticky top-0 overflow-visible">
       <div className="flex items-center gap-6">
         <h2 className="text-[10px] font-black uppercase tracking-[0.3em] text-text-muted hidden lg:block border-r border-fire-border pr-6">
           Security Operations Center
         </h2>
-        
+
         {/* Search Bar - Professional/Technical Look */}
         <div className="relative group min-w-[320px]">
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted group-focus-within:text-accent transition-colors" />
@@ -59,7 +59,7 @@ export default function TopBar() {
           </button>
 
           {showProfile && (
-            <div className="absolute right-0 mt-4 w-56 bg-surface-2 border border-fire-border rounded-2xl shadow-2xl py-2 z-50 animate-fade-in divide-y divide-border">
+            <div className="absolute right-0 mt-4 w-56 bg-surface-2 border border-fire-border rounded-2xl shadow-2xl py-2 z-50 animate-fade-in divide-y divide-border overflow-visible">
               <div className="px-5 py-4">
                 <p className="text-[10px] font-black text-text-muted uppercase tracking-widest mb-1">Session Identity</p>
                 <p className="text-xs font-bold text-white truncate">{user?.email || 'admin@acme.local'}</p>

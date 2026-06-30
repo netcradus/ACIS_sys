@@ -26,7 +26,9 @@
     --info: #00C2FF;
   }
 
-  *, *::before, *::after {
+  *,
+  *::before,
+  *::after {
     box-sizing: border-box;
   }
 
@@ -38,6 +40,10 @@
   body {
     font-family: 'Inter', system-ui, -apple-system, sans-serif;
     background-color: var(--background);
+    background-image: radial-gradient(circle at 18% 10%, rgba(255, 77, 0, 0.14), transparent 18%),
+      radial-gradient(circle at 82% 32%, rgba(0, 194, 255, 0.1), transparent 28%);
+    background-attachment: fixed;
+    min-height: 100vh;
     color: var(--text-primary);
     margin: 0;
     padding: 0;
@@ -46,15 +52,30 @@
     overflow-x: hidden;
   }
 
-  code, pre, .mono {
+  code,
+  pre,
+  .mono {
     font-family: 'JetBrains Mono', 'Fira Code', monospace;
   }
 
   /* Custom scrollbar */
-  ::-webkit-scrollbar       { width: 4px; height: 4px; }
-  ::-webkit-scrollbar-track { background: var(--background); }
-  ::-webkit-scrollbar-thumb { background: var(--surface-3); border-radius: 10px; }
-  ::-webkit-scrollbar-thumb:hover { background: var(--accent); }
+  ::-webkit-scrollbar {
+    width: 4px;
+    height: 4px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: var(--background);
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: var(--surface-3);
+    border-radius: 10px;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: var(--accent);
+  }
 
   /* Focus ring */
   :focus-visible {
@@ -69,6 +90,12 @@
     @apply bg-surface border border-fire-border p-5 rounded-2xl shadow-lg transition-all duration-300;
   }
 
+  .bg-glass-surface {
+    background: rgba(8, 8, 8, 0.82);
+    backdrop-filter: blur(18px);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+  }
+
   .text-metric {
     @apply font-mono font-bold tracking-tighter text-white;
   }
@@ -78,15 +105,11 @@
   }
 
   .btn-fire {
-    @apply inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl bg-accent hover:bg-accent-dark 
-           text-white font-bold text-xs uppercase tracking-widest transition-all duration-200 
-           shadow-lg shadow-accent active:scale-95 disabled:opacity-50;
+    @apply inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl bg-accent hover:bg-accent-dark text-white font-bold text-xs uppercase tracking-widest transition-all duration-200 shadow-lg shadow-accent active:scale-95 disabled:opacity-50;
   }
 
   .btn-mission {
-    @apply inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl bg-surface-2 
-           hover:bg-surface-3 text-text-primary border border-fire-border font-bold text-xs 
-           uppercase tracking-widest transition-all duration-200 active:scale-95;
+    @apply inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl bg-surface-2 hover:bg-surface-3 text-text-primary border border-fire-border font-bold text-xs uppercase tracking-widest transition-all duration-200 active:scale-95;
   }
 
   /* AG Grid Mission Control Theme */
@@ -116,21 +139,43 @@
   .shadow-accent-glow {
     filter: drop-shadow(0 0 8px rgba(255, 77, 0, 0.3));
   }
-  
+
   .border-glow-orange {
     box-shadow: 0 0 15px rgba(255, 77, 0, 0.1);
   }
 
-  .animate-fade-in { animation: fadeIn 0.3s ease-out; }
-  .animate-ticker  { animation: ticker 30s linear infinite; }
+  .animate-fade-in {
+    animation: fadeIn 0.3s ease-out;
+  }
+
+  .animate-slide-up {
+    animation: fadeIn 0.35s ease-out both;
+    transform: translateY(6px);
+  }
+
+  .animate-ticker {
+    animation: ticker 30s linear infinite;
+  }
 }
 
 @keyframes fadeIn {
-  from { opacity: 0; transform: translateY(4px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 @keyframes ticker {
-  0%   { transform: translateX(100%); }
-  100% { transform: translateX(-100%); }
+  0% {
+    transform: translateX(100%);
+  }
+
+  100% {
+    transform: translateX(-100%);
+  }
 }

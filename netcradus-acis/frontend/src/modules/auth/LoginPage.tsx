@@ -21,7 +21,7 @@ export default function LoginPage() {
       <div className="absolute top-0 left-0 w-full h-full pointer-events-none overflow-hidden">
         <div className="absolute -top-1/4 -left-1/4 w-1/2 h-1/2 bg-accent/10 blur-[150px] rounded-full" />
         <div className="absolute -bottom-1/4 -right-1/4 w-1/2 h-1/2 bg-secondary/10 blur-[150px] rounded-full" />
-        
+
         {/* Grid pattern */}
         <div className="absolute inset-0 opacity-[0.03] bg-[linear-gradient(to_right,#808080_1px,transparent_1px),linear-gradient(to_bottom,#808080_1px,transparent_1px)] bg-[size:40px_40px]" />
       </div>
@@ -42,7 +42,7 @@ export default function LoginPage() {
         </div>
 
         {/* Action Card */}
-        <div className="bg-surface/50 backdrop-blur-xl border border-surface-2 rounded-3xl p-8 shadow-2xl relative overflow-hidden">
+        <div className="bg-glass-surface border-fire-border/40 rounded-3xl p-8 shadow-2xl relative overflow-hidden">
           <div className="relative z-10">
             <h2 className="text-xl font-bold text-white mb-2">Welcome Back</h2>
             <p className="text-sm text-text-muted mb-8 italic">Please sign in to access the command center</p>
@@ -74,8 +74,8 @@ export default function LoginPage() {
           </div>
 
           {/* Card Accent */}
-          <div className="absolute top-0 right-0 w-24 h-24 bg-accent/5 blur-3xl" />
-          <div className="absolute bottom-0 left-0 w-24 h-24 bg-secondary/5 blur-3xl" />
+          <div className="absolute top-0 right-0 w-28 h-28 bg-accent/10 blur-3xl" />
+          <div className="absolute bottom-0 left-0 w-28 h-28 bg-secondary/10 blur-3xl" />
         </div>
 
         {/* Footer */}
