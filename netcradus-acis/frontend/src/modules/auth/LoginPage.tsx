@@ -12,7 +12,10 @@ export default function LoginPage() {
   }
 
   const handleLogin = () => {
-    keycloak.login()
+    keycloak.login({
+      pkceMethod: 'S256',
+      redirectUri: `${window.location.origin}/login`,
+    })
   }
 
   return (

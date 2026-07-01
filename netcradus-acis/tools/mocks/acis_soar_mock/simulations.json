@@ -1,77 +1,77 @@
 [
-    {
-        "id": "8092affb-a15f-4311-8707-5a6732a9f187",
-        "name": "Phishing → Initial Access",
-        "description": "Simulates a spear-phishing payload execution",
-        "mitreTechniques": [
-            "T1566.001",
-            "T1059.001"
-        ],
-        "mitreTactics": [
-            "Initial Access",
-            "Execution"
-        ],
-        "steps": [
-            {
-                "step": "email"
-            },
-            {
-                "step": "attachment"
-            }
-        ],
-        "run_count": 5,
-        "last_run_at": null
-    },
-    {
-        "id": "dff3f373-32df-410a-84a3-838399c240f2",
-        "name": "Living-off-the-Land Lateral",
-        "description": "Uses PSExec and WMI for lateral movement",
-        "mitreTechniques": [
-            "T1047",
-            "T1569.002"
-        ],
-        "mitreTactics": [
-            "Lateral Movement",
-            "Execution"
-        ],
-        "steps": [
-            {
-                "step": "psexec"
-            },
-            {
-                "step": "wmi"
-            },
-            {
-                "step": "smb"
-            }
-        ],
-        "run_count": 2,
-        "last_run_at": null
-    },
-    {
-        "id": "fbed158a-9e7e-42de-b3ed-3e354e9560df",
-        "name": "Data Exfil via DNS",
-        "description": "Exfiltrates simulated sensitive data over DNS queries",
-        "mitreTechniques": [
-            "T1048.003",
-            "T1560"
-        ],
-        "mitreTactics": [
-            "Exfiltration",
-            "Collection"
-        ],
-        "steps": [
-            {
-                "step": "collect"
-            },
-            {
-                "step": "compress"
-            },
-            {
-                "step": "dns_query"
-            }
-        ],
-        "run_count": 8,
-        "last_run_at": null
-    }
+  {
+    "id": "8092affb-a15f-4311-8707-5a6732a9f187",
+    "name": "Phishing \u2192 Initial Access",
+    "description": "Simulates a spear-phishing payload execution",
+    "mitreTechniques": [
+      "T1566.001",
+      "T1059.001"
+    ],
+    "mitreTactics": [
+      "Initial Access",
+      "Execution"
+    ],
+    "steps": [
+      {
+        "step": "email"
+      },
+      {
+        "step": "attachment"
+      }
+    ],
+    "run_count": 16,
+    "last_run_at": "2026-07-01T06:55:59.577730Z"
+  },
+  {
+    "id": "dff3f373-32df-410a-84a3-838399c240f2",
+    "name": "Living-off-the-Land Lateral",
+    "description": "Uses PSExec and WMI for lateral movement",
+    "mitreTechniques": [
+      "T1047",
+      "T1569.002"
+    ],
+    "mitreTactics": [
+      "Lateral Movement",
+      "Execution"
+    ],
+    "steps": [
+      {
+        "step": "psexec"
+      },
+      {
+        "step": "wmi"
+      },
+      {
+        "step": "smb"
+      }
+    ],
+    "run_count": 11,
+    "last_run_at": "2026-07-01T06:55:58.804293Z"
+  },
+  {
+    "id": "fbed158a-9e7e-42de-b3ed-3e354e9560df",
+    "name": "Data Exfil via DNS",
+    "description": "Exfiltrates simulated sensitive data over DNS queries",
+    "mitreTechniques": [
+      "T1048.003",
+      "T1560"
+    ],
+    "mitreTactics": [
+      "Exfiltration",
+      "Collection"
+    ],
+    "steps": [
+      {
+        "step": "collect"
+      },
+      {
+        "step": "compress"
+      },
+      {
+        "step": "dns_query"
+      }
+    ],
+    "run_count": 12,
+    "last_run_at": "2026-07-01T06:55:55.343556Z"
+  }
 ]

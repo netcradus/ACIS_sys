@@ -19,6 +19,7 @@ async function bootstrap() {
     const authenticated = await keycloak.init({
       checkLoginIframe: false,
       pkceMethod: 'S256',
+      flow: 'standard',
     })
 
 
@@ -27,9 +28,9 @@ async function bootstrap() {
       const roles: string[] = (tp.realm_access as { roles?: string[] })?.roles ?? []
 
       const user: AuthUser = {
-        sub:               (tp.sub  as string) ?? '',
-        email:             (tp.email as string) ?? '',
-        name:              (tp.name  as string) ?? (tp.preferred_username as string) ?? '',
+        sub: (tp.sub as string) ?? '',
+        email: (tp.email as string) ?? '',
+        name: (tp.name as string) ?? (tp.preferred_username as string) ?? '',
         preferredUsername: (tp.preferred_username as string) ?? '',
         roles,
       }

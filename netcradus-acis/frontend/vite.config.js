@@ -15,6 +15,14 @@ export default defineConfig({
     server: {
         port: 3000,
         proxy: {
+            '/api/soar': {
+                target: 'http://localhost:8085',
+                changeOrigin: true,
+            },
+            '/api/red-team': {
+                target: 'http://localhost:8085',
+                changeOrigin: true,
+            },
             '/api': {
                 target: 'http://localhost:8080',
                 changeOrigin: true,
