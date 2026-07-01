@@ -1,0 +1,41 @@
+[
+    {
+        "id": "58565739-980f-4670-9325-f2e54d8f2fa9",
+        "name": "Isolate Endpoint (EDR)",
+        "description": "6 steps • last run 1h ago",
+        "steps": [
+            {
+                "type": "isolate"
+            }
+        ],
+        "success_count": 97,
+        "run_count": 100,
+        "last_run_at": null
+    },
+    {
+        "id": "2de5d00c-7138-4856-8c11-e0d4d8d15361",
+        "name": "Reset Compromised Account",
+        "description": "5 steps • last run 2h ago",
+        "steps": [
+            {
+                "type": "reset_account"
+            }
+        ],
+        "success_count": 92,
+        "run_count": 100,
+        "last_run_at": null
+    },
+    {
+        "id": "c718bcbe-07b2-4f53-b891-fb9ceeeac3d7",
+        "name": "Block Domain on FW & Proxy",
+        "description": "4 steps • last run 20m ago",
+        "steps": [
+            {
+                "type": "block_domain"
+            }
+        ],
+        "success_count": 99,
+        "run_count": 100,
+        "last_run_at": null
+    }
+]

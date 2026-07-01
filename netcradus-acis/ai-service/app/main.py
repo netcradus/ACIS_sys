@@ -128,6 +128,29 @@ async def classify_threat(event: dict):
 async def health_check():
     return {"status": "ok", "components": {"xgboost": XGBOOST_AVAILABLE}}
 
+@app.post("/ai/mitre")
+async def mitre_map(request: QueryRequest):
+    # Map a free-text description to a MITRE ATT&CK technique using the FAISS index if available
+    query = request.query
+    if getattr(app.state, 'faiss_index', None) is None or app.state.mitre_data is None:
+        # Fallback mock response
+        return JSONResponse(content={"technique_id": "T1566.001", "technique_name": "Spearphishing Attachment", "tactic": "initial-access", "similarity": 0.93}, headers={"X-ACIS-AI-Mode": "mock"})
+
+    try:
+        import numpy as np
+        q_emb = app.state.embedder.encode([query])
+        D, I = app.state.faiss_index.search(np.array(q_emb).astype('float32'), 1)
+        idx = int(I[0][0])
+        technique = app.state.mitre_data[idx]
+        return {
+            "technique_id": technique.get("id"),
+            "technique_name": technique.get("name"),
+            "tactic": technique.get("tactic"),
+            "similarity": float(D[0][0])
+        }
+    except Exception as e:
+        logger.error(f"MITRE mapping failed: {e}")
+        return JSONResponse(content={"technique_id": "T1566.001", "technique_name": "Spearphishing Attachment", "tactic": "initial-access", "similarity": 0.0}, headers={"X-ACIS-AI-Mode": "mock"})
 # gRPC will be started independently below if `__name__ == '__main__'`
 def serve_grpc():
     import grpc
