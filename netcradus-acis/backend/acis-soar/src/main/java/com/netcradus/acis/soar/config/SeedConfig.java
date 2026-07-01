@@ -1,7 +1,9 @@
 package com.netcradus.acis.soar.config;
 
+import com.netcradus.acis.soar.model.AuditEntry;
 import com.netcradus.acis.soar.model.Playbook;
 import com.netcradus.acis.soar.model.RedTeamSimulation;
+import com.netcradus.acis.soar.repository.AuditEntryRepository;
 import com.netcradus.acis.soar.repository.PlaybookRepository;
 import com.netcradus.acis.soar.repository.RedTeamSimulationRepository;
 import lombok.RequiredArgsConstructor;
@@ -20,6 +22,7 @@ public class SeedConfig {
 
     private final PlaybookRepository playbookRepository;
     private final RedTeamSimulationRepository simulationRepository;
+    private final AuditEntryRepository auditEntryRepository;
 
     @Bean
     public CommandLineRunner seedData() {
@@ -95,6 +98,55 @@ public class SeedConfig {
                 s3.setRunCount(8);
                 s3.setLastRunAt(OffsetDateTime.now().minusHours(5));
                 simulationRepository.save(s3);
+            }
+
+            if (auditEntryRepository.count() == 0) {
+                log.info("Seeding Audit Trail entries...");
+
+                AuditEntry a1 = new AuditEntry();
+                a1.setTenantId(defaultTenantId);
+                a1.setUser("analyst2@acis");
+                a1.setAction("PLAYBOOK_EXECUTE");
+                a1.setResource("soar/block-domain");
+                a1.setIp("192.168.1.44");
+                a1.setStatus("Success");
+                auditEntryRepository.save(a1);
+
+                AuditEntry a2 = new AuditEntry();
+                a2.setTenantId(defaultTenantId);
+                a2.setUser("analyst1@acis");
+                a2.setAction("ALERT_ASSIGN");
+                a2.setResource("alert/AL-1000");
+                a2.setIp("192.168.1.22");
+                a2.setStatus("Success");
+                auditEntryRepository.save(a2);
+
+                AuditEntry a3 = new AuditEntry();
+                a3.setTenantId(defaultTenantId);
+                a3.setUser("analyst3@acis");
+                a3.setAction("RULE_TOGGLE");
+                a3.setResource("corr/impossible-travel");
+                a3.setIp("192.168.1.67");
+                a3.setStatus("Success");
+                auditEntryRepository.save(a3);
+
+                AuditEntry a4 = new AuditEntry();
+                a4.setTenantId(defaultTenantId);
+                a4.setUser("admin@acme");
+                a4.setAction("USER_CREATE");
+                a4.setResource("users/analyst4");
+                a4.setIp("10.0.1.5");
+                a4.setStatus("Success");
+                auditEntryRepository.save(a4);
+
+                AuditEntry a5 = new AuditEntry();
+                a5.setTenantId(defaultTenantId);
+                a5.setUser("analyst2@acis");
+                a5.setAction("IOC_ENRICH");
+                a5.setResource("threat-intel/185...");
+                a5.setIp("192.168.1.44");
+                a5.setStatus("Success");
+                auditEntryRepository.save(a5);
             }
         };
     }
