@@ -1,37 +1,60 @@
 import React, { useState, useEffect, useMemo } from 'react'
 import { AlertTriangle, ShieldAlert, Bell, Clock, User, Filter, RefreshCw, X, ChevronRight, Zap, Target, Search } from 'lucide-react'
-import { AgGridReact } from 'ag-grid-react'
-import { ColDef, GridApi } from 'ag-grid-community'
 import apiClient from '@/lib/apiClient'
 import wsClient from '@/lib/wsClient'
 import { clsx } from 'clsx'
 
 interface Alert {
   id: string
+  title: string
   severity: string
   source: string
   status: string
-  ownerName: string
+  ownerId: string | null
+  rawEvent: string | null
   createdAt: string
   updatedAt: string
+}
+
+interface Incident {
+  id: string
+  title: string
+  severity: string
+  status: string
+  owner: string
+  createdAt: string
 }
 
 export default function AlertsPage() {
   const [alerts, setAlerts] = useState<Alert[]>([])
   const [selectedAlert, setSelectedAlert] = useState<Alert | null>(null)
+  const [selectedIncident, setSelectedIncident] = useState<Incident | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const [activeTab, setActiveTab] = useState<'ALERTS' | 'INCIDENTS'>('ALERTS')
-  const [gridApi, setGridApi] = useState<GridApi | null>(null)
-  
-  const [isExplaining, setIsExplaining] = useState(false)
-  const [aiExplanation, setAiExplanation] = useState<any>(null)
-  const [demoMode, setDemoMode] = useState(false)
+  const [searchTerm, setSearchTerm] = useState('')
+  const [severityFilter, setSeverityFilter] = useState<'ALL' | 'CRITICAL' | 'HIGH' | 'OPEN'>('ALL')
+
+  // Local state for Incidents
+  const [incidents, setIncidents] = useState<Incident[]>([
+    { id: 'INC-1001', title: 'Multiple Host Compromise via Ransomware', severity: 'CRITICAL', status: 'ACTIVE', owner: 'analyst1', createdAt: new Date(Date.now() - 3600000 * 2).toISOString() },
+    { id: 'INC-1002', title: 'Data Leak to External File Sharing Domain', severity: 'HIGH', status: 'INVESTIGATING', owner: 'analyst2', createdAt: new Date(Date.now() - 3600000 * 5).toISOString() },
+    { id: 'INC-1003', title: 'Active Brute Force on VPN Gateway', severity: 'HIGH', status: 'ACTIVE', owner: 'analyst3', createdAt: new Date(Date.now() - 3600000 * 8).toISOString() },
+    { id: 'INC-1004', title: 'Phishing Outbreak Targeting Financial Division', severity: 'MEDIUM', status: 'MITIGATED', owner: 'analyst1', createdAt: new Date(Date.now() - 3600000 * 12).toISOString() },
+    { id: 'INC-1005', title: 'Suspicious Domain Controller Access Pattern', severity: 'CRITICAL', status: 'MITIGATED', owner: 'analyst2', createdAt: new Date(Date.now() - 3600000 * 24).toISOString() }
+  ])
 
   const fetchAlerts = async () => {
     setIsLoading(true)
     try {
       const response = await apiClient.get('/api/alerts')
-      setAlerts(response.data)
+      // Sort alerts: OPEN/CRITICAL first, or sorted by id/createdAt
+      const sortedAlerts = response.data.sort((a: Alert, b: Alert) => b.id.localeCompare(a.id))
+      setAlerts(sortedAlerts)
+      
+      // Auto-select first alert if none selected
+      if (sortedAlerts.length > 0 && !selectedAlert) {
+        setSelectedAlert(sortedAlerts[0])
+      }
     } catch (error) {
       console.error('Failed to fetch alerts:', error)
     } finally {
@@ -46,295 +69,591 @@ export default function AlertsPage() {
     const sub = wsClient.subscribe('/topic/alerts', (message) => {
       try {
         const newAlert = JSON.parse(message.body)
-        setAlerts(prev => [newAlert, ...prev])
+        setAlerts(prev => {
+          // Avoid duplicate inserts
+          if (prev.some(a => a.id === newAlert.id)) return prev
+          return [newAlert, ...prev]
+        })
       } catch (e) {
         console.error('Malformed WebSocket message:', e)
-        fetchAlerts() // Fallback to re-fetch
+        fetchAlerts() // Fallback
       }
     })
     
     return () => { 
-        sub.then(s => s?.unsubscribe())
+      sub.then(s => s?.unsubscribe())
     }
   }, [])
 
-  const onSelectionChanged = () => {
-    const selectedRows = gridApi?.getSelectedRows()
-    if (selectedRows && selectedRows.length > 0) {
-      setSelectedAlert(selectedRows[0])
-      setAiExplanation(null)
-      setDemoMode(false)
-    }
-  }
-
-  const handleExplain = async () => {
-    if (!selectedAlert) return
-    setIsExplaining(true)
-    setDemoMode(false)
+  // Assign Alert to User
+  const handleAssignToMe = async (alertId: string) => {
     try {
-      const response = await apiClient.post(`/api/alerts/${selectedAlert.id}/explain`, { raw_alert: selectedAlert })
-      setAiExplanation(response.data)
-      if (response.headers['x-acis-ai-mode'] === 'mock') {
-         setDemoMode(true)
+      // Fetch currently logged in analyst (represented as analyst1 for demo or from session)
+      const targetOwner = 'analyst1'
+      const res = await apiClient.put(`/api/alerts/${alertId}`, { ownerId: targetOwner })
+      if (res.data) {
+        setAlerts(prev => prev.map(a => a.id === alertId ? { ...a, ownerId: targetOwner } : a))
+        setSelectedAlert(prev => prev && prev.id === alertId ? { ...prev, ownerId: targetOwner } : prev)
       }
     } catch (e) {
-      console.error(e)
-    } finally {
-      setIsExplaining(false)
+      console.error('Failed to assign alert:', e)
     }
   }
 
-  const columnDefs = useMemo<ColDef[]>(() => [
-    { 
-      field: 'id', 
-      headerName: 'ID', 
-      width: 110,
-      checkboxSelection: true,
-      cellRenderer: (params: any) => (
-        <span className="font-mono text-[11px] font-black text-accent tracking-tighter">{params.value}</span>
-      )
-    },
-    { 
-      field: 'title', 
-      headerName: 'Detection Title', 
-      flex: 1,
-      cellRenderer: (params: any) => (
-        <div className="flex flex-col py-2.5 leading-tight">
-          <span className="font-black text-white text-xs tracking-tight uppercase line-clamp-1">{params.value}</span>
-          <span className="text-[9px] text-text-muted font-bold uppercase tracking-[0.2em] mt-0.5">{params.data.source || 'INTERNAL'}</span>
-        </div>
-      )
-    },
-    { 
-      field: 'severity', 
-      headerName: 'Severity', 
-      width: 120,
-      cellRenderer: (params: any) => {
-        const sev = params.value?.toUpperCase() || 'LOW'
-        return (
-          <div className={clsx(
-            "px-2.5 py-0.5 rounded-md text-[9px] font-black uppercase tracking-widest inline-flex items-center gap-2 border",
-            sev === 'CRITICAL' ? "bg-danger/10 text-danger border-danger/20" :
-            sev === 'HIGH' ? "bg-orange-500/10 text-orange-400 border-orange-500/20" :
-            sev === 'MEDIUM' ? "bg-yellow-500/10 text-yellow-400 border-yellow-500/20" :
-            "bg-blue-500/10 text-blue-400 border-blue-500/20"
-          )}>
-            <div className={clsx("w-1 h-1 rounded-full", sev === 'CRITICAL' && "bg-danger animate-pulse")} />
-            {sev}
-          </div>
-        )
-      }
-    },
-    { 
-      field: 'status', 
-      headerName: 'Workflow State', 
-      width: 140,
-      cellRenderer: (params: any) => (
-        <span className="text-[10px] font-black text-accent uppercase tracking-tighter bg-accent/5 px-2 py-1 rounded-md border border-accent/20 underline decoration-dotted underline-offset-4">
-          {params.value || 'OPEN'}
-        </span>
-      )
-    },
-    { 
-      field: 'ownerName', 
-      headerName: 'Assignee', 
-      width: 140,
-      cellRenderer: (params: any) => (
-        <div className="flex items-center gap-2.5">
-          <div className="w-6 h-6 rounded-lg bg-surface-3 flex items-center justify-center border border-fire-border">
-            <User className="w-3 h-3 text-text-secondary" />
-          </div>
-          <span className="text-[11px] font-bold text-text-secondary uppercase tracking-tight">{params.value || 'UNASSIGNED'}</span>
-        </div>
-      )
-    },
-    { 
-      field: 'createdAt', 
-      headerName: 'Detection Time', 
-      width: 180,
-      cellRenderer: (params: any) => (
-        <div className="flex items-center gap-2 text-text-muted font-mono text-[10px] font-bold">
-          <Clock className="w-3 h-3 opacity-50" />
-          {params.value ? new Date(params.value).toISOString().replace('T', ' ').substring(0, 19) : '---'}
-        </div>
-      )
+  // Create Incident from Alert
+  const handleCreateIncident = (alert: Alert) => {
+    const incId = `INC-${1000 + incidents.length + 1}`
+    const newInc: Incident = {
+      id: incId,
+      title: alert.title,
+      severity: alert.severity,
+      status: 'ACTIVE',
+      owner: alert.ownerId || 'analyst1',
+      createdAt: new Date().toISOString()
     }
-  ], [])
+    setIncidents(prev => [newInc, ...prev])
+    alert(`Incident ${incId} created successfully from Alert ${alert.id}!`)
+    
+    // Switch to incidents tab and select it
+    setActiveTab('INCIDENTS')
+    setSelectedIncident(newInc)
+    setSelectedAlert(null)
+  }
 
+  // Quick state update helper
+  const handleUpdateStatus = async (alertId: string, newStatus: string) => {
+    try {
+      const res = await apiClient.put(`/api/alerts/${alertId}`, { status: newStatus })
+      if (res.data) {
+        setAlerts(prev => prev.map(a => a.id === alertId ? { ...a, status: newStatus } : a))
+        setSelectedAlert(prev => prev && prev.id === alertId ? { ...prev, status: newStatus } : prev)
+      }
+    } catch (e) {
+      console.error('Failed to update status:', e)
+    }
+  }
+
+  // Execute SOAR Playbook
+  const handleRunPlaybook = async (alertId: string) => {
+    try {
+      const pbs = await apiClient.get('/api/soar/playbooks')
+      if (pbs.data && pbs.data.length > 0) {
+        // execute first playbook for this alert
+        await apiClient.post(`/api/soar/playbooks/${pbs.data[0].id}/execute`, { alertId })
+        alert(`SOAR Playbook '${pbs.data[0].name}' executed successfully! Status updated to MITIGATED.`)
+        handleUpdateStatus(alertId, 'MITIGATED')
+      } else {
+        alert('No active SOAR playbooks found.')
+      }
+    } catch (e) {
+      console.error('Playbook execution failed:', e)
+      alert('Error triggering SOAR playbook execution.')
+    }
+  }
+
+  // Counts calculated dynamically
+  const criticalCount = alerts.filter(a => a.severity === 'CRITICAL').length
+  const highCount = alerts.filter(a => a.severity === 'HIGH').length
+  const openCount = alerts.filter(a => a.status === 'OPEN').length
+
+  // Filter logic
+  const filteredAlerts = useMemo(() => {
+    return alerts.filter(a => {
+      const matchesSearch = a.title.toLowerCase().includes(searchTerm.toLowerCase()) || a.id.toLowerCase().includes(searchTerm.toLowerCase())
+      if (!matchesSearch) return false
+
+      if (severityFilter === 'CRITICAL') return a.severity === 'CRITICAL'
+      if (severityFilter === 'HIGH') return a.severity === 'HIGH'
+      if (severityFilter === 'OPEN') return a.status === 'OPEN'
+      return true
+    })
+  }, [alerts, searchTerm, severityFilter])
+
+  const filteredIncidents = useMemo(() => {
+    return incidents.filter(i => {
+      const matchesSearch = i.title.toLowerCase().includes(searchTerm.toLowerCase()) || i.id.toLowerCase().includes(searchTerm.toLowerCase())
+      if (!matchesSearch) return false
+
+      if (severityFilter === 'CRITICAL') return i.severity === 'CRITICAL'
+      if (severityFilter === 'HIGH') return i.severity === 'HIGH'
+      if (severityFilter === 'OPEN') return i.status === 'ACTIVE'
+      return true
+    })
+  }, [incidents, searchTerm, severityFilter])
+
+  // Parse Raw Event
+  const parsedEvent = useMemo(() => {
+    if (!selectedAlert || !selectedAlert.rawEvent) {
+      return {
+        eventId: 4625,
+        src_ip: "10.0.12.44",
+        user: "j.singh",
+        target: "dc-prod-01",
+        failures: 847,
+        window: "60s"
+      }
+    }
+    try {
+      return JSON.parse(selectedAlert.rawEvent)
+    } catch (e) {
+      return { error: 'Failed to parse raw event data', raw: selectedAlert.rawEvent }
+    }
+  }, [selectedAlert])
+
+  // Get Risk Indicators based on selected alert
+  const riskIndicators = useMemo(() => {
+    if (!selectedAlert) return []
+    try {
+      const title = selectedAlert.title.toLowerCase()
+      if (title.includes('stuffing') || title.includes('login') || title.includes('failure')) {
+        const failures = parsedEvent?.failures || 847
+        const srcIp = parsedEvent?.src_ip || '10.0.12.44'
+        const target = parsedEvent?.target || 'dc-prod-01'
+        return [
+          { label: `${failures} failed authentications in 60 seconds`, color: 'border-l-red-500' },
+          { label: `Source IP ${srcIp} — 1st appearance`, color: 'border-l-orange-500' },
+          { label: `Target: ${target}`, color: 'border-l-yellow-500' }
+        ]
+      }
+      if (title.includes('beaconing') || title.includes('domain') || title.includes('outbound')) {
+        const domain = parsedEvent?.domain || 'cdn-x7.io'
+        const dest = parsedEvent?.destination || '185.199.110.153'
+        const src = parsedEvent?.src_ip || '10.0.12.50'
+        return [
+          { label: `Egress traffic to anomalous domain ${domain}`, color: 'border-l-red-500' },
+          { label: `Source host: ${src}`, color: 'border-l-orange-500' },
+          { label: `Destination IP: ${dest}`, color: 'border-l-yellow-500' }
+        ]
+      }
+      if (title.includes('asr') || title.includes('bypass') || title.includes('lolbin')) {
+        const proc = parsedEvent?.process || 'powershell.exe'
+        const parent = parsedEvent?.parent_process || 'cmd.exe'
+        return [
+          { label: `ASR bypass trigger by ${proc}`, color: 'border-l-red-500' },
+          { label: `Parent process: ${parent}`, color: 'border-l-orange-500' },
+          { label: `Command arguments bypass detection signatures`, color: 'border-l-yellow-500' }
+        ]
+      }
+      if (title.includes('travel')) {
+        const user = parsedEvent?.user || 'a.patel'
+        const c1 = parsedEvent?.login_1_city || 'Mumbai'
+        const c2 = parsedEvent?.login_2_city || 'London'
+        return [
+          { label: `User ${user} travel anomaly detected`, color: 'border-l-red-500' },
+          { label: `Login 1: ${c1} | Login 2: ${c2}`, color: 'border-l-orange-500' },
+          { label: `Time difference of 15 minutes physically impossible`, color: 'border-l-yellow-500' }
+        ]
+      }
+    } catch (e) {
+      // fallback
+    }
+    return [
+      { label: `Anomalous security alert trigger`, color: 'border-l-red-500' },
+      { label: `Source component: ${selectedAlert.source}`, color: 'border-l-orange-500' },
+      { label: `Risk rating calculated based on alert signature`, color: 'border-l-yellow-500' }
+    ]
+  }, [selectedAlert, parsedEvent])
+
+  const getSeverityBadge = (sev: string) => {
+    const s = sev?.toUpperCase() || 'LOW'
+    if (s === 'CRITICAL') return 'bg-red-500/10 text-red-500 border border-red-500/25 px-2 py-0.5 rounded text-[10px] font-bold'
+    if (s === 'HIGH') return 'bg-orange-500/10 text-orange-400 border border-orange-500/25 px-2 py-0.5 rounded text-[10px] font-bold'
+    if (s === 'MEDIUM') return 'bg-yellow-500/10 text-yellow-400 border border-yellow-500/25 px-2 py-0.5 rounded text-[10px] font-bold'
+    return 'bg-blue-500/10 text-blue-400 border border-blue-500/25 px-2 py-0.5 rounded text-[10px] font-bold'
+  }
+
+  const getStatusBadge = (status: string) => {
+    const s = status?.toUpperCase() || 'OPEN'
+    if (s === 'OPEN' || s === 'ACTIVE') return 'bg-red-500/5 text-red-500 border border-red-500/20 px-2.5 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider'
+    if (s === 'INVESTIGATING') return 'bg-orange-500/5 text-orange-400 border border-orange-500/20 px-2.5 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider'
+    if (s === 'MITIGATED') return 'bg-emerald-500/5 text-emerald-400 border border-emerald-500/20 px-2.5 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider'
+    return 'bg-neutral-800 text-neutral-500 px-2.5 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider'
+  }
 
   return (
-    <div className="h-[calc(100vh-180px)] flex flex-col gap-6 animate-fade-in">
-      {/* Module Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <div className="flex bg-surface-2 p-1 rounded-xl border border-fire-border">
-            <button 
-              onClick={() => setActiveTab('ALERTS')}
-              className={clsx(
-                "px-6 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all inline-flex items-center gap-2",
-                activeTab === 'ALERTS' ? "bg-accent text-white shadow-lg shadow-accent/20" : "text-text-muted hover:text-white"
-              )}
-            >
-              Alerts <span className="opacity-50">• {alerts.length}</span>
-            </button>
-            <button 
-              onClick={() => setActiveTab('INCIDENTS')}
-              className={clsx(
-                "px-6 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all inline-flex items-center gap-2",
-                activeTab === 'INCIDENTS' ? "bg-accent text-white shadow-lg shadow-accent/20" : "text-text-muted hover:text-white"
-              )}
-            >
-              Incidents <span className="opacity-50">• 5</span>
-            </button>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-3">
-          <div className="relative group overflow-hidden rounded-xl border border-fire-border bg-surface-2">
-             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-text-muted" />
-             <input 
-              type="text" 
-              placeholder="FILTER ALERTS..." 
-              className="bg-transparent pl-10 pr-4 py-2 text-[10px] font-bold uppercase tracking-widest placeholder:text-text-muted focus:outline-none w-64"
-             />
-          </div>
-          <button onClick={fetchAlerts} className="btn-mission px-3">
-            <RefreshCw className={clsx("w-4 h-4", isLoading && "animate-spin")} />
-          </button>
+    <div className="space-y-6 animate-fade-in flex flex-col h-full bg-[#050506] text-neutral-300 p-6 min-h-screen">
+      
+      {/* Search Header */}
+      <div className="flex items-center justify-between border-b border-neutral-900 pb-4">
+        <h1 className="text-xl font-bold text-white tracking-tight uppercase">Alerts & Incidents</h1>
+        <div className="relative w-80 bg-[#0C0C0D] border border-neutral-800 rounded-xl overflow-hidden">
+          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-500" />
+          <input 
+            type="text" 
+            placeholder="Search alerts..." 
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full bg-transparent pl-10 pr-4 py-2 text-xs placeholder:text-neutral-600 text-white focus:outline-none focus:border-neutral-700"
+          />
         </div>
       </div>
 
-      <div className="flex-1 flex gap-6 overflow-hidden">
-        {/* Main Grid Table */}
-        <div className="flex-1 min-w-0 bg-surface border border-fire-border rounded-3xl overflow-hidden shadow-2xl">
-          <div className="ag-theme-alpine ag-theme-acis w-full h-full">
-            <AgGridReact
-              rowData={alerts}
-              columnDefs={columnDefs}
-              animateRows={true}
-              headerHeight={52}
-              rowHeight={58}
-              rowSelection="single"
-              onGridReady={(params) => setGridApi(params.api)}
-              onSelectionChanged={onSelectionChanged}
-              overlayNoRowsTemplate="<span class='text-text-muted font-bold uppercase tracking-[0.2em] text-[10px]'>Scanning for threats...</span>"
-            />
+      {/* Tabs */}
+      <div className="flex items-center gap-3">
+        <button 
+          onClick={() => { setActiveTab('ALERTS'); setSelectedIncident(null); if (alerts.length > 0) setSelectedAlert(alerts[0]); }}
+          className={clsx(
+            "px-5 py-2 rounded-xl text-xs font-bold transition-all duration-150 flex items-center gap-1.5 focus:outline-none",
+            activeTab === 'ALERTS' 
+              ? "bg-[#FF5A1F] text-white" 
+              : "bg-[#0C0C0D] border border-neutral-800 text-neutral-400 hover:text-white"
+          )}
+        >
+          Alerts <span className={clsx("text-[10px] opacity-70", activeTab === 'ALERTS' ? "text-white" : "text-neutral-500")}>• {alerts.length}</span>
+        </button>
+        <button 
+          onClick={() => { setActiveTab('INCIDENTS'); setSelectedAlert(null); if (incidents.length > 0) setSelectedIncident(incidents[0]); }}
+          className={clsx(
+            "px-5 py-2 rounded-xl text-xs font-bold transition-all duration-150 flex items-center gap-1.5 focus:outline-none",
+            activeTab === 'INCIDENTS' 
+              ? "bg-[#FF5A1F] text-white" 
+              : "bg-[#0C0C0D] border border-neutral-800 text-neutral-400 hover:text-white"
+          )}
+        >
+          Incidents <span className={clsx("text-[10px] opacity-70", activeTab === 'INCIDENTS' ? "text-white" : "text-neutral-500")}>• {incidents.length}</span>
+        </button>
+      </div>
+
+      {/* Table & Drawer Main Content */}
+      <div className="grid grid-cols-1 md:grid-cols-12 gap-5 items-start">
+        
+        {/* Left Side: Main table */}
+        <div className={clsx(
+          "bg-[#0C0C0D] border border-neutral-800 rounded-xl p-5 shadow-sm space-y-4 transition-all duration-300",
+          (selectedAlert || selectedIncident) ? "md:col-span-8" : "md:col-span-12"
+        )}>
+          
+          {/* Deduplication Title & Filter Badges */}
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 border-b border-neutral-900 pb-3">
+            <span className="text-[11px] text-neutral-500 font-bold uppercase tracking-wider">
+              {activeTab === 'ALERTS' 
+                ? 'Alerts — Deduplicated notable events with ownership & workflow'
+                : 'Incidents — High-priority security incidents escalated from investigations'}
+            </span>
+            <div className="flex items-center gap-2">
+              <button 
+                onClick={() => setSeverityFilter('ALL')}
+                className={clsx(
+                  "px-3 py-1 rounded-lg text-[10px] font-bold uppercase transition-all focus:outline-none border",
+                  severityFilter === 'ALL' ? "bg-neutral-800 text-white border-neutral-700" : "bg-transparent text-neutral-500 border-transparent hover:text-neutral-300"
+                )}
+              >
+                All
+              </button>
+              <button 
+                onClick={() => setSeverityFilter('CRITICAL')}
+                className={clsx(
+                  "px-3 py-1 rounded-lg text-[10px] font-bold uppercase transition-all focus:outline-none border border-transparent hover:bg-neutral-900",
+                  severityFilter === 'CRITICAL' ? "border-red-500/30 text-red-500 bg-red-500/5" : "text-neutral-500"
+                )}
+              >
+                Critical • {activeTab === 'ALERTS' ? criticalCount : incidents.filter(i => i.severity === 'CRITICAL').length}
+              </button>
+              <button 
+                onClick={() => setSeverityFilter('HIGH')}
+                className={clsx(
+                  "px-3 py-1 rounded-lg text-[10px] font-bold uppercase transition-all focus:outline-none border border-transparent hover:bg-neutral-900",
+                  severityFilter === 'HIGH' ? "border-orange-500/30 text-orange-400 bg-orange-500/5" : "text-neutral-500"
+                )}
+              >
+                High • {activeTab === 'ALERTS' ? highCount : incidents.filter(i => i.severity === 'HIGH').length}
+              </button>
+              <button 
+                onClick={() => setSeverityFilter('OPEN')}
+                className={clsx(
+                  "px-3 py-1 rounded-lg text-[10px] font-bold uppercase transition-all focus:outline-none border border-transparent hover:bg-neutral-900",
+                  severityFilter === 'OPEN' ? "border-red-500/30 text-red-500 bg-red-500/5" : "text-neutral-500"
+                )}
+              >
+                Open • {activeTab === 'ALERTS' ? openCount : incidents.filter(i => i.status === 'ACTIVE').length}
+              </button>
+            </div>
+          </div>
+
+          {/* Data Table */}
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse text-xs">
+              <thead>
+                <tr className="border-b border-neutral-900 text-neutral-500 font-bold uppercase tracking-wider text-[10px]">
+                  <th className="py-3 px-4 w-[10%]">ID</th>
+                  <th className="py-3 px-4 w-[40%]">Title</th>
+                  <th className="py-3 px-4 w-[12%]">Severity</th>
+                  <th className="py-3 px-4 w-[10%]">Source</th>
+                  <th className="py-3 px-4 w-[12%]">Status</th>
+                  <th className="py-3 px-4 w-[12%]">Owner</th>
+                  <th className="py-3 px-4 w-[6%] text-right"></th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-neutral-900/60">
+                {activeTab === 'ALERTS' ? (
+                  filteredAlerts.map(alert => (
+                    <tr 
+                      key={alert.id}
+                      onClick={() => { setSelectedAlert(alert); setSelectedIncident(null); }}
+                      className={clsx(
+                        "hover:bg-[#121214] cursor-pointer transition-colors duration-150",
+                        selectedAlert?.id === alert.id ? "bg-[#121214]" : ""
+                      )}
+                    >
+                      <td className="py-4 px-4 font-mono font-bold text-red-500">
+                        {alert.id}
+                      </td>
+                      <td className="py-4 px-4 font-bold text-neutral-200">
+                        {alert.title}
+                      </td>
+                      <td className="py-4 px-4">
+                        <span className={getSeverityBadge(alert.severity)}>
+                          {alert.severity}
+                        </span>
+                      </td>
+                      <td className="py-4 px-4 font-semibold text-neutral-400">
+                        {alert.source}
+                      </td>
+                      <td className="py-4 px-4">
+                        <span className={getStatusBadge(alert.status)}>
+                          {alert.status}
+                        </span>
+                      </td>
+                      <td className="py-4 px-4 text-neutral-400 font-mono">
+                        {alert.ownerId || '—'}
+                      </td>
+                      <td className="py-4 px-4 text-right">
+                        <button 
+                          onClick={(e) => { e.stopPropagation(); setSelectedAlert(alert); }}
+                          className="border border-neutral-800 bg-neutral-900/50 hover:bg-neutral-800 text-neutral-300 font-bold px-3 py-1 rounded-lg text-[10px] transition-colors focus:outline-none uppercase"
+                        >
+                          Respond
+                        </button>
+                      </td>
+                    </tr>
+                  ))
+                ) : (
+                  filteredIncidents.map(inc => (
+                    <tr 
+                      key={inc.id}
+                      onClick={() => { setSelectedIncident(inc); setSelectedAlert(null); }}
+                      className={clsx(
+                        "hover:bg-[#121214] cursor-pointer transition-colors duration-150",
+                        selectedIncident?.id === inc.id ? "bg-[#121214]" : ""
+                      )}
+                    >
+                      <td className="py-4 px-4 font-mono font-bold text-red-500">
+                        {inc.id}
+                      </td>
+                      <td className="py-4 px-4 font-bold text-neutral-200">
+                        {inc.title}
+                      </td>
+                      <td className="py-4 px-4">
+                        <span className={getSeverityBadge(inc.severity)}>
+                          {inc.severity}
+                        </span>
+                      </td>
+                      <td className="py-4 px-4 font-semibold text-neutral-400">
+                        SOAR
+                      </td>
+                      <td className="py-4 px-4">
+                        <span className={getStatusBadge(inc.status)}>
+                          {inc.status}
+                        </span>
+                      </td>
+                      <td className="py-4 px-4 text-neutral-400 font-mono">
+                        {inc.owner}
+                      </td>
+                      <td className="py-4 px-4 text-right">
+                        <button 
+                          onClick={(e) => { e.stopPropagation(); setSelectedIncident(inc); }}
+                          className="border border-neutral-800 bg-neutral-900/50 hover:bg-neutral-800 text-neutral-300 font-bold px-3 py-1 rounded-lg text-[10px] transition-colors focus:outline-none uppercase"
+                        >
+                          Details
+                        </button>
+                      </td>
+                    </tr>
+                  ))
+                )}
+                {((activeTab === 'ALERTS' && filteredAlerts.length === 0) || (activeTab === 'INCIDENTS' && filteredIncidents.length === 0)) && (
+                  <tr>
+                    <td colSpan={7} className="py-12 text-center text-neutral-600 uppercase font-black tracking-widest text-[10px]">
+                      No entries found matching filters
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
           </div>
         </div>
 
-        {/* Detail Inspection Drawer (Right Side) */}
-        {selectedAlert && (
-          <div className="w-[450px] bg-surface-2 border border-fire-border rounded-3xl flex flex-col overflow-hidden animate-slide-in shadow-2xl">
-            <div className="p-6 border-b border-fire-border flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <span className="font-mono text-xs font-black text-accent">{selectedAlert.id}</span>
-                <span className={clsx(
-                  "px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-widest border",
-                  selectedAlert.severity === 'CRITICAL' ? "bg-danger/10 text-danger border-danger/20" : "bg-warning/10 text-warning border-warning/20"
-                )}>
-                  {selectedAlert.severity}
-                </span>
-              </div>
-              <button onClick={() => setSelectedAlert(null)} className="p-2 hover:bg-surface-3 rounded-xl transition-colors text-text-muted hover:text-white">
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <div className="flex-1 overflow-y-auto p-8 space-y-8 custom-scrollbar">
-              <section>
-                <h2 className="text-xl font-black text-white tracking-tight uppercase mb-2">{selectedAlert.title}</h2>
-                <div className="flex items-center gap-4 text-[10px] font-bold text-text-secondary uppercase tracking-widest">
-                  <span>{new Date(selectedAlert.createdAt).toUTCString()}</span>
-                  <span>•</span>
-                  <span>Source: {selectedAlert.source}</span>
+        {/* Right Side: Detail Drawer */}
+        {activeTab === 'ALERTS' && selectedAlert && (
+          <div className="md:col-span-4 bg-[#0C0C0D] border border-neutral-800 rounded-xl p-5 flex flex-col justify-between shadow-sm space-y-6 animate-slide-in">
+            <div>
+              {/* Header */}
+              <div className="flex items-center justify-between border-b border-neutral-900 pb-3">
+                <div className="flex items-center gap-2">
+                  <span className="font-mono text-sm font-bold text-red-500">{selectedAlert.id}</span>
+                  <span className={getSeverityBadge(selectedAlert.severity)}>
+                    {selectedAlert.severity}
+                  </span>
                 </div>
-              </section>
+                <button 
+                  onClick={() => setSelectedAlert(null)}
+                  className="text-neutral-500 hover:text-white transition-colors focus:outline-none"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
 
-              <section className="space-y-4">
-                <h3 className="text-[10px] font-black text-accent uppercase tracking-[0.3em]">Risk Indicators</h3>
+              {/* Alert Summary */}
+              <div className="mt-4 space-y-2">
+                <span className="text-[9px] text-neutral-500 font-black uppercase tracking-wider block">Alert Summary</span>
+                <h3 className="text-base font-bold text-white leading-tight">{selectedAlert.title}</h3>
+                <div className="text-[10px] text-neutral-500 font-mono pt-1">
+                  <div>{new Date(selectedAlert.createdAt).toUTCString()}</div>
+                  <div className="mt-0.5">Source: {selectedAlert.source}</div>
+                </div>
+              </div>
+
+              {/* Risk Indicators */}
+              <div className="mt-6 space-y-3">
+                <span className="text-[9px] text-neutral-500 font-black uppercase tracking-wider block">Risk Indicators</span>
                 <div className="space-y-2">
-                  {[
-                    { label: '847 failed authentications in 60 seconds', icon: ShieldAlert, color: 'text-danger' },
-                    { label: 'Source IP 10.0.12.44 — 1st appearance', icon: Target, color: 'text-warning' },
-                    { label: 'Target: dc-prod-01 (Domain Controller)', icon: Zap, color: 'text-accent' }
-                  ].map((risk, i) => (
-                    <div key={i} className="flex items-start gap-4 p-4 bg-black/40 border-l-2 border-accent rounded-r-xl">
-                      <risk.icon className={clsx("w-4 h-4 mt-0.5", risk.color)} />
-                      <span className="text-xs font-bold text-white leading-tight">{risk.label}</span>
+                  {riskIndicators.map((risk, idx) => (
+                    <div 
+                      key={idx} 
+                      className={clsx(
+                        "p-3 bg-[#050505] rounded-r-lg border-l-2 text-neutral-200 text-xs font-bold leading-snug", 
+                        risk.color
+                      )}
+                    >
+                      {risk.label}
                     </div>
                   ))}
                 </div>
-              </section>
+              </div>
 
-              <section className="space-y-4">
-                <div className="flex items-center justify-between">
-                   <h3 className="text-[10px] font-black text-accent uppercase tracking-[0.3em]">AI Analysis</h3>
-                   {isExplaining ? (
-                     <span className="text-[10px] text-accent animate-pulse uppercase font-bold tracking-widest">Generating...</span>
-                   ) : (
-                     <button onClick={handleExplain} className="text-[9px] font-bold text-accent hover:text-white transition-colors uppercase tracking-widest border border-accent/30 rounded px-2 py-1 bg-accent/5">Explain Alert</button>
-                   )}
+              {/* Raw Event */}
+              <div className="mt-6 space-y-2">
+                <span className="text-[9px] text-neutral-500 font-black uppercase tracking-wider block">Raw Event (Sample)</span>
+                <div className="bg-[#050505] border border-neutral-900 rounded-lg p-4 font-mono text-[10px] text-neutral-400 overflow-x-auto whitespace-pre leading-relaxed border-l-2 border-l-[#FF5A1F]">
+                  {JSON.stringify(parsedEvent, null, 2)}
                 </div>
-                
-                {aiExplanation && (
-                  <div className="bg-black p-5 rounded-2xl border border-accent/40 space-y-3">
-                    {demoMode && (
-                        <div className="bg-warning/20 border border-warning/50 text-warning px-3 py-1 rounded text-[10px] font-black uppercase flex items-center justify-center gap-2 mb-2 animate-pulse">
-                            <AlertTriangle size={12} />
-                            Demo Mode — Displaying simulated results
-                        </div>
-                    )}
-                    <h4 className="text-xs font-black text-white uppercase">Analysis:</h4>
-                    <p className="text-[11px] text-text-secondary leading-relaxed">{aiExplanation.explanation}</p>
-                    <h4 className="text-xs font-black text-white uppercase mt-4">Recommended Action:</h4>
-                    <p className="text-[11px] text-text-secondary leading-relaxed text-accent">{aiExplanation.recommended_action}</p>
-                  </div>
-                )}
-              </section>
-
-              <section className="space-y-4">
-                <div className="flex items-center justify-between">
-                   <h3 className="text-[10px] font-black text-accent uppercase tracking-[0.3em]">Raw Event (Sample)</h3>
-                   <button className="text-[9px] font-bold text-text-muted hover:text-white transition-colors uppercase tracking-widest">Copy JSON</button>
-                </div>
-                <div className="bg-black p-5 rounded-2xl border border-fire-border">
-                  <pre className="text-[11px] font-mono text-text-secondary overflow-x-auto selection:bg-accent selection:text-white">
-                    {JSON.stringify({
-                      eventId: 4625,
-                      src_ip: "10.0.12.44",
-                      user: "j.singh",
-                      target: "dc-prod-01",
-                      failures: 847,
-                      window: "60s"
-                    }, null, 2)}
-                  </pre>
-                </div>
-              </section>
+              </div>
             </div>
 
-            <div className="p-6 bg-black/20 border-t border-fire-border grid grid-cols-2 gap-3">
-              <button className="btn-fire py-3">Assign to Me</button>
-              <button onClick={() => {
-                const runPb = async () => {
-                  try {
-                    const pbs = await apiClient.get('/api/soar/playbooks');
-                    if (pbs.data && pbs.data.length > 0) {
-                      await apiClient.post(`/api/soar/playbooks/${pbs.data[0].id}/execute`, { alertId: selectedAlert?.id });
-                      alert(`Playbook '${pbs.data[0].name}' executed successfully!`);
-                    } else {
-                      alert('No playbooks found in backend.');
-                    }
-                  } catch(e) {
-                    alert('Error executing playbook');
-                  }
-                };
-                runPb();
-              }} className="btn-mission py-3">Run Playbook</button>
-              <button className="btn-mission col-span-2 py-2.5 text-[9px] opacity-70">Escalate to Tier 3</button>
+            {/* Quick Actions */}
+            <div className="border-t border-neutral-900 pt-4 space-y-2.5">
+              <span className="text-[9px] text-neutral-500 font-black uppercase tracking-wider block">Quick Actions</span>
+              <div className="grid grid-cols-2 gap-2">
+                <button 
+                  onClick={() => handleAssignToMe(selectedAlert.id)}
+                  disabled={selectedAlert.ownerId === 'analyst1'}
+                  className={clsx(
+                    "py-2.5 text-center font-bold rounded-xl text-xs transition-colors focus:outline-none border",
+                    selectedAlert.ownerId === 'analyst1' 
+                      ? "bg-neutral-900 border-neutral-800 text-neutral-600 cursor-not-allowed" 
+                      : "bg-[#FF5A1F] hover:bg-[#E54E18] text-white border-transparent"
+                  )}
+                >
+                  {selectedAlert.ownerId === 'analyst1' ? 'Assigned' : 'Assign to Me'}
+                </button>
+                <button 
+                  onClick={() => handleCreateIncident(selectedAlert)}
+                  className="border border-neutral-700 bg-neutral-800/40 hover:bg-neutral-800 text-neutral-300 font-bold py-2.5 rounded-xl text-xs transition-colors focus:outline-none"
+                >
+                  Create Incident
+                </button>
+                <button 
+                  onClick={() => handleRunPlaybook(selectedAlert.id)}
+                  className="col-span-2 border border-neutral-700 bg-neutral-800/40 hover:bg-neutral-800 text-neutral-300 font-bold py-2.5 rounded-xl text-xs transition-colors focus:outline-none flex items-center justify-center gap-1.5"
+                >
+                  <Zap className="w-3.5 h-3.5 text-[#FF5A1F] fill-[#FF5A1F]" /> Run Playbook
+                </button>
+              </div>
             </div>
+
           </div>
         )}
+
+        {/* Right Side: Incident Details Drawer */}
+        {activeTab === 'INCIDENTS' && selectedIncident && (
+          <div className="md:col-span-4 bg-[#0C0C0D] border border-neutral-800 rounded-xl p-5 flex flex-col justify-between shadow-sm space-y-6 animate-slide-in">
+            <div>
+              {/* Header */}
+              <div className="flex items-center justify-between border-b border-neutral-900 pb-3">
+                <div className="flex items-center gap-2">
+                  <span className="font-mono text-sm font-bold text-red-500">{selectedIncident.id}</span>
+                  <span className={getSeverityBadge(selectedIncident.severity)}>
+                    {selectedIncident.severity}
+                  </span>
+                </div>
+                <button 
+                  onClick={() => setSelectedIncident(null)}
+                  className="text-neutral-500 hover:text-white transition-colors focus:outline-none"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              {/* Incident Description */}
+              <div className="mt-4 space-y-2">
+                <span className="text-[9px] text-neutral-500 font-black uppercase tracking-wider block">Incident Detail</span>
+                <h3 className="text-base font-bold text-white leading-tight">{selectedIncident.title}</h3>
+                <div className="text-[10px] text-neutral-500 font-mono pt-1">
+                  <div>Created: {new Date(selectedIncident.createdAt).toUTCString()}</div>
+                  <div className="mt-0.5">Workflow: SOAR Automation Pipeline</div>
+                </div>
+              </div>
+
+              {/* Timeline Status */}
+              <div className="mt-6 space-y-3">
+                <span className="text-[9px] text-neutral-500 font-black uppercase tracking-wider block">Investigation Checklist</span>
+                <div className="space-y-2 text-xs">
+                  {[
+                    { title: 'Triage & Scope Assessment', done: true },
+                    { title: 'Threat Intelligence Lookup (SIEM/EDR)', done: true },
+                    { title: 'Automated Isolation Playbook Triggered', done: selectedIncident.status === 'MITIGATED' },
+                    { title: 'Final Resolution Signature', done: selectedIncident.status === 'MITIGATED' }
+                  ].map((step, idx) => (
+                    <div key={idx} className="flex items-center gap-2.5 py-1">
+                      <div className={clsx(
+                        "w-4 h-4 rounded border flex items-center justify-center font-bold text-[9px]",
+                        step.done ? "bg-[#FF5A1F]/10 border-[#FF5A1F] text-[#FF5A1F]" : "border-neutral-800 text-neutral-600"
+                      )}>
+                        {step.done ? '✓' : ''}
+                      </div>
+                      <span className={step.done ? "text-neutral-300" : "text-neutral-500"}>{step.title}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Quick Actions */}
+            <div className="border-t border-neutral-900 pt-4 space-y-2.5">
+              <span className="text-[9px] text-neutral-500 font-black uppercase tracking-wider block">Incident Workflow Actions</span>
+              <div className="grid grid-cols-2 gap-2">
+                <button 
+                  onClick={() => {
+                    setIncidents(prev => prev.map(i => i.id === selectedIncident.id ? { ...i, status: 'MITIGATED' } : i))
+                    setSelectedIncident(prev => prev && prev.id === selectedIncident.id ? { ...prev, status: 'MITIGATED' } : prev)
+                  }}
+                  disabled={selectedIncident.status === 'MITIGATED'}
+                  className={clsx(
+                    "col-span-2 py-2.5 text-center font-bold rounded-xl text-xs transition-colors focus:outline-none border",
+                    selectedIncident.status === 'MITIGATED'
+                      ? "bg-neutral-900 border-neutral-800 text-neutral-600 cursor-not-allowed"
+                      : "bg-[#FF5A1F] hover:bg-[#E54E18] text-white border-transparent"
+                  )}
+                >
+                  {selectedIncident.status === 'MITIGATED' ? 'Mitigated' : 'Mark as Mitigated'}
+                </button>
+              </div>
+            </div>
+
+          </div>
+        )}
+
       </div>
+
     </div>
   )
 }

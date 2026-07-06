@@ -45,6 +45,37 @@ public class CorrelationController {
         return repository.save(rule);
     }
 
+    @GetMapping("/stats")
+    public java.util.Map<String, Object> getStats(@RequestHeader(value = "X-Tenant-ID", defaultValue = "demo-tenant") String tenantId) {
+        List<CorrelationRule> allRules = repository.findByTenantId(tenantId);
+        long active = allRules.stream().filter(CorrelationRule::isEnabled).count();
+        long disabled = allRules.stream().filter(r -> !r.isEnabled()).count();
+        double avgRisk = allRules.stream().mapToInt(CorrelationRule::getRiskScore).average().orElse(0.0);
+
+        java.util.Map<String, Object> stats = new java.util.HashMap<>();
+        stats.put("activeRules", active);
+        stats.put("disabledRules", disabled);
+        stats.put("avgRiskScore", Math.round(avgRisk));
+        stats.put("totalEvents", com.netcradus.acis.correlation.service.CorrelationEngine.getTotalEvents());
+        stats.put("eventsSeries", com.netcradus.acis.correlation.service.CorrelationEngine.getBuckets());
+
+        java.util.List<java.util.Map<String, Object>> flinkJobs = new java.util.ArrayList<>();
+        flinkJobs.add(createJob("impossible-travel-v2", "RUNNING", 800 + (int)(Math.random() * 100)));
+        flinkJobs.add(createJob("brute-force-detector-v3", "RUNNING", 2300 + (int)(Math.random() * 100)));
+        flinkJobs.add(createJob("priv-esc-monitor-v1", "RUNNING", 500 + (int)(Math.random() * 50)));
+        stats.put("flinkJobs", flinkJobs);
+
+        return stats;
+    }
+
+    private java.util.Map<String, Object> createJob(String name, String status, int rate) {
+        java.util.Map<String, Object> job = new java.util.HashMap<>();
+        job.put("name", name);
+        job.put("status", status);
+        job.put("rate", rate);
+        return job;
+    }
+
     private CorrelationRuleDto mapToDto(CorrelationRule rule) {
         return CorrelationRuleDto.builder()
                 .id(rule.getId())

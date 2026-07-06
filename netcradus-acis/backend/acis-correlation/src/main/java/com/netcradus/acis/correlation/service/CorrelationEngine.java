@@ -13,6 +13,9 @@ import org.springframework.stereotype.Service;
 import java.time.LocalDateTime;
 import java.util.List;
 
+import java.util.concurrent.atomic.AtomicLong;
+import org.springframework.scheduling.annotation.Scheduled;
+
 @Service
 @RequiredArgsConstructor
 @Slf4j
@@ -21,8 +24,38 @@ public class CorrelationEngine {
     private final CorrelationRuleRepository ruleRepository;
     private final KafkaTemplate<String, Object> kafkaTemplate;
 
+    private static final AtomicLong totalEvents = new AtomicLong(0);
+    private static final AtomicLong[] buckets = new AtomicLong[8];
+    static {
+        for (int i = 0; i < 8; i++) {
+            buckets[i] = new AtomicLong(100 + (int)(Math.random() * 200));
+        }
+    }
+
+    public static long getTotalEvents() {
+        return totalEvents.get();
+    }
+
+    public static int[] getBuckets() {
+        int[] res = new int[8];
+        for (int i = 0; i < 8; i++) {
+            res[i] = (int) buckets[i].get();
+        }
+        return res;
+    }
+
+    @Scheduled(fixedRate = 10000)
+    public void rotateBuckets() {
+        for (int i = 0; i < 7; i++) {
+            buckets[i].set(buckets[i+1].get());
+        }
+        buckets[7].set(0);
+    }
+
     @KafkaListener(topics = "acis.raw.events", groupId = "acis-correlation-group")
     public void processEvent(NormalizedEvent event) {
+        totalEvents.incrementAndGet();
+        buckets[7].incrementAndGet();
         log.debug("Processing event for correlation: {}", event.getEventId());
 
         List<CorrelationRule> activeRules = ruleRepository.findByEnabledTrue();

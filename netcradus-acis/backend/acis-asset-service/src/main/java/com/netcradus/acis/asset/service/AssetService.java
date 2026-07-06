@@ -20,32 +20,7 @@ public class AssetService {
 
     @jakarta.annotation.PostConstruct
     public void initMockData() {
-        if (repository.count() == 0) {
-            log.info("Generating initial mock assets...");
-            save(com.netcradus.acis.asset.model.Asset.builder()
-                .name("Primary-Gateway")
-                .ipAddress("192.168.1.1")
-                .type(com.netcradus.acis.asset.model.AssetType.NETWORK_DEVICE)
-                .status(com.netcradus.acis.asset.model.AssetStatus.ACTIVE)
-                .owner("IT-Net-Ops")
-                .build());
-
-            save(com.netcradus.acis.asset.model.Asset.builder()
-                .name("HR-Workstation-01")
-                .ipAddress("192.168.1.45")
-                .type(com.netcradus.acis.asset.model.AssetType.WORKSTATION)
-                .status(com.netcradus.acis.asset.model.AssetStatus.ACTIVE)
-                .owner("Sarah-HR")
-                .build());
-            
-            save(com.netcradus.acis.asset.model.Asset.builder()
-                .name("Core-Database-Prod")
-                .ipAddress("10.0.0.5")
-                .type(com.netcradus.acis.asset.model.AssetType.SERVER)
-                .status(com.netcradus.acis.asset.model.AssetStatus.ACTIVE)
-                .owner("DB-Admins")
-                .build());
-        }
+        // Centralized seeding is handled by AssetDataSeeder
     }
 
     public List<Asset> findAll() {
@@ -80,6 +55,8 @@ public class AssetService {
             asset.setOwner(assetDetails.getOwner());
             asset.setLocation(assetDetails.getLocation());
             asset.setOs(assetDetails.getOs());
+            asset.setCriticality(assetDetails.getCriticality());
+            asset.setTags(assetDetails.getTags());
             return repository.save(asset);
         }).orElseThrow(() -> new RuntimeException("Asset not found with id " + id));
     }

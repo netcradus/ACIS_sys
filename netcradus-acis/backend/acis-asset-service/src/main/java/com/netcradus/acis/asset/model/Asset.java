@@ -43,6 +43,10 @@ public class Asset {
 
     private String health = "OK";
 
+    private String criticality = "HIGH";
+
+    private String tags;
+
     @Column(name = "isolation_status")
     private Boolean isolationStatus = false;
 

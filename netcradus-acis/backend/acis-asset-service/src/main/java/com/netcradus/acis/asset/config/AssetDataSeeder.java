@@ -20,41 +20,124 @@ public class AssetDataSeeder implements CommandLineRunner {
 
     @Override
     public void run(String... args) {
-        if (repository.count() == 0) {
-            log.info("Seeding initial assets for ACIS demo...");
-            
-            Asset asset1 = Asset.builder()
-                    .id("AS-1001")
-                    .name("Main-Production-DB")
-                    .type(AssetType.SERVER)
-                    .ipAddress("10.0.5.20")
-                    .macAddress("00:1A:2B:3C:4D:5E")
-                    .status(AssetStatus.ACTIVE)
-                    .owner("db-admin-01")
-                    .build();
+        log.info("Clearing corporate assets for clean seed...");
+        repository.deleteAll();
 
-            Asset asset2 = Asset.builder()
-                    .id("AS-1002")
-                    .name("External-WAF-01")
-                    .type(AssetType.NETWORK_DEVICE)
-                    .ipAddress("185.220.101.47")
-                    .macAddress("AA:BB:CC:DD:EE:FF")
-                    .status(AssetStatus.ACTIVE)
-                    .owner("sec-ops-01")
-                    .build();
+        log.info("Seeding corporate assets matching screenshot...");
 
-            Asset asset3 = Asset.builder()
-                    .id("AS-1003")
-                    .name("Employee-Workstation-HR")
-                    .type(AssetType.WORKSTATION)
-                    .ipAddress("192.168.1.45")
-                    .macAddress("11:22:33:44:55:66")
-                    .status(AssetStatus.ACTIVE)
-                    .owner("hr-user-04")
-                    .build();
+        repository.saveAll(List.of(
+            Asset.builder()
+                .name("dc-prod-01")
+                .type(AssetType.SERVER)
+                .owner("it-admin")
+                .criticality("HIGH")
+                .tags("domain-controller,windows,prod")
+                .ipAddress("192.168.1.100, 10.0.0.5")
+                .os("Windows Server 2022")
+                .macAddress("00:1A:2B:3C:4D:5A")
+                .status(AssetStatus.ACTIVE)
+                .build(),
+            Asset.builder()
+                .name("fw-edge-01")
+                .type(AssetType.NETWORK_DEVICE)
+                .owner("netops")
+                .criticality("HIGH")
+                .tags("edge,palo-alto")
+                .ipAddress("192.168.1.1")
+                .os("PAN-OS 11.0")
+                .macAddress("00:1A:2B:3C:4D:5B")
+                .status(AssetStatus.ACTIVE)
+                .build(),
+            Asset.builder()
+                .name("laptop-332")
+                .type(AssetType.WORKSTATION)
+                .owner("a.sharma")
+                .criticality("MEDIUM")
+                .tags("exec,vip,managed")
+                .ipAddress("10.200.5.42")
+                .os("macOS Sequoia")
+                .macAddress("00:1A:2B:3C:4D:5C")
+                .status(AssetStatus.ACTIVE)
+                .build(),
+            Asset.builder()
+                .name("srv-erp-02")
+                .type(AssetType.SERVER)
+                .owner("sap-admin")
+                .criticality("HIGH")
+                .tags("erp,sap,prod")
+                .ipAddress("10.0.12.15")
+                .os("RHEL 9.2")
+                .macAddress("00:1A:2B:3C:4D:5D")
+                .status(AssetStatus.ACTIVE)
+                .build(),
+            Asset.builder()
+                .name("api-gw-prod")
+                .type(AssetType.CLOUD_INSTANCE)
+                .owner("devops")
+                .criticality("HIGH")
+                .tags("aws,api-gateway,internet-facing")
+                .ipAddress("10.0.4.88")
+                .os("Amazon Linux 2")
+                .macAddress("00:1A:2B:3C:4D:5E")
+                .status(AssetStatus.ACTIVE)
+                .build(),
+            Asset.builder()
+                .name("workstation-114")
+                .type(AssetType.WORKSTATION)
+                .owner("j.singh")
+                .criticality("MEDIUM")
+                .tags("managed,office")
+                .ipAddress("10.0.12.44")
+                .os("Windows 11 Enterprise")
+                .macAddress("00:1A:2B:3C:4D:5F")
+                .status(AssetStatus.ACTIVE)
+                .build(),
+            Asset.builder()
+                .name("backup-srv-01")
+                .type(AssetType.SERVER)
+                .owner("it-admin")
+                .criticality("MEDIUM")
+                .tags("backup,windows")
+                .ipAddress("10.0.10.5")
+                .os("Windows Server 2019")
+                .macAddress("00:1A:2B:3C:4D:60")
+                .status(AssetStatus.ACTIVE)
+                .build(),
+            Asset.builder()
+                .name("printer-hq-3")
+                .type(AssetType.IOT_DEVICE)
+                .owner("facilities")
+                .criticality("LOW")
+                .tags("iot,unmanaged")
+                .ipAddress("192.168.20.10")
+                .os("HP JetDirect")
+                .macAddress("00:1A:2B:3C:4D:61")
+                .status(AssetStatus.ACTIVE)
+                .build(),
+            Asset.builder()
+                .name("cloud-db-prod")
+                .type(AssetType.CLOUD_INSTANCE)
+                .owner("dba-team")
+                .criticality("HIGH")
+                .tags("aws-rds,prod,encrypted")
+                .ipAddress("10.0.6.14")
+                .os("RDS PostgreSQL")
+                .macAddress("00:1A:2B:3C:4D:62")
+                .status(AssetStatus.ACTIVE)
+                .build(),
+            Asset.builder()
+                .name("vpn-concentrator")
+                .type(AssetType.NETWORK_DEVICE)
+                .owner("netops")
+                .criticality("HIGH")
+                .tags("vpn,edge,critical")
+                .ipAddress("10.0.0.1")
+                .os("Cisco ASA 9.18")
+                .macAddress("00:1A:2B:3C:4D:63")
+                .status(AssetStatus.ACTIVE)
+                .build()
+        ));
 
-            repository.saveAll(List.of(asset1, asset2, asset3));
-            log.info("Successfully seeded {} assets", repository.count());
-        }
+        log.info("Successfully seeded {} assets", repository.count());
     }
 }

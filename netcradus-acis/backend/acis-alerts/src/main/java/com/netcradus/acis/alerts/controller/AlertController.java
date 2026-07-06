@@ -41,6 +41,18 @@ public class AlertController {
         return alertRepository.save(alert);
     }
 
+    @PutMapping("/{id}")
+    public Alert updateAlert(@PathVariable String id, @RequestBody Map<String, Object> updates) {
+        Alert alert = alertRepository.findById(id).orElseThrow(() -> new RuntimeException("Alert not found"));
+        if (updates.containsKey("status")) {
+            alert.setStatus((String) updates.get("status"));
+        }
+        if (updates.containsKey("ownerId")) {
+            alert.setOwnerId((String) updates.get("ownerId"));
+        }
+        return alertRepository.save(alert);
+    }
+
     @GetMapping("/dashboard/summary")
     public Map<String, Object> getDashboardSummary() {
         Map<String, Object> summary = new HashMap<>();
