@@ -45,6 +45,7 @@ public class PlaybookService {
         PlaybookExecution execution = new PlaybookExecution();
         execution.setPlaybookId(playbookId);
         execution.setTriggeredBy(userId);
+        execution.setTriggeredByName("analyst1@oouraa");
         execution.setStatus("running");
         
         execution = executionRepository.save(execution);
@@ -95,5 +96,10 @@ public class PlaybookService {
     
     public List<PlaybookExecution> getExecutions(UUID playbookId) {
         return executionRepository.findByPlaybookId(playbookId);
+    }
+
+    public List<PlaybookExecution> getAllExecutions() {
+        return executionRepository.findAll(org.springframework.data.domain.Sort.by(
+            org.springframework.data.domain.Sort.Direction.DESC, "startedAt"));
     }
 }

@@ -18,6 +18,7 @@ import EndpointsPage           from '@/modules/endpoints/EndpointsPage'
 import CompliancePage          from '@/modules/compliance/CompliancePage'
 import ReportsPage             from '@/modules/reports/ReportsPage'
 import SettingsPage            from '@/modules/settings/SettingsPage'
+import AiAnalystPage           from '@/modules/ai-analyst/AiAnalystPage'
 
 export const router = createBrowserRouter([
   {
@@ -42,6 +43,7 @@ export const router = createBrowserRouter([
           { path: 'endpoints',        element: <EndpointsPage /> },
           { path: 'compliance',       element: <CompliancePage /> },
           { path: 'reports',          element: <ReportsPage /> },
+          { path: 'ai-analyst',       element: <AiAnalystPage /> },
           { path: 'settings',         element: <SettingsPage /> },
         ],
       },

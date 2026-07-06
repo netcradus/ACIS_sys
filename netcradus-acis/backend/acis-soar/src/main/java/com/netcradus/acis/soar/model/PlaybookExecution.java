@@ -23,6 +23,9 @@ public class PlaybookExecution {
     @Column(name = "triggered_by")
     private UUID triggeredBy;
 
+    @Column(name = "triggered_by_name")
+    private String triggeredByName;
+
     private String status = "running"; // running, completed, failed
 
     @JdbcTypeCode(SqlTypes.JSON)

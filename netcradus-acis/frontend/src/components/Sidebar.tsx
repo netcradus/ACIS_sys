@@ -15,6 +15,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Zap,
+  Sparkles,
 } from 'lucide-react'
 import { useState } from 'react'
 import { clsx } from 'clsx'
@@ -31,6 +32,7 @@ const navItems = [
   { icon: Server,          label: 'Endpoints & Network',   path: '/dashboard/endpoints' },
   { icon: Shield,          label: 'Compliance & Audit',    path: '/dashboard/compliance' },
   { icon: FileText,        label: 'Reports',               path: '/dashboard/reports' },
+  { icon: Sparkles,        label: 'AI Analyst',            path: '/dashboard/ai-analyst' },
   { icon: Settings,        label: 'Settings',              path: '/dashboard/settings' },
 ]
 

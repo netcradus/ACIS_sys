@@ -59,4 +59,9 @@ public class PlaybookController {
                 .map(ApiResponse::success)
                 .orElse(ApiResponse.error("Execution not found"));
     }
+
+    @GetMapping("/executions")
+    public ApiResponse<List<PlaybookExecution>> getAllExecutions() {
+        return ApiResponse.success(playbookService.getAllExecutions());
+    }
 }
