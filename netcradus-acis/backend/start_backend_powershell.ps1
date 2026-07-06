@@ -6,15 +6,10 @@ function Start-ServiceWindow {
         [string]$JarPath
     )
 
-    $command = @"
-Set-Location '$backendRoot'
-`$Host.UI.RawUI.WindowTitle = '$ServiceName'
-java -jar '$JarPath'
-"@
-
-    Start-Process powershell `
-        -WorkingDirectory $backendRoot `
-        -ArgumentList "-NoExit", "-Command", $command
+    Write-Output "Launching $ServiceName in background..."
+    $outLog = Join-Path $backendRoot "$ServiceName-out.log"
+    $errLog = Join-Path $backendRoot "$ServiceName-err.log"
+    Start-Process java -NoNewWindow -WorkingDirectory $backendRoot -ArgumentList "-Xms128m", "-Xmx256m", "-jar", $JarPath -RedirectStandardOutput $outLog -RedirectStandardError $errLog
 }
 
 $services = @(
@@ -34,6 +29,6 @@ foreach ($s in $services) {
         Write-Output "Starting service: $($s.Name) with JAR $jarFullPath"
         Start-ServiceWindow -ServiceName $s.Name -JarPath $s.Jar
     } else {
-        Write-Output "Skipping service: $($s.Name) — JAR not found at $jarFullPath"
+        Write-Output "Skipping service: $($s.Name) - JAR not found at $jarFullPath"
     }
 }
