@@ -25,6 +25,7 @@ foreach ($s in $services) {
         
         $p = Start-Process java -NoNewWindow -WorkingDirectory $backendRoot -ArgumentList "-Xms128m", "-Xmx256m", "-jar", "`"$jarFullPath`"" -RedirectStandardOutput $outLog -RedirectStandardError $errLog -PassThru
         $processes += $p
+        Start-Sleep -Seconds 3
     } else {
         Write-Output "Skipping service: $($s.Name) - JAR not found"
     }

@@ -28,6 +28,7 @@ foreach ($s in $services) {
     if (Test-Path $jarFullPath) {
         Write-Output "Starting service: $($s.Name) with JAR $jarFullPath"
         Start-ServiceWindow -ServiceName $s.Name -JarPath $jarFullPath
+        Start-Sleep -Seconds 3
     } else {
         Write-Output "Skipping service: $($s.Name) - JAR not found at $jarFullPath"
     }
