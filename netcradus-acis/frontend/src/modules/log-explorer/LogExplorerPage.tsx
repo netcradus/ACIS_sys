@@ -11,9 +11,19 @@ import { clsx } from 'clsx'
 export default function LogExplorerPage() {
   const [logs, setLogs] = useState<LogEntry[]>([])
 
+  const [selectedSource, setSelectedSource] = useState('ALL')
   const [isLive, setIsLive] = useState(true)
   const [isLoading, setIsLoading] = useState(false)
   const [query, setQuery] = useState('service=acis-gateway | level=ERROR')
+
+  const handleSourceChange = (src: string) => {
+    setSelectedSource(src)
+    if (src === 'ALL') {
+      setQuery('')
+    } else {
+      setQuery(`service=${src}`)
+    }
+  }
   const [gridApi, setGridApi] = useState<any>(null)
 
   const [isTranslating, setIsTranslating] = useState(false)
@@ -46,6 +56,14 @@ export default function LogExplorerPage() {
       width: 160,
       cellRenderer: (params: any) => (
         <span className="font-mono text-[10px] font-bold text-accent uppercase bg-accent/5 px-2 py-0.5 rounded border border-accent/20">{params.value || 'SYSTEM'}</span>
+      )
+    },
+    {
+      field: 'host',
+      headerName: 'SOURCE_HOST',
+      width: 180,
+      cellRenderer: (params: any) => (
+        <span className="font-mono text-[10px] font-bold text-text-secondary uppercase bg-white/5 px-2 py-0.5 rounded border border-white/10">{params.value || 'UNKNOWN'}</span>
       )
     },
     {
@@ -95,6 +113,7 @@ export default function LogExplorerPage() {
     parts.forEach(part => {
       if (part.startsWith('service=')) filters.service = part.replace('service=', '')
       if (part.startsWith('level=')) filters.level = part.replace('level=', '')
+      if (part.startsWith('host=')) filters.host = part.replace('host=', '')
     })
     return filters
   }
@@ -142,20 +161,35 @@ export default function LogExplorerPage() {
   }
 
   useEffect(() => {
-    fetchLatest()
     let sub: any = null
     if (isLive) {
+      const loadLiveLogs = async () => {
+        try {
+          const params = selectedSource !== 'ALL' ? { service: selectedSource } : {}
+          const response = await apiClient.get<LogEntry[]>('/api/logs/search', { params })
+          setLogs(response.data)
+        } catch (e) {
+          console.error('Failed to load initial live logs:', e)
+        }
+      }
+      loadLiveLogs()
+
       sub = wsClient.subscribe('/topic/logs', (msg) => {
         try {
           const newLog = JSON.parse(msg.body)
+          if (selectedSource !== 'ALL' && newLog.service?.toLowerCase() !== selectedSource.toLowerCase()) {
+            return
+          }
           setLogs(prev => [newLog, ...prev.slice(0, 499)]) // Buffer limited to 500 for reactivity
         } catch (e) {
           console.error('Log stream parse error:', e)
         }
       }, '/ws/logs')
+    } else {
+      fetchLogs()
     }
     return () => { if (sub) sub.then((s: any) => s?.unsubscribe()) }
-  }, [isLive])
+  }, [isLive, selectedSource])
 
 
   return (
@@ -167,6 +201,23 @@ export default function LogExplorerPage() {
           <p className="text-[10px] text-text-secondary font-bold tracking-[0.4em] uppercase mt-2">Elastic Telemetry & Multi-Source Indexing</p>
         </div>
         <div className="flex items-center gap-3">
+          {/* Source Dropdown Filter */}
+          <div className="flex items-center bg-surface-2 px-4 py-2 rounded-full border border-fire-border gap-2 shadow-inner">
+            <Filter size={12} className="text-accent" />
+            <select
+              value={selectedSource}
+              onChange={(e) => handleSourceChange(e.target.value)}
+              className="bg-transparent text-[9px] font-black text-white uppercase tracking-widest focus:outline-none cursor-pointer pr-3"
+            >
+              <option value="ALL" className="bg-surface text-white">All Sources</option>
+              <option value="firewall" className="bg-surface text-white">Firewall</option>
+              <option value="ids-ips" className="bg-surface text-white">IDS/IPS</option>
+              <option value="netcradus-waf" className="bg-surface text-white">WAF</option>
+              <option value="acis-gateway" className="bg-surface text-white">Gateway</option>
+              <option value="auth-service" className="bg-surface text-white">Auth Service</option>
+            </select>
+          </div>
+
           <div className="flex bg-surface-2 p-1 rounded-full border border-fire-border shadow-inner">
             <button
               onClick={() => setIsLive(true)}

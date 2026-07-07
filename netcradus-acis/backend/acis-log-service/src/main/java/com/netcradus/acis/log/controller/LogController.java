@@ -13,6 +13,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
+import java.util.stream.Stream;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.HttpEntity;
@@ -30,18 +31,41 @@ public class LogController {
     public Mono<List<LogDocument>> search(
             @RequestParam(required = false) String service,
             @RequestParam(required = false) String level,
+            @RequestParam(required = false) String host,
+            @RequestParam(required = false) String query,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "50") int size) {
         
-        // Simple search logic for Phase 2 MVP
-        if (service != null) {
-            return Mono.just(logRepository.findByServiceOrderByTimestampDesc(service));
-        } else if (level != null) {
-            return Mono.just(logRepository.findByLevelOrderByTimestampDesc(level));
-        } else {
-            return Mono.just(StreamSupport.stream(logRepository.findAll().spliterator(), false)
-                    .collect(Collectors.toList()));
+        List<LogDocument> allLogs = StreamSupport.stream(logRepository.findAll().spliterator(), false)
+                .collect(Collectors.toList());
+                
+        if (allLogs.isEmpty()) {
+            allLogs = logRepository.findTop100ByOrderByTimestampDesc();
         }
+        
+        Stream<LogDocument> stream = allLogs.stream();
+        
+        if (service != null && !service.trim().isEmpty() && !service.equalsIgnoreCase("ALL")) {
+            stream = stream.filter(log -> service.equalsIgnoreCase(log.getService()));
+        }
+        if (level != null && !level.trim().isEmpty()) {
+            stream = stream.filter(log -> level.equalsIgnoreCase(log.getLevel()));
+        }
+        if (host != null && !host.trim().isEmpty()) {
+            stream = stream.filter(log -> host.equalsIgnoreCase(log.getHost()));
+        }
+        if (query != null && !query.trim().isEmpty()) {
+            stream = stream.filter(log -> log.getMessage() != null && log.getMessage().toLowerCase().contains(query.toLowerCase()));
+        }
+        
+        List<LogDocument> filtered = stream
+                .sorted((a, b) -> {
+                    if (a.getTimestamp() == null || b.getTimestamp() == null) return 0;
+                    return b.getTimestamp().compareTo(a.getTimestamp());
+                })
+                .collect(Collectors.toList());
+                
+        return Mono.just(filtered);
     }
 
     @GetMapping("/latest")
