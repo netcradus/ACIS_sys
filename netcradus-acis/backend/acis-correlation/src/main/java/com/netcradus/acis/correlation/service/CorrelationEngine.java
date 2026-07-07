@@ -68,22 +68,26 @@ public class CorrelationEngine {
     }
 
     private boolean evaluateRule(CorrelationRule rule, NormalizedEvent event) {
-        // Simple mock matching logic for Phase 3
-        // In a real system, this would be a full SPL/SQL engine or Flink CEP
         String query = rule.getSplQuery().toLowerCase();
+        String raw = event.getRaw() != null ? event.getRaw().toLowerCase() : "";
         
-        // Example logic: if query contains "login" and event action is "login_failed"
-        if (query.contains("login") && "login_failed".equalsIgnoreCase(event.getAction())) {
+        // Privilege Escalation / User matches
+        if (query.contains("admin") && (raw.contains("admin") || "admin".equalsIgnoreCase(event.getUser()))) {
             return true;
         }
         
-        // Example logic: if query contains "admin" and event user is "admin"
-        if (query.contains("admin") && "admin".equalsIgnoreCase(event.getUser())) {
+        // LolBin / PowerShell matches
+        if (query.contains("powershell.exe") && (raw.contains("powershell") || raw.contains("lolbin"))) {
             return true;
         }
-
-        // Generic keyword match in raw data
-        if (query.contains("suspicious") && event.getRaw() != null && event.getRaw().toLowerCase().contains("suspicious")) {
+        
+        // DNS Tunneling matches
+        if (query.contains("dns") && (raw.contains("dns_tunnelling") || raw.contains("dns tunnel"))) {
+            return true;
+        }
+        
+        // Generic keyword fallback matches
+        if (query.contains("suspicious") && raw.contains("suspicious")) {
             return true;
         }
 

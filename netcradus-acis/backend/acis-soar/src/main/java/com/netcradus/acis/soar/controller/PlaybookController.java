@@ -39,17 +39,12 @@ public class PlaybookController {
     }
 
     @PostMapping("/playbooks/{id}/execute")
-    public org.springframework.http.ResponseEntity<ApiResponse<PlaybookExecution>> executePlaybook(@PathVariable UUID id, @RequestBody(required = false) java.util.Map<String, String> payload) {
+    public org.springframework.http.ResponseEntity<ApiResponse<PlaybookExecution>> executePlaybook(
+            @PathVariable UUID id, 
+            @RequestBody(required = false) java.util.Map<String, String> payload) {
         UUID userId = UUID.fromString("00000000-0000-0000-0000-000000000002");
-        PlaybookExecution execution = playbookService.startExecution(id, userId);
-        
-        if (payload != null && payload.containsKey("alertId")) {
-            // In a real implementation, we would link this execution to the alert in the database
-            // and perhaps update the alert status to "Investigating"
-            // For now we just log it or add it to the execution context
-            execution.setStepLogs("[{\"step\":\"init\",\"message\":\"Linked to alert " + payload.get("alertId") + "\"}]");
-        }
-        
+        java.util.Map<String, String> params = payload != null ? payload : new java.util.HashMap<>();
+        PlaybookExecution execution = playbookService.startExecution(id, userId, params);
         return org.springframework.http.ResponseEntity.accepted().body(ApiResponse.success(execution));
     }
 
