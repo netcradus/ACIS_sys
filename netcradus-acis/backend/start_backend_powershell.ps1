@@ -9,7 +9,7 @@ function Start-ServiceWindow {
     Write-Output "Launching $ServiceName in background..."
     $outLog = Join-Path $backendRoot "$ServiceName-out.log"
     $errLog = Join-Path $backendRoot "$ServiceName-err.log"
-    Start-Process java -NoNewWindow -WorkingDirectory $backendRoot -ArgumentList "-Xms128m", "-Xmx256m", "-jar", $JarPath -RedirectStandardOutput $outLog -RedirectStandardError $errLog
+    Start-Process java -NoNewWindow -WorkingDirectory $backendRoot -ArgumentList "-Xms128m", "-Xmx256m", "-jar", "`"$JarPath`"" -RedirectStandardOutput $outLog -RedirectStandardError $errLog
 }
 
 $services = @(
@@ -27,7 +27,7 @@ foreach ($s in $services) {
     $jarFullPath = Join-Path $backendRoot $s.Jar
     if (Test-Path $jarFullPath) {
         Write-Output "Starting service: $($s.Name) with JAR $jarFullPath"
-        Start-ServiceWindow -ServiceName $s.Name -JarPath $s.Jar
+        Start-ServiceWindow -ServiceName $s.Name -JarPath $jarFullPath
     } else {
         Write-Output "Skipping service: $($s.Name) - JAR not found at $jarFullPath"
     }

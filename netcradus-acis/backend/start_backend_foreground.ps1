@@ -23,7 +23,7 @@ foreach ($s in $services) {
         Remove-Item $outLog -ErrorAction SilentlyContinue
         Remove-Item $errLog -ErrorAction SilentlyContinue
         
-        $p = Start-Process java -NoNewWindow -WorkingDirectory $backendRoot -ArgumentList "-Xms128m", "-Xmx256m", "-jar", $s.Jar -RedirectStandardOutput $outLog -RedirectStandardError $errLog -PassThru
+        $p = Start-Process java -NoNewWindow -WorkingDirectory $backendRoot -ArgumentList "-Xms128m", "-Xmx256m", "-jar", "`"$jarFullPath`"" -RedirectStandardOutput $outLog -RedirectStandardError $errLog -PassThru
         $processes += $p
     } else {
         Write-Output "Skipping service: $($s.Name) - JAR not found"
