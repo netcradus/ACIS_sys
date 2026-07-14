@@ -36,12 +36,7 @@ spring:
         - id: alerts
           uri: http://localhost:8081
           predicates:
-            - Path=/api/alerts/**,/api/dashboard/**,/ws/alerts/**
-
-        - id: search
-          uri: http://localhost:8082
-          predicates:
-            - Path=/api/search/**
+            - Path=/api/alerts/**,/ws/alerts/**
 
         - id: correlation
           uri: http://localhost:8083
@@ -67,14 +62,6 @@ spring:
           uri: http://localhost:8087
           predicates:
             - Path=/api/threat-intel/**
-
-        - id: reports
-          uri: http://localhost:8088
-          predicates:
-            - Path=/api/reports/**
-
-
-
 
 # Actuator — expose health and prometheus metrics
 management:

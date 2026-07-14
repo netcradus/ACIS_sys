@@ -8,6 +8,7 @@ import org.springframework.data.annotation.Id;
 import org.springframework.data.elasticsearch.annotations.Document;
 import org.springframework.data.elasticsearch.annotations.Field;
 import org.springframework.data.elasticsearch.annotations.FieldType;
+import org.springframework.data.elasticsearch.annotations.Setting;
 
 import java.time.Instant;
 import java.util.Map;
@@ -16,7 +17,8 @@ import java.util.Map;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@Document(indexName = "acis-logs", createIndex = false)
+@Document(indexName = "acis-logs", createIndex = true)
+@Setting(shards = 1, replicas = 0)
 public class LogDocument {
 
     @Id

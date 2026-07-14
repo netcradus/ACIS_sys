@@ -9,7 +9,7 @@ function Start-ServiceWindow {
     Write-Output "Launching $ServiceName in background..."
     $outLog = Join-Path $backendRoot "$ServiceName-out.log"
     $errLog = Join-Path $backendRoot "$ServiceName-err.log"
-    Start-Process java -NoNewWindow -WorkingDirectory $backendRoot -ArgumentList "-Xms32m", "-Xmx96m", "-jar", "`"$JarPath`"" -RedirectStandardOutput $outLog -RedirectStandardError $errLog
+    Start-Process java -NoNewWindow -WorkingDirectory $backendRoot -ArgumentList "-Xms128m", "-Xmx320m", "-XX:MaxMetaspaceSize=160m", "-XX:TieredStopAtLevel=1", "-jar", "`"$JarPath`"" -RedirectStandardOutput $outLog -RedirectStandardError $errLog
 }
 
 $services = @(

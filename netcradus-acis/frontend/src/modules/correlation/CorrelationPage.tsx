@@ -14,10 +14,12 @@ interface CorrelationRule {
   lastRunAt: string | null
 }
 
-interface FlinkJob {
+interface RuleActivity {
+  ruleId: string
   name: string
-  status: string
-  rate: number
+  enabled: boolean
+  matchCount: number
+  lastRunAt: string | null
 }
 
 interface CorrelationStats {
@@ -26,7 +28,7 @@ interface CorrelationStats {
   avgRiskScore: number
   totalEvents: number
   eventsSeries: number[]
-  flinkJobs: FlinkJob[]
+  ruleActivity: RuleActivity[]
 }
 
 const ruleConfigs: Record<string, { schedule: string, threshold: string, severity: string, throttle: string }> = {
@@ -374,34 +376,31 @@ export default function CorrelationPage() {
           )}
         </div>
 
-        {/* Flink Jobs and event throughput */}
+        {/* Rule activity and event throughput */}
         <div className="md:col-span-5 bg-[#0C0C0D] border border-neutral-800 rounded-xl p-5 space-y-5 flex flex-col justify-between">
           <div>
             <div className="flex items-center justify-between border-b border-neutral-900 pb-2.5">
-              <h3 className="text-xs font-bold text-white tracking-wider uppercase">Active Flink Jobs</h3>
+              <h3 className="text-xs font-bold text-white tracking-wider uppercase">Rule Match Activity</h3>
               <span className="px-2 py-0.5 rounded-full text-[8px] font-black tracking-wider uppercase bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 inline-flex items-center gap-1.5">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
-                Running
+                Live
               </span>
             </div>
 
             <div className="divide-y divide-neutral-900 mt-2">
-              {(stats?.flinkJobs || []).map((job, idx) => (
-                <div key={idx} className="flex items-center justify-between py-2.5 text-xs">
-                  <span className="font-mono text-neutral-400">{job.name}</span>
+              {(stats?.ruleActivity || []).filter(r => r.enabled).map((rule) => (
+                <div key={rule.ruleId} className="flex items-center justify-between py-2.5 text-xs">
+                  <span className="font-mono text-neutral-400 truncate max-w-[55%]">{rule.name}</span>
                   <div className="flex items-center gap-3">
-                    <span className="px-2 py-0.5 rounded-full text-[8px] font-black tracking-wider uppercase bg-emerald-500/5 text-emerald-400 border border-emerald-500/20">
-                      Running
-                    </span>
                     <span className="font-mono font-bold text-neutral-300 tabular-nums">
-                      {job.rate.toLocaleString()} events/sec
+                      {rule.matchCount.toLocaleString()} matches
                     </span>
                   </div>
                 </div>
               ))}
-              {(!stats?.flinkJobs || stats.flinkJobs.length === 0) && (
+              {(!stats?.ruleActivity || stats.ruleActivity.filter(r => r.enabled).length === 0) && (
                 <div className="py-6 text-center text-neutral-600 text-[10px] uppercase font-bold tracking-wider">
-                  No active Flink streaming instances detected
+                  No enabled rules
                 </div>
               )}
             </div>

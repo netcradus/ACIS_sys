@@ -8,7 +8,9 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.web.bind.annotation.*;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+import lombok.extern.slf4j.Slf4j;
 
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -20,6 +22,7 @@ import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 
+@Slf4j
 @RestController
 @RequestMapping("/api/logs")
 @RequiredArgsConstructor
@@ -36,13 +39,19 @@ public class LogController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "50") int size) {
         
-        List<LogDocument> allLogs = StreamSupport.stream(logRepository.findAll().spliterator(), false)
-                .collect(Collectors.toList());
-                
-        if (allLogs.isEmpty()) {
-            allLogs = logRepository.findTop100ByOrderByTimestampDesc();
+        List<LogDocument> allLogs;
+        try {
+            allLogs = StreamSupport.stream(logRepository.findAll().spliterator(), false)
+                    .collect(Collectors.toList());
+
+            if (allLogs.isEmpty()) {
+                allLogs = logRepository.findTop100ByOrderByTimestampDesc();
+            }
+        } catch (Exception e) {
+            log.warn("Elasticsearch search failed, returning empty result: {}", e.getMessage());
+            return Mono.just(Collections.emptyList());
         }
-        
+
         Stream<LogDocument> stream = allLogs.stream();
         
         if (service != null && !service.trim().isEmpty() && !service.equalsIgnoreCase("ALL")) {
@@ -71,7 +80,12 @@ public class LogController {
     @GetMapping("/latest")
     public Flux<LogDocument> getLatest() {
         // Returns the most recent logs for real-time dashboard initial load
-        return Flux.fromIterable(logRepository.findTop100ByOrderByTimestampDesc());
+        try {
+            return Flux.fromIterable(logRepository.findTop100ByOrderByTimestampDesc());
+        } catch (Exception e) {
+            log.warn("Elasticsearch search failed, returning empty result: {}", e.getMessage());
+            return Flux.empty();
+        }
     }
 
     private final RestTemplate restTemplate = new RestTemplate();

@@ -21,6 +21,7 @@ public class CorrelationRuleDto {
     private int riskScore;
     private boolean enabled;
     private String scheduleCron;
+    private Integer windowMinutes;
     private LocalDateTime lastRunAt;
     private LocalDateTime createdAt;
 }

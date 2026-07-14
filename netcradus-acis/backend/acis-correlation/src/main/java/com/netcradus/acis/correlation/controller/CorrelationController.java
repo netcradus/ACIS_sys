@@ -3,11 +3,13 @@ package com.netcradus.acis.correlation.controller;
 import com.netcradus.acis.common.dto.CorrelationRuleDto;
 import com.netcradus.acis.correlation.model.CorrelationRule;
 import com.netcradus.acis.correlation.repository.CorrelationRuleRepository;
+import com.netcradus.acis.correlation.service.CorrelationEngine;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @RestController
@@ -16,6 +18,7 @@ import java.util.stream.Collectors;
 public class CorrelationController {
 
     private final CorrelationRuleRepository repository;
+    private final CorrelationEngine correlationEngine;
 
     @GetMapping("/rules")
     public List<CorrelationRuleDto> getRules(@RequestHeader(value = "X-Tenant-ID", defaultValue = "demo-tenant") String tenantId) {
@@ -33,6 +36,7 @@ public class CorrelationController {
                 .splQuery(dto.getSplQuery())
                 .severity(dto.getSeverity())
                 .riskScore(dto.getRiskScore())
+                .windowMinutes(dto.getWindowMinutes() != null && dto.getWindowMinutes() > 0 ? dto.getWindowMinutes() : 5)
                 .enabled(true)
                 .build();
         return repository.save(rule);
@@ -52,28 +56,28 @@ public class CorrelationController {
         long disabled = allRules.stream().filter(r -> !r.isEnabled()).count();
         double avgRisk = allRules.stream().mapToInt(CorrelationRule::getRiskScore).average().orElse(0.0);
 
+        Map<String, Long> matchCounts = correlationEngine.getRuleMatchCounts();
+        List<Map<String, Object>> ruleActivity = allRules.stream()
+                .map(rule -> {
+                    Map<String, Object> entry = new java.util.HashMap<>();
+                    entry.put("ruleId", rule.getId());
+                    entry.put("name", rule.getName());
+                    entry.put("enabled", rule.isEnabled());
+                    entry.put("matchCount", matchCounts.getOrDefault(rule.getId(), 0L));
+                    entry.put("lastRunAt", rule.getLastRunAt());
+                    return entry;
+                })
+                .collect(Collectors.toList());
+
         java.util.Map<String, Object> stats = new java.util.HashMap<>();
         stats.put("activeRules", active);
         stats.put("disabledRules", disabled);
         stats.put("avgRiskScore", Math.round(avgRisk));
-        stats.put("totalEvents", com.netcradus.acis.correlation.service.CorrelationEngine.getTotalEvents());
-        stats.put("eventsSeries", com.netcradus.acis.correlation.service.CorrelationEngine.getBuckets());
-
-        java.util.List<java.util.Map<String, Object>> flinkJobs = new java.util.ArrayList<>();
-        flinkJobs.add(createJob("impossible-travel-v2", "RUNNING", 800 + (int)(Math.random() * 100)));
-        flinkJobs.add(createJob("brute-force-detector-v3", "RUNNING", 2300 + (int)(Math.random() * 100)));
-        flinkJobs.add(createJob("priv-esc-monitor-v1", "RUNNING", 500 + (int)(Math.random() * 50)));
-        stats.put("flinkJobs", flinkJobs);
+        stats.put("totalEvents", correlationEngine.getTotalEvents());
+        stats.put("eventsSeries", correlationEngine.getBuckets());
+        stats.put("ruleActivity", ruleActivity);
 
         return stats;
-    }
-
-    private java.util.Map<String, Object> createJob(String name, String status, int rate) {
-        java.util.Map<String, Object> job = new java.util.HashMap<>();
-        job.put("name", name);
-        job.put("status", status);
-        job.put("rate", rate);
-        return job;
     }
 
     private CorrelationRuleDto mapToDto(CorrelationRule rule) {
@@ -86,6 +90,7 @@ public class CorrelationController {
                 .severity(rule.getSeverity())
                 .riskScore(rule.getRiskScore())
                 .enabled(rule.isEnabled())
+                .windowMinutes(rule.getWindowMinutes())
                 .lastRunAt(rule.getLastRunAt())
                 .createdAt(rule.getCreatedAt())
                 .build();

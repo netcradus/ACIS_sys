@@ -1,4 +1,3 @@
-import os
 import json
 import logging
 from contextlib import asynccontextmanager
@@ -51,17 +50,19 @@ async def lifespan(app: FastAPI):
     app.state.faiss_index, app.state.mitre_data = build_mitre_index(app.state.embedder)
     
     logger.info("Training IsolationForest model for anomaly detection...")
-    app.state.iforest = IsolationForest(contamination=0.1)
-    app.state.iforest.fit([[1]*5, [1]*5, [10]*5]) # dummy fit
-    
-    logger.info("Instantiating Threat Classifier...")
+    app.state.iforest = IsolationForest(contamination=0.1, random_state=42)
+    app.state.iforest.fit(BASELINE_FEATURE_ROWS)
+
+    logger.info("Instantiating and fitting Threat Classifier on synthetic demo data...")
     if XGBOOST_AVAILABLE:
-        app.state.classifier = XGBClassifier()
-        # dummy fit not provided directly for XGBoost as it requires labels, using basic mock strategy
+        app.state.classifier = XGBClassifier(n_estimators=50, max_depth=3, eval_metric="mlogloss")
     else:
-        app.state.classifier = RandomForestClassifier()
-        app.state.classifier.fit([[0,0], [1,1]], [0, 1])
-    
+        app.state.classifier = RandomForestClassifier(random_state=42)
+    app.state.classifier.fit(
+        [row for row, _ in CLASSIFIER_TRAINING_ROWS],
+        [CLASSES.index(label) for _, label in CLASSIFIER_TRAINING_ROWS],
+    )
+
     logger.info("Starting gRPC server in background...")
     grpc_thread = threading.Thread(target=grpc_server.serve_grpc, daemon=True)
     grpc_thread.start()
@@ -79,12 +80,63 @@ class AlertRequest(BaseModel):
 class QueryRequest(BaseModel):
     query: str
 
-def get_llm_mode():
-    api_key1 = os.environ.get("OPENAI_API_KEY")
-    api_key2 = os.environ.get("ANTHROPIC_API_KEY")
-    if api_key1 or api_key2:
-        return "live"
-    return "mock"
+# No LLM provider is wired up in this build (no LangChain/OpenAI/Anthropic
+# client is ever constructed), so /ai/explain and /ai/query always run in
+# mock mode and always advertise that fact via the X-ACIS-AI-Mode header.
+
+# 5-dim feature vector shared by the anomaly + classifier models:
+# [bytes_out_norm, failed_logins, has_admin_signal, has_lolbin_signal, severity_weight]
+FEATURE_NAMES = ["bytes_out", "failed_logins", "admin_signal", "lolbin_signal", "severity_weight"]
+SEVERITY_WEIGHTS = {"critical": 4, "high": 3, "medium": 2, "low": 1, "info": 0}
+
+def extract_features(event: dict) -> List[float]:
+    action = str(event.get("action") or "").lower()
+    raw = str(event.get("raw") or event.get("message") or "").lower()
+    severity = str(event.get("severity") or "").lower()
+    text = f"{action} {raw}"
+
+    def to_float(value, default=0.0):
+        try:
+            return float(value)
+        except (TypeError, ValueError):
+            return default
+
+    return [
+        to_float(event.get("bytes_out") or event.get("outbound_bytes_mb"), 0.0),
+        to_float(event.get("failed_logins") or event.get("failed_auth_count"), 0.0),
+        1.0 if ("admin" in text or event.get("is_admin_account")) else 0.0,
+        1.0 if any(k in text for k in ("powershell", "certutil", "lolbin", "mimikatz")) else 0.0,
+        float(SEVERITY_WEIGHTS.get(severity, 0)),
+    ]
+
+BASELINE_FEATURE_ROWS = [
+    [5, 0, 0, 0, 0],
+    [10, 0, 0, 0, 1],
+    [20, 1, 0, 0, 1],
+    [8000, 5, 1, 1, 4],
+]
+
+CLASSES = ["malware", "exfiltration", "lateral_movement", "phishing", "privilege_escalation", "benign"]
+
+# Small synthetic, clearly-labeled demo dataset used only because no real
+# labeled training data exists yet — the classifier is genuinely fit on
+# this and genuinely scores whatever features are extracted from the
+# request, it just isn't backed by production telemetry.
+CLASSIFIER_TRAINING_ROWS = [
+    ([0, 0, 0, 0, 0], "benign"),
+    ([15, 0, 0, 0, 0], "benign"),
+    ([30, 1, 0, 0, 1], "benign"),
+    ([500, 0, 0, 1, 3], "malware"),
+    ([200, 0, 0, 1, 4], "malware"),
+    ([9000, 0, 0, 0, 2], "exfiltration"),
+    ([12000, 1, 0, 0, 3], "exfiltration"),
+    ([50, 8, 0, 0, 3], "lateral_movement"),
+    ([100, 12, 1, 0, 3], "lateral_movement"),
+    ([20, 4, 0, 0, 2], "phishing"),
+    ([40, 2, 0, 0, 3], "phishing"),
+    ([60, 0, 1, 1, 4], "privilege_escalation"),
+    ([90, 1, 1, 1, 4], "privilege_escalation"),
+]
 
 # ------------------------------------------------------------------------------------------------
 # Internal REST endpoints (Callable by Spring Boot only, not Gateway - User Constraint 6)
@@ -92,37 +144,55 @@ def get_llm_mode():
 
 @app.post("/ai/explain")
 async def explain_alert(request: AlertRequest):
-    mode = get_llm_mode()
-    if mode == "mock":
-        return JSONResponse(
-            content={
-                "explanation": "This is a simulated explanation because Language Models are running in DEMO mode. The raw alert detected a potential incident requiring analyst review.",
-                "recommended_action": "Isolate the compromised endpoint and reset the user credentials."
-            },
-            headers={"X-ACIS-AI-Mode": "mock"}
-        )
-    return {"explanation": "Live explanation goes here", "recommended_action": "Action"}
+    alert = request.raw_alert or {}
+    title = alert.get("title") or alert.get("name") or "this alert"
+    severity = str(alert.get("severity") or "medium").lower()
+    return JSONResponse(
+        content={
+            "explanation": (
+                f"[Simulated — no LLM configured] {title} was flagged at {severity} severity. "
+                "This is a template response; enable an LLM provider to get a real narrative explanation."
+            ),
+            "recommended_action": "Isolate the affected asset and review the raw event before dismissing this alert."
+        },
+        headers={"X-ACIS-AI-Mode": "mock"}
+    )
 
 @app.post("/ai/query")
 async def nl_to_spl(request: QueryRequest):
-    mode = get_llm_mode()
-    if mode == "mock":
-        # Returning a parsed SPL string for demonstration
-        return JSONResponse(
-            content={"spl": f'index=acis sourcetype=firewall | search "{request.query}" | stats count by dest_ip'},
-            headers={"X-ACIS-AI-Mode": "mock"}
-        )
-    return {"spl": "Live SPL string goes here"}
+    # Returning a parsed SPL string for demonstration
+    return JSONResponse(
+        content={"spl": f'index=acis sourcetype=firewall | search "{request.query}" | stats count by dest_ip'},
+        headers={"X-ACIS-AI-Mode": "mock"}
+    )
 
 @app.post("/ai/anomaly")
 async def detect_anomaly(event: dict):
-    # In a real scenario, extract features and use app.state.iforest
-    score = float(app.state.iforest.decision_function([[1, 2, 3, 4, 5]])[0])
-    return {"anomaly_score": max(0.0, score), "is_anomaly": score < 0, "top_features": ["bytes_out", "failed_logins"]}
+    features = extract_features(event)
+    score = float(app.state.iforest.decision_function([features])[0])
+    deviations = sorted(
+        zip(FEATURE_NAMES, features),
+        key=lambda pair: abs(pair[1]),
+        reverse=True,
+    )
+    top_features = [name for name, _ in deviations[:2] if _ != 0] or ["none"]
+    return {
+        "anomaly_score": max(0.0, -score),
+        "is_anomaly": score < 0,
+        "top_features": top_features,
+    }
 
 @app.post("/ai/classify")
 async def classify_threat(event: dict):
-    return {"predicted_class": "lateral_movement", "confidence": 0.89, "probabilities": {"lateral_movement": 0.89, "benign": 0.11}}
+    features = extract_features(event)
+    probabilities = app.state.classifier.predict_proba([features])[0]
+    prob_map = {CLASSES[i]: float(p) for i, p in enumerate(probabilities)}
+    predicted = max(prob_map, key=prob_map.get)
+    return {
+        "predicted_class": predicted,
+        "confidence": prob_map[predicted],
+        "probabilities": prob_map,
+    }
 
 @app.get("/ai/health")
 async def health_check():

@@ -39,6 +39,9 @@ public class CorrelationRule {
 
     private String scheduleCron;
 
+    @Builder.Default
+    private int windowMinutes = 5;
+
     private LocalDateTime lastRunAt;
     private LocalDateTime createdAt;
 
@@ -46,5 +49,6 @@ public class CorrelationRule {
     protected void onCreate() {
         createdAt = LocalDateTime.now();
         if (severity == null) severity = "MEDIUM";
+        if (windowMinutes <= 0) windowMinutes = 5;
     }
 }
