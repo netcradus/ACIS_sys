@@ -13,6 +13,10 @@ public class LicenseDetails {
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
 
+    @Column(name = "tenant_id", nullable = false,
+            columnDefinition = "uuid default '00000000-0000-0000-0000-000000000001'")
+    private UUID tenantId;
+
     @Column(name = "plan_name")
     private String planName;
 

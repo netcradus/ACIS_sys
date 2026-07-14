@@ -230,10 +230,10 @@ export default function SettingsPage() {
       const res = await apiClient.get(`/api/soar/settings/invoices/${invoiceId}/download`, {
         responseType: 'arraybuffer'
       })
-      const blob = new Blob([res.data], { type: 'application/pdf' })
+      const blob = new Blob([res.data], { type: 'text/plain' })
       const link = document.createElement('a')
       link.href = window.URL.createObjectURL(blob)
-      link.download = `${invoiceNum}.pdf`
+      link.download = `${invoiceNum}.txt`
       link.click()
     } catch (e) {
       console.error("Failed to download invoice:", e)

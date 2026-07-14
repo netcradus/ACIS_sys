@@ -13,7 +13,14 @@ public class Organization {
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
 
+    @Column(name = "tenant_id", nullable = false,
+            columnDefinition = "uuid default '00000000-0000-0000-0000-000000000001'")
+    private UUID tenantId;
+
     private String name;
+
+    @Column(name = "owner_email")
+    private String ownerEmail;
 
     @Column(name = "org_id_string")
     private String orgIdString; // e.g. org_ch_8841kd

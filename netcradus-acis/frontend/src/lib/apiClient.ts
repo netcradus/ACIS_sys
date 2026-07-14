@@ -46,7 +46,18 @@ apiClient.interceptors.request.use(async (config) => {
 
 apiClient.interceptors.response.use(
   (response) => {
-    if (response.data && response.data.hasOwnProperty('success') && response.data.hasOwnProperty('data')) {
+    // ApiResponse uses @JsonInclude(NON_NULL), so a failure envelope
+    // ({success:false, error:{...}}) omits the "data" key entirely rather
+    // than including it as null — checking for "success" alone (not both
+    // "success" and "data") is required to catch failure envelopes here.
+    if (response.data && typeof response.data === 'object' && 'success' in response.data) {
+      if (response.data.success === false) {
+        const message = response.data.error?.message || 'Request failed'
+        const err = new Error(message) as Error & { response?: typeof response; apiError?: unknown }
+        err.response = response
+        err.apiError = response.data.error
+        return Promise.reject(err)
+      }
       response.data = response.data.data
     }
     return response
