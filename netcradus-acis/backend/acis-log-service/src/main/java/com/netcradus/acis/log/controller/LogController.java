@@ -92,4 +92,17 @@ public class LogController {
             return ResponseEntity.internalServerError().body(Map.of("error", e.getMessage()));
         }
     }
+
+    @GetMapping("/ai-health")
+    public ResponseEntity<Map<String, String>> checkAiHealth() {
+        try {
+            Map response = restTemplate.getForObject("http://localhost:8090/ai/health", Map.class);
+            if (response != null && "ok".equals(response.get("status"))) {
+                return ResponseEntity.ok(Map.of("status", "UP"));
+            }
+            return ResponseEntity.ok(Map.of("status", "DOWN"));
+        } catch (Exception e) {
+            return ResponseEntity.ok(Map.of("status", "DOWN"));
+        }
+    }
 }

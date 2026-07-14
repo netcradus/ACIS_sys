@@ -28,6 +28,8 @@ export default function LogExplorerPage() {
 
   const [isTranslating, setIsTranslating] = useState(false)
   const [demoMode, setDemoMode] = useState(false)
+  const [aiStatus, setAiStatus] = useState<'checking' | 'ready' | 'offline'>('checking')
+  const [savedSearches, setSavedSearches] = useState<string[]>([])
 
   const columnDefs = useMemo<ColDef[]>(() => [
     {
@@ -110,12 +112,58 @@ export default function LogExplorerPage() {
   const parseQuery = (q: string) => {
     const filters: any = {}
     const parts = q.split('|').map(p => p.trim())
+    const textTerms: string[] = []
+
     parts.forEach(part => {
-      if (part.startsWith('service=')) filters.service = part.replace('service=', '')
-      if (part.startsWith('level=')) filters.level = part.replace('level=', '')
-      if (part.startsWith('host=')) filters.host = part.replace('host=', '')
+      if (part.startsWith('service=')) {
+        filters.service = part.replace('service=', '').trim()
+      } else if (part.startsWith('level=')) {
+        filters.level = part.replace('level=', '').trim()
+      } else if (part.startsWith('host=')) {
+        filters.host = part.replace('host=', '').trim()
+      } else if (part.startsWith('search ')) {
+        const term = part.substring(7).replace(/"/g, '').trim()
+        if (term) textTerms.push(term)
+      } else if (part.startsWith('index=') || part.startsWith('sourcetype=')) {
+        const val = part.split('=')[1]?.trim()
+        if (val) textTerms.push(val)
+      } else if (!part.startsWith('stats ')) {
+        if (part) textTerms.push(part)
+      }
     })
+
+    if (textTerms.length > 0) {
+      filters.query = textTerms.join(' ')
+    }
     return filters
+  }
+
+  const handleExportCSV = () => {
+    if (logs.length === 0) return
+    const headers = ['timestamp', 'service', 'level', 'message', 'host', 'threatSeverity']
+    const csvContent = [
+      headers.join(','),
+      ...logs.map(log => headers.map(header => {
+        const val = log[header as keyof LogEntry] || ''
+        return `"${String(val).replace(/"/g, '""')}"`
+      }).join(','))
+    ].join('\n')
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.setAttribute('href', url)
+    link.setAttribute('download', `acis_logs_${new Date().toISOString().split('T')[0]}.csv`)
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+  }
+
+  const handleSaveSearch = () => {
+    if (!query.trim()) return
+    const updated = Array.from(new Set([query.trim(), ...savedSearches]))
+    setSavedSearches(updated)
+    localStorage.setItem('acis_saved_searches', JSON.stringify(updated))
   }
 
   const fetchLogs = async () => {
@@ -161,6 +209,31 @@ export default function LogExplorerPage() {
   }
 
   useEffect(() => {
+    const checkAiStatus = async () => {
+      try {
+        const response = await apiClient.get<{ status: string }>('/api/logs/ai-health')
+        if (response.data.status === 'UP') {
+          setAiStatus('ready')
+        } else {
+          setAiStatus('offline')
+        }
+      } catch (e) {
+        setAiStatus('offline')
+      }
+    }
+
+    checkAiStatus()
+    const interval = setInterval(checkAiStatus, 15000)
+
+    const saved = localStorage.getItem('acis_saved_searches')
+    if (saved) {
+      setSavedSearches(JSON.parse(saved))
+    }
+
+    return () => clearInterval(interval)
+  }, [])
+
+  useEffect(() => {
     let sub: any = null
     if (isLive) {
       const loadLiveLogs = async () => {
@@ -193,7 +266,7 @@ export default function LogExplorerPage() {
 
 
   return (
-    <div className="space-y-8 animate-fade-in flex flex-col h-[calc(100vh-160px)] bg-black">
+    <div className="space-y-8 animate-fade-in flex flex-col min-h-[calc(100vh-160px)] bg-black">
       {/* Header */}
       <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div>
@@ -249,13 +322,24 @@ export default function LogExplorerPage() {
           <div className="flex items-center gap-2">
             <button
               onClick={handleTranslate}
-              disabled={isTranslating}
-              className="flex items-center gap-2 bg-accent/20 px-3 py-1 rounded border border-accent/30 text-[9px] font-bold text-accent uppercase tracking-widest hover:bg-accent/40 transition-colors"
+              disabled={isTranslating || aiStatus !== 'ready'}
+              className="flex items-center gap-2 bg-accent/20 px-3 py-1 rounded border border-accent/30 text-[9px] font-bold text-accent uppercase tracking-widest hover:bg-accent/40 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isTranslating ? 'TRANSLATING...' : 'TRANSLATE ENGLISH TO SPL'}
             </button>
-            <div className="w-1.5 h-1.5 rounded-full bg-accent animate-pulse ml-2" />
-            <span className="text-[9px] font-bold text-accent uppercase tracking-widest">AI Agent Ready</span>
+            <div className={clsx(
+              "w-1.5 h-1.5 rounded-full animate-pulse ml-2",
+              aiStatus === 'checking' ? "bg-warning" : 
+              aiStatus === 'ready' ? "bg-success" : "bg-danger"
+            )} />
+            <span className={clsx(
+              "text-[9px] font-bold uppercase tracking-widest",
+              aiStatus === 'checking' ? "text-warning" : 
+              aiStatus === 'ready' ? "text-success" : "text-danger"
+            )}>
+              {aiStatus === 'checking' ? 'Checking AI Agent...' : 
+               aiStatus === 'ready' ? 'AI Agent Ready' : 'AI Agent Offline'}
+            </span>
           </div>
         </div>
 
@@ -277,12 +361,34 @@ export default function LogExplorerPage() {
           <button onClick={fetchLogs} className="btn-fire min-w-[140px]">
             <Play className="w-4 h-4 fill-white" /> RUN SEARCH
           </button>
-          <button className="btn-mission">
+          <button onClick={handleExportCSV} className="btn-mission">
             <Download className="w-4 h-4" /> EXPORT CSV
           </button>
-          <button className="btn-mission">
+          <button onClick={handleSaveSearch} className="btn-mission">
             <Save className="w-4 h-4" /> SAVE SEARCH
           </button>
+
+          {savedSearches.length > 0 && (
+            <div className="flex items-center gap-2 ml-auto">
+              <span className="text-[9px] font-bold text-text-secondary uppercase tracking-widest">Saved:</span>
+              <select
+                onChange={(e) => {
+                  if (e.target.value) {
+                    setQuery(e.target.value);
+                    e.target.value = '';
+                  }
+                }}
+                className="bg-surface border border-fire-border px-3 py-1.5 rounded-xl text-[10px] font-bold text-text-secondary uppercase tracking-widest focus:outline-none cursor-pointer max-w-[200px]"
+              >
+                <option value="">Load Saved Search...</option>
+                {savedSearches.map((s, idx) => (
+                  <option key={idx} value={s}>
+                    {s.length > 30 ? s.substring(0, 30) + '...' : s}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
         </div>
       </div>
 
