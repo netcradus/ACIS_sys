@@ -1,6 +1,16 @@
 package com.netcradus.acis.soar.config;
 
 import com.netcradus.acis.soar.model.AuditEntry;
+import com.netcradus.acis.soar.model.Organization;
+import com.netcradus.acis.soar.model.LicenseDetails;
+import com.netcradus.acis.soar.model.Invoice;
+import com.netcradus.acis.soar.model.UserMember;
+import com.netcradus.acis.soar.model.UserGroup;
+import com.netcradus.acis.soar.repository.OrganizationRepository;
+import com.netcradus.acis.soar.repository.LicenseDetailsRepository;
+import com.netcradus.acis.soar.repository.InvoiceRepository;
+import com.netcradus.acis.soar.repository.UserMemberRepository;
+import com.netcradus.acis.soar.repository.UserGroupRepository;
 import com.netcradus.acis.soar.model.Playbook;
 import com.netcradus.acis.soar.model.PlaybookExecution;
 import com.netcradus.acis.soar.model.RedTeamSimulation;
@@ -35,6 +45,11 @@ public class SeedConfig {
     private final ReportScheduleRepository reportScheduleRepository;
     private final ApiKeyRepository apiKeyRepository;
     private final IntegrationRepository integrationRepository;
+    private final OrganizationRepository organizationRepository;
+    private final LicenseDetailsRepository licenseDetailsRepository;
+    private final InvoiceRepository invoiceRepository;
+    private final UserMemberRepository userMemberRepository;
+    private final UserGroupRepository userGroupRepository;
 
     @Bean
     public CommandLineRunner seedData() {
@@ -332,6 +347,118 @@ public class SeedConfig {
                 a3.setStatus("Success");
                 auditEntryRepository.save(a3);
             }
+
+            log.info("Seeding Settings Organization...");
+            organizationRepository.deleteAll();
+            Organization o = new Organization();
+            o.setName("CyberHaxs Pvt. Ltd.");
+            o.setOrgIdString("org_ch_8841kd");
+            o.setIndustry("Managed Security Services");
+            o.setPrimaryRegion("Asia Pacific (Ghaziabad, IN)");
+            o.setSupportEmail("security@cyberhaxs.com");
+            o.setTimeZone("IST (UTC +5:30)");
+            organizationRepository.save(o);
+
+            log.info("Seeding Settings License & Billing...");
+            licenseDetailsRepository.deleteAll();
+            LicenseDetails ld = new LicenseDetails();
+            ld.setPlanName("Enterprise Shield");
+            ld.setPlanPrice("₹1,84,999/mo");
+            ld.setPlanFeatures("Unlimited endpoints · 24/7 SOC support · Renews 14 Aug 2026");
+            ld.setEndpointsMonitored(642);
+            ld.setEndpointsLimit(1000);
+            ld.setDataIngestion(1.8);
+            ld.setDataIngestionLimit(2.5);
+            ld.setApiCalls(402000);
+            ld.setApiCallsLimit(1000000);
+            ld.setCardBrand("VISA");
+            ld.setCardLast4("4471");
+            ld.setCardExpiry("08/28");
+            ld.setBillingDetails("Billed to CyberHaxs Pvt. Ltd.");
+            licenseDetailsRepository.save(ld);
+
+            log.info("Seeding Settings Invoices...");
+            invoiceRepository.deleteAll();
+            
+            Invoice inv1 = new Invoice();
+            inv1.setInvoiceNumber("INV-2026-0071");
+            inv1.setDate("01 Jul 2026");
+            inv1.setAmount("₹1,84,999");
+            inv1.setStatus("Paid");
+            invoiceRepository.save(inv1);
+
+            Invoice inv2 = new Invoice();
+            inv2.setInvoiceNumber("INV-2026-0058");
+            inv2.setDate("01 Jun 2026");
+            inv2.setAmount("₹1,84,999");
+            inv2.setStatus("Paid");
+            invoiceRepository.save(inv2);
+
+            Invoice inv3 = new Invoice();
+            inv3.setInvoiceNumber("INV-2026-0044");
+            inv3.setDate("01 May 2026");
+            inv3.setAmount("₹1,79,500");
+            inv3.setStatus("Paid");
+            invoiceRepository.save(inv3);
+
+            log.info("Seeding Settings Users & Groups...");
+            userMemberRepository.deleteAll();
+            userGroupRepository.deleteAll();
+
+            // Groups
+            UserGroup g1 = new UserGroup();
+            g1.setName("SOC Analysts");
+            g1.setDescription("Monitors alerts, triages events, escalates incidents.");
+            g1.setMemberCount(6);
+            g1.setBadgeInitials("SA");
+            userGroupRepository.save(g1);
+
+            UserGroup g2 = new UserGroup();
+            g2.setName("Incident Responders");
+            g2.setDescription("Executes SOAR playbooks and containment actions.");
+            g2.setMemberCount(3);
+            g2.setBadgeInitials("IR");
+            userGroupRepository.save(g2);
+
+            UserGroup g3 = new UserGroup();
+            g3.setName("Admins");
+            g3.setDescription("Full access to configuration, billing, and users.");
+            g3.setMemberCount(2);
+            g3.setBadgeInitials("AD");
+            userGroupRepository.save(g3);
+
+            // Members
+            UserMember m1 = new UserMember();
+            m1.setName("Mohit Goel");
+            m1.setEmail("mohit@cyberhaxs.com");
+            m1.setGroupName("Admins");
+            m1.setStatus("Active");
+            m1.setLastLogin("2 mins ago");
+            userMemberRepository.save(m1);
+
+            UserMember m2 = new UserMember();
+            m2.setName("Ananya Sharma");
+            m2.setEmail("ananya@cyberhaxs.com");
+            m2.setGroupName("SOC Analysts");
+            m2.setStatus("Active");
+            m2.setLastLogin("1 hr ago");
+            userMemberRepository.save(m2);
+
+            UserMember m3 = new UserMember();
+            m3.setName("Rohit Verma");
+            m3.setEmail("rohit@cyberhaxs.com");
+            m3.setGroupName("Incident Responders");
+            m3.setStatus("Active");
+            m3.setLastLogin("Yesterday");
+            userMemberRepository.save(m3);
+
+            UserMember m4 = new UserMember();
+            m4.setName("Priya Nair");
+            m4.setEmail("priya@cyberhaxs.com");
+            m4.setGroupName("Auditors");
+            m4.setStatus("Invited");
+            m4.setLastLogin("Never");
+            userMemberRepository.save(m4);
         };
     }
 }

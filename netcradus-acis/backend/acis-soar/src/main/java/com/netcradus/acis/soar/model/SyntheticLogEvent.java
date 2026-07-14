@@ -1,4 +1,4 @@
-package com.netcradus.acis.log.model;
+package com.netcradus.acis.soar.model;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -8,11 +8,17 @@ import lombok.NoArgsConstructor;
 import java.time.Instant;
 import java.util.Map;
 
+/**
+ * Kafka wire-format payload for synthetic red-team events, published to the
+ * same "acis-logs" topic and JSON shape that acis-log-service's
+ * LogIngestionService consumes. Deliberately a plain local POJO rather than
+ * a shared/imported entity — acis-soar has no dependency on acis-log-service.
+ */
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class LogDocument {
+public class SyntheticLogEvent {
     private String id;
     private Instant timestamp;
     private String message;

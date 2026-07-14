@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react'
-import { Key, Copy, Plus, X, Check, Settings, Activity, FileText, Database, Shield, Users, CreditCard, Layers } from 'lucide-react'
+import { Key, Copy, Plus, X, Check, Settings, Activity, FileText, Database, Shield, Users, CreditCard, Layers, Building2 } from 'lucide-react'
 import { clsx } from 'clsx'
 import apiClient from '@/lib/apiClient'
+import InDevelopment from '@/components/InDevelopment'
 
 interface ApiKey {
   id: string
@@ -25,8 +26,40 @@ export default function SettingsPage() {
   const [keys, setKeys] = useState<ApiKey[]>([])
   const [integrations, setIntegrations] = useState<Integration[]>([])
   const [loading, setLoading] = useState(true)
-  const [activeTab, setActiveTab] = useState('API Keys')
+  const [activeTab, setActiveTab] = useState('Organization')
   const [copiedKeyId, setCopiedKeyId] = useState<string | null>(null)
+
+  // Organization states
+  const [orgName, setOrgName] = useState('')
+  const [orgIdString, setOrgIdString] = useState('')
+  const [orgIndustry, setOrgIndustry] = useState('Managed Security Services')
+  const [orgRegion, setOrgRegion] = useState('Asia Pacific (Ghaziabad, IN)')
+  const [orgEmail, setOrgEmail] = useState('')
+  const [orgTimeZone, setOrgTimeZone] = useState('IST (UTC +5:30)')
+  const [orgLoading, setOrgLoading] = useState(true)
+  const [orgSaving, setOrgSaving] = useState(false)
+
+  // License & Billing states
+  const [license, setLicense] = useState<any>(null)
+  const [invoices, setInvoices] = useState<any[]>([])
+  const [licenseLoading, setLicenseLoading] = useState(true)
+  const [licenseChanging, setLicenseChanging] = useState(false)
+
+  // Users & Groups states
+  const [users, setUsers] = useState<any[]>([])
+  const [groups, setGroups] = useState<any[]>([])
+  const [usersLoading, setUsersLoading] = useState(true)
+  const [inviteModalOpen, setInviteModalOpen] = useState(false)
+  const [groupModalOpen, setGroupModalOpen] = useState(false)
+
+  // Invite user form fields
+  const [inviteName, setInviteName] = useState('')
+  const [inviteEmail, setInviteEmail] = useState('')
+  const [inviteGroup, setInviteGroup] = useState('Admins')
+
+  // Create group form fields
+  const [groupName, setGroupName] = useState('')
+  const [groupDesc, setGroupDesc] = useState('')
 
   // Modals state
   const [isKeyModalOpen, setIsKeyModalOpen] = useState(false)
@@ -55,8 +88,264 @@ export default function SettingsPage() {
     }
   }
 
+  const fetchOrganization = async () => {
+    try {
+      setOrgLoading(true)
+      const res = await apiClient.get('/api/soar/settings/organization')
+      if (res.data) {
+        setOrgName(res.data.name || '')
+        setOrgIdString(res.data.orgIdString || '')
+        setOrgIndustry(res.data.industry || 'Managed Security Services')
+        setOrgRegion(res.data.primaryRegion || 'Asia Pacific (Ghaziabad, IN)')
+        setOrgEmail(res.data.supportEmail || '')
+        setOrgTimeZone(res.data.timeZone || 'IST (UTC +5:30)')
+      }
+    } catch (e) {
+      console.error("Failed to load organization settings:", e)
+    } finally {
+      setOrgLoading(false)
+    }
+  }
+
+  const handleSaveOrganization = async (e: React.FormEvent) => {
+    if (e) e.preventDefault()
+    try {
+      setOrgSaving(true)
+      const res = await apiClient.put('/api/soar/settings/organization', {
+        name: orgName,
+        orgIdString: orgIdString,
+        industry: orgIndustry,
+        primaryRegion: orgRegion,
+        supportEmail: orgEmail,
+        timeZone: orgTimeZone
+      })
+      if (res.data) {
+        alert("Organization settings updated successfully!")
+      }
+    } catch (e) {
+      console.error("Failed to update organization settings:", e)
+      alert("Failed to update organization settings.")
+    } finally {
+      setOrgSaving(false)
+    }
+  }
+
+  const handleTransferOwnership = async () => {
+    const email = prompt("Enter the email address of the administrator to transfer ownership to:")
+    if (!email) return
+    try {
+      const res = await apiClient.post('/api/soar/settings/organization/transfer', email, {
+        headers: { 'Content-Type': 'text/plain' }
+      })
+      if (res.data) {
+        alert(res.data)
+      }
+    } catch (e) {
+      console.error("Failed to transfer ownership:", e)
+    }
+  }
+
+  const handleDeleteOrganization = async () => {
+    if (!confirm("WARNING: This action is irreversible. Are you sure you want to permanently delete and reset this organization?")) return
+    try {
+      const res = await apiClient.delete('/api/soar/settings/organization')
+      if (res.data) {
+        alert(res.data)
+        fetchOrganization()
+      }
+    } catch (e) {
+      console.error("Failed to delete organization:", e)
+    }
+  }
+
+  const fetchLicense = async () => {
+    try {
+      setLicenseLoading(true)
+      const res = await apiClient.get('/api/soar/settings/license')
+      if (res.data) {
+        setLicense(res.data)
+      }
+      const invRes = await apiClient.get('/api/soar/settings/invoices')
+      if (invRes.data) {
+        setInvoices(invRes.data)
+      }
+    } catch (e) {
+      console.error("Failed to load license details:", e)
+    } finally {
+      setLicenseLoading(false)
+    }
+  }
+
+  const handleChangePlan = async () => {
+    const plans = ["Enterprise Shield", "Growth Shield", "Standard Shield"]
+    const currentIdx = plans.indexOf(license?.planName || '')
+    const nextPlan = plans[(currentIdx + 1) % plans.length]
+    
+    if (!confirm(`Are you sure you want to change your plan to ${nextPlan}?`)) return
+    
+    try {
+      setLicenseChanging(true)
+      const res = await apiClient.post('/api/soar/settings/license/change-plan', nextPlan, {
+        headers: { 'Content-Type': 'text/plain' }
+      })
+      if (res.data) {
+        setLicense(res.data)
+        alert(`Plan changed successfully to ${nextPlan}!`)
+      }
+    } catch (e) {
+      console.error("Failed to change plan:", e)
+    } finally {
+      setLicenseChanging(false)
+    }
+  }
+
+  const handleUpdatePayment = async () => {
+    const brand = prompt("Enter Card Brand (e.g. VISA, MasterCard):", license?.cardBrand || 'VISA')
+    if (!brand) return
+    const last4 = prompt("Enter Card Last 4 digits (e.g. 4471):", license?.cardLast4 || '4471')
+    if (!last4) return
+    const expiry = prompt("Enter Card Expiry date (MM/YY, e.g. 08/28):", license?.cardExpiry || '08/28')
+    if (!expiry) return
+    const details = prompt("Enter Billing details (e.g. Billed to CyberHaxs Pvt. Ltd.):", license?.billingDetails || '')
+    if (!details) return
+
+    try {
+      const res = await apiClient.put('/api/soar/settings/license/payment-method', {
+        cardBrand: brand,
+        cardLast4: last4,
+        cardExpiry: expiry,
+        billingDetails: details
+      })
+      if (res.data) {
+        setLicense(res.data)
+        alert("Payment method updated successfully!")
+      }
+    } catch (e) {
+      console.error("Failed to update payment method:", e)
+    }
+  }
+
+  const handleDownloadInvoice = async (invoiceId: string, invoiceNum: string) => {
+    try {
+      const res = await apiClient.get(`/api/soar/settings/invoices/${invoiceId}/download`, {
+        responseType: 'arraybuffer'
+      })
+      const blob = new Blob([res.data], { type: 'application/pdf' })
+      const link = document.createElement('a')
+      link.href = window.URL.createObjectURL(blob)
+      link.download = `${invoiceNum}.pdf`
+      link.click()
+    } catch (e) {
+      console.error("Failed to download invoice:", e)
+    }
+  }
+
+  const handleDownloadAllInvoices = () => {
+    if (!invoices.length) {
+      alert("No invoices available to download.")
+      return
+    }
+    invoices.forEach(inv => {
+      handleDownloadInvoice(inv.id, inv.invoiceNumber)
+    })
+  }
+
+  const formatNumberWithK = (num: number) => {
+    if (!num) return '0'
+    if (num >= 1000000) return `${(num / 1000000).toFixed(0)}M`
+    if (num >= 1000) return `${(num / 1000).toFixed(0)}K`
+    return num.toString()
+  }
+
+  const fetchUsersAndGroups = async () => {
+    try {
+      setUsersLoading(true)
+      const resUsers = await apiClient.get('/api/soar/settings/users')
+      if (resUsers.data) {
+        setUsers(resUsers.data)
+      }
+      const resGroups = await apiClient.get('/api/soar/settings/groups')
+      if (resGroups.data) {
+        setGroups(resGroups.data)
+      }
+    } catch (e) {
+      console.error("Failed to load users & groups details:", e)
+    } finally {
+      setUsersLoading(false)
+    }
+  }
+
+  const handleInviteUser = async (e: React.FormEvent) => {
+    e.preventDefault()
+    try {
+      const res = await apiClient.post('/api/soar/settings/users/invite', {
+        name: inviteName,
+        email: inviteEmail,
+        groupName: inviteGroup
+      })
+      if (res.data) {
+        alert(`Successfully invited ${inviteName}!`)
+        setInviteName('')
+        setInviteEmail('')
+        setInviteModalOpen(false)
+        fetchUsersAndGroups()
+      }
+    } catch (e) {
+      console.error("Failed to invite user:", e)
+      alert("Failed to invite user.")
+    }
+  }
+
+  const handleResendInvite = async (userId: string, userName: string) => {
+    try {
+      const res = await apiClient.post(`/api/soar/settings/users/${userId}/resend`)
+      if (res.data) {
+        alert(`Invitation email resent to ${userName}!`)
+        fetchUsersAndGroups()
+      }
+    } catch (e) {
+      console.error("Failed to resend invitation:", e)
+    }
+  }
+
+  const handleDeleteUser = async (userId: string, userName: string) => {
+    if (!confirm(`Are you sure you want to remove ${userName} from this organization?`)) return
+    try {
+      const res = await apiClient.delete(`/api/soar/settings/users/${userId}`)
+      if (res.data) {
+        alert(`${userName} removed successfully.`)
+        fetchUsersAndGroups()
+      }
+    } catch (e) {
+      console.error("Failed to remove user:", e)
+    }
+  }
+
+  const handleCreateGroup = async (e: React.FormEvent) => {
+    e.preventDefault()
+    try {
+      const res = await apiClient.post('/api/soar/settings/groups', {
+        name: groupName,
+        description: groupDesc
+      })
+      if (res.data) {
+        alert(`Group ${groupName} created successfully!`)
+        setGroupName('')
+        setGroupDesc('')
+        setGroupModalOpen(false)
+        fetchUsersAndGroups()
+      }
+    } catch (e) {
+      console.error("Failed to create group:", e)
+      alert("Failed to create group.")
+    }
+  }
+
   useEffect(() => {
     fetchData()
+    fetchOrganization()
+    fetchLicense()
+    fetchUsersAndGroups()
   }, [])
 
   // Copy token to clipboard helper
@@ -131,13 +420,18 @@ export default function SettingsPage() {
         <div className="space-y-2">
           <span className="text-[9px] text-neutral-500 font-bold uppercase tracking-wider block px-3">General</span>
           {[
-            { label: 'Organization', icon: Activity },
-            { label: 'Licenses & Billing', icon: CreditCard }
+            { label: 'Organization', icon: Building2 },
+            { label: 'License & Billing', icon: CreditCard }
           ].map((tab, idx) => (
             <button 
               key={idx}
-              onClick={() => alert(`${tab.label} settings is in development`)}
-              className="w-full text-left px-3 py-2 rounded-lg text-xs font-semibold text-neutral-500 hover:text-white hover:bg-neutral-900/40 transition-colors flex items-center gap-2 focus:outline-none"
+              onClick={() => setActiveTab(tab.label)}
+              className={clsx(
+                "w-full text-left px-3 py-2 rounded-lg text-xs font-bold transition-colors flex items-center gap-2 focus:outline-none",
+                activeTab === tab.label 
+                  ? "text-[#FF5A1F] bg-[#FF5A1F]/5" 
+                  : "text-neutral-500 hover:text-white hover:bg-neutral-900/40"
+              )}
             >
               <tab.icon className="w-3.5 h-3.5" /> {tab.label}
             </button>
@@ -195,9 +489,619 @@ export default function SettingsPage() {
         
         {/* Panel Title */}
         <div className="border-b border-neutral-950 pb-4">
-          <h2 className="text-lg font-bold text-white tracking-tight uppercase leading-none">Access & Integrations</h2>
-          <p className="text-[10px] text-neutral-500 mt-1 uppercase tracking-wider">Manage API access tokens and connected third-party security tools.</p>
+          {activeTab === 'Organization' && (
+            <div>
+              <div className="text-[10px] text-neutral-500 font-bold mb-2">
+                <span>Settings</span> <span className="text-neutral-600">/</span> <span className="text-white">Organization</span>
+              </div>
+              <h2 className="text-xl font-bold text-white tracking-tight leading-none">Organization</h2>
+              <p className="text-xs text-neutral-500 mt-2 font-medium">Manage your organization's identity, contact details, and account-level controls.</p>
+            </div>
+          )}
+          {activeTab === 'License & Billing' && (
+            <div>
+              <div className="text-[10px] text-neutral-500 font-bold mb-2">
+                <span>Settings</span> <span className="text-neutral-600">/</span> <span className="text-white">License & Billing</span>
+              </div>
+              <h2 className="text-xl font-bold text-white tracking-tight leading-none">License & Billing</h2>
+              <p className="text-xs text-neutral-500 mt-2 font-medium">Track your subscription tier, usage against plan limits, and payment history.</p>
+            </div>
+          )}
+          {activeTab === 'Users & Groups' && (
+            <div>
+              <div className="text-[10px] text-neutral-500 font-bold mb-2">
+                <span>Settings</span> <span className="text-neutral-600">/</span> <span className="text-white">Users & Groups</span>
+              </div>
+              <h2 className="text-xl font-bold text-white tracking-tight leading-none">Users & Groups</h2>
+              <p className="text-xs text-neutral-500 mt-2 font-medium">Manage who has access to the console and how they're grouped for permissions.</p>
+            </div>
+          )}
+          {!['Organization', 'License & Billing', 'Users & Groups'].includes(activeTab) && (
+            <div>
+              <h2 className="text-lg font-bold text-white tracking-tight uppercase leading-none">Access & Integrations</h2>
+              <p className="text-[10px] text-neutral-500 mt-1 uppercase tracking-wider">Manage API access tokens and connected third-party security tools.</p>
+            </div>
+          )}
         </div>
+
+        {/* Tab 0: Organization Panel */}
+        {activeTab === 'Organization' && (
+          <div className="space-y-6 animate-fade-in">
+            {/* Organization Profile Card */}
+            <div className="bg-[#0C0C0D] border border-neutral-800 rounded-xl p-6 shadow-sm space-y-6">
+              <div className="flex items-center justify-between border-b border-neutral-900 pb-4">
+                <div>
+                  <h3 className="text-sm font-bold text-white tracking-tight">Organization profile</h3>
+                  <p className="text-[10px] text-neutral-500 mt-1">Visible to your team across the console</p>
+                </div>
+                <button 
+                  onClick={handleSaveOrganization}
+                  disabled={orgSaving}
+                  className="bg-[#FF5A1F] hover:bg-[#E54E18] disabled:bg-neutral-800 disabled:text-neutral-500 text-white font-bold px-5 py-2 rounded-xl text-xs flex items-center gap-1 transition-all focus:outline-none"
+                >
+                  {orgSaving ? 'Saving...' : 'Save changes'}
+                </button>
+              </div>
+
+              {orgLoading ? (
+                <div className="py-12 text-center text-xs text-neutral-500 font-bold uppercase tracking-widest animate-pulse">
+                  Loading Profile Data...
+                </div>
+              ) : (
+                <form onSubmit={handleSaveOrganization} className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-5 text-xs">
+                  {/* Row 1 */}
+                  <div className="space-y-1.5">
+                    <label className="text-neutral-400 font-bold tracking-tight block">Organization name</label>
+                    <input 
+                      type="text" 
+                      required
+                      placeholder="Organization Name"
+                      value={orgName}
+                      onChange={(e) => setOrgName(e.target.value)}
+                      className="w-full bg-[#121214] border border-neutral-800 rounded-lg px-3 py-2.5 text-white placeholder:text-neutral-750 focus:outline-none focus:border-neutral-700 transition-colors"
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-neutral-400 font-bold tracking-tight block">Organization ID</label>
+                    <input 
+                      type="text" 
+                      readOnly
+                      placeholder="Organization ID"
+                      value={orgIdString}
+                      className="w-full bg-[#121214]/50 border border-neutral-800/80 rounded-lg px-3 py-2.5 text-neutral-400 focus:outline-none cursor-not-allowed select-all"
+                    />
+                  </div>
+
+                  {/* Row 2 */}
+                  <div className="space-y-1.5">
+                    <label className="text-neutral-400 font-bold tracking-tight block">Industry</label>
+                    <div className="relative">
+                      <select 
+                        value={orgIndustry}
+                        onChange={(e) => setOrgIndustry(e.target.value)}
+                        className="w-full bg-[#121214] border border-neutral-800 rounded-lg px-3 py-2.5 text-white focus:outline-none focus:border-neutral-700 transition-colors cursor-pointer"
+                      >
+                        <option value="Managed Security Services">Managed Security Services</option>
+                        <option value="Financial Services">Financial Services</option>
+                        <option value="Healthcare & Life Sciences">Healthcare & Life Sciences</option>
+                        <option value="Government & Public Sector">Government & Public Sector</option>
+                        <option value="Retail & E-commerce">Retail & E-commerce</option>
+                        <option value="Technology & Telecom">Technology & Telecom</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-neutral-400 font-bold tracking-tight block">Primary region</label>
+                    <div className="relative">
+                      <select 
+                        value={orgRegion}
+                        onChange={(e) => setOrgRegion(e.target.value)}
+                        className="w-full bg-[#121214] border border-neutral-800 rounded-lg px-3 py-2.5 text-white focus:outline-none focus:border-neutral-700 transition-colors cursor-pointer"
+                      >
+                        <option value="Asia Pacific (Ghaziabad, IN)">Asia Pacific (Ghaziabad, IN)</option>
+                        <option value="US East (N. Virginia)">US East (N. Virginia)</option>
+                        <option value="US West (Oregon)">US West (Oregon)</option>
+                        <option value="Europe (Frankfurt)">Europe (Frankfurt)</option>
+                        <option value="Europe (Ireland)">Europe (Ireland)</option>
+                        <option value="Asia Pacific (Singapore)">Asia Pacific (Singapore)</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  {/* Row 3 */}
+                  <div className="space-y-1.5">
+                    <label className="text-neutral-400 font-bold tracking-tight block">Support email</label>
+                    <input 
+                      type="email" 
+                      required
+                      placeholder="support@organization.com"
+                      value={orgEmail}
+                      onChange={(e) => setOrgEmail(e.target.value)}
+                      className="w-full bg-[#121214] border border-neutral-800 rounded-lg px-3 py-2.5 text-white placeholder:text-neutral-750 focus:outline-none focus:border-neutral-700 transition-colors"
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-neutral-400 font-bold tracking-tight block">Time zone</label>
+                    <div className="relative">
+                      <select 
+                        value={orgTimeZone}
+                        onChange={(e) => setOrgTimeZone(e.target.value)}
+                        className="w-full bg-[#121214] border border-neutral-800 rounded-lg px-3 py-2.5 text-white focus:outline-none focus:border-neutral-700 transition-colors cursor-pointer"
+                      >
+                        <option value="IST (UTC +5:30)">IST (UTC +5:30)</option>
+                        <option value="UTC (Coordinated Universal Time)">UTC (Coordinated Universal Time)</option>
+                        <option value="EST (UTC -5:00)">EST (UTC -5:00)</option>
+                        <option value="PST (UTC -8:00)">PST (UTC -8:00)</option>
+                        <option value="GMT (UTC +0:00)">GMT (UTC +0:00)</option>
+                        <option value="JST (UTC +9:00)">JST (UTC +9:00)</option>
+                      </select>
+                    </div>
+                  </div>
+                </form>
+              )}
+            </div>
+
+            {/* Danger Zone Card */}
+            <div className="bg-[#0C0C0D] border border-neutral-800 rounded-xl p-6 shadow-sm space-y-6">
+              <div className="border-b border-neutral-900 pb-3">
+                <h3 className="text-sm font-bold text-white tracking-tight">Danger zone</h3>
+                <p className="text-[10px] text-neutral-500 mt-1">Irreversible and destructive actions</p>
+              </div>
+
+              <div className="space-y-4 divide-y divide-neutral-900/60">
+                {/* Transfer Ownership Row */}
+                <div className="flex items-center justify-between py-2">
+                  <div className="space-y-0.5 pr-4">
+                    <h4 className="text-xs font-bold text-white">Transfer ownership</h4>
+                    <p className="text-[10px] text-neutral-500 font-semibold">Move this organization to another administrator</p>
+                  </div>
+                  <button 
+                    onClick={handleTransferOwnership}
+                    className="border border-neutral-800 hover:bg-neutral-800 text-neutral-350 hover:text-white font-bold px-4 py-2 rounded-xl text-[11px] transition-colors focus:outline-none"
+                  >
+                    Transfer
+                  </button>
+                </div>
+
+                {/* Delete Organization Row */}
+                <div className="flex items-center justify-between pt-4 pb-2">
+                  <div className="space-y-0.5 pr-4">
+                    <h4 className="text-xs font-bold text-white">Delete organization</h4>
+                    <p className="text-[10px] text-neutral-500 font-semibold">Permanently remove all data, agents, and integrations</p>
+                  </div>
+                  <button 
+                    onClick={handleDeleteOrganization}
+                    className="bg-[#DC2626]/10 hover:bg-[#DC2626] border border-[#DC2626]/20 hover:border-transparent text-[#EF4444] hover:text-white font-bold px-4 py-2 rounded-xl text-[11px] transition-colors focus:outline-none"
+                  >
+                    Delete
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Tab 0.5: License & Billing Panel */}
+        {activeTab === 'License & Billing' && (
+          <div className="space-y-6 animate-fade-in">
+            {licenseLoading ? (
+              <div className="py-12 text-center text-xs text-neutral-500 font-bold uppercase tracking-widest animate-pulse">
+                Loading Subscription Details...
+              </div>
+            ) : (
+              <>
+                {/* Current Plan Card */}
+                <div className="bg-[#0C0C0D] border border-neutral-800/80 rounded-xl p-6 shadow-sm flex flex-col md:flex-row justify-between items-start md:items-center gap-6 relative overflow-hidden">
+                  <div className="space-y-2">
+                    <span className="text-[10px] text-[#FF5A1F] font-extrabold uppercase tracking-wider block">Current Plan</span>
+                    <h3 className="text-lg font-extrabold text-white tracking-tight">{license?.planName || 'Enterprise Shield'}</h3>
+                    <p className="text-[11px] text-neutral-500 font-semibold">{license?.planFeatures || 'Unlimited endpoints · 24/7 SOC support · Renews 14 Aug 2026'}</p>
+                  </div>
+                  <div className="flex flex-col items-end gap-2.5 self-stretch md:self-auto border-t md:border-t-0 border-neutral-900 pt-4 md:pt-0">
+                    <div className="text-xl md:text-2xl font-extrabold text-white tracking-tight">
+                      {license?.planPrice || '₹1,84,999'}<span className="text-[11px] text-neutral-500 font-bold lowercase tracking-normal">/mo</span>
+                    </div>
+                    <button 
+                      onClick={handleChangePlan}
+                      disabled={licenseChanging}
+                      className="bg-[#121214] hover:bg-[#18181B] border border-neutral-800 hover:border-neutral-700 text-white font-bold px-4 py-2 rounded-xl text-xs transition-colors focus:outline-none"
+                    >
+                      {licenseChanging ? 'Changing...' : 'Change plan'}
+                    </button>
+                  </div>
+                </div>
+
+                {/* Usage Metrics Grid */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  
+                  {/* Endpoints Monitored */}
+                  <div className="bg-[#0C0C0D] border border-neutral-800 rounded-xl p-5 shadow-sm space-y-4">
+                    <div className="text-[10px] text-neutral-500 font-bold uppercase tracking-wider">Endpoints monitored</div>
+                    <div className="text-lg font-extrabold text-white">
+                      {license?.endpointsMonitored || 642} <span className="text-neutral-500 text-xs font-semibold">/ {license?.endpointsLimit || 1000}</span>
+                    </div>
+                    <div className="w-full bg-[#121214] h-1.5 rounded-full overflow-hidden">
+                      <div 
+                        className="bg-[#FF5A1F] h-full rounded-full transition-all duration-500" 
+                        style={{ width: `${((license?.endpointsMonitored || 642) / (license?.endpointsLimit || 1000)) * 100}%` }}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Data Ingestion */}
+                  <div className="bg-[#0C0C0D] border border-neutral-800 rounded-xl p-5 shadow-sm space-y-4">
+                    <div className="text-[10px] text-neutral-500 font-bold uppercase tracking-wider">Data ingestion</div>
+                    <div className="text-lg font-extrabold text-white">
+                      {license?.dataIngestion || 1.8} <span className="text-neutral-500 text-xs font-semibold">TB / day of {license?.dataIngestionLimit || 2.5} TB</span>
+                    </div>
+                    <div className="w-full bg-[#121214] h-1.5 rounded-full overflow-hidden">
+                      <div 
+                        className="bg-[#FF5A1F] h-full rounded-full transition-all duration-500" 
+                        style={{ width: `${((license?.dataIngestion || 1.8) / (license?.dataIngestionLimit || 2.5)) * 100}%` }}
+                      />
+                    </div>
+                  </div>
+
+                  {/* API Calls */}
+                  <div className="bg-[#0C0C0D] border border-neutral-800 rounded-xl p-5 shadow-sm space-y-4">
+                    <div className="text-[10px] text-neutral-500 font-bold uppercase tracking-wider">API calls this month</div>
+                    <div className="text-lg font-extrabold text-white">
+                      {formatNumberWithK(license?.apiCalls || 402000)} <span className="text-neutral-500 text-xs font-semibold">/ {formatNumberWithK(license?.apiCallsLimit || 1000000)}</span>
+                    </div>
+                    <div className="w-full bg-[#121214] h-1.5 rounded-full overflow-hidden">
+                      <div 
+                        className="bg-[#FF5A1F] h-full rounded-full transition-all duration-500" 
+                        style={{ width: `${((license?.apiCalls || 402000) / (license?.apiCallsLimit || 1000000)) * 100}%` }}
+                      />
+                    </div>
+                  </div>
+
+                </div>
+
+                {/* Billing History Table */}
+                <div className="bg-[#0C0C0D] border border-neutral-800 rounded-xl p-6 shadow-sm space-y-5">
+                  <div className="flex items-center justify-between border-b border-neutral-900 pb-4">
+                    <div>
+                      <h3 className="text-sm font-bold text-white tracking-tight">Billing history</h3>
+                      <p className="text-[10px] text-neutral-500 mt-1 font-semibold">Invoices for the last 6 months</p>
+                    </div>
+                    <button 
+                      onClick={handleDownloadAllInvoices}
+                      className="bg-[#121214] hover:bg-[#18181B] border border-neutral-800 hover:border-neutral-700 text-white font-bold px-3 py-1.5 rounded-xl text-xs transition-colors focus:outline-none"
+                    >
+                      Download all
+                    </button>
+                  </div>
+
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-[11px] text-left border-collapse">
+                      <thead>
+                        <tr className="text-neutral-500 font-bold border-b border-neutral-900/60 pb-2">
+                          <th className="py-2.5 font-bold uppercase tracking-wider">Invoice</th>
+                          <th className="py-2.5 font-bold uppercase tracking-wider">Date</th>
+                          <th className="py-2.5 font-bold uppercase tracking-wider">Amount</th>
+                          <th className="py-2.5 font-bold uppercase tracking-wider">Status</th>
+                          <th className="py-2.5 text-right font-bold uppercase tracking-wider">Action</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-neutral-900/40">
+                        {invoices.map((inv) => (
+                          <tr key={inv.id} className="text-neutral-300 font-semibold border-b border-neutral-900/20">
+                            <td className="py-3.5 font-bold text-white">{inv.invoiceNumber}</td>
+                            <td className="py-3.5 text-neutral-400">{inv.date}</td>
+                            <td className="py-3.5 text-white">{inv.amount}</td>
+                            <td className="py-3.5">
+                              <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-[#10B981]/10 text-[#10B981] text-[10px] font-bold">
+                                <span className="w-1.5 h-1.5 rounded-full bg-[#10B981]" />
+                                {inv.status}
+                              </span>
+                            </td>
+                            <td className="py-3.5 text-right">
+                              <button 
+                                onClick={() => handleDownloadInvoice(inv.id, inv.invoiceNumber)}
+                                className="bg-[#121214] hover:bg-[#18181B] border border-neutral-850 hover:border-neutral-700 text-neutral-350 hover:text-white font-bold px-3 py-1 rounded-lg transition-colors focus:outline-none"
+                              >
+                                Download
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                {/* Payment Method Card */}
+                <div className="bg-[#0C0C0D] border border-neutral-800 rounded-xl p-6 shadow-sm space-y-4">
+                  <div className="flex items-center justify-between border-b border-neutral-900 pb-4">
+                    <div>
+                      <h3 className="text-sm font-bold text-white tracking-tight">Payment method</h3>
+                      <p className="text-[10px] text-neutral-500 mt-1 font-semibold">Used for monthly renewal</p>
+                    </div>
+                    <button 
+                      onClick={handleUpdatePayment}
+                      className="bg-[#121214] hover:bg-[#18181B] border border-neutral-800 hover:border-neutral-700 text-white font-bold px-4 py-2 rounded-xl text-xs transition-colors focus:outline-none"
+                    >
+                      Update
+                    </button>
+                  </div>
+
+                  <div className="bg-[#121214] border border-neutral-850 rounded-xl p-4 flex items-center gap-4">
+                    <div className="bg-[#1e1e24] px-3 py-1.5 rounded-lg border border-neutral-800 text-[11px] font-extrabold text-[#FF5A1F] tracking-widest">
+                      {license?.cardBrand || 'VISA'}
+                    </div>
+                    <div className="flex-1 space-y-1">
+                      <div className="text-xs text-white font-bold tracking-wider">
+                        •••• •••• •••• {license?.cardLast4 || '4471'}
+                      </div>
+                      <div className="text-[10px] text-neutral-500 font-semibold">
+                        Expires {license?.cardExpiry || '08/28'} &middot; {license?.billingDetails || 'Billed to CyberHaxs Pvt. Ltd.'}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
+        )}
+
+        {/* Tab 0.6: Users & Groups Panel */}
+        {activeTab === 'Users & Groups' && (
+          <div className="space-y-6 animate-fade-in">
+            {usersLoading ? (
+              <div className="py-12 text-center text-xs text-neutral-500 font-bold uppercase tracking-widest animate-pulse">
+                Loading Members & Groups...
+              </div>
+            ) : (
+              <>
+                {/* Members Table Card */}
+                <div className="bg-[#0C0C0D] border border-neutral-800 rounded-xl p-6 shadow-sm space-y-5">
+                  <div className="flex items-center justify-between border-b border-neutral-900 pb-4">
+                    <div>
+                      <h3 className="text-sm font-bold text-white tracking-tight">Members</h3>
+                      <p className="text-[10px] text-neutral-500 mt-1 font-semibold">
+                        {users.filter(u => u.status === 'Active').length} active &middot; {users.filter(u => u.status === 'Invited').length} invited
+                      </p>
+                    </div>
+                    <button 
+                      onClick={() => setInviteModalOpen(true)}
+                      className="bg-[#FF5A1F] hover:bg-[#E54E18] text-white font-bold px-4 py-2 rounded-xl text-xs flex items-center gap-1 transition-colors focus:outline-none"
+                    >
+                      <Plus className="w-3.5 h-3.5" /> Invite user
+                    </button>
+                  </div>
+
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-[11px] text-left border-collapse">
+                      <thead>
+                        <tr className="text-neutral-500 font-bold border-b border-neutral-900/60 pb-2">
+                          <th className="py-2.5 font-bold uppercase tracking-wider">Name</th>
+                          <th className="py-2.5 font-bold uppercase tracking-wider">Email</th>
+                          <th className="py-2.5 font-bold uppercase tracking-wider">Group</th>
+                          <th className="py-2.5 font-bold uppercase tracking-wider">Status</th>
+                          <th className="py-2.5 font-bold uppercase tracking-wider">Last Login</th>
+                          <th className="py-2.5 text-right font-bold uppercase tracking-wider">Action</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-neutral-900/40">
+                        {users.map((user) => (
+                          <tr key={user.id} className="text-neutral-350 font-semibold border-b border-neutral-900/20">
+                            <td className="py-3.5 font-bold text-white">{user.name}</td>
+                            <td className="py-3.5 text-neutral-455">{user.email}</td>
+                            <td className="py-3.5 text-neutral-400">{user.groupName}</td>
+                            <td className="py-3.5">
+                              {user.status === 'Active' ? (
+                                <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-[#10B981]/10 text-[#10B981] text-[10px] font-bold">
+                                  <span className="w-1.5 h-1.5 rounded-full bg-[#10B981]" />
+                                  Active
+                                </span>
+                              ) : (
+                                <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-[#D97706]/10 text-[#F59E0B] text-[10px] font-bold">
+                                  <span className="w-1.5 h-1.5 rounded-full bg-[#F59E0B]" />
+                                  Invited
+                                </span>
+                              )}
+                            </td>
+                            <td className="py-3.5 text-neutral-455">{user.lastLogin}</td>
+                            <td className="py-3.5 text-right">
+                              {user.status === 'Active' ? (
+                                <button 
+                                  onClick={() => handleDeleteUser(user.id, user.name)}
+                                  className="bg-[#121214] hover:bg-[#DC2626]/10 border border-neutral-850 hover:border-[#DC2626]/20 text-neutral-350 hover:text-[#EF4444] font-bold px-3 py-1.5 rounded-lg transition-colors focus:outline-none"
+                                >
+                                  Manage
+                                </button>
+                              ) : (
+                                <button 
+                                  onClick={() => handleResendInvite(user.id, user.name)}
+                                  className="bg-[#121214] hover:bg-neutral-800 border border-neutral-855 hover:border-neutral-700 text-neutral-350 hover:text-white font-bold px-3 py-1.5 rounded-lg transition-colors focus:outline-none"
+                                >
+                                  Resend
+                                </button>
+                              )}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                {/* Groups Card */}
+                <div className="bg-[#0C0C0D] border border-neutral-800 rounded-xl p-6 shadow-sm space-y-5">
+                  <div className="flex items-center justify-between border-b border-neutral-900 pb-4">
+                    <div>
+                      <h3 className="text-sm font-bold text-white tracking-tight">Groups</h3>
+                      <p className="text-[10px] text-neutral-500 mt-1 font-semibold">Bundle users to apply permissions in bulk</p>
+                    </div>
+                    <button 
+                      onClick={() => setGroupModalOpen(true)}
+                      className="bg-[#121214] hover:bg-[#18181B] border border-neutral-800 hover:border-neutral-700 text-white font-bold px-3 py-1.5 rounded-xl text-xs transition-colors focus:outline-none"
+                    >
+                      New group
+                    </button>
+                  </div>
+
+                  {/* Groups Cards Grid */}
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    {groups.map((group) => (
+                      <div key={group.id} className="bg-[#121214] border border-neutral-850 rounded-xl p-5 shadow-sm space-y-4 hover:border-neutral-750 transition-colors flex flex-col justify-between">
+                        <div className="space-y-3">
+                          {/* Badge Initials Block */}
+                          <div className={clsx(
+                            "w-8 h-8 rounded-lg flex items-center justify-center text-xs font-extrabold select-none",
+                            group.badgeInitials === 'SA' ? "bg-[#FF5A1F]/10 text-[#FF5A1F]" :
+                            group.badgeInitials === 'IR' ? "bg-blue-500/10 text-blue-400" :
+                            "bg-neutral-500/10 text-neutral-400"
+                          )}>
+                            {group.badgeInitials}
+                          </div>
+                          <h4 className="text-xs font-extrabold text-white">{group.name}</h4>
+                          <p className="text-[10px] text-neutral-450 leading-relaxed font-semibold">{group.description}</p>
+                        </div>
+                        <div className="text-[10px] text-neutral-500 font-bold uppercase tracking-wider pt-2">
+                          {group.memberCount} members
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
+        )}
+
+        {/* Invite User Modal Overlay */}
+        {inviteModalOpen && (
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <div className="bg-[#0C0C0D] border border-neutral-800 rounded-2xl w-full max-w-sm p-5 space-y-4 shadow-xl animate-fade-in">
+              <div className="flex items-center justify-between border-b border-neutral-900 pb-2.5">
+                <h3 className="text-xs font-extrabold text-white uppercase tracking-wider">Invite user</h3>
+                <button onClick={() => setInviteModalOpen(false)} className="text-neutral-500 hover:text-white transition-colors">
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+              <form onSubmit={handleInviteUser} className="space-y-4 text-[11px]">
+                <div className="space-y-1.5">
+                  <label className="text-neutral-400 font-bold block">Full Name</label>
+                  <input 
+                    type="text" 
+                    required
+                    placeholder="Enter Name"
+                    value={inviteName}
+                    onChange={(e) => setInviteName(e.target.value)}
+                    className="w-full bg-[#121214] border border-neutral-850 rounded-lg px-3 py-2 text-white placeholder:text-neutral-750 focus:outline-none focus:border-neutral-700 transition-colors"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-neutral-400 font-bold block">Email Address</label>
+                  <input 
+                    type="email" 
+                    required
+                    placeholder="user@cyberhaxs.com"
+                    value={inviteEmail}
+                    onChange={(e) => setInviteEmail(e.target.value)}
+                    className="w-full bg-[#121214] border border-neutral-855 rounded-lg px-3 py-2 text-white placeholder:text-neutral-750 focus:outline-none focus:border-neutral-700 transition-colors"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-neutral-400 font-bold block">Assign Group</label>
+                  <select 
+                    value={inviteGroup}
+                    onChange={(e) => setInviteGroup(e.target.value)}
+                    className="w-full bg-[#121214] border border-neutral-855 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-neutral-700 cursor-pointer"
+                  >
+                    <option value="Admins">Admins</option>
+                    <option value="SOC Analysts">SOC Analysts</option>
+                    <option value="Incident Responders">Incident Responders</option>
+                    <option value="Auditors">Auditors</option>
+                  </select>
+                </div>
+                <div className="flex justify-end gap-2 pt-2">
+                  <button 
+                    type="button" 
+                    onClick={() => setInviteModalOpen(false)}
+                    className="border border-neutral-855 hover:bg-neutral-900 text-neutral-400 font-bold px-4 py-2 rounded-xl text-xs transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button 
+                    type="submit"
+                    className="bg-[#FF5A1F] hover:bg-[#E54E18] text-white font-bold px-4 py-2 rounded-xl text-xs transition-colors"
+                  >
+                    Send Invitation
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+
+        {/* Create Group Modal Overlay */}
+        {groupModalOpen && (
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <div className="bg-[#0C0C0D] border border-neutral-800 rounded-2xl w-full max-w-sm p-5 space-y-4 shadow-xl animate-fade-in">
+              <div className="flex items-center justify-between border-b border-neutral-900 pb-2.5">
+                <h3 className="text-xs font-extrabold text-white uppercase tracking-wider">New group</h3>
+                <button onClick={() => setGroupModalOpen(false)} className="text-neutral-500 hover:text-white transition-colors">
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+              <form onSubmit={handleCreateGroup} className="space-y-4 text-[11px]">
+                <div className="space-y-1.5">
+                  <label className="text-neutral-400 font-bold block">Group Name</label>
+                  <input 
+                    type="text" 
+                    required
+                    placeholder="e.g. Incident Responders"
+                    value={groupName}
+                    onChange={(e) => setGroupName(e.target.value)}
+                    className="w-full bg-[#121214] border border-neutral-855 rounded-lg px-3 py-2 text-white placeholder:text-neutral-750 focus:outline-none focus:border-neutral-700 transition-colors"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-neutral-400 font-bold block">Description</label>
+                  <textarea 
+                    required
+                    placeholder="Explain group purpose..."
+                    value={groupDesc}
+                    onChange={(e) => setGroupDesc(e.target.value)}
+                    rows={3}
+                    className="w-full bg-[#121214] border border-neutral-855 rounded-lg px-3 py-2 text-white placeholder:text-neutral-750 focus:outline-none focus:border-neutral-700 transition-colors resize-none"
+                  />
+                </div>
+                <div className="flex justify-end gap-2 pt-2">
+                  <button 
+                    type="button" 
+                    onClick={() => setGroupModalOpen(false)}
+                    className="border border-neutral-855 hover:bg-neutral-900 text-neutral-400 font-bold px-4 py-2 rounded-xl text-xs transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button 
+                    type="submit"
+                    className="bg-[#FF5A1F] hover:bg-[#E54E18] text-white font-bold px-4 py-2 rounded-xl text-xs transition-colors"
+                  >
+                    Create Group
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+
+        {/* Placeholder for Development modules */}
+        {['Roles & Permissions', 'Data Sources', 'Agent Deployment'].includes(activeTab) && (
+          <InDevelopment>
+            <div className="bg-[#0C0C0D] border border-neutral-800 rounded-xl p-5 shadow-sm space-y-4">
+              <h3 className="text-sm font-bold text-white">{activeTab}</h3>
+              <p className="text-[10px] text-neutral-500">Settings panel for managing {activeTab.toLowerCase()}.</p>
+            </div>
+          </InDevelopment>
+        )}
 
         {/* Tab 1: API Keys Panel */}
         {activeTab === 'API Keys' && (

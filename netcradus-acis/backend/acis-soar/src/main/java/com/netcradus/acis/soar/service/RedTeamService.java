@@ -2,6 +2,7 @@ package com.netcradus.acis.soar.service;
 
 import com.netcradus.acis.soar.model.RedTeamSimulation;
 import com.netcradus.acis.soar.model.RedTeamExecution;
+import com.netcradus.acis.soar.model.SyntheticLogEvent;
 import com.netcradus.acis.soar.repository.RedTeamExecutionRepository;
 import com.netcradus.acis.soar.repository.RedTeamSimulationRepository;
 import lombok.RequiredArgsConstructor;
@@ -62,11 +63,11 @@ public class RedTeamService {
     public void executeSimulationAsync(UUID executionId, RedTeamSimulation simulation) {
         log.info("Starting async execution for Red Team simulation: {} execution: {}", simulation.getName(), executionId);
         try {
-            java.util.List<com.netcradus.acis.log.model.LogDocument> stages = new java.util.ArrayList<>();
+            java.util.List<SyntheticLogEvent> stages = new java.util.ArrayList<>();
             String name = simulation.getName().toLowerCase();
             
             if (name.contains("phishing")) {
-                stages.add(com.netcradus.acis.log.model.LogDocument.builder()
+                stages.add(SyntheticLogEvent.builder()
                     .id(UUID.randomUUID().toString())
                     .timestamp(java.time.Instant.now())
                     .message("[RED-TEAM] Spearphishing Email Sent to analyst1@acme.local")
@@ -75,7 +76,7 @@ public class RedTeamService {
                     .host("smtp.acme.local")
                     .metadata(java.util.Map.of("technique", "T1566.001", "category", "RED_TEAM_SIM"))
                     .build());
-                stages.add(com.netcradus.acis.log.model.LogDocument.builder()
+                stages.add(SyntheticLogEvent.builder()
                     .id(UUID.randomUUID().toString())
                     .timestamp(java.time.Instant.now())
                     .message("[RED-TEAM] User opened malicious attachment and initiated payload execution")
@@ -84,7 +85,7 @@ public class RedTeamService {
                     .host("laptop-332.acme.local")
                     .metadata(java.util.Map.of("technique", "T1204.002", "category", "RED_TEAM_SIM"))
                     .build());
-                stages.add(com.netcradus.acis.log.model.LogDocument.builder()
+                stages.add(SyntheticLogEvent.builder()
                     .id(UUID.randomUUID().toString())
                     .timestamp(java.time.Instant.now())
                     .message("[RED-TEAM] Suspicious powershell.exe command execution detected")
@@ -93,7 +94,7 @@ public class RedTeamService {
                     .host("laptop-332.acme.local")
                     .metadata(java.util.Map.of("technique", "T1059.001", "category", "RED_TEAM_SIM"))
                     .build());
-                stages.add(com.netcradus.acis.log.model.LogDocument.builder()
+                stages.add(SyntheticLogEvent.builder()
                     .id(UUID.randomUUID().toString())
                     .timestamp(java.time.Instant.now())
                     .message("[RED-TEAM] C2 Beacon established to high-risk external IP 45.122.3.1")
@@ -103,7 +104,7 @@ public class RedTeamService {
                     .metadata(java.util.Map.of("technique", "T1071.001", "category", "RED_TEAM_SIM"))
                     .build());
             } else if (name.contains("lateral")) {
-                stages.add(com.netcradus.acis.log.model.LogDocument.builder()
+                stages.add(SyntheticLogEvent.builder()
                     .id(UUID.randomUUID().toString())
                     .timestamp(java.time.Instant.now())
                     .message("[RED-TEAM] SMB Admin Share Access attempt on Target: laptop-332.acme.local")
@@ -112,7 +113,7 @@ public class RedTeamService {
                     .host("workstation-88.acme.local")
                     .metadata(java.util.Map.of("technique", "T1021.002", "category", "RED_TEAM_SIM"))
                     .build());
-                stages.add(com.netcradus.acis.log.model.LogDocument.builder()
+                stages.add(SyntheticLogEvent.builder()
                     .id(UUID.randomUUID().toString())
                     .timestamp(java.time.Instant.now())
                     .message("[RED-TEAM] WMI Remote Execution request using cmd.exe /c powershell.exe")
@@ -121,7 +122,7 @@ public class RedTeamService {
                     .host("laptop-332.acme.local")
                     .metadata(java.util.Map.of("technique", "T1047", "category", "RED_TEAM_SIM"))
                     .build());
-                stages.add(com.netcradus.acis.log.model.LogDocument.builder()
+                stages.add(SyntheticLogEvent.builder()
                     .id(UUID.randomUUID().toString())
                     .timestamp(java.time.Instant.now())
                     .message("[RED-TEAM] RDP Lateral connection established using Admin credentials")
@@ -130,7 +131,7 @@ public class RedTeamService {
                     .host("laptop-332.acme.local")
                     .metadata(java.util.Map.of("technique", "T1076", "category", "RED_TEAM_SIM"))
                     .build());
-                stages.add(com.netcradus.acis.log.model.LogDocument.builder()
+                stages.add(SyntheticLogEvent.builder()
                     .id(UUID.randomUUID().toString())
                     .timestamp(java.time.Instant.now())
                     .message("[RED-TEAM] Sensitive credentials dumped via LSASS memory read for Admin")
@@ -140,7 +141,7 @@ public class RedTeamService {
                     .metadata(java.util.Map.of("technique", "T1003.001", "category", "RED_TEAM_SIM"))
                     .build());
             } else {
-                stages.add(com.netcradus.acis.log.model.LogDocument.builder()
+                stages.add(SyntheticLogEvent.builder()
                     .id(UUID.randomUUID().toString())
                     .timestamp(java.time.Instant.now())
                     .message("[RED-TEAM] Sensitive data staging collected in temporary directory")
@@ -149,7 +150,7 @@ public class RedTeamService {
                     .host("laptop-332.acme.local")
                     .metadata(java.util.Map.of("technique", "T1074.001", "category", "RED_TEAM_SIM"))
                     .build());
-                stages.add(com.netcradus.acis.log.model.LogDocument.builder()
+                stages.add(SyntheticLogEvent.builder()
                     .id(UUID.randomUUID().toString())
                     .timestamp(java.time.Instant.now())
                     .message("[RED-TEAM] High-frequency dns_tunnelling queries signature matched")
@@ -158,7 +159,7 @@ public class RedTeamService {
                     .host("dns-server.acme.local")
                     .metadata(java.util.Map.of("technique", "T1048.003", "category", "RED_TEAM_SIM"))
                     .build());
-                stages.add(com.netcradus.acis.log.model.LogDocument.builder()
+                stages.add(SyntheticLogEvent.builder()
                     .id(UUID.randomUUID().toString())
                     .timestamp(java.time.Instant.now())
                     .message("[RED-TEAM] DNS tunnel exfiltration payload byte stream outbound transfer complete")
@@ -172,7 +173,7 @@ public class RedTeamService {
             java.util.List<java.util.Map<String, Object>> logList = new java.util.ArrayList<>();
             
             for (int i = 0; i < stages.size(); i++) {
-                com.netcradus.acis.log.model.LogDocument stageLog = stages.get(i);
+                SyntheticLogEvent stageLog = stages.get(i);
                 
                 log.info("Executing simulation step {}: {}", i + 1, stageLog.getMessage());
                 

@@ -40,6 +40,7 @@ public class CorrelationRule {
     private String scheduleCron;
 
     @Builder.Default
+    @Column(nullable = false, columnDefinition = "integer default 5")
     private int windowMinutes = 5;
 
     private LocalDateTime lastRunAt;
