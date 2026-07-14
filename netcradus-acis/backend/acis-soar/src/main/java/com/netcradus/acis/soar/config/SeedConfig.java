@@ -212,72 +212,82 @@ public class SeedConfig {
             reportScheduleRepository.save(rs5);
 
 
-            log.info("Seeding Settings API Keys...");
-            apiKeyRepository.deleteAll();
+            if (apiKeyRepository.count() == 0) {
+                log.info("Seeding Settings API Keys...");
 
-            ApiKey k1 = new ApiKey();
-            k1.setKeyName("SOAR Automation Script");
-            k1.setToken("oouraa_live_x8Fx8e...d9q");
-            k1.setRole("API Read/Write");
-            k1.setCreatedAt(OffsetDateTime.now().minusDays(50));
-            k1.setLastUsedAt(OffsetDateTime.now().minusMinutes(2));
-            k1.setStatus("Active");
-            apiKeyRepository.save(k1);
+                ApiKey k1 = new ApiKey();
+                k1.setTenantId(defaultTenantId);
+                k1.setKeyName("SOAR Automation Script");
+                k1.setToken("oouraa_live_x8Fx8e...d9q");
+                k1.setRole("API Read/Write");
+                k1.setCreatedAt(OffsetDateTime.now().minusDays(50));
+                k1.setLastUsedAt(OffsetDateTime.now().minusMinutes(2));
+                k1.setStatus("Active");
+                apiKeyRepository.save(k1);
 
-            ApiKey k2 = new ApiKey();
-            k2.setKeyName("Splunk Forwarder Sync");
-            k2.setToken("oouraa_live_k2Mk2m...a4z");
-            k2.setRole("Data Ingest Only");
-            k2.setCreatedAt(OffsetDateTime.now().minusDays(30));
-            k2.setLastUsedAt(OffsetDateTime.now().minusHours(1));
-            k2.setStatus("Active");
-            apiKeyRepository.save(k2);
+                ApiKey k2 = new ApiKey();
+                k2.setTenantId(defaultTenantId);
+                k2.setKeyName("Splunk Forwarder Sync");
+                k2.setToken("oouraa_live_k2Mk2m...a4z");
+                k2.setRole("Data Ingest Only");
+                k2.setCreatedAt(OffsetDateTime.now().minusDays(30));
+                k2.setLastUsedAt(OffsetDateTime.now().minusHours(1));
+                k2.setStatus("Active");
+                apiKeyRepository.save(k2);
 
-            ApiKey k3 = new ApiKey();
-            k3.setKeyName("Custom Dashboard Reader");
-            k3.setToken("oouraa_read_f9Pf9p...v1m");
-            k3.setRole("API Read Only");
-            k3.setCreatedAt(OffsetDateTime.now().minusDays(20));
-            k3.setStatus("Active");
-            apiKeyRepository.save(k3);
+                ApiKey k3 = new ApiKey();
+                k3.setTenantId(defaultTenantId);
+                k3.setKeyName("Custom Dashboard Reader");
+                k3.setToken("oouraa_read_f9Pf9p...v1m");
+                k3.setRole("API Read Only");
+                k3.setCreatedAt(OffsetDateTime.now().minusDays(20));
+                k3.setStatus("Active");
+                apiKeyRepository.save(k3);
+            }
 
-            log.info("Seeding Settings Integrations...");
-            integrationRepository.deleteAll();
+            if (integrationRepository.count() == 0) {
+                log.info("Seeding Settings Integrations...");
 
-            Integration i1 = new Integration();
-            i1.setName("Palo Alto Networks");
-            i1.setDescription("Firewall logs ingestion and automated blocklist updates (SOAR).");
-            i1.setLogoLetter("PA");
-            i1.setStatus("Connected");
-            integrationRepository.save(i1);
+                Integration i1 = new Integration();
+                i1.setTenantId(defaultTenantId);
+                i1.setName("Palo Alto Networks");
+                i1.setDescription("Firewall logs ingestion and automated blocklist updates (SOAR).");
+                i1.setLogoLetter("PA");
+                i1.setStatus("Connected");
+                integrationRepository.save(i1);
 
-            Integration i2 = new Integration();
-            i2.setName("Okta");
-            i2.setDescription("Identity context sync and automated credential revocation.");
-            i2.setLogoLetter("O");
-            i2.setStatus("Connected");
-            integrationRepository.save(i2);
+                Integration i2 = new Integration();
+                i2.setTenantId(defaultTenantId);
+                i2.setName("Okta");
+                i2.setDescription("Identity context sync and automated credential revocation.");
+                i2.setLogoLetter("O");
+                i2.setStatus("Connected");
+                integrationRepository.save(i2);
 
-            Integration i3 = new Integration();
-            i3.setName("CrowdStrike");
-            i3.setDescription("Falcon EDR alert ingestion and endpoint isolation capability.");
-            i3.setLogoLetter("C");
-            i3.setStatus("Connected");
-            integrationRepository.save(i3);
+                Integration i3 = new Integration();
+                i3.setTenantId(defaultTenantId);
+                i3.setName("CrowdStrike");
+                i3.setDescription("Falcon EDR alert ingestion and endpoint isolation capability.");
+                i3.setLogoLetter("C");
+                i3.setStatus("Connected");
+                integrationRepository.save(i3);
 
-            Integration i4 = new Integration();
-            i4.setName("Jira Service Desk");
-            i4.setDescription("Bi-directional ticket creation and status synchronization for incidents.");
-            i4.setLogoLetter("J");
-            i4.setStatus("Connected");
-            integrationRepository.save(i4);
+                Integration i4 = new Integration();
+                i4.setTenantId(defaultTenantId);
+                i4.setName("Jira Service Desk");
+                i4.setDescription("Bi-directional ticket creation and status synchronization for incidents.");
+                i4.setLogoLetter("J");
+                i4.setStatus("Connected");
+                integrationRepository.save(i4);
 
-            Integration i5 = new Integration();
-            i5.setName("AWS CloudTrail");
-            i5.setDescription("Ingest IAM and API activity logs from connected AWS accounts.");
-            i5.setLogoLetter("A");
-            i5.setStatus("Connected");
-            integrationRepository.save(i5);
+                Integration i5 = new Integration();
+                i5.setTenantId(defaultTenantId);
+                i5.setName("AWS CloudTrail");
+                i5.setDescription("Ingest IAM and API activity logs from connected AWS accounts.");
+                i5.setLogoLetter("A");
+                i5.setStatus("Connected");
+                integrationRepository.save(i5);
+            }
 
 
             if (simulationRepository.count() == 0) {
@@ -348,117 +358,132 @@ public class SeedConfig {
                 auditEntryRepository.save(a3);
             }
 
-            log.info("Seeding Settings Organization...");
-            organizationRepository.deleteAll();
-            Organization o = new Organization();
-            o.setName("CyberHaxs Pvt. Ltd.");
-            o.setOrgIdString("org_ch_8841kd");
-            o.setIndustry("Managed Security Services");
-            o.setPrimaryRegion("Asia Pacific (Ghaziabad, IN)");
-            o.setSupportEmail("security@cyberhaxs.com");
-            o.setTimeZone("IST (UTC +5:30)");
-            organizationRepository.save(o);
+            if (organizationRepository.count() == 0) {
+                log.info("Seeding Settings Organization...");
+                Organization o = new Organization();
+                o.setTenantId(defaultTenantId);
+                o.setName("CyberHaxs Pvt. Ltd.");
+                o.setOrgIdString("org_ch_8841kd");
+                o.setIndustry("Managed Security Services");
+                o.setPrimaryRegion("Asia Pacific (Ghaziabad, IN)");
+                o.setSupportEmail("security@cyberhaxs.com");
+                o.setTimeZone("IST (UTC +5:30)");
+                organizationRepository.save(o);
+            }
 
-            log.info("Seeding Settings License & Billing...");
-            licenseDetailsRepository.deleteAll();
-            LicenseDetails ld = new LicenseDetails();
-            ld.setPlanName("Enterprise Shield");
-            ld.setPlanPrice("₹1,84,999/mo");
-            ld.setPlanFeatures("Unlimited endpoints · 24/7 SOC support · Renews 14 Aug 2026");
-            ld.setEndpointsMonitored(642);
-            ld.setEndpointsLimit(1000);
-            ld.setDataIngestion(1.8);
-            ld.setDataIngestionLimit(2.5);
-            ld.setApiCalls(402000);
-            ld.setApiCallsLimit(1000000);
-            ld.setCardBrand("VISA");
-            ld.setCardLast4("4471");
-            ld.setCardExpiry("08/28");
-            ld.setBillingDetails("Billed to CyberHaxs Pvt. Ltd.");
-            licenseDetailsRepository.save(ld);
+            if (licenseDetailsRepository.count() == 0) {
+                log.info("Seeding Settings License & Billing...");
+                LicenseDetails ld = new LicenseDetails();
+                ld.setTenantId(defaultTenantId);
+                ld.setPlanName("Enterprise Shield");
+                ld.setPlanPrice("₹1,84,999/mo");
+                ld.setPlanFeatures("Unlimited endpoints · 24/7 SOC support · Renews 14 Aug 2026");
+                ld.setEndpointsMonitored(642);
+                ld.setEndpointsLimit(1000);
+                ld.setDataIngestion(1.8);
+                ld.setDataIngestionLimit(2.5);
+                ld.setApiCalls(402000);
+                ld.setApiCallsLimit(1000000);
+                ld.setCardBrand("VISA");
+                ld.setCardLast4("4471");
+                ld.setCardExpiry("08/28");
+                ld.setBillingDetails("Billed to CyberHaxs Pvt. Ltd.");
+                licenseDetailsRepository.save(ld);
+            }
 
-            log.info("Seeding Settings Invoices...");
-            invoiceRepository.deleteAll();
-            
-            Invoice inv1 = new Invoice();
-            inv1.setInvoiceNumber("INV-2026-0071");
-            inv1.setDate("01 Jul 2026");
-            inv1.setAmount("₹1,84,999");
-            inv1.setStatus("Paid");
-            invoiceRepository.save(inv1);
+            if (invoiceRepository.count() == 0) {
+                log.info("Seeding Settings Invoices...");
 
-            Invoice inv2 = new Invoice();
-            inv2.setInvoiceNumber("INV-2026-0058");
-            inv2.setDate("01 Jun 2026");
-            inv2.setAmount("₹1,84,999");
-            inv2.setStatus("Paid");
-            invoiceRepository.save(inv2);
+                Invoice inv1 = new Invoice();
+                inv1.setTenantId(defaultTenantId);
+                inv1.setInvoiceNumber("INV-2026-0071");
+                inv1.setDate("01 Jul 2026");
+                inv1.setAmount("₹1,84,999");
+                inv1.setStatus("Paid");
+                invoiceRepository.save(inv1);
 
-            Invoice inv3 = new Invoice();
-            inv3.setInvoiceNumber("INV-2026-0044");
-            inv3.setDate("01 May 2026");
-            inv3.setAmount("₹1,79,500");
-            inv3.setStatus("Paid");
-            invoiceRepository.save(inv3);
+                Invoice inv2 = new Invoice();
+                inv2.setTenantId(defaultTenantId);
+                inv2.setInvoiceNumber("INV-2026-0058");
+                inv2.setDate("01 Jun 2026");
+                inv2.setAmount("₹1,84,999");
+                inv2.setStatus("Paid");
+                invoiceRepository.save(inv2);
 
-            log.info("Seeding Settings Users & Groups...");
-            userMemberRepository.deleteAll();
-            userGroupRepository.deleteAll();
+                Invoice inv3 = new Invoice();
+                inv3.setTenantId(defaultTenantId);
+                inv3.setInvoiceNumber("INV-2026-0044");
+                inv3.setDate("01 May 2026");
+                inv3.setAmount("₹1,79,500");
+                inv3.setStatus("Paid");
+                invoiceRepository.save(inv3);
+            }
 
-            // Groups
-            UserGroup g1 = new UserGroup();
-            g1.setName("SOC Analysts");
-            g1.setDescription("Monitors alerts, triages events, escalates incidents.");
-            g1.setMemberCount(6);
-            g1.setBadgeInitials("SA");
-            userGroupRepository.save(g1);
+            if (userGroupRepository.count() == 0 && userMemberRepository.count() == 0) {
+                log.info("Seeding Settings Users & Groups...");
 
-            UserGroup g2 = new UserGroup();
-            g2.setName("Incident Responders");
-            g2.setDescription("Executes SOAR playbooks and containment actions.");
-            g2.setMemberCount(3);
-            g2.setBadgeInitials("IR");
-            userGroupRepository.save(g2);
+                // Groups
+                UserGroup g1 = new UserGroup();
+                g1.setTenantId(defaultTenantId);
+                g1.setName("SOC Analysts");
+                g1.setDescription("Monitors alerts, triages events, escalates incidents.");
+                g1.setMemberCount(6);
+                g1.setBadgeInitials("SA");
+                userGroupRepository.save(g1);
 
-            UserGroup g3 = new UserGroup();
-            g3.setName("Admins");
-            g3.setDescription("Full access to configuration, billing, and users.");
-            g3.setMemberCount(2);
-            g3.setBadgeInitials("AD");
-            userGroupRepository.save(g3);
+                UserGroup g2 = new UserGroup();
+                g2.setTenantId(defaultTenantId);
+                g2.setName("Incident Responders");
+                g2.setDescription("Executes SOAR playbooks and containment actions.");
+                g2.setMemberCount(3);
+                g2.setBadgeInitials("IR");
+                userGroupRepository.save(g2);
 
-            // Members
-            UserMember m1 = new UserMember();
-            m1.setName("Mohit Goel");
-            m1.setEmail("mohit@cyberhaxs.com");
-            m1.setGroupName("Admins");
-            m1.setStatus("Active");
-            m1.setLastLogin("2 mins ago");
-            userMemberRepository.save(m1);
+                UserGroup g3 = new UserGroup();
+                g3.setTenantId(defaultTenantId);
+                g3.setName("Admins");
+                g3.setDescription("Full access to configuration, billing, and users.");
+                g3.setMemberCount(2);
+                g3.setBadgeInitials("AD");
+                userGroupRepository.save(g3);
 
-            UserMember m2 = new UserMember();
-            m2.setName("Ananya Sharma");
-            m2.setEmail("ananya@cyberhaxs.com");
-            m2.setGroupName("SOC Analysts");
-            m2.setStatus("Active");
-            m2.setLastLogin("1 hr ago");
-            userMemberRepository.save(m2);
+                // Members
+                UserMember m1 = new UserMember();
+                m1.setTenantId(defaultTenantId);
+                m1.setName("Mohit Goel");
+                m1.setEmail("mohit@cyberhaxs.com");
+                m1.setGroupName("Admins");
+                m1.setStatus("Active");
+                m1.setLastLogin("2 mins ago");
+                userMemberRepository.save(m1);
 
-            UserMember m3 = new UserMember();
-            m3.setName("Rohit Verma");
-            m3.setEmail("rohit@cyberhaxs.com");
-            m3.setGroupName("Incident Responders");
-            m3.setStatus("Active");
-            m3.setLastLogin("Yesterday");
-            userMemberRepository.save(m3);
+                UserMember m2 = new UserMember();
+                m2.setTenantId(defaultTenantId);
+                m2.setName("Ananya Sharma");
+                m2.setEmail("ananya@cyberhaxs.com");
+                m2.setGroupName("SOC Analysts");
+                m2.setStatus("Active");
+                m2.setLastLogin("1 hr ago");
+                userMemberRepository.save(m2);
 
-            UserMember m4 = new UserMember();
-            m4.setName("Priya Nair");
-            m4.setEmail("priya@cyberhaxs.com");
-            m4.setGroupName("Auditors");
-            m4.setStatus("Invited");
-            m4.setLastLogin("Never");
-            userMemberRepository.save(m4);
+                UserMember m3 = new UserMember();
+                m3.setTenantId(defaultTenantId);
+                m3.setName("Rohit Verma");
+                m3.setEmail("rohit@cyberhaxs.com");
+                m3.setGroupName("Incident Responders");
+                m3.setStatus("Active");
+                m3.setLastLogin("Yesterday");
+                userMemberRepository.save(m3);
+
+                UserMember m4 = new UserMember();
+                m4.setTenantId(defaultTenantId);
+                m4.setName("Priya Nair");
+                m4.setEmail("priya@cyberhaxs.com");
+                m4.setGroupName("Auditors");
+                m4.setStatus("Invited");
+                m4.setLastLogin("Never");
+                userMemberRepository.save(m4);
+            }
         };
     }
 }
