@@ -8,6 +8,9 @@ import com.netcradus.acis.soar.model.LicenseDetails;
 import com.netcradus.acis.soar.model.Invoice;
 import com.netcradus.acis.soar.model.UserMember;
 import com.netcradus.acis.soar.model.UserGroup;
+import com.netcradus.acis.soar.model.ConsoleRole;
+import com.netcradus.acis.soar.model.RolePermission;
+import com.netcradus.acis.soar.model.DataSource;
 import com.netcradus.acis.soar.repository.ApiKeyRepository;
 import com.netcradus.acis.soar.repository.IntegrationRepository;
 import com.netcradus.acis.soar.repository.OrganizationRepository;
@@ -15,7 +18,11 @@ import com.netcradus.acis.soar.repository.LicenseDetailsRepository;
 import com.netcradus.acis.soar.repository.InvoiceRepository;
 import com.netcradus.acis.soar.repository.UserMemberRepository;
 import com.netcradus.acis.soar.repository.UserGroupRepository;
+import com.netcradus.acis.soar.repository.ConsoleRoleRepository;
+import com.netcradus.acis.soar.repository.RolePermissionRepository;
+import com.netcradus.acis.soar.repository.DataSourceRepository;
 import lombok.RequiredArgsConstructor;
+import java.util.ArrayList;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -43,6 +50,9 @@ public class SettingsController {
     private final InvoiceRepository invoiceRepository;
     private final UserMemberRepository userMemberRepository;
     private final UserGroupRepository userGroupRepository;
+    private final ConsoleRoleRepository consoleRoleRepository;
+    private final RolePermissionRepository rolePermissionRepository;
+    private final DataSourceRepository dataSourceRepository;
 
     private UUID resolveTenant(UUID tenantId) {
         return tenantId != null ? tenantId : DEFAULT_TENANT;
@@ -368,5 +378,256 @@ public class SettingsController {
             sb.append(chars.charAt(random.nextInt(chars.length())));
         }
         return sb.toString();
+    }
+
+    // ── Roles & Permissions ───────────────────────────────────
+
+    @GetMapping("/roles")
+    public ApiResponse<List<ConsoleRole>> getRoles(@RequestHeader(value = "X-Tenant-ID", required = false) UUID tenantId) {
+        UUID tenant = resolveTenant(tenantId);
+        List<ConsoleRole> roles = consoleRoleRepository.findByTenantId(tenant);
+        if (roles.isEmpty()) {
+            roles = createDefaultRoles(tenant);
+        }
+        return ApiResponse.success(roles);
+    }
+
+    @PostMapping("/roles")
+    public ResponseEntity<ApiResponse<ConsoleRole>> createRole(@RequestBody ConsoleRole role,
+            @RequestHeader(value = "X-Tenant-ID", required = false) UUID tenantId) {
+        if (role.getName() == null || role.getName().isBlank()) {
+            return ResponseEntity.badRequest().body(ApiResponse.error("Role name is required"));
+        }
+        UUID tenant = resolveTenant(tenantId);
+        role.setTenantId(tenant);
+        role.setUserCount(0);
+        
+        String[] modules = {
+            "Dashboard",
+            "Alerts & Correlation",
+            "Assets & Threat Intel",
+            "SOAR Playbooks",
+            "Reports & Compliance",
+            "Settings"
+        };
+        
+        List<RolePermission> permissions = new ArrayList<>();
+        for (String mod : modules) {
+            RolePermission perm = new RolePermission();
+            perm.setTenantId(tenant);
+            perm.setRole(role);
+            perm.setModuleName(mod);
+            perm.setPermissionLevel("NONE");
+            permissions.add(perm);
+        }
+        role.setPermissions(permissions);
+        
+        return ResponseEntity.ok(ApiResponse.success(consoleRoleRepository.save(role)));
+    }
+
+    @PutMapping("/roles/{id}")
+    public ResponseEntity<ApiResponse<ConsoleRole>> updateRole(@PathVariable UUID id, @RequestBody ConsoleRole updatedRole,
+            @RequestHeader(value = "X-Tenant-ID", required = false) UUID tenantId) {
+        UUID tenant = resolveTenant(tenantId);
+        return consoleRoleRepository.findByIdAndTenantId(id, tenant)
+                .map(existingRole -> {
+                    if (updatedRole.getName() != null && !updatedRole.getName().isBlank()) {
+                        existingRole.setName(updatedRole.getName());
+                    }
+                    if (updatedRole.getPermissions() != null) {
+                        existingRole.getPermissions().clear();
+                        for (RolePermission up : updatedRole.getPermissions()) {
+                            RolePermission newPerm = new RolePermission();
+                            newPerm.setTenantId(tenant);
+                            newPerm.setRole(existingRole);
+                            newPerm.setModuleName(up.getModuleName());
+                            newPerm.setPermissionLevel(up.getPermissionLevel() != null ? up.getPermissionLevel() : "NONE");
+                            existingRole.getPermissions().add(newPerm);
+                        }
+                    }
+                    return ResponseEntity.ok(ApiResponse.success(consoleRoleRepository.save(existingRole)));
+                })
+                .orElse(ResponseEntity.status(404).body(ApiResponse.error("Role not found")));
+    }
+
+    @DeleteMapping("/roles/{id}")
+    public ResponseEntity<ApiResponse<String>> deleteRole(@PathVariable UUID id,
+            @RequestHeader(value = "X-Tenant-ID", required = false) UUID tenantId) {
+        UUID tenant = resolveTenant(tenantId);
+        return consoleRoleRepository.findByIdAndTenantId(id, tenant)
+                .map(role -> {
+                    consoleRoleRepository.delete(role);
+                    return ResponseEntity.ok(ApiResponse.success("Role deleted successfully"));
+                })
+                .orElse(ResponseEntity.status(404).body(ApiResponse.error("Role not found")));
+    }
+
+    private List<ConsoleRole> createDefaultRoles(UUID tenant) {
+        List<ConsoleRole> defaultRoles = new ArrayList<>();
+
+        // 1. Super Admin
+        ConsoleRole superAdmin = new ConsoleRole();
+        superAdmin.setTenantId(tenant);
+        superAdmin.setName("Super Admin");
+        superAdmin.setUserCount(2);
+        List<RolePermission> saPerms = new ArrayList<>();
+        saPerms.add(createPermission(tenant, superAdmin, "Dashboard", "ADMIN"));
+        saPerms.add(createPermission(tenant, superAdmin, "Alerts & Correlation", "ADMIN"));
+        saPerms.add(createPermission(tenant, superAdmin, "Assets & Threat Intel", "ADMIN"));
+        saPerms.add(createPermission(tenant, superAdmin, "SOAR Playbooks", "WRITE"));
+        saPerms.add(createPermission(tenant, superAdmin, "Reports & Compliance", "ADMIN"));
+        saPerms.add(createPermission(tenant, superAdmin, "Settings", "ADMIN"));
+        superAdmin.setPermissions(saPerms);
+        defaultRoles.add(consoleRoleRepository.save(superAdmin));
+
+        // 2. SOC Analyst
+        ConsoleRole socAnalyst = new ConsoleRole();
+        socAnalyst.setTenantId(tenant);
+        socAnalyst.setName("SOC Analyst");
+        socAnalyst.setUserCount(6);
+        List<RolePermission> socPerms = new ArrayList<>();
+        socPerms.add(createPermission(tenant, socAnalyst, "Dashboard", "READ"));
+        socPerms.add(createPermission(tenant, socAnalyst, "Alerts & Correlation", "WRITE"));
+        socPerms.add(createPermission(tenant, socAnalyst, "Assets & Threat Intel", "READ"));
+        socPerms.add(createPermission(tenant, socAnalyst, "SOAR Playbooks", "NONE"));
+        socPerms.add(createPermission(tenant, socAnalyst, "Reports & Compliance", "READ"));
+        socPerms.add(createPermission(tenant, socAnalyst, "Settings", "NONE"));
+        socAnalyst.setPermissions(socPerms);
+        defaultRoles.add(consoleRoleRepository.save(socAnalyst));
+
+        // 3. Incident Responder
+        ConsoleRole incidentResponder = new ConsoleRole();
+        incidentResponder.setTenantId(tenant);
+        incidentResponder.setName("Incident Responder");
+        incidentResponder.setUserCount(3);
+        List<RolePermission> irPerms = new ArrayList<>();
+        irPerms.add(createPermission(tenant, incidentResponder, "Dashboard", "READ"));
+        irPerms.add(createPermission(tenant, incidentResponder, "Alerts & Correlation", "WRITE"));
+        irPerms.add(createPermission(tenant, incidentResponder, "Assets & Threat Intel", "WRITE"));
+        irPerms.add(createPermission(tenant, incidentResponder, "SOAR Playbooks", "WRITE"));
+        irPerms.add(createPermission(tenant, incidentResponder, "Reports & Compliance", "READ"));
+        irPerms.add(createPermission(tenant, incidentResponder, "Settings", "NONE"));
+        incidentResponder.setPermissions(irPerms);
+        defaultRoles.add(consoleRoleRepository.save(incidentResponder));
+
+        // 4. Read-Only Auditor
+        ConsoleRole auditor = new ConsoleRole();
+        auditor.setTenantId(tenant);
+        auditor.setName("Read-Only Auditor");
+        auditor.setUserCount(1);
+        List<RolePermission> audPerms = new ArrayList<>();
+        audPerms.add(createPermission(tenant, auditor, "Dashboard", "READ"));
+        audPerms.add(createPermission(tenant, auditor, "Alerts & Correlation", "READ"));
+        audPerms.add(createPermission(tenant, auditor, "Assets & Threat Intel", "READ"));
+        audPerms.add(createPermission(tenant, auditor, "SOAR Playbooks", "READ"));
+        audPerms.add(createPermission(tenant, auditor, "Reports & Compliance", "READ"));
+        audPerms.add(createPermission(tenant, auditor, "Settings", "READ"));
+        auditor.setPermissions(audPerms);
+        defaultRoles.add(consoleRoleRepository.save(auditor));
+
+        return defaultRoles;
+    }
+
+    private RolePermission createPermission(UUID tenant, ConsoleRole role, String moduleName, String level) {
+        RolePermission perm = new RolePermission();
+        perm.setTenantId(tenant);
+        perm.setRole(role);
+        perm.setModuleName(moduleName);
+        perm.setPermissionLevel(level);
+        return perm;
+    }
+
+    // ── Data Sources ──────────────────────────────────────────
+
+    @GetMapping("/datasources")
+    public ApiResponse<List<DataSource>> getDataSources(@RequestHeader(value = "X-Tenant-ID", required = false) UUID tenantId) {
+        UUID tenant = resolveTenant(tenantId);
+        List<DataSource> sources = dataSourceRepository.findByTenantId(tenant);
+        if (sources.isEmpty()) {
+            sources = createDefaultDataSources(tenant);
+        }
+        return ApiResponse.success(sources);
+    }
+
+    @PostMapping("/datasources")
+    public ResponseEntity<ApiResponse<DataSource>> addDataSource(@RequestBody DataSource source,
+            @RequestHeader(value = "X-Tenant-ID", required = false) UUID tenantId) {
+        if (source.getName() == null || source.getName().isBlank()) {
+            return ResponseEntity.badRequest().body(ApiResponse.error("Data source name is required"));
+        }
+        UUID tenant = resolveTenant(tenantId);
+        source.setTenantId(tenant);
+        source.setStatus("Not connected");
+        source.setLastSync(null);
+        if (source.getProvider() == null || source.getProvider().isBlank()) {
+            source.setProvider("SYS");
+        }
+        return ResponseEntity.ok(ApiResponse.success(dataSourceRepository.save(source)));
+    }
+
+    @PutMapping("/datasources/{id}/connect")
+    public ResponseEntity<ApiResponse<DataSource>> connectDataSource(@PathVariable UUID id,
+            @RequestHeader(value = "X-Tenant-ID", required = false) UUID tenantId) {
+        UUID tenant = resolveTenant(tenantId);
+        return dataSourceRepository.findByIdAndTenantId(id, tenant)
+                .map(source -> {
+                    source.setStatus("Connected");
+                    source.setLastSync("Never");
+                    return ResponseEntity.ok(ApiResponse.success(dataSourceRepository.save(source)));
+                })
+                .orElse(ResponseEntity.status(404).body(ApiResponse.error("Data source not found")));
+    }
+
+    @PutMapping("/datasources/{id}/disconnect")
+    public ResponseEntity<ApiResponse<DataSource>> disconnectDataSource(@PathVariable UUID id,
+            @RequestHeader(value = "X-Tenant-ID", required = false) UUID tenantId) {
+        UUID tenant = resolveTenant(tenantId);
+        return dataSourceRepository.findByIdAndTenantId(id, tenant)
+                .map(source -> {
+                    source.setStatus("Not connected");
+                    source.setLastSync(null);
+                    return ResponseEntity.ok(ApiResponse.success(dataSourceRepository.save(source)));
+                })
+                .orElse(ResponseEntity.status(404).body(ApiResponse.error("Data source not found")));
+    }
+
+    @PostMapping("/datasources/{id}/sync")
+    public ResponseEntity<ApiResponse<DataSource>> syncDataSource(@PathVariable UUID id,
+            @RequestHeader(value = "X-Tenant-ID", required = false) UUID tenantId) {
+        UUID tenant = resolveTenant(tenantId);
+        return dataSourceRepository.findByIdAndTenantId(id, tenant)
+                .map(source -> {
+                    if ("Connected".equals(source.getStatus())) {
+                        source.setLastSync("Just now");
+                        return ResponseEntity.ok(ApiResponse.success(dataSourceRepository.save(source)));
+                    } else {
+                        return ResponseEntity.badRequest().body(ApiResponse.<DataSource>error("Data source is not connected"));
+                    }
+                })
+                .orElse(ResponseEntity.status(404).body(ApiResponse.error("Data source not found")));
+    }
+
+    private List<DataSource> createDefaultDataSources(UUID tenant) {
+        List<DataSource> defaultSources = new ArrayList<>();
+
+        defaultSources.add(createDataSource(tenant, "AWS CloudTrail", "AWS", "Ingests API and account activity logs from connected AWS accounts.", "Connected", "3 mins ago"));
+        defaultSources.add(createDataSource(tenant, "AWS GuardDuty", "AWS", "Streams threat detection findings for EC2, IAM, and S3 workloads.", "Connected", "8 mins ago"));
+        defaultSources.add(createDataSource(tenant, "Azure Sentinel", "AZ", "Bi-directional sync of incidents and hunting queries.", "Connected", "12 mins ago"));
+        defaultSources.add(createDataSource(tenant, "Azure AD Sign-in Logs", "AZ", "Identity and access sign-in events for anomaly detection.", "Not connected", null));
+        defaultSources.add(createDataSource(tenant, "Splunk Forwarder", "SP", "Receives forwarded events from an on-prem Splunk deployment.", "Not connected", null));
+        defaultSources.add(createDataSource(tenant, "Syslog / CEF", "SYS", "Generic ingestion endpoint for firewalls, routers, and switches.", "Not connected", null));
+
+        return defaultSources;
+    }
+
+    private DataSource createDataSource(UUID tenant, String name, String provider, String desc, String status, String lastSync) {
+        DataSource ds = new DataSource();
+        ds.setTenantId(tenant);
+        ds.setName(name);
+        ds.setProvider(provider);
+        ds.setDescription(desc);
+        ds.setStatus(status);
+        ds.setLastSync(lastSync);
+        return dataSourceRepository.save(ds);
     }
 }

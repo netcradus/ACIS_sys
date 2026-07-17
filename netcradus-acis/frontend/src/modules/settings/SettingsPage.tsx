@@ -29,6 +29,48 @@ export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState('Organization')
   const [copiedKeyId, setCopiedKeyId] = useState<string | null>(null)
 
+  // Roles & Permissions states
+  interface RolePerm {
+    id?: string
+    moduleName: string
+    permissionLevel: string
+  }
+  interface ConsoleRole {
+    id: string
+    name: string
+    userCount: number
+    permissions: RolePerm[]
+  }
+  const [roles, setRoles] = useState<ConsoleRole[]>([])
+  const [activeRole, setActiveRole] = useState<ConsoleRole | null>(null)
+  const [initialActiveRole, setInitialActiveRole] = useState<ConsoleRole | null>(null)
+  const [rolesLoading, setRolesLoading] = useState(false)
+  const [rolesSaving, setRolesSaving] = useState(false)
+  const [newRoleModalOpen, setNewRoleModalOpen] = useState(false)
+  const [newRoleName, setNewRoleName] = useState('')
+  const [activeDropdownRow, setActiveDropdownRow] = useState<string | null>(null)
+
+  // Data Sources states
+  interface DataSource {
+    id: string
+    name: string
+    provider: string
+    description: string
+    status: string
+    lastSync: string | null
+  }
+  const [dataSources, setDataSources] = useState<DataSource[]>([])
+  const [sourcesLoading, setSourcesLoading] = useState(false)
+  const [addSourceModalOpen, setAddSourceModalOpen] = useState(false)
+  const [connectModalOpen, setConnectModalOpen] = useState(false)
+  const [activeSourceToConnect, setActiveSourceToConnect] = useState<DataSource | null>(null)
+  const [newSourceName, setNewSourceName] = useState('')
+  const [newSourceProvider, setNewSourceProvider] = useState('AWS')
+  const [newSourceDesc, setNewSourceDesc] = useState('')
+  const [connectCred1, setConnectCred1] = useState('')
+  const [connectCred2, setConnectCred2] = useState('')
+  const [syncingSourceId, setSyncingSourceId] = useState<string | null>(null)
+
   // Organization states
   const [orgName, setOrgName] = useState('')
   const [orgIdString, setOrgIdString] = useState('')
@@ -341,11 +383,205 @@ export default function SettingsPage() {
     }
   }
 
+  const fetchRoles = async () => {
+    try {
+      setRolesLoading(true)
+      const res = await apiClient.get('/api/soar/settings/roles')
+      if (res.data) {
+        setRoles(res.data)
+        const currentActive = activeRole ? res.data.find((r: any) => r.id === activeRole.id) : null;
+        if (currentActive) {
+          setActiveRole(currentActive)
+          setInitialActiveRole(JSON.parse(JSON.stringify(currentActive)))
+        } else if (res.data.length > 0) {
+          setActiveRole(res.data[0])
+          setInitialActiveRole(JSON.parse(JSON.stringify(res.data[0])))
+        }
+      }
+    } catch (e) {
+      console.error("Failed to load roles:", e)
+    } finally {
+      setRolesLoading(false)
+    }
+  }
+
+  const handleSelectRole = (role: ConsoleRole) => {
+    setActiveRole(role)
+    setInitialActiveRole(JSON.parse(JSON.stringify(role)))
+    setActiveDropdownRow(null)
+  }
+
+  const handlePermissionChange = (moduleName: string, level: string) => {
+    if (!activeRole) return
+    const updatedPermissions = activeRole.permissions.map(p => {
+      if (p.moduleName === moduleName) {
+        return { ...p, permissionLevel: level }
+      }
+      return p
+    })
+    setActiveRole({ ...activeRole, permissions: updatedPermissions })
+    setActiveDropdownRow(null)
+  }
+
+  const handleResetToDefault = () => {
+    if (!initialActiveRole) return
+    setActiveRole(JSON.parse(JSON.stringify(initialActiveRole)))
+    setActiveDropdownRow(null)
+  }
+
+  const handleSaveRole = async () => {
+    if (!activeRole) return
+    try {
+      setRolesSaving(true)
+      const res = await apiClient.put(`/api/soar/settings/roles/${activeRole.id}`, activeRole)
+      if (res.data) {
+        alert(`Role ${activeRole.name} updated successfully!`)
+        await fetchRoles()
+      }
+    } catch (e) {
+      console.error("Failed to update role:", e)
+      alert("Failed to update role.")
+    } finally {
+      setRolesSaving(false)
+    }
+  }
+
+  const handleCreateRole = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!newRoleName.trim()) return
+    try {
+      const res = await apiClient.post('/api/soar/settings/roles', { name: newRoleName })
+      if (res.data) {
+        setNewRoleName('')
+        setNewRoleModalOpen(false)
+        await fetchRoles()
+        const newRole = res.data
+        setActiveRole(newRole)
+        setInitialActiveRole(JSON.parse(JSON.stringify(newRole)))
+      }
+    } catch (e) {
+      console.error("Failed to create role:", e)
+      alert("Failed to create role.")
+    }
+  }
+
+  const renderDropdown = (moduleName: string, currentLevel: string) => {
+    const levels = [
+      { key: 'NONE', label: 'None', className: 'text-neutral-450 hover:bg-neutral-800' },
+      { key: 'READ', label: 'Read', className: 'text-emerald-400 hover:bg-emerald-500/10' },
+      { key: 'WRITE', label: 'Write', className: 'text-blue-400 hover:bg-blue-500/10' },
+      { key: 'ADMIN', label: 'Admin', className: 'text-[#FF5A1F] hover:bg-[#FF5A1F]/10' }
+    ]
+
+    return (
+      <div className="absolute z-30 mt-2 w-32 right-1/2 translate-x-1/2 bg-[#0C0C0D] border border-neutral-800 rounded-xl shadow-xl py-1 animate-fade-in text-[10px] font-bold uppercase tracking-tight">
+        {levels.map((lvl) => (
+          <button
+            key={lvl.key}
+            type="button"
+            onClick={() => handlePermissionChange(moduleName, lvl.key)}
+            className={clsx(
+              "w-full text-left px-3.5 py-2.5 transition-colors focus:outline-none flex items-center justify-between",
+              lvl.className,
+              currentLevel === lvl.key && "bg-neutral-900/60"
+            )}
+          >
+            <span>{lvl.label}</span>
+            {currentLevel === lvl.key && <span className="text-[8px]">✓</span>}
+          </button>
+        ))}
+      </div>
+    )
+  }
+
+  const fetchDataSources = async () => {
+    try {
+      setSourcesLoading(true)
+      const res = await apiClient.get('/api/soar/settings/datasources')
+      if (res.data) {
+        setDataSources(res.data)
+      }
+    } catch (e) {
+      console.error("Failed to load data sources:", e)
+    } finally {
+      setSourcesLoading(false)
+    }
+  }
+
+  const handleConnectSource = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!activeSourceToConnect) return
+    try {
+      const res = await apiClient.put(`/api/soar/settings/datasources/${activeSourceToConnect.id}/connect`)
+      if (res.data) {
+        setConnectModalOpen(false)
+        setActiveSourceToConnect(null)
+        setConnectCred1('')
+        setConnectCred2('')
+        await fetchDataSources()
+      }
+    } catch (e) {
+      console.error("Failed to connect data source:", e)
+      alert("Failed to connect data source.")
+    }
+  }
+
+  const handleDisconnectSource = async (sourceId: string) => {
+    if (!confirm("Are you sure you want to disconnect this data source? Ingestion will stop immediately.")) return
+    try {
+      const res = await apiClient.put(`/api/soar/settings/datasources/${sourceId}/disconnect`)
+      if (res.data) {
+        await fetchDataSources()
+      }
+    } catch (e) {
+      console.error("Failed to disconnect data source:", e)
+    }
+  }
+
+  const handleSyncSource = async (sourceId: string) => {
+    try {
+      setSyncingSourceId(sourceId)
+      const res = await apiClient.post(`/api/soar/settings/datasources/${sourceId}/sync`)
+      if (res.data) {
+        await new Promise(resolve => setTimeout(resolve, 1500))
+        await fetchDataSources()
+      }
+    } catch (e) {
+      console.error("Failed to sync data source:", e)
+    } finally {
+      setSyncingSourceId(null)
+    }
+  }
+
+  const handleAddDataSource = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!newSourceName.trim()) return
+    try {
+      const res = await apiClient.post('/api/soar/settings/datasources', {
+        name: newSourceName,
+        provider: newSourceProvider,
+        description: newSourceDesc
+      })
+      if (res.data) {
+        setNewSourceName('')
+        setNewSourceDesc('')
+        setNewSourceProvider('AWS')
+        setAddSourceModalOpen(false)
+        await fetchDataSources()
+      }
+    } catch (e) {
+      console.error("Failed to add data source:", e)
+      alert("Failed to add data source.")
+    }
+  }
+
   useEffect(() => {
     fetchData()
     fetchOrganization()
     fetchLicense()
     fetchUsersAndGroups()
+    fetchRoles()
+    fetchDataSources()
   }, [])
 
   // Copy token to clipboard helper
@@ -516,7 +752,25 @@ export default function SettingsPage() {
               <p className="text-xs text-neutral-500 mt-2 font-medium">Manage who has access to the console and how they're grouped for permissions.</p>
             </div>
           )}
-          {!['Organization', 'License & Billing', 'Users & Groups'].includes(activeTab) && (
+          {activeTab === 'Roles & Permissions' && (
+            <div>
+              <div className="text-[10px] text-neutral-500 font-bold mb-2">
+                <span>Settings</span> <span className="text-neutral-600">/</span> <span className="text-white">Roles & Permissions</span>
+              </div>
+              <h2 className="text-xl font-bold text-white tracking-tight leading-none">Roles & Permissions</h2>
+              <p className="text-xs text-neutral-500 mt-2 font-medium">Define what each role can see and do across the security console.</p>
+            </div>
+          )}
+          {activeTab === 'Data Sources' && (
+            <div>
+              <div className="text-[10px] text-neutral-500 font-bold mb-2">
+                <span>Settings</span> <span className="text-neutral-600">/</span> <span className="text-white">Data Sources</span>
+              </div>
+              <h2 className="text-xl font-bold text-white tracking-tight leading-none">Data Sources</h2>
+              <p className="text-xs text-neutral-500 mt-2 font-medium">Connect cloud and network telemetry for ingestion, correlation, and alerting.</p>
+            </div>
+          )}
+          {!['Organization', 'License & Billing', 'Users & Groups', 'Roles & Permissions', 'Data Sources'].includes(activeTab) && (
             <div>
               <h2 className="text-lg font-bold text-white tracking-tight uppercase leading-none">Access & Integrations</h2>
               <p className="text-[10px] text-neutral-500 mt-1 uppercase tracking-wider">Manage API access tokens and connected third-party security tools.</p>
@@ -1093,8 +1347,453 @@ export default function SettingsPage() {
           </div>
         )}
 
+        {/* Tab 0.7: Roles & Permissions Panel */}
+        {activeTab === 'Roles & Permissions' && (
+          <div className="space-y-6 animate-fade-in text-xs font-sans">
+            {rolesLoading ? (
+              <div className="py-12 text-center text-xs text-neutral-500 font-bold uppercase tracking-widest animate-pulse">
+                Loading Roles & Permissions...
+              </div>
+            ) : (
+              <>
+                {/* Tabs row */}
+                <div className="flex flex-wrap items-center justify-between gap-4">
+                  {/* Left: Role Tabs */}
+                  <div className="flex flex-wrap gap-2">
+                    {roles.map((role) => (
+                      <button
+                        key={role.id}
+                        type="button"
+                        onClick={() => handleSelectRole(role)}
+                        className={clsx(
+                          "px-4 py-2.5 rounded-xl text-xs font-bold transition-all focus:outline-none flex items-center gap-1.5",
+                          activeRole?.id === role.id
+                            ? "border border-[#FF5A1F] text-[#FF5A1F] bg-[#FF5A1F]/5 font-extrabold"
+                            : "border border-neutral-800 bg-[#0C0C0D] text-neutral-400 hover:text-white hover:border-neutral-700"
+                        )}
+                      >
+                        <span>{role.name}</span>
+                        <span className={clsx(
+                          "text-[10px] ml-1 font-bold",
+                          activeRole?.id === role.id ? "text-[#FF5A1F]/70" : "text-neutral-500"
+                        )}>
+                          {role.userCount}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* Right: New Role Button */}
+                  <button
+                    onClick={() => setNewRoleModalOpen(true)}
+                    className="border border-neutral-850 bg-[#0C0C0D] hover:bg-neutral-900 text-white font-bold px-4 py-2.5 rounded-xl text-xs flex items-center gap-1 transition-all focus:outline-none"
+                  >
+                    <Plus className="w-3.5 h-3.5" /> New role
+                  </button>
+                </div>
+
+                {/* Permission Matrix Card */}
+                {activeRole && (
+                  <div className="bg-[#0C0C0D] border border-neutral-800 rounded-xl p-6 shadow-sm space-y-6 relative">
+                    <div className="border-b border-neutral-900 pb-4">
+                      <h3 className="text-sm font-bold text-white tracking-tight">
+                        Permission matrix — {activeRole.name}
+                      </h3>
+                      <p className="text-[10px] text-neutral-500 mt-1 font-semibold">Access level per module</p>
+                    </div>
+
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-left border-collapse">
+                        <thead>
+                          <tr className="text-neutral-500 font-bold border-b border-neutral-900/60 text-[9px] uppercase tracking-wider">
+                            <th className="py-3 px-2 w-[40%] text-left">Module</th>
+                            <th className="py-3 px-2 w-[15%] text-center">None</th>
+                            <th className="py-3 px-2 w-[15%] text-center">Read</th>
+                            <th className="py-3 px-2 w-[15%] text-center">Write</th>
+                            <th className="py-3 px-2 w-[15%] text-center">Admin</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-neutral-900/40 text-neutral-300">
+                          {activeRole.permissions?.map((perm) => {
+                            const level = perm.permissionLevel;
+                            return (
+                              <tr key={perm.moduleName} className="border-b border-neutral-900/20 hover:bg-[#121214]/10 transition-colors">
+                                <td className="py-4 px-2 font-bold text-white text-[12px]">{perm.moduleName}</td>
+                                
+                                {/* NONE column */}
+                                <td className="py-4 px-2 text-center align-middle">
+                                  {level === 'NONE' && (
+                                    <div className="relative inline-block text-left">
+                                      <button
+                                        type="button"
+                                        onClick={() => setActiveDropdownRow(activeDropdownRow === perm.moduleName ? null : perm.moduleName)}
+                                        className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-neutral-800 text-neutral-450 border border-neutral-700 text-[10px] font-black tracking-tight uppercase hover:bg-neutral-700 transition-all select-none"
+                                      >
+                                        None <span className="text-[8px]">▼</span>
+                                      </button>
+                                      {activeDropdownRow === perm.moduleName && renderDropdown(perm.moduleName, 'NONE')}
+                                    </div>
+                                  )}
+                                </td>
+
+                                {/* READ column */}
+                                <td className="py-4 px-2 text-center align-middle">
+                                  {level === 'READ' && (
+                                    <div className="relative inline-block text-left">
+                                      <button
+                                        type="button"
+                                        onClick={() => setActiveDropdownRow(activeDropdownRow === perm.moduleName ? null : perm.moduleName)}
+                                        className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-[10px] font-black tracking-tight uppercase hover:bg-emerald-500/20 transition-all select-none"
+                                      >
+                                        Read <span className="text-[8px]">▼</span>
+                                      </button>
+                                      {activeDropdownRow === perm.moduleName && renderDropdown(perm.moduleName, 'READ')}
+                                    </div>
+                                  )}
+                                </td>
+
+                                {/* WRITE column */}
+                                <td className="py-4 px-2 text-center align-middle">
+                                  {level === 'WRITE' && (
+                                    <div className="relative inline-block text-left">
+                                      <button
+                                        type="button"
+                                        onClick={() => setActiveDropdownRow(activeDropdownRow === perm.moduleName ? null : perm.moduleName)}
+                                        className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-500/10 text-blue-400 border border-blue-500/20 text-[10px] font-black tracking-tight uppercase hover:bg-blue-500/20 transition-all select-none"
+                                      >
+                                        Write <span className="text-[8px]">▼</span>
+                                      </button>
+                                      {activeDropdownRow === perm.moduleName && renderDropdown(perm.moduleName, 'WRITE')}
+                                    </div>
+                                  )}
+                                </td>
+
+                                {/* ADMIN column */}
+                                <td className="py-4 px-2 text-center align-middle">
+                                  {level === 'ADMIN' && (
+                                    <div className="relative inline-block text-left">
+                                      <button
+                                        type="button"
+                                        onClick={() => setActiveDropdownRow(activeDropdownRow === perm.moduleName ? null : perm.moduleName)}
+                                        className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#FF5A1F]/10 text-[#FF5A1F] border border-[#FF5A1F]/20 text-[10px] font-black tracking-tight uppercase hover:bg-[#FF5A1F]/20 transition-all select-none"
+                                      >
+                                        Admin <span className="text-[8px]">▼</span>
+                                      </button>
+                                      {activeDropdownRow === perm.moduleName && renderDropdown(perm.moduleName, 'ADMIN')}
+                                    </div>
+                                  )}
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+
+                    {/* Actions row at the bottom */}
+                    <div className="flex justify-end gap-3 border-t border-neutral-900/60 pt-5 mt-5">
+                      <button
+                        onClick={handleResetToDefault}
+                        className="border border-neutral-800 hover:bg-neutral-850 text-neutral-350 hover:text-white font-bold px-4 py-2 rounded-xl text-xs transition-colors focus:outline-none"
+                      >
+                        Reset to default
+                      </button>
+                      <button
+                        onClick={handleSaveRole}
+                        disabled={rolesSaving}
+                        className="bg-[#FF5A1F] hover:bg-[#E54E18] disabled:bg-neutral-800 disabled:text-neutral-500 text-white font-bold px-5 py-2 rounded-xl text-xs transition-colors focus:outline-none"
+                      >
+                        {rolesSaving ? 'Saving...' : 'Save role'}
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        )}
+
+        {/* Create Role Modal Overlay */}
+        {newRoleModalOpen && (
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <div className="bg-[#0C0C0D] border border-neutral-800 rounded-2xl w-full max-w-sm p-5 space-y-4 shadow-xl animate-fade-in">
+              <div className="flex items-center justify-between border-b border-neutral-900 pb-2.5">
+                <h3 className="text-xs font-extrabold text-white uppercase tracking-wider">New role</h3>
+                <button onClick={() => setNewRoleModalOpen(false)} className="text-neutral-500 hover:text-white transition-colors">
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+              <form onSubmit={handleCreateRole} className="space-y-4 text-[11px] font-sans">
+                <div className="space-y-1.5">
+                  <label className="text-neutral-400 font-bold block">Role Name</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. Threat Hunter"
+                    value={newRoleName}
+                    onChange={(e) => setNewRoleName(e.target.value)}
+                    className="w-full bg-[#121214] border border-neutral-855 rounded-lg px-3 py-2 text-white placeholder:text-neutral-750 focus:outline-none focus:border-neutral-700 transition-colors"
+                  />
+                </div>
+                <div className="flex justify-end gap-2 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setNewRoleModalOpen(false)}
+                    className="border border-neutral-855 hover:bg-neutral-900 text-neutral-400 font-bold px-4 py-2 rounded-xl text-xs transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="bg-[#FF5A1F] hover:bg-[#E54E18] text-white font-bold px-4 py-2 rounded-xl text-xs transition-colors"
+                  >
+                    Create Role
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+
+        {/* Tab 0.8: Data Sources Panel */}
+        {activeTab === 'Data Sources' && (
+          <div className="space-y-6 animate-fade-in text-xs font-sans">
+            {sourcesLoading ? (
+              <div className="py-12 text-center text-xs text-neutral-500 font-bold uppercase tracking-widest animate-pulse">
+                Loading Data Sources...
+              </div>
+            ) : (
+              <div className="bg-[#0C0C0D] border border-neutral-800 rounded-xl p-6 shadow-sm space-y-6">
+                
+                {/* Header row */}
+                <div className="flex items-center justify-between border-b border-neutral-900 pb-4">
+                  <div>
+                    <h3 className="text-sm font-bold text-white tracking-tight">Cloud & log sources</h3>
+                    <p className="text-[10px] text-neutral-500 mt-1 font-semibold">
+                      {dataSources.length} available &middot; {dataSources.filter(s => s.status === 'Connected').length} connected
+                    </p>
+                  </div>
+                  <button 
+                    onClick={() => setAddSourceModalOpen(true)}
+                    className="bg-[#FF5A1F] hover:bg-[#E54E18] text-white font-bold px-4 py-2 rounded-xl text-xs flex items-center gap-1 transition-colors focus:outline-none"
+                  >
+                    Add data source
+                  </button>
+                </div>
+
+                {/* Cards Grid */}
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {dataSources.map((source) => {
+                    const isConnected = source.status === 'Connected';
+                    return (
+                      <div 
+                        key={source.id} 
+                        className="bg-[#121214]/60 border border-neutral-850 rounded-xl p-5 hover:border-neutral-700 transition-all flex flex-col justify-between h-[210px]"
+                      >
+                        {/* Upper row: provider tag and status badge */}
+                        <div className="flex items-center justify-between">
+                          <div className={clsx(
+                            "px-2.5 py-1 rounded text-[9px] font-black uppercase tracking-wider select-none",
+                            source.provider === 'AWS' ? "bg-amber-500/10 text-amber-500" :
+                            source.provider === 'AZ' ? "bg-blue-500/10 text-blue-400" :
+                            source.provider === 'SP' ? "bg-neutral-800 text-neutral-450 border border-neutral-700" :
+                            "bg-neutral-800 text-neutral-350"
+                          )}>
+                            {source.provider}
+                          </div>
+                          <div className="flex items-center gap-1.5 text-[10px] font-bold">
+                            <span className={clsx(
+                              "w-1.5 h-1.5 rounded-full inline-block",
+                              isConnected ? "bg-emerald-400" : "bg-neutral-650"
+                            )} />
+                            <span className={isConnected ? "text-emerald-400" : "text-neutral-500"}>
+                              {isConnected ? 'Connected' : 'Not connected'}
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Title & description */}
+                        <div className="space-y-1.5 my-3">
+                          <h4 className="text-xs font-black text-white">{source.name}</h4>
+                          <p className="text-[10px] text-neutral-450 leading-relaxed font-semibold line-clamp-2">
+                            {source.description}
+                          </p>
+                          {isConnected && (
+                            <p className="text-[9px] text-neutral-500 font-bold tracking-tight">
+                              Last sync: {source.lastSync || 'Never'}
+                            </p>
+                          )}
+                        </div>
+
+                        {/* Footer actions */}
+                        <div className="border-t border-neutral-900/60 pt-3">
+                          {isConnected ? (
+                            <div className="flex items-center justify-between gap-3 text-[10px] font-bold">
+                              <button 
+                                onClick={() => handleDisconnectSource(source.id)}
+                                className="border border-neutral-800 hover:bg-[#DC2626]/10 hover:border-[#DC2626]/20 text-neutral-400 hover:text-red-450 px-3.5 py-1.5 rounded-lg transition-colors focus:outline-none"
+                              >
+                                Disconnect
+                              </button>
+                              <button 
+                                onClick={() => handleSyncSource(source.id)}
+                                disabled={syncingSourceId === source.id}
+                                className="bg-[#18181B] hover:bg-neutral-900 border border-neutral-800 text-white px-3.5 py-1.5 rounded-lg transition-colors focus:outline-none flex items-center gap-1 min-w-[75px] justify-center"
+                              >
+                                {syncingSourceId === source.id ? (
+                                  <span className="w-2.5 h-2.5 border-2 border-neutral-400 border-t-white rounded-full animate-spin" />
+                                ) : (
+                                  'Sync now'
+                                )}
+                              </button>
+                            </div>
+                          ) : (
+                            <button 
+                              onClick={() => {
+                                setActiveSourceToConnect(source);
+                                setConnectModalOpen(true);
+                              }}
+                              className="w-full bg-[#FF5A1F] hover:bg-[#E54E18] text-white font-bold py-2 rounded-xl text-center transition-colors focus:outline-none"
+                            >
+                              Connect
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Add Data Source Modal */}
+        {addSourceModalOpen && (
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <div className="bg-[#0C0C0D] border border-neutral-800 rounded-2xl w-full max-w-sm p-5 space-y-4 shadow-xl animate-fade-in text-xs font-sans">
+              <div className="flex items-center justify-between border-b border-neutral-900 pb-2.5">
+                <h3 className="text-xs font-extrabold text-white uppercase tracking-wider">Add data source</h3>
+                <button onClick={() => setAddSourceModalOpen(false)} className="text-neutral-500 hover:text-white transition-colors">
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+              <form onSubmit={handleAddDataSource} className="space-y-4">
+                <div className="space-y-1.5">
+                  <label className="text-neutral-400 font-bold block text-[10px] uppercase">Source Name</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. AWS VPC Flow Logs"
+                    value={newSourceName}
+                    onChange={(e) => setNewSourceName(e.target.value)}
+                    className="w-full bg-[#121214] border border-neutral-855 rounded-lg px-3 py-2 text-white placeholder:text-neutral-755 focus:outline-none focus:border-neutral-700 transition-colors"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-neutral-400 font-bold block text-[10px] uppercase">Provider Prefix</label>
+                  <select
+                    value={newSourceProvider}
+                    onChange={(e) => setNewSourceProvider(e.target.value)}
+                    className="w-full bg-[#121214] border border-neutral-855 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-neutral-700 cursor-pointer"
+                  >
+                    <option value="AWS">AWS</option>
+                    <option value="AZ">AZ (Azure)</option>
+                    <option value="SP">SP (Splunk)</option>
+                    <option value="SYS">SYS (System/Network)</option>
+                  </select>
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-neutral-400 font-bold block text-[10px] uppercase">Description</label>
+                  <textarea
+                    required
+                    placeholder="Describe log source ingestion..."
+                    value={newSourceDesc}
+                    onChange={(e) => setNewSourceDesc(e.target.value)}
+                    rows={3}
+                    className="w-full bg-[#121214] border border-neutral-855 rounded-lg px-3 py-2 text-white placeholder:text-neutral-755 focus:outline-none focus:border-neutral-700 transition-colors resize-none"
+                  />
+                </div>
+                <div className="flex justify-end gap-2 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setAddSourceModalOpen(false)}
+                    className="border border-neutral-855 hover:bg-neutral-900 text-neutral-400 font-bold px-4 py-2 rounded-xl text-xs transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="bg-[#FF5A1F] hover:bg-[#E54E18] text-white font-bold px-4 py-2 rounded-xl text-xs transition-colors"
+                  >
+                    Add Source
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+
+        {/* Connect Credentials Modal */}
+        {connectModalOpen && activeSourceToConnect && (
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <div className="bg-[#0C0C0D] border border-neutral-800 rounded-2xl w-full max-w-sm p-5 space-y-4 shadow-xl animate-fade-in text-xs font-sans">
+              <div className="flex items-center justify-between border-b border-neutral-900 pb-2.5">
+                <h3 className="text-xs font-extrabold text-white uppercase tracking-wider">Configure {activeSourceToConnect.name}</h3>
+                <button onClick={() => setConnectModalOpen(false)} className="text-neutral-500 hover:text-white transition-colors">
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+              <form onSubmit={handleConnectSource} className="space-y-4">
+                <p className="text-[10px] text-neutral-500 font-medium">Enter connection details to link telemetry ingestion.</p>
+                <div className="space-y-1.5">
+                  <label className="text-neutral-400 font-bold block text-[10px] uppercase">
+                    {activeSourceToConnect.provider === 'AWS' ? 'AWS Account ID / Role ARN' :
+                     activeSourceToConnect.provider === 'AZ' ? 'Azure Client ID / Tenant ID' :
+                     activeSourceToConnect.provider === 'SP' ? 'Splunk API HEC Token' : 'Ingestion Port / Endpoint'}
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="Enter configuration credential"
+                    value={connectCred1}
+                    onChange={(e) => setConnectCred1(e.target.value)}
+                    className="w-full bg-[#121214] border border-neutral-855 rounded-lg px-3 py-2 text-white placeholder:text-neutral-750 focus:outline-none focus:border-neutral-700 transition-colors"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-neutral-400 font-bold block text-[10px] uppercase">API Region / Secret Key</label>
+                  <input
+                    type="password"
+                    required
+                    placeholder="••••••••••••••••"
+                    value={connectCred2}
+                    onChange={(e) => setConnectCred2(e.target.value)}
+                    className="w-full bg-[#121214] border border-neutral-855 rounded-lg px-3 py-2 text-white placeholder:text-neutral-750 focus:outline-none focus:border-neutral-700 transition-colors"
+                  />
+                </div>
+                <div className="flex justify-end gap-2 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setConnectModalOpen(false)}
+                    className="border border-neutral-855 hover:bg-neutral-900 text-neutral-400 font-bold px-4 py-2 rounded-xl text-xs transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="bg-[#FF5A1F] hover:bg-[#E54E18] text-white font-bold px-4 py-2 rounded-xl text-xs transition-colors"
+                  >
+                    Confirm Connect
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+
         {/* Placeholder for Development modules */}
-        {['Roles & Permissions', 'Data Sources', 'Agent Deployment'].includes(activeTab) && (
+        {['Agent Deployment'].includes(activeTab) && (
           <InDevelopment>
             <div className="bg-[#0C0C0D] border border-neutral-800 rounded-xl p-5 shadow-sm space-y-4">
               <h3 className="text-sm font-bold text-white">{activeTab}</h3>
