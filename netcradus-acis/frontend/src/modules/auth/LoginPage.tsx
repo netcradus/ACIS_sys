@@ -6,6 +6,8 @@ import { Navigate } from 'react-router-dom'
 
 export default function LoginPage() {
   const { isAuthenticated } = useAuthStore()
+  const isUserAuthenticated = isAuthenticated || Boolean(keycloak.authenticated)
+
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
@@ -13,7 +15,7 @@ export default function LoginPage() {
   const [selectedLanguage, setSelectedLanguage] = useState('English')
 
   // If already authenticated, redirect to dashboard
-  if (isAuthenticated) {
+  if (isUserAuthenticated) {
     return <Navigate to="/dashboard" replace />
   }
 

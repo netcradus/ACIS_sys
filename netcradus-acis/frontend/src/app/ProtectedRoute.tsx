@@ -17,7 +17,9 @@ export default function ProtectedRoute() {
     return <LoadingScreen />
   }
 
-  if (!isAuthenticated || !keycloak.authenticated) {
+  const isUserAuthenticated = isAuthenticated || Boolean(keycloak.authenticated)
+
+  if (!isUserAuthenticated) {
     return <Navigate to="/login" replace />
   }
 
