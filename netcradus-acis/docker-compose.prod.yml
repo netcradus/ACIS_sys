@@ -1,0 +1,82 @@
+services:
+  # 1. ACIS Web Frontend
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "80:80"
+    restart: always
+    depends_on:
+      - ai-service
+
+  # 2. ACIS AI Intelligence Service (Python FastAPI)
+  ai-service:
+    build:
+      context: ./ai-service
+      dockerfile: Dockerfile
+    ports:
+      - "8090:8090"
+    restart: always
+
+  # 3. PostgreSQL Database
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: acis
+      POSTGRES_USER: acis
+      POSTGRES_PASSWORD: acis_prod_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: always
+
+  # 4. Keycloak Identity Provider
+  keycloak:
+    image: quay.io/keycloak/keycloak:24.0
+    command: start-dev --import-realm
+    environment:
+      KEYCLOAK_ADMIN: admin
+      KEYCLOAK_ADMIN_PASSWORD: admin_prod_password
+    volumes:
+      - ./infra/keycloak/realm-acis.json:/opt/keycloak/data/import/realm-acis.json
+    ports:
+      - "8180:8080"
+    restart: always
+
+  # 5. Kafka Event Broker
+  kafka:
+    image: confluentinc/cp-kafka:7.6.0
+    environment:
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:29092,CONTROLLER://0.0.0.0:9093,PLAINTEXT_HOST://0.0.0.0:9092
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:29092,PLAINTEXT_HOST://localhost:9092
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+      CLUSTER_ID: YWNpcy1sb2ctY2x1c3Rlcg==
+    ports:
+      - "9092:9092"
+    restart: always
+
+  # 6. Elasticsearch Security Index
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.13.0
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - ES_JAVA_OPTS=-Xms1g -Xmx1g
+    ports:
+      - "9200:9200"
+    volumes:
+      - es_data:/usr/share/elasticsearch/data
+    restart: always
+
+volumes:
+  postgres_data:
+  es_data:
