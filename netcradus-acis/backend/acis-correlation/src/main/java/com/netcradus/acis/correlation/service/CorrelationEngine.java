@@ -2,6 +2,7 @@ package com.netcradus.acis.correlation.service;
 
 import com.netcradus.acis.common.dto.AlertDto;
 import com.netcradus.acis.common.dto.NormalizedEvent;
+import com.netcradus.acis.common.tenant.TenantContext;
 import com.netcradus.acis.correlation.model.CorrelationRule;
 import com.netcradus.acis.correlation.repository.CorrelationRuleRepository;
 import lombok.RequiredArgsConstructor;
@@ -85,18 +86,33 @@ public class CorrelationEngine {
         buckets[7].incrementAndGet();
         log.debug("Processing event for correlation: {}", event.getEventId());
 
-        List<CorrelationRule> activeRules = ruleRepository.findByEnabledTrue();
+        // Kafka listener threads have no HTTP request / TenantContextFilter, so
+        // the tenant must be taken from the event itself — both to scope which
+        // rules run (see below) and so the Row Level Security policy on
+        // `correlation_rules` can see the rule.lastRunAt update in triggerAlert().
+        try {
+            TenantContext.setTenantId(event.getTenantId());
 
-        for (CorrelationRule rule : activeRules) {
-            if (matchesPredicate(rule, event)) {
-                Integer threshold = extractThreshold(rule.getSplQuery());
-                if (threshold == null) {
-                    // Simple detection rule: fire immediately on predicate match
-                    triggerAlert(rule, event);
-                } else if (crossedThreshold(rule, event, threshold)) {
-                    triggerAlert(rule, event);
+            // Only evaluate rules owned by the same tenant as the event — otherwise
+            // one tenant's rule definitions would run against every other tenant's
+            // events and could tag alerts onto tenants that never authored the rule.
+            List<CorrelationRule> activeRules = event.getTenantId() != null
+                    ? ruleRepository.findByEnabledTrueAndTenantId(event.getTenantId())
+                    : List.of();
+
+            for (CorrelationRule rule : activeRules) {
+                if (matchesPredicate(rule, event)) {
+                    Integer threshold = extractThreshold(rule.getSplQuery());
+                    if (threshold == null) {
+                        // Simple detection rule: fire immediately on predicate match
+                        triggerAlert(rule, event);
+                    } else if (crossedThreshold(rule, event, threshold)) {
+                        triggerAlert(rule, event);
+                    }
                 }
             }
+        } finally {
+            TenantContext.clear();
         }
     }
 

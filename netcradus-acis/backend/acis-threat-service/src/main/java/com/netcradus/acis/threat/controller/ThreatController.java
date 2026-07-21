@@ -19,13 +19,13 @@ public class ThreatController {
     private final ThreatIntelligenceService threatService;
 
     @GetMapping
-    public ResponseEntity<List<ThreatIndicator>> getAllIndicators() {
-        return ResponseEntity.ok(threatService.findAll());
+    public ResponseEntity<List<ThreatIndicator>> getAllIndicators(@RequestHeader("X-Tenant-ID") String tenantId) {
+        return ResponseEntity.ok(threatService.findAll(tenantId));
     }
 
     @GetMapping("/lookup/{value}")
-    public ResponseEntity<ThreatIndicator> lookupIndicator(@PathVariable String value) {
-        return threatService.findByValue(value)
+    public ResponseEntity<ThreatIndicator> lookupIndicator(@PathVariable String value, @RequestHeader("X-Tenant-ID") String tenantId) {
+        return threatService.findByValue(value, tenantId)
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
     }

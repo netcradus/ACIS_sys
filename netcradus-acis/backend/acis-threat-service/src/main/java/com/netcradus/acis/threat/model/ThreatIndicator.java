@@ -19,6 +19,12 @@ public class ThreatIndicator {
     @GeneratedValue(strategy = GenerationType.UUID)
     private String id;
 
+    // Not DB-NOT-NULL: with no migration framework in place (ddl-auto=update),
+    // a hard NOT NULL would fail schema-update on any DB that already has rows
+    // from before this column existed. Enforced as non-null in application code instead.
+    @Column(name = "tenant_id")
+    private String tenantId;
+
     @Column(nullable = false)
     private String value; // The IoC (e.g., IP, domain, file hash)
 

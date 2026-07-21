@@ -37,6 +37,12 @@
       <scope>runtime</scope>
     </dependency>
 
+    <!-- Spring Kafka (audit event publishing) -->
+    <dependency>
+      <groupId>org.springframework.kafka</groupId>
+      <artifactId>spring-kafka</artifactId>
+    </dependency>
+
     <!-- Security -->
     <dependency>
       <groupId>org.springframework.boot</groupId>

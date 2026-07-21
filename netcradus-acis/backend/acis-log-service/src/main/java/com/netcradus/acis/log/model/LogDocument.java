@@ -24,6 +24,9 @@ public class LogDocument {
     @Id
     private String id;
 
+    @Field(type = FieldType.Keyword)
+    private String tenantId;
+
     @Field(name = "@timestamp", type = FieldType.Date)
     private Instant timestamp;
 

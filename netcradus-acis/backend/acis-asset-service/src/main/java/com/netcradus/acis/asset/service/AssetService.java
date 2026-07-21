@@ -23,16 +23,16 @@ public class AssetService {
         // Centralized seeding is handled by AssetDataSeeder
     }
 
-    public List<Asset> findAll() {
-        return repository.findAll();
+    public List<Asset> findAll(String tenantId) {
+        return repository.findByTenantId(tenantId);
     }
 
-    public Optional<Asset> findById(String id) {
-        return repository.findById(id);
+    public Optional<Asset> findById(String id, String tenantId) {
+        return repository.findByIdAndTenantId(id, tenantId);
     }
 
-    public Optional<Asset> findByIpAddress(String ipAddress) {
-        return repository.findByIpAddress(ipAddress);
+    public Optional<Asset> findByIpAddress(String ipAddress, String tenantId) {
+        return repository.findByIpAddressAndTenantId(ipAddress, tenantId);
     }
 
     public Asset save(Asset asset) {
@@ -40,13 +40,15 @@ public class AssetService {
         return repository.save(asset);
     }
 
-    public void deleteById(String id) {
+    public void deleteById(String id, String tenantId) {
+        Asset asset = repository.findByIdAndTenantId(id, tenantId)
+                .orElseThrow(() -> new RuntimeException("Asset not found with id " + id));
         log.info("Deleting asset by ID: {}", id);
-        repository.deleteById(id);
+        repository.delete(asset);
     }
 
-    public Asset update(String id, Asset assetDetails) {
-        return repository.findById(id).map(asset -> {
+    public Asset update(String id, String tenantId, Asset assetDetails) {
+        return repository.findByIdAndTenantId(id, tenantId).map(asset -> {
             asset.setName(assetDetails.getName());
             asset.setIpAddress(assetDetails.getIpAddress());
             asset.setMacAddress(assetDetails.getMacAddress());

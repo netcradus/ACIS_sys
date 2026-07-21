@@ -24,11 +24,13 @@ import com.netcradus.acis.soar.repository.RedTeamSimulationRepository;
 import com.netcradus.acis.soar.repository.ReportScheduleRepository;
 import com.netcradus.acis.soar.repository.ApiKeyRepository;
 import com.netcradus.acis.soar.repository.IntegrationRepository;
+import com.netcradus.acis.common.tenant.TenantContext;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.annotation.Order;
 
 import java.time.OffsetDateTime;
 import java.util.UUID;
@@ -52,10 +54,30 @@ public class SeedConfig {
     private final UserGroupRepository userGroupRepository;
 
     @Bean
+    @Order(0) // must run before RlsConfig's enableRowLevelSecurity runner (Order 1000)
     public CommandLineRunner seedData() {
         return args -> {
-            UUID defaultTenantId = UUID.fromString("00000000-0000-0000-0000-000000000001");
+            // Matches the tenant_id attribute seeded on the demo Keycloak users
+            // in infra/keycloak/realm-acis.json (admin/analyst1/analyst2) and the
+            // demo tenant used by AssetDataSeeder, so seeded data is actually
+            // visible to a logged-in demo user once tenant enforcement is strict.
+            UUID defaultTenantId = UUID.fromString("11111111-1111-4111-8111-111111111111");
 
+            // RLS (enabled by RlsConfig) is a permanent DB-level setting that
+            // survives restarts — on every run after the first, every seed
+            // insert/delete/count below needs a tenant context, even though
+            // this seeder runs before RlsConfig's runner in THIS process.
+            try {
+                TenantContext.setTenantId(defaultTenantId.toString());
+                seed(defaultTenantId);
+            } finally {
+                TenantContext.clear();
+            }
+        };
+    }
+
+    private void seed(UUID defaultTenantId) {
+        {
             // Wipe out old playbooks and executions for a fresh seeder state matching the screenshot
             log.info("Clearing playbooks and executions for fresh seed...");
             executionRepository.deleteAll();
@@ -484,6 +506,6 @@ public class SeedConfig {
                 m4.setLastLogin("Never");
                 userMemberRepository.save(m4);
             }
-        };
+        }
     }
 }

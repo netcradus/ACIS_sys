@@ -14,6 +14,11 @@ import java.time.Instant;
 @RequiredArgsConstructor
 public class LogIngestionService {
 
+    // Matches the tenant_id attribute seeded on the demo Keycloak users in
+    // infra/keycloak/realm-acis.json. Used only as a last-resort fallback for
+    // legacy/demo messages that predate the tenantId field on LogDocument.
+    private static final String DEMO_TENANT_ID = "11111111-1111-4111-8111-111111111111";
+
     private final LogRepository logRepository;
     private final org.springframework.messaging.simp.SimpMessagingTemplate messagingTemplate;
     private final com.netcradus.acis.log.client.EnrichmentClient enrichmentClient;
@@ -63,22 +68,22 @@ public class LogIngestionService {
         messagingTemplate.convertAndSend("/topic/logs", logDocument);
 
         // --- Publish to acis.raw.events for Correlation Engine ---
+        String tenantId = logDocument.getTenantId() != null ? logDocument.getTenantId() : DEMO_TENANT_ID;
         com.netcradus.acis.common.dto.NormalizedEvent normalizedEvent = com.netcradus.acis.common.dto.NormalizedEvent.builder()
             .eventId(logDocument.getId())
-            .tenantId("tenant-1")
+            .tenantId(tenantId)
             .timestamp(java.time.LocalDateTime.now())
             .sourceType(logDocument.getService())
             .raw(logDocument.getMessage())
             .severity(logDocument.getLevel())
             .build();
-            
+
         if (logDocument.getMessage() != null && logDocument.getMessage().toLowerCase().contains("login")) {
             normalizedEvent.setAction("login_failed");
-            normalizedEvent.setUser("admin");
         } else if (logDocument.getMessage() != null && logDocument.getMessage().toLowerCase().contains("suspicious")) {
             normalizedEvent.setAction("suspicious_activity");
         }
-        
+
         kafkaTemplate.send("acis.raw.events", normalizedEvent);
     }
 

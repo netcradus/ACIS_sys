@@ -4,22 +4,42 @@ import com.netcradus.acis.asset.model.Asset;
 import com.netcradus.acis.asset.model.AssetStatus;
 import com.netcradus.acis.asset.model.AssetType;
 import com.netcradus.acis.asset.repository.AssetRepository;
+import com.netcradus.acis.common.tenant.TenantContext;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.annotation.Order;
 
 import java.util.List;
 
 @Configuration
 @RequiredArgsConstructor
 @Slf4j
+@Order(0) // must run before RlsConfig's enableRowLevelSecurity runner (Order 1000)
 public class AssetDataSeeder implements CommandLineRunner {
+
+    // Matches the tenant_id attribute seeded on the demo Keycloak users in
+    // infra/keycloak/realm-acis.json (admin/analyst1/analyst2).
+    private static final String DEMO_TENANT_ID = "11111111-1111-4111-8111-111111111111";
 
     private final AssetRepository repository;
 
     @Override
     public void run(String... args) {
+        // RLS (enabled by RlsConfig) is a permanent DB-level setting that
+        // survives restarts — on every run after the first, these deletes and
+        // inserts need a tenant context, even though this seeder runs before
+        // RlsConfig's runner in THIS process.
+        try {
+            TenantContext.setTenantId(DEMO_TENANT_ID);
+            seed();
+        } finally {
+            TenantContext.clear();
+        }
+    }
+
+    private void seed() {
         log.info("Clearing corporate assets for clean seed...");
         repository.deleteAll();
 
@@ -27,6 +47,7 @@ public class AssetDataSeeder implements CommandLineRunner {
 
         repository.saveAll(List.of(
             Asset.builder()
+                .tenantId(DEMO_TENANT_ID)
                 .name("dc-prod-01")
                 .type(AssetType.SERVER)
                 .owner("it-admin")
@@ -38,6 +59,7 @@ public class AssetDataSeeder implements CommandLineRunner {
                 .status(AssetStatus.ACTIVE)
                 .build(),
             Asset.builder()
+                .tenantId(DEMO_TENANT_ID)
                 .name("fw-edge-01")
                 .type(AssetType.NETWORK_DEVICE)
                 .owner("netops")
@@ -49,6 +71,7 @@ public class AssetDataSeeder implements CommandLineRunner {
                 .status(AssetStatus.ACTIVE)
                 .build(),
             Asset.builder()
+                .tenantId(DEMO_TENANT_ID)
                 .name("laptop-332")
                 .type(AssetType.WORKSTATION)
                 .owner("a.sharma")
@@ -60,6 +83,7 @@ public class AssetDataSeeder implements CommandLineRunner {
                 .status(AssetStatus.ACTIVE)
                 .build(),
             Asset.builder()
+                .tenantId(DEMO_TENANT_ID)
                 .name("srv-erp-02")
                 .type(AssetType.SERVER)
                 .owner("sap-admin")
@@ -71,6 +95,7 @@ public class AssetDataSeeder implements CommandLineRunner {
                 .status(AssetStatus.ACTIVE)
                 .build(),
             Asset.builder()
+                .tenantId(DEMO_TENANT_ID)
                 .name("api-gw-prod")
                 .type(AssetType.CLOUD_INSTANCE)
                 .owner("devops")
@@ -82,6 +107,7 @@ public class AssetDataSeeder implements CommandLineRunner {
                 .status(AssetStatus.ACTIVE)
                 .build(),
             Asset.builder()
+                .tenantId(DEMO_TENANT_ID)
                 .name("workstation-114")
                 .type(AssetType.WORKSTATION)
                 .owner("j.singh")
@@ -93,6 +119,7 @@ public class AssetDataSeeder implements CommandLineRunner {
                 .status(AssetStatus.ACTIVE)
                 .build(),
             Asset.builder()
+                .tenantId(DEMO_TENANT_ID)
                 .name("backup-srv-01")
                 .type(AssetType.SERVER)
                 .owner("it-admin")
@@ -104,6 +131,7 @@ public class AssetDataSeeder implements CommandLineRunner {
                 .status(AssetStatus.ACTIVE)
                 .build(),
             Asset.builder()
+                .tenantId(DEMO_TENANT_ID)
                 .name("printer-hq-3")
                 .type(AssetType.IOT_DEVICE)
                 .owner("facilities")
@@ -115,6 +143,7 @@ public class AssetDataSeeder implements CommandLineRunner {
                 .status(AssetStatus.ACTIVE)
                 .build(),
             Asset.builder()
+                .tenantId(DEMO_TENANT_ID)
                 .name("cloud-db-prod")
                 .type(AssetType.CLOUD_INSTANCE)
                 .owner("dba-team")
@@ -126,6 +155,7 @@ public class AssetDataSeeder implements CommandLineRunner {
                 .status(AssetStatus.ACTIVE)
                 .build(),
             Asset.builder()
+                .tenantId(DEMO_TENANT_ID)
                 .name("vpn-concentrator")
                 .type(AssetType.NETWORK_DEVICE)
                 .owner("netops")

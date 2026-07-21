@@ -40,7 +40,6 @@ import java.util.regex.Pattern;
 @RequiredArgsConstructor
 public class SettingsController {
 
-    private static final UUID DEFAULT_TENANT = UUID.fromString("00000000-0000-0000-0000-000000000001");
     private static final Pattern EMAIL_PATTERN = Pattern.compile("^[\\w.+-]+@[\\w-]+\\.[a-zA-Z]{2,}$");
 
     private final ApiKeyRepository apiKeyRepository;
@@ -54,8 +53,17 @@ public class SettingsController {
     private final RolePermissionRepository rolePermissionRepository;
     private final DataSourceRepository dataSourceRepository;
 
+    /**
+     * X-Tenant-ID is always populated by TenantContextFilter from the caller's
+     * validated JWT tenant_id claim for any authenticated request — there is no
+     * "demo tenant" fallback, since that fallback previously let requests bleed
+     * into a shared tenant whenever a caller omitted the header.
+     */
     private UUID resolveTenant(UUID tenantId) {
-        return tenantId != null ? tenantId : DEFAULT_TENANT;
+        if (tenantId == null) {
+            throw new IllegalStateException("X-Tenant-ID missing; request should have been rejected upstream");
+        }
+        return tenantId;
     }
 
     // ── API Keys ──────────────────────────────────────────────

@@ -30,6 +30,42 @@
       <artifactId>jakarta.servlet-api</artifactId>
       <scope>provided</scope>
     </dependency>
+    <!-- Spring Security JWT types (provided — every consuming service already has
+         spring-boot-starter-oauth2-resource-server on its runtime classpath) -->
+    <dependency>
+      <groupId>org.springframework.security</groupId>
+      <artifactId>spring-security-web</artifactId>
+      <scope>provided</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework.security</groupId>
+      <artifactId>spring-security-oauth2-resource-server</artifactId>
+      <scope>provided</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework.security</groupId>
+      <artifactId>spring-security-oauth2-jose</artifactId>
+      <scope>provided</scope>
+    </dependency>
+    <!-- Postgres RLS support (DelegatingDataSource, JdbcTemplate) — provided,
+         every consuming service already has spring-boot-starter-data-jpa. -->
+    <dependency>
+      <groupId>org.springframework</groupId>
+      <artifactId>spring-jdbc</artifactId>
+      <scope>provided</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.slf4j</groupId>
+      <artifactId>slf4j-api</artifactId>
+      <scope>provided</scope>
+    </dependency>
+    <!-- Audit event publishing (KafkaTemplate) — provided, each consuming
+         service that wants to publish audit events declares spring-kafka itself. -->
+    <dependency>
+      <groupId>org.springframework.kafka</groupId>
+      <artifactId>spring-kafka</artifactId>
+      <scope>provided</scope>
+    </dependency>
   </dependencies>
 </project>
 

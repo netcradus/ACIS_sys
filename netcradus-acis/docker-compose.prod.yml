@@ -1,82 +1,351 @@
+# NETCRADUS ACIS — Production Docker Compose (single VM)
+#
+# Required secrets are read from a `.env` file next to this compose file
+# (already covered by .gitignore — never commit it). Copy .env.prod.example
+# to .env and fill in real values before running:
+#
+#   cp .env.prod.example .env
+#   docker compose -f docker-compose.prod.yml up -d --build
+#
+# Only the frontend (80) and Keycloak (8180, needed for the browser's OIDC
+# redirect) are published to the host. Postgres, Kafka, Elasticsearch, the
+# gateway, every backend microservice, and the AI service are reachable only
+# on the internal Docker network — the frontend's nginx proxies /api and /ws
+# to the gateway (see infra/docker/nginx.conf.template).
+#
+# Known follow-ups needing the operator's real domain (not guessed here):
+#   - TLS termination in front of the frontend (e.g. Caddy/nginx+certbot or a
+#     cloud load balancer) — this compose file serves plain HTTP on :80.
+#   - Keycloak KC_HOSTNAME below defaults to localhost; set it to your real
+#     public hostname so issued tokens carry a consistent `iss` claim.
+#   - Import a real realm/tenant configuration once ready — production does
+#     NOT auto-import the demo realm (see keycloak service below).
+
 services:
-  # 1. ACIS Web Frontend
+  # 1. ACIS Web Frontend (nginx, proxies /api + /ws to the gateway)
   frontend:
     build:
-      context: ./frontend
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: frontend/Dockerfile
+      args:
+        VITE_KEYCLOAK_URL: ${PUBLIC_KEYCLOAK_URL:?Set PUBLIC_KEYCLOAK_URL in .env (e.g. https://your-domain:8180)}
+        VITE_KEYCLOAK_REALM: ${KEYCLOAK_REALM:-acis}
+        VITE_KEYCLOAK_CLIENT_ID: acis-frontend
+    environment:
+      GATEWAY_UPSTREAM: http://gateway:8080
     ports:
       - "80:80"
     restart: always
     depends_on:
-      - ai-service
+      - gateway
 
-  # 2. ACIS AI Intelligence Service (Python FastAPI)
+  # 2. ACIS AI Intelligence Service (Python FastAPI) — internal only
   ai-service:
     build:
       context: ./ai-service
       dockerfile: Dockerfile
-    ports:
-      - "8090:8090"
+    expose:
+      - "8090"
+      - "50051"
     restart: always
 
-  # 3. PostgreSQL Database
+  # 3. PostgreSQL Database — internal only
+  # POSTGRES_USER ("acis") is the bootstrap/admin role — Postgres always makes
+  # this role a superuser, and Row Level Security NEVER applies to
+  # superusers. So every acis-* service instead connects as "acis_app", an
+  # ordinary role created by infra/postgres-init/01-create-app-role.sh on
+  # first boot (only runs against a fresh/empty volume — see that script for
+  # migrating an existing one). DB_PASSWORD below is acis_app's password.
   postgres:
     image: postgres:16
     environment:
-      POSTGRES_DB: acis
+      POSTGRES_DB: ${DB_NAME:-acis}
       POSTGRES_USER: acis
-      POSTGRES_PASSWORD: acis_prod_password
-    ports:
-      - "5432:5432"
+      POSTGRES_PASSWORD: ${POSTGRES_ADMIN_PASSWORD:?Set POSTGRES_ADMIN_PASSWORD in .env}
+      APP_DB_PASSWORD: ${DB_PASSWORD:?Set DB_PASSWORD in .env}
+    expose:
+      - "5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+      - ./infra/postgres-init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U acis"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
     restart: always
 
   # 4. Keycloak Identity Provider
+  # NOTE: does NOT import the demo realm in production — that realm ships
+  # seeded demo users (admin/analyst1/analyst2) meant for local dev only.
+  # Configure real tenants/users via the admin console (published on 8180)
+  # once the stack is up, or mount your own reviewed realm export.
   keycloak:
     image: quay.io/keycloak/keycloak:24.0
-    command: start-dev --import-realm
+    command: start-dev --hostname=${KC_HOSTNAME:-localhost}
     environment:
-      KEYCLOAK_ADMIN: admin
-      KEYCLOAK_ADMIN_PASSWORD: admin_prod_password
-    volumes:
-      - ./infra/keycloak/realm-acis.json:/opt/keycloak/data/import/realm-acis.json
+      KEYCLOAK_ADMIN: ${KEYCLOAK_ADMIN_USER:?Set KEYCLOAK_ADMIN_USER in .env}
+      KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:?Set KEYCLOAK_ADMIN_PASSWORD in .env — do not reuse the dev default}
     ports:
       - "8180:8080"
+    healthcheck:
+      test: [ "CMD-SHELL", "/bin/bash -c 'exec 3<>/dev/tcp/127.0.0.1/8080 && echo -e \"GET /realms/master/.well-known/openid-configuration HTTP/1.1\\r\\nHost: localhost\\r\\nConnection: close\\r\\n\\r\\n\" >&3 && cat <&3 | grep -q \"200 OK\"'" ]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 90s
     restart: always
 
-  # 5. Kafka Event Broker
+  # 5. Kafka Event Broker — internal only
   kafka:
     image: confluentinc/cp-kafka:7.6.0
     environment:
       KAFKA_NODE_ID: 1
       KAFKA_PROCESS_ROLES: broker,controller
-      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:29092,CONTROLLER://0.0.0.0:9093,PLAINTEXT_HOST://0.0.0.0:9092
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:29092,PLAINTEXT_HOST://localhost:9092
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:29092,CONTROLLER://0.0.0.0:9093
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:29092
       KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
       KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
-      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
       KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
       KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
       CLUSTER_ID: YWNpcy1sb2ctY2x1c3Rlcg==
-    ports:
-      - "9092:9092"
+    expose:
+      - "29092"
+    volumes:
+      - kafka_data:/var/lib/kafka/data
+    healthcheck:
+      test: [ "CMD-SHELL", "kafka-topics --bootstrap-server localhost:29092 --list || exit 1" ]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+      start_period: 30s
     restart: always
 
-  # 6. Elasticsearch Security Index
+  # 6. Elasticsearch — internal only
   elasticsearch:
     image: docker.elastic.co/elasticsearch/elasticsearch:8.13.0
     environment:
       - discovery.type=single-node
       - xpack.security.enabled=false
       - ES_JAVA_OPTS=-Xms1g -Xmx1g
-    ports:
-      - "9200:9200"
+    expose:
+      - "9200"
     volumes:
       - es_data:/usr/share/elasticsearch/data
+    healthcheck:
+      test: [ "CMD-SHELL", "curl -sf http://localhost:9200/_cluster/health?wait_for_status=yellow || exit 1" ]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    restart: always
+
+  # ---- Backend microservices — all internal only, reached via the gateway ----
+
+  gateway:
+    build:
+      context: .
+      dockerfile: infra/docker/Dockerfile.backend
+      args:
+        SERVICE: acis-gateway
+    environment:
+      KEYCLOAK_URL: http://keycloak:8080
+      KEYCLOAK_REALM: ${KEYCLOAK_REALM:-acis}
+      CORS_ALLOWED_ORIGINS: ${PUBLIC_APP_URL:?Set PUBLIC_APP_URL in .env (e.g. https://your-domain)}
+      LOG_SERVICE_URL: http://log-service:8082
+      ALERTS_SERVICE_URL: http://alerts:8081
+      CORRELATION_SERVICE_URL: http://correlation:8083
+      SOAR_SERVICE_URL: http://soar:8085
+      INGESTION_SERVICE_URL: http://ingestion:8084
+      ASSET_SERVICE_URL: http://asset-service:8086
+      THREAT_SERVICE_URL: http://threat-service:8087
+    expose:
+      - "8080"
+    depends_on:
+      keycloak:
+        condition: service_healthy
+    restart: always
+
+  alerts:
+    build:
+      context: .
+      dockerfile: infra/docker/Dockerfile.backend
+      args:
+        SERVICE: acis-alerts
+    environment:
+      DB_HOST: postgres
+      DB_PORT: "5432"
+      DB_NAME: ${DB_NAME:-acis}
+      DB_USER: acis_app
+      DB_PASSWORD: ${DB_PASSWORD:?Set DB_PASSWORD in .env}
+      KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+      KEYCLOAK_URL: http://keycloak:8080
+      KEYCLOAK_REALM: ${KEYCLOAK_REALM:-acis}
+      AI_SERVICE_URL: http://ai-service:8090
+    expose:
+      - "8081"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+      keycloak:
+        condition: service_healthy
+    restart: always
+
+  log-service:
+    build:
+      context: .
+      dockerfile: infra/docker/Dockerfile.backend
+      args:
+        SERVICE: acis-log-service
+    environment:
+      KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+      ES_HOST: http://elasticsearch:9200
+      KEYCLOAK_URL: http://keycloak:8080
+      KEYCLOAK_REALM: ${KEYCLOAK_REALM:-acis}
+      AI_SERVICE_URL: http://ai-service:8090
+    expose:
+      - "8082"
+    depends_on:
+      kafka:
+        condition: service_healthy
+      elasticsearch:
+        condition: service_healthy
+      keycloak:
+        condition: service_healthy
+    restart: always
+
+  correlation:
+    build:
+      context: .
+      dockerfile: infra/docker/Dockerfile.backend
+      args:
+        SERVICE: acis-correlation
+    environment:
+      DB_HOST: postgres
+      DB_PORT: "5432"
+      DB_NAME: ${DB_NAME:-acis}
+      DB_USER: acis_app
+      DB_PASSWORD: ${DB_PASSWORD:?Set DB_PASSWORD in .env}
+      KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+      KEYCLOAK_URL: http://keycloak:8080
+      KEYCLOAK_REALM: ${KEYCLOAK_REALM:-acis}
+    expose:
+      - "8083"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+      keycloak:
+        condition: service_healthy
+    restart: always
+
+  ingestion:
+    build:
+      context: .
+      dockerfile: infra/docker/Dockerfile.backend
+      args:
+        SERVICE: acis-ingestion
+    environment:
+      KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+      KEYCLOAK_URL: http://keycloak:8080
+      KEYCLOAK_REALM: ${KEYCLOAK_REALM:-acis}
+    expose:
+      - "8084"
+    depends_on:
+      kafka:
+        condition: service_healthy
+      keycloak:
+        condition: service_healthy
+    restart: always
+
+  soar:
+    build:
+      context: .
+      dockerfile: infra/docker/Dockerfile.backend
+      args:
+        SERVICE: acis-soar
+    environment:
+      DB_HOST: postgres
+      DB_PORT: "5432"
+      DB_NAME: ${DB_NAME:-acis}
+      DB_USER: acis_app
+      DB_PASSWORD: ${DB_PASSWORD:?Set DB_PASSWORD in .env}
+      KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+      KEYCLOAK_URL: http://keycloak:8080
+      KEYCLOAK_REALM: ${KEYCLOAK_REALM:-acis}
+      ASSET_SERVICE_URL: http://asset-service:8086
+    expose:
+      - "8085"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+      keycloak:
+        condition: service_healthy
+    restart: always
+
+  asset-service:
+    build:
+      context: .
+      dockerfile: infra/docker/Dockerfile.backend
+      args:
+        SERVICE: acis-asset-service
+    environment:
+      DB_HOST: postgres
+      DB_PORT: "5432"
+      DB_NAME: ${DB_NAME:-acis}
+      DB_USER: acis_app
+      DB_PASSWORD: ${DB_PASSWORD:?Set DB_PASSWORD in .env}
+      KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+      KEYCLOAK_URL: http://keycloak:8080
+      KEYCLOAK_REALM: ${KEYCLOAK_REALM:-acis}
+    expose:
+      - "8086"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+      keycloak:
+        condition: service_healthy
+    restart: always
+
+  threat-service:
+    build:
+      context: .
+      dockerfile: infra/docker/Dockerfile.backend
+      args:
+        SERVICE: acis-threat-service
+    environment:
+      DB_HOST: postgres
+      DB_PORT: "5432"
+      DB_NAME: ${DB_NAME:-acis}
+      DB_USER: acis_app
+      DB_PASSWORD: ${DB_PASSWORD:?Set DB_PASSWORD in .env}
+      KEYCLOAK_URL: http://keycloak:8080
+      KEYCLOAK_REALM: ${KEYCLOAK_REALM:-acis}
+      AI_SERVICE_GRPC_HOST: ai-service
+      AI_SERVICE_GRPC_PORT: "50051"
+    expose:
+      - "8087"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      keycloak:
+        condition: service_healthy
+      ai-service:
+        condition: service_started
     restart: always
 
 volumes:
   postgres_data:
   es_data:
+  kafka_data:

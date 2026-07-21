@@ -7,4 +7,5 @@ import java.util.UUID;
 
 public interface PlaybookExecutionRepository extends JpaRepository<PlaybookExecution, UUID> {
     List<PlaybookExecution> findByPlaybookId(UUID playbookId);
+    List<PlaybookExecution> findByPlaybookIdInOrderByStartedAtDesc(List<UUID> playbookIds);
 }

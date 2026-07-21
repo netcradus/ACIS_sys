@@ -34,6 +34,10 @@ spring:
         jwt:
           jwk-set-uri: ${KEYCLOAK_URL:http://localhost:8180}/realms/${KEYCLOAK_REALM:acis}/protocol/openid-connect/certs
 
+acis:
+  ai-service:
+    url: ${AI_SERVICE_URL:http://localhost:8090}
+
 # Actuator Configuration
 management:
   endpoints:

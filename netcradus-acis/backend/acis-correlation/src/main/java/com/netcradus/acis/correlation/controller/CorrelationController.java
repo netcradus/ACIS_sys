@@ -1,5 +1,6 @@
 package com.netcradus.acis.correlation.controller;
 
+import com.netcradus.acis.common.audit.AuditEventPublisher;
 import com.netcradus.acis.common.dto.CorrelationRuleDto;
 import com.netcradus.acis.correlation.model.CorrelationRule;
 import com.netcradus.acis.correlation.repository.CorrelationRuleRepository;
@@ -19,18 +20,19 @@ public class CorrelationController {
 
     private final CorrelationRuleRepository repository;
     private final CorrelationEngine correlationEngine;
+    private final AuditEventPublisher auditEventPublisher;
 
     @GetMapping("/rules")
-    public List<CorrelationRuleDto> getRules(@RequestHeader(value = "X-Tenant-ID", defaultValue = "demo-tenant") String tenantId) {
+    public List<CorrelationRuleDto> getRules(@RequestHeader("X-Tenant-ID") String tenantId) {
         return repository.findByTenantId(tenantId).stream()
                 .map(this::mapToDto)
                 .collect(Collectors.toList());
     }
 
     @PostMapping("/rules")
-    public CorrelationRule createRule(@RequestBody CorrelationRuleDto dto) {
+    public CorrelationRule createRule(@RequestBody CorrelationRuleDto dto, @RequestHeader("X-Tenant-ID") String tenantId) {
         CorrelationRule rule = CorrelationRule.builder()
-                .tenantId(dto.getTenantId())
+                .tenantId(tenantId)
                 .name(dto.getName())
                 .description(dto.getDescription())
                 .splQuery(dto.getSplQuery())
@@ -39,18 +41,23 @@ public class CorrelationController {
                 .windowMinutes(dto.getWindowMinutes() != null && dto.getWindowMinutes() > 0 ? dto.getWindowMinutes() : 5)
                 .enabled(true)
                 .build();
-        return repository.save(rule);
+        CorrelationRule saved = repository.save(rule);
+        auditEventPublisher.publish("CORRELATION_RULE_CREATE", "correlation-rule/" + saved.getId(), "created");
+        return saved;
     }
 
     @PutMapping("/rules/{id}/toggle")
-    public CorrelationRule toggleRule(@PathVariable String id) {
-        CorrelationRule rule = repository.findById(id).orElseThrow();
+    public CorrelationRule toggleRule(@PathVariable String id, @RequestHeader("X-Tenant-ID") String tenantId) {
+        CorrelationRule rule = repository.findByIdAndTenantId(id, tenantId)
+                .orElseThrow(() -> new RuntimeException("Correlation rule not found"));
         rule.setEnabled(!rule.isEnabled());
-        return repository.save(rule);
+        CorrelationRule saved = repository.save(rule);
+        auditEventPublisher.publish("CORRELATION_RULE_TOGGLE", "correlation-rule/" + id, "enabled=" + saved.isEnabled());
+        return saved;
     }
 
     @GetMapping("/stats")
-    public java.util.Map<String, Object> getStats(@RequestHeader(value = "X-Tenant-ID", defaultValue = "demo-tenant") String tenantId) {
+    public java.util.Map<String, Object> getStats(@RequestHeader("X-Tenant-ID") String tenantId) {
         List<CorrelationRule> allRules = repository.findByTenantId(tenantId);
         long active = allRules.stream().filter(CorrelationRule::isEnabled).count();
         long disabled = allRules.stream().filter(r -> !r.isEnabled()).count();

@@ -3,6 +3,7 @@ package com.netcradus.acis.log.controller;
 import com.netcradus.acis.log.model.LogDocument;
 import com.netcradus.acis.log.repository.LogRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.web.bind.annotation.*;
@@ -29,6 +30,9 @@ import org.springframework.http.MediaType;
 public class LogController {
 
     private final LogRepository logRepository;
+
+    @Value("${acis.ai-service.url}")
+    private String aiServiceUrl;
 
     @GetMapping("/search")
     public Mono<List<LogDocument>> search(
@@ -98,7 +102,7 @@ public class LogController {
         HttpEntity<Map<String, String>> request = new HttpEntity<>(Map.of("query", query), headers);
         
         try {
-            ResponseEntity<Map> response = restTemplate.postForEntity("http://localhost:8090/ai/query", request, Map.class);
+            ResponseEntity<Map> response = restTemplate.postForEntity(aiServiceUrl + "/ai/query", request, Map.class);
             return ResponseEntity.status(response.getStatusCode())
                                  .headers(response.getHeaders())
                                  .body(response.getBody());
@@ -110,7 +114,7 @@ public class LogController {
     @GetMapping("/ai-health")
     public ResponseEntity<Map<String, String>> checkAiHealth() {
         try {
-            Map response = restTemplate.getForObject("http://localhost:8090/ai/health", Map.class);
+            Map response = restTemplate.getForObject(aiServiceUrl + "/ai/health", Map.class);
             if (response != null && "ok".equals(response.get("status"))) {
                 return ResponseEntity.ok(Map.of("status", "UP"));
             }

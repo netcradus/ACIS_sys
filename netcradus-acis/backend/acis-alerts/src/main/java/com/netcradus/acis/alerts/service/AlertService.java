@@ -47,12 +47,6 @@ public class AlertService {
 
     public List<AlertDto> findAll(String tenantId) {
         List<Alert> results = repository.findByTenantIdOrderByCreatedAtDesc(tenantId);
-        // Fallback: if no alerts found for the given tenant, return ALL alerts
-        // (covers demo/dev mode where tenant_id claim is not yet populated in JWT)
-        if (results.isEmpty()) {
-            results = repository.findAll(org.springframework.data.domain.Sort.by(
-                org.springframework.data.domain.Sort.Direction.DESC, "createdAt"));
-        }
         return results.stream()
                 .map(this::convertToDto)
                 .collect(Collectors.toList());

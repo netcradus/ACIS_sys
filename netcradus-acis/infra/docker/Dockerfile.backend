@@ -1,0 +1,45 @@
+# Generic multi-stage Dockerfile for any acis-* Spring Boot module in the
+# backend Maven reactor. Build context must be the repo root (netcradus-acis/)
+# so both backend/ module sources are visible.
+#
+# Build with, e.g.:
+#   docker build -f infra/docker/Dockerfile.backend --build-arg SERVICE=acis-gateway -t acis-gateway .
+#
+# SERVICE must be one of the acis-* directory names under backend/.
+
+# ---- Stage 1: build the single target module + its acis-common dependency ----
+FROM maven:3.9-eclipse-temurin-21 AS builder
+ARG SERVICE
+WORKDIR /build
+
+# Copy every module's pom.xml first (Maven's reactor needs all declared
+# <module> entries to resolve, even though only $SERVICE + acis-common are
+# actually compiled) — this also lets Docker cache the dependency layer
+# separately from source changes.
+COPY backend/pom.xml ./pom.xml
+COPY backend/acis-common/pom.xml ./acis-common/pom.xml
+COPY backend/acis-gateway/pom.xml ./acis-gateway/pom.xml
+COPY backend/acis-log-service/pom.xml ./acis-log-service/pom.xml
+COPY backend/acis-asset-service/pom.xml ./acis-asset-service/pom.xml
+COPY backend/acis-threat-service/pom.xml ./acis-threat-service/pom.xml
+COPY backend/acis-alerts/pom.xml ./acis-alerts/pom.xml
+COPY backend/acis-correlation/pom.xml ./acis-correlation/pom.xml
+COPY backend/acis-ingestion/pom.xml ./acis-ingestion/pom.xml
+COPY backend/acis-soar/pom.xml ./acis-soar/pom.xml
+
+RUN mvn -q -B dependency:go-offline -pl ${SERVICE} -am || true
+
+COPY backend/acis-common/src ./acis-common/src
+COPY backend/${SERVICE}/src ./${SERVICE}/src
+
+RUN mvn -q -B package -pl ${SERVICE} -am -DskipTests \
+    && cp ${SERVICE}/target/${SERVICE}-*.jar /build/app.jar
+
+# ---- Stage 2: minimal JRE runtime, non-root ----
+FROM eclipse-temurin:21-jre-alpine AS production
+RUN addgroup -S appgroup && adduser -S appuser -G appgroup
+WORKDIR /app
+COPY --from=builder /build/app.jar app.jar
+USER appuser
+ENV JAVA_OPTS=""
+ENTRYPOINT ["sh", "-c", "java $JAVA_OPTS -jar /app/app.jar"]

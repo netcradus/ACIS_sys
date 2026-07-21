@@ -1,10 +1,12 @@
 package com.netcradus.acis.log.config;
 
+import com.netcradus.acis.common.tenant.TenantContextFilter;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
+import org.springframework.security.oauth2.server.resource.web.authentication.BearerTokenAuthenticationFilter;
 import org.springframework.security.web.SecurityFilterChain;
 
 @Configuration
@@ -20,8 +22,9 @@ public class SecurityConfig {
                 .requestMatchers("/api/logs/**").hasAuthority("SCOPE_openid")
                 .anyRequest().authenticated()
             )
-            .oauth2ResourceServer(oauth2 -> oauth2.jwt(jwt -> {}));
-        
+            .oauth2ResourceServer(oauth2 -> oauth2.jwt(jwt -> {}))
+            .addFilterAfter(new TenantContextFilter(), BearerTokenAuthenticationFilter.class);
+
         return http.build();
     }
 }

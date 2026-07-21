@@ -20,6 +20,7 @@ import java.util.Map;
 @AllArgsConstructor
 public class SyntheticLogEvent {
     private String id;
+    private String tenantId;
     private Instant timestamp;
     private String message;
     private String level;

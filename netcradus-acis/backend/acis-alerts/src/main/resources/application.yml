@@ -6,9 +6,11 @@ spring:
   application:
     name: acis-alerts
   datasource:
-    url: jdbc:postgresql://localhost:5432/acis?options=-c%20timezone=UTC
-    username: acis
-    password: acis_dev_password
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:acis}?options=-c%20timezone=UTC
+    # acis_app (not the "acis" bootstrap superuser) — Row Level Security never
+    # applies to superusers, so the app must connect as an ordinary role.
+    username: ${DB_USER:acis_app}
+    password: ${DB_PASSWORD:acis_app_dev_password}
   jpa:
     hibernate:
       ddl-auto: update
@@ -16,7 +18,7 @@ spring:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect
   kafka:
-    bootstrap-servers: localhost:9092
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
     consumer:
       group-id: acis-alerts-group
       auto-offset-reset: earliest
@@ -28,7 +30,11 @@ spring:
     oauth2:
       resourceserver:
         jwt:
-          issuer-uri: http://localhost:8180/realms/acis
+          jwk-set-uri: ${KEYCLOAK_URL:http://localhost:8180}/realms/${KEYCLOAK_REALM:acis}/protocol/openid-connect/certs
+
+acis:
+  ai-service:
+    url: ${AI_SERVICE_URL:http://localhost:8090}
 
 logging:
   level:

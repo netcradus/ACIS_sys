@@ -2,29 +2,49 @@ package com.netcradus.acis.alerts.config;
 
 import com.netcradus.acis.alerts.model.Alert;
 import com.netcradus.acis.alerts.repository.AlertRepository;
+import com.netcradus.acis.common.tenant.TenantContext;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.annotation.Order;
 
 import java.util.List;
 
 @Configuration
 @RequiredArgsConstructor
 @Slf4j
+@Order(0) // must run before RlsConfig's enableRowLevelSecurity runner (Order 1000)
 public class AlertDataSeeder implements CommandLineRunner {
+
+    // Matches the tenant_id attribute seeded on the demo Keycloak users in
+    // infra/keycloak/realm-acis.json (admin/analyst1/analyst2).
+    private static final String DEMO_TENANT_ID = "11111111-1111-4111-8111-111111111111";
 
     private final AlertRepository repository;
 
     @Override
     public void run(String... args) {
+        // RLS (enabled by RlsConfig) is a permanent DB-level setting that
+        // survives restarts — on every run after the first, these inserts
+        // need a tenant context even though this seeder itself runs before
+        // RlsConfig's runner in THIS process.
+        try {
+            TenantContext.setTenantId(DEMO_TENANT_ID);
+            seed();
+        } finally {
+            TenantContext.clear();
+        }
+    }
+
+    private void seed() {
         log.info("Clearing existing alerts for clean seed...");
         repository.deleteAll();
         log.info("Seeding initial alerts for ACIS demo matching screenshot...");
 
             Alert a1 = Alert.builder()
                     .id("AL-1000")
-                    .tenantId("tenant-01")
+                    .tenantId(DEMO_TENANT_ID)
                     .title("Credential stuffing spikes: 800+ failures/min")
                     .severity("CRITICAL")
                     .source("EDR")
@@ -35,7 +55,7 @@ public class AlertDataSeeder implements CommandLineRunner {
 
             Alert a2 = Alert.builder()
                     .id("AL-1001")
-                    .tenantId("tenant-01")
+                    .tenantId(DEMO_TENANT_ID)
                     .title("Beaconing to rare domain cdn-x7.io")
                     .severity("HIGH")
                     .source("FW")
@@ -46,7 +66,7 @@ public class AlertDataSeeder implements CommandLineRunner {
 
             Alert a3 = Alert.builder()
                     .id("AL-1002")
-                    .tenantId("tenant-01")
+                    .tenantId(DEMO_TENANT_ID)
                     .title("Credential stuffing spikes: 800+ failures/min")
                     .severity("HIGH")
                     .source("Proxy")
@@ -57,7 +77,7 @@ public class AlertDataSeeder implements CommandLineRunner {
 
             Alert a4 = Alert.builder()
                     .id("AL-1003")
-                    .tenantId("tenant-01")
+                    .tenantId(DEMO_TENANT_ID)
                     .title("Beaconing to rare domain cdn-x7.io")
                     .severity("CRITICAL")
                     .source("Email")
@@ -68,7 +88,7 @@ public class AlertDataSeeder implements CommandLineRunner {
 
             Alert a5 = Alert.builder()
                     .id("AL-1004")
-                    .tenantId("tenant-01")
+                    .tenantId(DEMO_TENANT_ID)
                     .title("Credential stuffing spikes: 800+ failures/min")
                     .severity("LOW")
                     .source("EDR")
@@ -79,7 +99,7 @@ public class AlertDataSeeder implements CommandLineRunner {
 
             Alert a6 = Alert.builder()
                     .id("AL-1005")
-                    .tenantId("tenant-01")
+                    .tenantId(DEMO_TENANT_ID)
                     .title("Beaconing to rare domain cdn-x7.io")
                     .severity("MEDIUM")
                     .source("FW")
@@ -90,7 +110,7 @@ public class AlertDataSeeder implements CommandLineRunner {
 
             Alert a7 = Alert.builder()
                     .id("AL-1006")
-                    .tenantId("tenant-01")
+                    .tenantId(DEMO_TENANT_ID)
                     .title("Credential stuffing spikes: 800+ failures/min")
                     .severity("HIGH")
                     .source("Proxy")
@@ -101,7 +121,7 @@ public class AlertDataSeeder implements CommandLineRunner {
 
             Alert a8 = Alert.builder()
                     .id("AL-1007")
-                    .tenantId("tenant-01")
+                    .tenantId(DEMO_TENANT_ID)
                     .title("Beaconing to rare domain cdn-x7.io")
                     .severity("CRITICAL")
                     .source("Email")
@@ -112,7 +132,7 @@ public class AlertDataSeeder implements CommandLineRunner {
 
             Alert a9 = Alert.builder()
                     .id("AL-1008")
-                    .tenantId("tenant-01")
+                    .tenantId(DEMO_TENANT_ID)
                     .title("Suspicious ASR bypass via LOLBin")
                     .severity("LOW")
                     .source("EDR")
@@ -123,7 +143,7 @@ public class AlertDataSeeder implements CommandLineRunner {
 
             Alert a10 = Alert.builder()
                     .id("AL-1009")
-                    .tenantId("tenant-01")
+                    .tenantId(DEMO_TENANT_ID)
                     .title("Beaconing to rare domain cdn-x7.io")
                     .severity("MEDIUM")
                     .source("FW")
@@ -134,7 +154,7 @@ public class AlertDataSeeder implements CommandLineRunner {
 
             Alert a11 = Alert.builder()
                     .id("AL-1010")
-                    .tenantId("tenant-01")
+                    .tenantId(DEMO_TENANT_ID)
                     .title("Impossible travel detected Mumbai→London")
                     .severity("HIGH")
                     .source("IAM")

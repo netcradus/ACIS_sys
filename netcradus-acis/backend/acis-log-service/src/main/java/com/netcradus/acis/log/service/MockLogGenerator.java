@@ -18,6 +18,12 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class MockLogGenerator {
 
+    // Matches the tenant_id attribute seeded on the demo Keycloak users in
+    // infra/keycloak/realm-acis.json (admin/analyst1/analyst2). This generator
+    // has no per-request context (it runs on a @Scheduled thread), so synthetic
+    // demo events are always attributed to the demo tenant, never left tenant-less.
+    private static final String DEMO_TENANT_ID = "11111111-1111-4111-8111-111111111111";
+
     private final KafkaTemplate<String, Object> kafkaTemplate;
     private final Random random = new Random();
 
@@ -44,6 +50,7 @@ public class MockLogGenerator {
 
         LogDocument logDocument = LogDocument.builder()
             .id(UUID.randomUUID().toString())
+            .tenantId(DEMO_TENANT_ID)
             .timestamp(Instant.now())
             .message(message)
             .level(level)

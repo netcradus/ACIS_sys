@@ -34,13 +34,13 @@ public class RedTeamService {
         return simulationRepository.save(simulation);
     }
 
-    public Optional<RedTeamSimulation> getSimulation(UUID id) {
-        return simulationRepository.findById(id);
+    public Optional<RedTeamSimulation> getSimulation(UUID id, UUID tenantId) {
+        return simulationRepository.findByIdAndTenantId(id, tenantId);
     }
 
     @Transactional
-    public RedTeamExecution startSimulation(UUID simulationId, UUID userId) {
-        RedTeamSimulation simulation = simulationRepository.findById(simulationId)
+    public RedTeamExecution startSimulation(UUID simulationId, UUID tenantId, UUID userId) {
+        RedTeamSimulation simulation = simulationRepository.findByIdAndTenantId(simulationId, tenantId)
             .orElseThrow(() -> new IllegalArgumentException("Simulation not found"));
 
         RedTeamExecution execution = new RedTeamExecution();
@@ -54,13 +54,13 @@ public class RedTeamService {
         simulation.setLastRunAt(OffsetDateTime.now());
         simulationRepository.save(simulation);
 
-        executeSimulationAsync(execution.getId(), simulation);
-        
+        executeSimulationAsync(execution.getId(), simulation, tenantId);
+
         return execution;
     }
 
     @Async
-    public void executeSimulationAsync(UUID executionId, RedTeamSimulation simulation) {
+    public void executeSimulationAsync(UUID executionId, RedTeamSimulation simulation, UUID tenantId) {
         log.info("Starting async execution for Red Team simulation: {} execution: {}", simulation.getName(), executionId);
         try {
             java.util.List<SyntheticLogEvent> stages = new java.util.ArrayList<>();
@@ -69,6 +69,7 @@ public class RedTeamService {
             if (name.contains("phishing")) {
                 stages.add(SyntheticLogEvent.builder()
                     .id(UUID.randomUUID().toString())
+                    .tenantId(tenantId.toString())
                     .timestamp(java.time.Instant.now())
                     .message("[RED-TEAM] Spearphishing Email Sent to analyst1@acme.local")
                     .level("INFO")
@@ -78,6 +79,7 @@ public class RedTeamService {
                     .build());
                 stages.add(SyntheticLogEvent.builder()
                     .id(UUID.randomUUID().toString())
+                    .tenantId(tenantId.toString())
                     .timestamp(java.time.Instant.now())
                     .message("[RED-TEAM] User opened malicious attachment and initiated payload execution")
                     .level("WARN")
@@ -87,6 +89,7 @@ public class RedTeamService {
                     .build());
                 stages.add(SyntheticLogEvent.builder()
                     .id(UUID.randomUUID().toString())
+                    .tenantId(tenantId.toString())
                     .timestamp(java.time.Instant.now())
                     .message("[RED-TEAM] Suspicious powershell.exe command execution detected")
                     .level("CRITICAL")
@@ -96,6 +99,7 @@ public class RedTeamService {
                     .build());
                 stages.add(SyntheticLogEvent.builder()
                     .id(UUID.randomUUID().toString())
+                    .tenantId(tenantId.toString())
                     .timestamp(java.time.Instant.now())
                     .message("[RED-TEAM] C2 Beacon established to high-risk external IP 45.122.3.1")
                     .level("CRITICAL")
@@ -106,6 +110,7 @@ public class RedTeamService {
             } else if (name.contains("lateral")) {
                 stages.add(SyntheticLogEvent.builder()
                     .id(UUID.randomUUID().toString())
+                    .tenantId(tenantId.toString())
                     .timestamp(java.time.Instant.now())
                     .message("[RED-TEAM] SMB Admin Share Access attempt on Target: laptop-332.acme.local")
                     .level("WARN")
@@ -115,6 +120,7 @@ public class RedTeamService {
                     .build());
                 stages.add(SyntheticLogEvent.builder()
                     .id(UUID.randomUUID().toString())
+                    .tenantId(tenantId.toString())
                     .timestamp(java.time.Instant.now())
                     .message("[RED-TEAM] WMI Remote Execution request using cmd.exe /c powershell.exe")
                     .level("CRITICAL")
@@ -124,6 +130,7 @@ public class RedTeamService {
                     .build());
                 stages.add(SyntheticLogEvent.builder()
                     .id(UUID.randomUUID().toString())
+                    .tenantId(tenantId.toString())
                     .timestamp(java.time.Instant.now())
                     .message("[RED-TEAM] RDP Lateral connection established using Admin credentials")
                     .level("CRITICAL")
@@ -133,6 +140,7 @@ public class RedTeamService {
                     .build());
                 stages.add(SyntheticLogEvent.builder()
                     .id(UUID.randomUUID().toString())
+                    .tenantId(tenantId.toString())
                     .timestamp(java.time.Instant.now())
                     .message("[RED-TEAM] Sensitive credentials dumped via LSASS memory read for Admin")
                     .level("CRITICAL")
@@ -143,6 +151,7 @@ public class RedTeamService {
             } else {
                 stages.add(SyntheticLogEvent.builder()
                     .id(UUID.randomUUID().toString())
+                    .tenantId(tenantId.toString())
                     .timestamp(java.time.Instant.now())
                     .message("[RED-TEAM] Sensitive data staging collected in temporary directory")
                     .level("INFO")
@@ -152,6 +161,7 @@ public class RedTeamService {
                     .build());
                 stages.add(SyntheticLogEvent.builder()
                     .id(UUID.randomUUID().toString())
+                    .tenantId(tenantId.toString())
                     .timestamp(java.time.Instant.now())
                     .message("[RED-TEAM] High-frequency dns_tunnelling queries signature matched")
                     .level("CRITICAL")
@@ -161,6 +171,7 @@ public class RedTeamService {
                     .build());
                 stages.add(SyntheticLogEvent.builder()
                     .id(UUID.randomUUID().toString())
+                    .tenantId(tenantId.toString())
                     .timestamp(java.time.Instant.now())
                     .message("[RED-TEAM] DNS tunnel exfiltration payload byte stream outbound transfer complete")
                     .level("CRITICAL")
@@ -220,7 +231,9 @@ public class RedTeamService {
         }
     }
 
-    public Optional<RedTeamExecution> getExecution(UUID executionId) {
-        return executionRepository.findById(executionId);
+    /** Returns the execution only if it belongs to a simulation owned by the given tenant. */
+    public Optional<RedTeamExecution> getExecution(UUID executionId, UUID tenantId) {
+        return executionRepository.findById(executionId)
+                .filter(exec -> simulationRepository.findByIdAndTenantId(exec.getSimulationId(), tenantId).isPresent());
     }
 }

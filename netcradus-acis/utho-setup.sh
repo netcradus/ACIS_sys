@@ -20,13 +20,27 @@ echo "vm.max_map_count=262144" | sudo tee -a /etc/sysctl.conf
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
 cd "$SCRIPT_DIR"
 
-# 5. Build and launch entire stack in background
-sudo docker compose -f docker-compose.prod.yml up -d --build
+# 5. Require a real .env before launching — docker-compose.prod.yml has no
+#    baked-in secrets or demo passwords, so this file must exist and be filled
+#    in (see .env.prod.example) before the stack can start.
+if [ ! -f .env ]; then
+  echo ""
+  echo "ERROR: .env not found."
+  echo "  cp .env.prod.example .env"
+  echo "  then edit .env with real secrets/hostnames before re-running this script."
+  exit 1
+fi
+
+# 6. Build and launch entire stack in background
+sudo docker compose -f docker-compose.prod.yml --env-file .env up -d --build
 
 echo ""
 echo "========================================================="
 echo "   SUCCESS! NETCRADUS ACIS is live on Utho Cloud!"
 echo "   Access Dashboard: http://$(curl -s ifconfig.me)"
-echo "   AI Service:       http://$(curl -s ifconfig.me):8090"
 echo "   Keycloak SSO:     http://$(curl -s ifconfig.me):8180"
+echo ""
+echo "   Production Keycloak does NOT auto-import the demo realm/users."
+echo "   Log into the Keycloak admin console with the KEYCLOAK_ADMIN_USER /"
+echo "   KEYCLOAK_ADMIN_PASSWORD from your .env to configure real tenants."
 echo "========================================================="
