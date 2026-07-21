@@ -3,6 +3,7 @@ import { User, Lock, Eye, EyeOff, Globe, ChevronDown, ShieldCheck } from 'lucide
 import keycloak from '../../lib/keycloak'
 import { useAuthStore } from '../../store/authStore'
 import { Navigate } from 'react-router-dom'
+import NetcradusLogo from '../../components/NetcradusLogo'
 
 export default function LoginPage() {
   const { isAuthenticated } = useAuthStore()
@@ -53,14 +54,8 @@ export default function LoginPage() {
         {/* Left Column: Brand Info */}
         <div className="lg:col-span-7 flex flex-col justify-center text-left">
           {/* Brand Logo */}
-          <div className="mb-12">
-            <h1 className="text-2xl md:text-3xl font-black tracking-widest leading-none">
-              <span className="text-white">NETC</span>
-              <span className="text-accent">RADUS</span>
-            </h1>
-            <p className="text-xs md:text-sm font-semibold tracking-wider text-text-secondary mt-1">
-              Autonomous Cyber<br />Immune System
-            </p>
+          <div className="mb-10">
+            <NetcradusLogo size="xl" showTagline={true} />
           </div>
 
           {/* Heading */}

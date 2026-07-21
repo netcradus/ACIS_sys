@@ -16,9 +16,11 @@ import {
   ChevronRight,
   Zap,
   Sparkles,
+  Bot,
 } from 'lucide-react'
 import { useState } from 'react'
 import { clsx } from 'clsx'
+import NetcradusLogo from './NetcradusLogo'
 
 const navItems = [
   { icon: LayoutDashboard, label: 'Dashboard',             path: '/dashboard' },
@@ -47,22 +49,8 @@ export default function Sidebar() {
       )}
     >
       {/* Brand area */}
-      <div className="h-20 flex items-center px-6 mb-4">
-        <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl bg-accent flex items-center justify-center shadow-lg shadow-accent/20">
-            <Zap className="w-5 h-5 text-white" />
-          </div>
-          {!collapsed && (
-            <div className="flex flex-col animate-fade-in">
-              <span className="font-black text-lg tracking-tighter text-white leading-none">
-                NETCRADUS
-              </span>
-              <span className="text-[10px] font-bold tracking-[0.3em] text-accent uppercase mt-1">
-                ACIS
-              </span>
-            </div>
-          )}
-        </div>
+      <div className="min-h-[84px] py-4 flex items-center px-4 mb-2">
+        <NetcradusLogo size={collapsed ? 'sm' : 'md'} collapsed={collapsed} showTagline={!collapsed} />
       </div>
 
       {/* Navigation items */}
