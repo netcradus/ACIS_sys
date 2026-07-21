@@ -1,5 +1,6 @@
 package com.netcradus.acis.soar.controller;
 
+import com.netcradus.acis.common.audit.AuditEventPublisher;
 import com.netcradus.acis.common.dto.ApiResponse;
 import com.netcradus.acis.soar.model.ApiKey;
 import com.netcradus.acis.soar.model.Integration;
@@ -52,6 +53,7 @@ public class SettingsController {
     private final ConsoleRoleRepository consoleRoleRepository;
     private final RolePermissionRepository rolePermissionRepository;
     private final DataSourceRepository dataSourceRepository;
+    private final AuditEventPublisher auditEventPublisher;
 
     /**
      * X-Tenant-ID is always populated by TenantContextFilter from the caller's
@@ -83,7 +85,9 @@ public class SettingsController {
         key.setToken(generateRandomToken());
         key.setCreatedAt(OffsetDateTime.now());
         key.setStatus("Active");
-        return ResponseEntity.ok(ApiResponse.success(apiKeyRepository.save(key)));
+        ApiKey saved = apiKeyRepository.save(key);
+        auditEventPublisher.publish("API_KEY_CREATE", "api-key/" + saved.getId(), "created");
+        return ResponseEntity.ok(ApiResponse.success(saved));
     }
 
     @PutMapping("/keys/{id}/revoke")
@@ -92,7 +96,9 @@ public class SettingsController {
         return apiKeyRepository.findByIdAndTenantId(id, resolveTenant(tenantId))
                 .map(k -> {
                     k.setStatus("Revoked");
-                    return ResponseEntity.ok(ApiResponse.success(apiKeyRepository.save(k)));
+                    ApiKey saved = apiKeyRepository.save(k);
+                    auditEventPublisher.publish("API_KEY_REVOKE", "api-key/" + id, "revoked");
+                    return ResponseEntity.ok(ApiResponse.success(saved));
                 })
                 .orElse(ResponseEntity.status(404).body(ApiResponse.error("Key not found")));
     }
@@ -103,6 +109,7 @@ public class SettingsController {
         return apiKeyRepository.findByIdAndTenantId(id, resolveTenant(tenantId))
                 .map(k -> {
                     apiKeyRepository.delete(k);
+                    auditEventPublisher.publish("API_KEY_DELETE", "api-key/" + id, "deleted");
                     return ResponseEntity.ok(ApiResponse.success("Key deleted successfully"));
                 })
                 .orElse(ResponseEntity.status(404).body(ApiResponse.error("Key not found")));
@@ -123,7 +130,9 @@ public class SettingsController {
         }
         integration.setTenantId(resolveTenant(tenantId));
         integration.setStatus("Connected");
-        return ResponseEntity.ok(ApiResponse.success(integrationRepository.save(integration)));
+        Integration saved = integrationRepository.save(integration);
+        auditEventPublisher.publish("INTEGRATION_CREATE", "integration/" + saved.getId(), "created");
+        return ResponseEntity.ok(ApiResponse.success(saved));
     }
 
     @PutMapping("/integrations/{id}/toggle")
@@ -132,7 +141,9 @@ public class SettingsController {
         return integrationRepository.findByIdAndTenantId(id, resolveTenant(tenantId))
                 .map(i -> {
                     i.setStatus("Connected".equals(i.getStatus()) ? "Disconnected" : "Connected");
-                    return ResponseEntity.ok(ApiResponse.success(integrationRepository.save(i)));
+                    Integration saved = integrationRepository.save(i);
+                    auditEventPublisher.publish("INTEGRATION_TOGGLE", "integration/" + id, "status=" + saved.getStatus());
+                    return ResponseEntity.ok(ApiResponse.success(saved));
                 })
                 .orElse(ResponseEntity.status(404).body(ApiResponse.error("Integration not found")));
     }
@@ -175,7 +186,9 @@ public class SettingsController {
         orgToUpdate.setPrimaryRegion(updatedOrg.getPrimaryRegion());
         orgToUpdate.setSupportEmail(updatedOrg.getSupportEmail());
         orgToUpdate.setTimeZone(updatedOrg.getTimeZone());
-        return ApiResponse.success(organizationRepository.save(orgToUpdate));
+        Organization saved = organizationRepository.save(orgToUpdate);
+        auditEventPublisher.publish("ORGANIZATION_UPDATE", "organization/" + saved.getId(), "updated");
+        return ApiResponse.success(saved);
     }
 
     @PostMapping("/organization/transfer")
@@ -195,6 +208,7 @@ public class SettingsController {
                     Organization org = orgs.get(0);
                     org.setOwnerEmail(email);
                     organizationRepository.save(org);
+                    auditEventPublisher.publish("ORGANIZATION_TRANSFER_OWNERSHIP", "organization/" + org.getId(), "new_owner=" + email);
                     return ResponseEntity.ok(ApiResponse.success("Organization ownership successfully transferred to " + email));
                 })
                 .orElseGet(() -> ResponseEntity.badRequest()
@@ -204,6 +218,7 @@ public class SettingsController {
     @DeleteMapping("/organization")
     public ApiResponse<String> deleteOrganization(@RequestHeader(value = "X-Tenant-ID", required = false) UUID tenantId) {
         organizationRepository.deleteAll(organizationRepository.findByTenantId(resolveTenant(tenantId)));
+        auditEventPublisher.publish("ORGANIZATION_DELETE", "organization", "deleted");
         return ApiResponse.success("Organization successfully deleted and reset.");
     }
 
@@ -252,7 +267,9 @@ public class SettingsController {
             ld.setPlanPrice("₹49,999/mo");
             ld.setPlanFeatures("Up to 100 endpoints · Email support · Renews 14 Aug 2026");
         }
-        return ApiResponse.success(licenseDetailsRepository.save(ld));
+        LicenseDetails saved = licenseDetailsRepository.save(ld);
+        auditEventPublisher.publish("LICENSE_CHANGE_PLAN", "license/" + saved.getId(), "plan=" + newPlanName);
+        return ApiResponse.success(saved);
     }
 
     @PutMapping("/license/payment-method")
@@ -266,7 +283,9 @@ public class SettingsController {
         ld.setCardLast4(paymentData.getCardLast4());
         ld.setCardExpiry(paymentData.getCardExpiry());
         ld.setBillingDetails(paymentData.getBillingDetails());
-        return ApiResponse.success(licenseDetailsRepository.save(ld));
+        LicenseDetails saved = licenseDetailsRepository.save(ld);
+        auditEventPublisher.publish("LICENSE_PAYMENT_METHOD_UPDATE", "license/" + saved.getId(), "updated");
+        return ApiResponse.success(saved);
     }
 
     @GetMapping("/invoices")
@@ -317,7 +336,9 @@ public class SettingsController {
         member.setTenantId(tenant);
         member.setStatus("Invited");
         member.setLastLogin("Never");
-        return ResponseEntity.ok(ApiResponse.success(userMemberRepository.save(member)));
+        UserMember saved = userMemberRepository.save(member);
+        auditEventPublisher.publish("USER_INVITE", "user/" + saved.getId(), "email=" + email);
+        return ResponseEntity.ok(ApiResponse.success(saved));
     }
 
     @PostMapping("/users/{id}/resend")
@@ -326,7 +347,9 @@ public class SettingsController {
         return userMemberRepository.findByIdAndTenantId(id, resolveTenant(tenantId))
                 .map(m -> {
                     m.setStatus("Invited");
-                    return ResponseEntity.ok(ApiResponse.success(userMemberRepository.save(m)));
+                    UserMember saved = userMemberRepository.save(m);
+                    auditEventPublisher.publish("USER_RESEND_INVITE", "user/" + id, "resent");
+                    return ResponseEntity.ok(ApiResponse.success(saved));
                 })
                 .orElse(ResponseEntity.status(404).body(ApiResponse.error("User member not found")));
     }
@@ -337,6 +360,7 @@ public class SettingsController {
         return userMemberRepository.findByIdAndTenantId(id, resolveTenant(tenantId))
                 .map(m -> {
                     userMemberRepository.delete(m);
+                    auditEventPublisher.publish("USER_DELETE", "user/" + id, "deleted");
                     return ResponseEntity.ok(ApiResponse.success("User member removed successfully"));
                 })
                 .orElse(ResponseEntity.status(404).body(ApiResponse.error("User member not found")));
@@ -371,7 +395,9 @@ public class SettingsController {
             }
             group.setBadgeInitials(initials);
         }
-        return ResponseEntity.ok(ApiResponse.success(userGroupRepository.save(group)));
+        UserGroup saved = userGroupRepository.save(group);
+        auditEventPublisher.publish("GROUP_CREATE", "group/" + saved.getId(), "created");
+        return ResponseEntity.ok(ApiResponse.success(saved));
     }
 
     private String generateRandomToken() {
@@ -429,8 +455,10 @@ public class SettingsController {
             permissions.add(perm);
         }
         role.setPermissions(permissions);
-        
-        return ResponseEntity.ok(ApiResponse.success(consoleRoleRepository.save(role)));
+
+        ConsoleRole saved = consoleRoleRepository.save(role);
+        auditEventPublisher.publish("ROLE_CREATE", "role/" + saved.getId(), "created");
+        return ResponseEntity.ok(ApiResponse.success(saved));
     }
 
     @PutMapping("/roles/{id}")
@@ -453,7 +481,9 @@ public class SettingsController {
                             existingRole.getPermissions().add(newPerm);
                         }
                     }
-                    return ResponseEntity.ok(ApiResponse.success(consoleRoleRepository.save(existingRole)));
+                    ConsoleRole saved = consoleRoleRepository.save(existingRole);
+                    auditEventPublisher.publish("ROLE_UPDATE", "role/" + id, "updated");
+                    return ResponseEntity.ok(ApiResponse.success(saved));
                 })
                 .orElse(ResponseEntity.status(404).body(ApiResponse.error("Role not found")));
     }
@@ -465,6 +495,7 @@ public class SettingsController {
         return consoleRoleRepository.findByIdAndTenantId(id, tenant)
                 .map(role -> {
                     consoleRoleRepository.delete(role);
+                    auditEventPublisher.publish("ROLE_DELETE", "role/" + id, "deleted");
                     return ResponseEntity.ok(ApiResponse.success("Role deleted successfully"));
                 })
                 .orElse(ResponseEntity.status(404).body(ApiResponse.error("Role not found")));
@@ -570,7 +601,9 @@ public class SettingsController {
         if (source.getProvider() == null || source.getProvider().isBlank()) {
             source.setProvider("SYS");
         }
-        return ResponseEntity.ok(ApiResponse.success(dataSourceRepository.save(source)));
+        DataSource saved = dataSourceRepository.save(source);
+        auditEventPublisher.publish("DATASOURCE_CREATE", "datasource/" + saved.getId(), "created");
+        return ResponseEntity.ok(ApiResponse.success(saved));
     }
 
     @PutMapping("/datasources/{id}/connect")
@@ -581,7 +614,9 @@ public class SettingsController {
                 .map(source -> {
                     source.setStatus("Connected");
                     source.setLastSync("Never");
-                    return ResponseEntity.ok(ApiResponse.success(dataSourceRepository.save(source)));
+                    DataSource saved = dataSourceRepository.save(source);
+                    auditEventPublisher.publish("DATASOURCE_CONNECT", "datasource/" + id, "connected");
+                    return ResponseEntity.ok(ApiResponse.success(saved));
                 })
                 .orElse(ResponseEntity.status(404).body(ApiResponse.error("Data source not found")));
     }
@@ -594,7 +629,9 @@ public class SettingsController {
                 .map(source -> {
                     source.setStatus("Not connected");
                     source.setLastSync(null);
-                    return ResponseEntity.ok(ApiResponse.success(dataSourceRepository.save(source)));
+                    DataSource saved = dataSourceRepository.save(source);
+                    auditEventPublisher.publish("DATASOURCE_DISCONNECT", "datasource/" + id, "disconnected");
+                    return ResponseEntity.ok(ApiResponse.success(saved));
                 })
                 .orElse(ResponseEntity.status(404).body(ApiResponse.error("Data source not found")));
     }
@@ -607,7 +644,9 @@ public class SettingsController {
                 .map(source -> {
                     if ("Connected".equals(source.getStatus())) {
                         source.setLastSync("Just now");
-                        return ResponseEntity.ok(ApiResponse.success(dataSourceRepository.save(source)));
+                        DataSource saved = dataSourceRepository.save(source);
+                        auditEventPublisher.publish("DATASOURCE_SYNC", "datasource/" + id, "synced");
+                        return ResponseEntity.ok(ApiResponse.success(saved));
                     } else {
                         return ResponseEntity.badRequest().body(ApiResponse.<DataSource>error("Data source is not connected"));
                     }

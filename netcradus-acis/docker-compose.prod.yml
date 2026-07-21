@@ -7,34 +7,56 @@
 #   cp .env.prod.example .env
 #   docker compose -f docker-compose.prod.yml up -d --build
 #
-# Only the frontend (80) and Keycloak (8180, needed for the browser's OIDC
-# redirect) are published to the host. Postgres, Kafka, Elasticsearch, the
-# gateway, every backend microservice, and the AI service are reachable only
-# on the internal Docker network — the frontend's nginx proxies /api and /ws
-# to the gateway (see infra/docker/nginx.conf.template).
+# Caddy (below) is the only thing published to the host — ports 80/443 (app)
+# and 8443 (Keycloak). It terminates TLS for both, automatically obtaining
+# and renewing a real Let's Encrypt certificate for PUBLIC_APP_DOMAIN once
+# that's a real hostname whose DNS points at this host. Until then it
+# defaults to "localhost", serving locally-trusted HTTPS via Caddy's internal
+# CA — enough to verify the whole proxy chain before you own a domain.
+# Postgres, Kafka, Elasticsearch, the gateway, every backend microservice,
+# and the AI service are reachable only on the internal Docker network — the
+# frontend's nginx proxies /api and /ws to the gateway (see
+# infra/docker/nginx.conf.template).
 #
-# Known follow-ups needing the operator's real domain (not guessed here):
-#   - TLS termination in front of the frontend (e.g. Caddy/nginx+certbot or a
-#     cloud load balancer) — this compose file serves plain HTTP on :80.
-#   - Keycloak KC_HOSTNAME below defaults to localhost; set it to your real
-#     public hostname so issued tokens carry a consistent `iss` claim.
-#   - Import a real realm/tenant configuration once ready — production does
-#     NOT auto-import the demo realm (see keycloak service below).
+# Production does NOT auto-import the demo realm (see keycloak service
+# below) — that realm ships seeded demo users (admin/analyst1/analyst2)
+# meant for local dev only. Configure real tenants/users via the admin
+# console (https://<PUBLIC_APP_DOMAIN>:8443) once the stack is up, or mount
+# your own reviewed realm export.
 
 services:
-  # 1. ACIS Web Frontend (nginx, proxies /api + /ws to the gateway)
+  # 0. TLS termination + reverse proxy — the only service published to the host.
+  caddy:
+    image: caddy:2-alpine
+    environment:
+      PUBLIC_APP_DOMAIN: ${PUBLIC_APP_DOMAIN:-localhost}
+      ACME_EMAIL: ${ACME_EMAIL:?Set ACME_EMAIL in .env (required for Let's Encrypt registration)}
+    ports:
+      - "80:80"
+      - "443:443"
+      - "8443:8443"
+    volumes:
+      - ./infra/caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - frontend
+      - keycloak
+    restart: always
+
+  # 1. ACIS Web Frontend (nginx, proxies /api + /ws to the gateway) — internal only, fronted by Caddy
   frontend:
     build:
       context: .
       dockerfile: frontend/Dockerfile
       args:
-        VITE_KEYCLOAK_URL: ${PUBLIC_KEYCLOAK_URL:?Set PUBLIC_KEYCLOAK_URL in .env (e.g. https://your-domain:8180)}
+        VITE_KEYCLOAK_URL: https://${PUBLIC_APP_DOMAIN:-localhost}:8443
         VITE_KEYCLOAK_REALM: ${KEYCLOAK_REALM:-acis}
         VITE_KEYCLOAK_CLIENT_ID: acis-frontend
     environment:
       GATEWAY_UPSTREAM: http://gateway:8080
-    ports:
-      - "80:80"
+    expose:
+      - "80"
     restart: always
     depends_on:
       - gateway
@@ -63,6 +85,7 @@ services:
       POSTGRES_USER: acis
       POSTGRES_PASSWORD: ${POSTGRES_ADMIN_PASSWORD:?Set POSTGRES_ADMIN_PASSWORD in .env}
       APP_DB_PASSWORD: ${DB_PASSWORD:?Set DB_PASSWORD in .env}
+      KEYCLOAK_DB_PASSWORD: ${KEYCLOAK_DB_PASSWORD:?Set KEYCLOAK_DB_PASSWORD in .env}
     expose:
       - "5432"
     volumes:
@@ -75,19 +98,33 @@ services:
       retries: 10
     restart: always
 
-  # 4. Keycloak Identity Provider
-  # NOTE: does NOT import the demo realm in production — that realm ships
-  # seeded demo users (admin/analyst1/analyst2) meant for local dev only.
-  # Configure real tenants/users via the admin console (published on 8180)
-  # once the stack is up, or mount your own reviewed realm export.
+  # 4. Keycloak Identity Provider — production mode, Postgres-backed, TLS
+  # terminated at Caddy (:8443 -> here over plain HTTP internally).
+  # `start` (not `start-dev`) + `--hostname-strict` (default true) means
+  # Keycloak trusts only PUBLIC_APP_DOMAIN as its issuer/frontend URL — this
+  # is what makes the token `iss` claim consistent regardless of which
+  # internal service validates it (see backend application.yml jwk-set-uri).
   keycloak:
     image: quay.io/keycloak/keycloak:24.0
-    command: start-dev --hostname=${KC_HOSTNAME:-localhost}
+    command: >
+      start
+      --hostname=${PUBLIC_APP_DOMAIN:-localhost}
+      --hostname-port=8443
+      --http-enabled=true
+      --proxy-headers=xforwarded
+      --db=postgres
+      --db-url-host=postgres
+      --db-url-database=keycloak
+      --db-username=keycloak
+      --db-password=${KEYCLOAK_DB_PASSWORD:?Set KEYCLOAK_DB_PASSWORD in .env}
     environment:
       KEYCLOAK_ADMIN: ${KEYCLOAK_ADMIN_USER:?Set KEYCLOAK_ADMIN_USER in .env}
       KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:?Set KEYCLOAK_ADMIN_PASSWORD in .env — do not reuse the dev default}
-    ports:
-      - "8180:8080"
+    expose:
+      - "8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
     healthcheck:
       test: [ "CMD-SHELL", "/bin/bash -c 'exec 3<>/dev/tcp/127.0.0.1/8080 && echo -e \"GET /realms/master/.well-known/openid-configuration HTTP/1.1\\r\\nHost: localhost\\r\\nConnection: close\\r\\n\\r\\n\" >&3 && cat <&3 | grep -q \"200 OK\"'" ]
       interval: 10s
@@ -155,7 +192,7 @@ services:
     environment:
       KEYCLOAK_URL: http://keycloak:8080
       KEYCLOAK_REALM: ${KEYCLOAK_REALM:-acis}
-      CORS_ALLOWED_ORIGINS: ${PUBLIC_APP_URL:?Set PUBLIC_APP_URL in .env (e.g. https://your-domain)}
+      CORS_ALLOWED_ORIGINS: https://${PUBLIC_APP_DOMAIN:-localhost}
       LOG_SERVICE_URL: http://log-service:8082
       ALERTS_SERVICE_URL: http://alerts:8081
       CORRELATION_SERVICE_URL: http://correlation:8083
@@ -349,3 +386,5 @@ volumes:
   postgres_data:
   es_data:
   kafka_data:
+  caddy_data:
+  caddy_config:

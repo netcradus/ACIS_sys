@@ -10,6 +10,11 @@ services:
       # non-superuser role every acis-* service connects as, since RLS never
       # applies to the POSTGRES_USER (it's always a superuser).
       APP_DB_PASSWORD: acis_app_dev_password
+      # Consumed by postgres-init/02-create-keycloak-db.sh. Dev Keycloak below
+      # still runs its default embedded dev-file storage (simplest for local
+      # dev), so this role/database exist but are unused here — only prod
+      # Keycloak (docker-compose.prod.yml) actually connects with it.
+      KEYCLOAK_DB_PASSWORD: keycloak_dev_password
     ports: [ "5432:5432" ]
     volumes:
       - postgres_data:/var/lib/postgresql/data
