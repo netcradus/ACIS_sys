@@ -70,7 +70,7 @@ export default function AiAnalystPage() {
       {/* Page Header */}
       <div className="flex items-center justify-between border-b border-neutral-900 pb-4">
         <h1 className="text-xl font-bold text-white tracking-tight uppercase flex items-center gap-2">
-          <Sparkles className="w-5 h-5 text-[#FF5A1F] animate-pulse" /> OOURAA Copilot
+          <Sparkles className="w-5 h-5 text-[#FF5A1F] animate-pulse" /> Kiro AI Copilot
         </h1>
         <span className="text-[10px] bg-[#FF5A1F]/10 text-[#FF5A1F] border border-[#FF5A1F]/20 font-bold tracking-widest px-2.5 py-1 rounded-full uppercase">
           AI Analyst Live
@@ -126,7 +126,7 @@ export default function AiAnalystPage() {
         {queryExecuted && (
           <div className="bg-[#050505] border border-neutral-900 rounded-xl p-4 space-y-2">
             <div className="flex items-center justify-between">
-              <span className="text-[9px] text-[#00F5D4] font-black uppercase tracking-wider">OOURAA Generated SPL</span>
+              <span className="text-[9px] text-[#00F5D4] font-black uppercase tracking-wider">Kiro AI Generated SPL</span>
               <Terminal className="w-3.5 h-3.5 text-neutral-600" />
             </div>
             <div className="font-mono text-[11px] text-neutral-300 overflow-x-auto whitespace-pre leading-relaxed select-all">
@@ -325,7 +325,7 @@ export default function AiAnalystPage() {
                     <div className="w-5 h-5 rounded-md bg-[#FF5A1F] flex items-center justify-center">
                       <Sparkles className="w-3 h-3 text-white" />
                     </div>
-                    <span className="font-bold text-white text-[10px] uppercase tracking-wider">OOURAA Copilot</span>
+                    <span className="font-bold text-white text-[10px] uppercase tracking-wider">Kiro AI Copilot</span>
                   </div>
 
                   {selectedScenario === 'logins' && (

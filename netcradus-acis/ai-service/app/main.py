@@ -1,5 +1,8 @@
+import os
 import json
 import logging
+import urllib.request
+import urllib.error
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, Header, HTTPException
 from fastapi.responses import JSONResponse
@@ -138,6 +141,77 @@ CLASSIFIER_TRAINING_ROWS = [
     ([90, 1, 1, 1, 4], "privilege_escalation"),
 ]
 
+# Kiro AI Integration Configuration
+KIRO_API_KEY = os.getenv("KIRO_API_KEY", "ksk_nV2wGPBVTU7ctZjns6esf7roqoHtlGtX")
+KIRO_BASE_URL = os.getenv("KIRO_BASE_URL", "https://api.kiro.dev/v1")
+KIRO_MODEL = os.getenv("KIRO_MODEL", "claude-3-5-sonnet")
+
+def call_kiro_ai(prompt: str, json_mode: bool = False) -> Optional[dict]:
+    if not KIRO_API_KEY:
+        logger.warning("KIRO_API_KEY is not configured")
+        return None
+
+    is_anthropic = "messages" in KIRO_BASE_URL or "claude" in KIRO_MODEL.lower()
+    
+    if is_anthropic:
+        url = f"{KIRO_BASE_URL.rstrip('/')}/messages" if not KIRO_BASE_URL.endswith("/messages") else KIRO_BASE_URL
+        headers = {
+            "x-api-key": KIRO_API_KEY,
+            "Authorization": f"Bearer {KIRO_API_KEY}",
+            "Content-Type": "application/json",
+            "anthropic-version": "2023-06-01"
+        }
+        data = {
+            "model": KIRO_MODEL,
+            "max_tokens": 1024,
+            "messages": [
+                {"role": "user", "content": prompt}
+            ]
+        }
+    else:
+        url = f"{KIRO_BASE_URL.rstrip('/')}/chat/completions" if not KIRO_BASE_URL.endswith("/chat/completions") else KIRO_BASE_URL
+        headers = {
+            "Authorization": f"Bearer {KIRO_API_KEY}",
+            "Content-Type": "application/json"
+        }
+        data = {
+            "model": KIRO_MODEL,
+            "messages": [
+                {"role": "user", "content": prompt}
+            ]
+        }
+        if json_mode:
+            data["response_format"] = {"type": "json_object"}
+
+    req = urllib.request.Request(
+        url,
+        data=json.dumps(data).encode("utf-8"),
+        headers=headers,
+        method="POST"
+    )
+
+    try:
+        with urllib.request.urlopen(req, timeout=15) as response:
+            res_body = response.read().decode("utf-8")
+            res_data = json.loads(res_body)
+            
+            if is_anthropic:
+                content = res_data["content"][0]["text"]
+            else:
+                content = res_data["choices"][0]["message"]["content"]
+                
+            if json_mode:
+                content_str = str(content).strip()
+                if content_str.startswith("```json"):
+                    content_str = content_str[7:]
+                if content_str.endswith("```"):
+                    content_str = content_str[:-3]
+                return json.loads(content_str.strip())
+            return content
+    except Exception as e:
+        logger.error(f"Kiro AI call failed: {e}")
+        return None
+
 # ------------------------------------------------------------------------------------------------
 # Internal REST endpoints (Callable by Spring Boot only, not Gateway - User Constraint 6)
 # ------------------------------------------------------------------------------------------------
@@ -147,11 +221,31 @@ async def explain_alert(request: AlertRequest):
     alert = request.raw_alert or {}
     title = alert.get("title") or alert.get("name") or "this alert"
     severity = str(alert.get("severity") or "medium").lower()
+    
+    prompt = (
+        "You are an expert Security Analyst. Analyze the following raw alert and explain "
+        "what it means in plain English, and provide a concrete recommended action. "
+        "Your response MUST be a valid JSON object with exactly two keys: "
+        "'explanation' and 'recommended_action'. Do not include any markdown formatting or "
+        "extra text outside of the JSON object.\n\n"
+        f"Alert details: {json.dumps(alert)}"
+    )
+    
+    result = call_kiro_ai(prompt, json_mode=True)
+    if result and isinstance(result, dict) and "explanation" in result and "recommended_action" in result:
+        return JSONResponse(
+            content={
+                "explanation": result["explanation"],
+                "recommended_action": result["recommended_action"]
+            },
+            headers={"X-ACIS-AI-Mode": "live"}
+        )
+        
     return JSONResponse(
         content={
             "explanation": (
-                f"[Simulated — no LLM configured] {title} was flagged at {severity} severity. "
-                "This is a template response; enable an LLM provider to get a real narrative explanation."
+                f"[Simulated — Kiro AI fallback] {title} was flagged at {severity} severity. "
+                "The Kiro AI service was called but failed to return a response; check API keys."
             ),
             "recommended_action": "Isolate the affected asset and review the raw event before dismissing this alert."
         },
@@ -160,9 +254,25 @@ async def explain_alert(request: AlertRequest):
 
 @app.post("/ai/query")
 async def nl_to_spl(request: QueryRequest):
-    # Returning a parsed SPL string for demonstration
+    query = request.query
+    
+    prompt = (
+        "You are a Splunk / SIEM engineer. Translate the following natural language security query "
+        "into a valid Splunk Search Processing Language (SPL) query. "
+        "Your response MUST be a valid JSON object with exactly one key: 'spl'. "
+        "Do not include any markdown formatting, backticks, or extra text outside of the JSON object.\n\n"
+        f"Natural language query: {query}"
+    )
+    
+    result = call_kiro_ai(prompt, json_mode=True)
+    if result and isinstance(result, dict) and "spl" in result:
+        return JSONResponse(
+            content={"spl": result["spl"]},
+            headers={"X-ACIS-AI-Mode": "live"}
+        )
+        
     return JSONResponse(
-        content={"spl": f'index=acis sourcetype=firewall | search "{request.query}" | stats count by dest_ip'},
+        content={"spl": f'index=acis sourcetype=firewall | search "{query}" | stats count by dest_ip'},
         headers={"X-ACIS-AI-Mode": "mock"}
     )
 
