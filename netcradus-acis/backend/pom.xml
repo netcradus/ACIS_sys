@@ -27,11 +27,14 @@
     <module>acis-correlation</module>
     <module>acis-ingestion</module>
     <module>acis-soar</module>
+    <module>acis-platform-admin</module>
   </modules>
 
   <properties>
     <java.version>21</java.version>
     <spring-cloud.version>2023.0.3</spring-cloud.version>
+    <!-- Matches the running quay.io/keycloak/keycloak:24.0 server (infra/docker-compose.yml) -->
+    <keycloak.version>24.0.5</keycloak.version>
     <maven.compiler.source>21</maven.compiler.source>
     <maven.compiler.target>21</maven.compiler.target>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
@@ -50,6 +53,11 @@
         <groupId>com.netcradus.acis</groupId>
         <artifactId>acis-common</artifactId>
         <version>${project.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>org.keycloak</groupId>
+        <artifactId>keycloak-admin-client</artifactId>
+        <version>${keycloak.version}</version>
       </dependency>
     </dependencies>
   </dependencyManagement>

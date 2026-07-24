@@ -17,6 +17,8 @@ import org.springframework.web.filter.OncePerRequestFilter;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.Enumeration;
+import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 /**
@@ -58,6 +60,21 @@ public class TenantContextFilter extends OncePerRequestFilter {
         String tenantId = jwt.getClaimAsString("tenant_id");
 
         if (tenantId == null || tenantId.isBlank()) {
+            if (isPlatformAdmin(jwt)) {
+                // Platform operators act across tenants and never carry a tenant_id
+                // claim by design (see infra/keycloak/realm-acis.json's
+                // "platform-admin" seed user). TenantContext is intentionally left
+                // unset here: any tenant-scoped action a platform admin takes must
+                // name its target tenant explicitly (e.g. a path variable), never
+                // rely on an ambient tenant derived from this filter.
+                try {
+                    TenantContext.setUserEmail(jwt.getClaimAsString("email"));
+                    filterChain.doFilter(request, response);
+                } finally {
+                    TenantContext.clear();
+                }
+                return;
+            }
             respondForbidden(response, ApiError.ERR_FORBIDDEN,
                     "Access token does not carry a tenant_id claim; request rejected.");
             return;
@@ -79,6 +96,16 @@ public class TenantContextFilter extends OncePerRequestFilter {
         } finally {
             TenantContext.clear();
         }
+    }
+
+    @SuppressWarnings("unchecked")
+    private boolean isPlatformAdmin(Jwt jwt) {
+        Map<String, Object> realmAccess = jwt.getClaimAsMap("realm_access");
+        if (realmAccess == null) {
+            return false;
+        }
+        Object roles = realmAccess.get("roles");
+        return roles instanceof List<?> roleList && roleList.contains("platform-admin");
     }
 
     private void respondForbidden(HttpServletResponse response, String code, String message) throws IOException {

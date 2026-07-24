@@ -1,0 +1,60 @@
+server:
+  port: 8088
+
+spring:
+  application:
+    name: acis-platform-admin
+  datasource:
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:acis}?options=-c%20timezone=UTC
+    # Plain autoconfigured datasource, NOT TenantAwareDataSource — this
+    # service's tables (tenants, tenant_enabled_modules) are the platform's
+    # own cross-tenant registry and must never have Row Level Security
+    # applied. acis_app still works fine here: RLS is per-table, and these
+    # tables never call RlsBootstrapper, so no policy ever restricts them.
+    username: ${DB_USER:acis_app}
+    password: ${DB_PASSWORD:acis_app_dev_password}
+  jpa:
+    hibernate:
+      ddl-auto: update
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          jwk-set-uri: ${KEYCLOAK_URL:http://localhost:8180}/realms/${KEYCLOAK_REALM:acis}/protocol/openid-connect/certs
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+    consumer:
+      group-id: acis-platform-admin-audit-group
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      properties:
+        spring.json.trusted.packages: "*"
+        spring.json.use.type.headers: false
+        spring.json.value.default.type: com.netcradus.acis.platformadmin.audit.PlatformAuditEvent
+
+# Keycloak Admin REST — manages the same users that authenticate into the
+# system via the existing acis-backend confidential client's service
+# account (already granted manage-users/view-users in Phase 1a).
+acis:
+  keycloak:
+    server-url: ${KEYCLOAK_URL:http://localhost:8180}
+    realm: ${KEYCLOAK_REALM:acis}
+    admin-client-id: acis-backend
+    admin-client-secret: ${KEYCLOAK_BACKEND_CLIENT_SECRET:acis-backend-secret}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+
+logging:
+  level:
+    com.netcradus.acis: DEBUG

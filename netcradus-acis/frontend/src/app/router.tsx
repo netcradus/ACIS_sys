@@ -2,6 +2,8 @@ import { createBrowserRouter, useRouteError, useNavigate } from 'react-router-do
 import { ShieldAlert, RefreshCw, Home } from 'lucide-react'
 import ProtectedRoute          from './ProtectedRoute'
 import AppLayout               from './AppLayout'
+import PlatformAdminRoute      from './PlatformAdminRoute'
+import PlatformAdminLayout     from './PlatformAdminLayout'
 
 // Auth
 import LoginPage               from '@/modules/auth/LoginPage'
@@ -20,6 +22,13 @@ import CompliancePage          from '@/modules/compliance/CompliancePage'
 import ReportsPage             from '@/modules/reports/ReportsPage'
 import SettingsPage            from '@/modules/settings/SettingsPage'
 import AiAnalystPage           from '@/modules/ai-analyst/AiAnalystPage'
+
+// Platform Admin modules
+import PlatformDashboardPage   from '@/modules/platform-admin/PlatformDashboardPage'
+import TenantListPage          from '@/modules/platform-admin/TenantListPage'
+import TenantDetailPage        from '@/modules/platform-admin/TenantDetailPage'
+import UserListPage            from '@/modules/platform-admin/UserListPage'
+import UserDetailPage          from '@/modules/platform-admin/UserDetailPage'
 
 function RouteErrorFallback() {
   const error: any = useRouteError()
@@ -88,6 +97,24 @@ export const router = createBrowserRouter([
           { path: 'reports',          element: <ReportsPage /> },
           { path: 'ai-analyst',       element: <AiAnalystPage /> },
           { path: 'settings',         element: <SettingsPage /> },
+        ],
+      },
+    ],
+  },
+  {
+    path:    '/platform-admin',
+    element: <PlatformAdminRoute />,
+    errorElement: <RouteErrorFallback />,
+    children: [
+      {
+        element: <PlatformAdminLayout />,
+        errorElement: <RouteErrorFallback />,
+        children: [
+          { index: true,             element: <PlatformDashboardPage /> },
+          { path: 'tenants',         element: <TenantListPage /> },
+          { path: 'tenants/:id',     element: <TenantDetailPage /> },
+          { path: 'users',          element: <UserListPage /> },
+          { path: 'users/:id',      element: <UserDetailPage /> },
         ],
       },
     ],

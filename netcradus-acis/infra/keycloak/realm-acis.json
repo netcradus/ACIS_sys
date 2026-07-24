@@ -8,7 +8,7 @@
   "loginWithEmailAllowed": true,
   "duplicateEmailsAllowed": false,
   "resetPasswordAllowed": true,
-  "editUsernameAllowed": false,
+  "editUsernameAllowed": true,
   "accessTokenLifespan": 300,
   "ssoSessionIdleTimeout": 1800,
   "ssoSessionMaxLifespan": 36000,
@@ -17,7 +17,9 @@
       { "name": "viewer",   "description": "Read-only access to dashboards and logs" },
       { "name": "analyst",  "description": "Alert investigation and triage" },
       { "name": "engineer", "description": "Rule authoring and system configuration" },
-      { "name": "admin",    "description": "Full administrative access" }
+      { "name": "admin",    "description": "Full administrative access" },
+      { "name": "company-admin", "description": "Tenant owner - manages billing/org settings and can grant/revoke admin within their own tenant. Exactly one per tenant, enforced by acis-platform-admin at role-assignment time (Keycloak has no native uniqueness constraint for this)." },
+      { "name": "platform-admin", "description": "NETCRADUS platform operator - cross-tenant administration, no tenant_id claim required" }
     ]
   },
   "clients": [
@@ -48,7 +50,8 @@
 
       },
       "protocol": "openid-connect",
-      "fullScopeAllowed": true
+      "fullScopeAllowed": true,
+      "defaultClientScopes": ["acis-tenant", "roles", "email"]
     },
     {
       "clientId": "acis-backend",
@@ -60,7 +63,8 @@
       "directAccessGrantsEnabled": false,
       "serviceAccountsEnabled": true,
       "authorizationServicesEnabled": false,
-      "protocol": "openid-connect"
+      "protocol": "openid-connect",
+      "defaultClientScopes": ["acis-tenant", "roles", "email"]
     }
   ],
   "users": [
@@ -120,6 +124,29 @@
           "temporary": false
         }
       ]
+    },
+    {
+      "username": "platform-admin",
+      "email": "platform-admin@netcradus.local",
+      "firstName": "NETCRADUS",
+      "lastName": "Ops",
+      "enabled": true,
+      "emailVerified": true,
+      "realmRoles": ["platform-admin"],
+      "credentials": [
+        {
+          "type": "password",
+          "value": "acis123",
+          "temporary": false
+        }
+      ]
+    },
+    {
+      "username": "service-account-acis-backend",
+      "serviceAccountClientId": "acis-backend",
+      "clientRoles": {
+        "realm-management": ["manage-users", "view-users", "view-realm"]
+      }
     }
   ],
   "clientScopes": [
@@ -148,8 +175,73 @@
           }
         }
       ]
+    },
+    {
+      "name": "roles",
+      "description": "Realm and client role claims (realm_access.roles, resource_access.*.roles) - required for any role-based check (e.g. platform-admin) to see role data in the token at all, and for Keycloak's own Admin REST API to honor a service account's granted client roles (e.g. acis-backend's manage-users/view-users).",
+      "protocol": "openid-connect",
+      "attributes": {
+        "include.in.token.scope": "false",
+        "display.on.consent.screen": "true"
+      },
+      "protocolMappers": [
+        {
+          "name": "realm-roles-mapper",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-realm-role-mapper",
+          "consentRequired": false,
+          "config": {
+            "claim.name": "realm_access.roles",
+            "jsonType.label": "String",
+            "multivalued": "true",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "userinfo.token.claim": "true"
+          }
+        },
+        {
+          "name": "client-roles-mapper",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-client-role-mapper",
+          "consentRequired": false,
+          "config": {
+            "usermodel.clientRoleMapping.clientId": "",
+            "claim.name": "resource_access.${client_id}.roles",
+            "jsonType.label": "String",
+            "multivalued": "true",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "userinfo.token.claim": "true"
+          }
+        }
+      ]
+    },
+    {
+      "name": "email",
+      "description": "Email claim - used by TenantContextFilter to populate TenantContext.userEmail for audit logging.",
+      "protocol": "openid-connect",
+      "attributes": {
+        "include.in.token.scope": "true",
+        "display.on.consent.screen": "false"
+      },
+      "protocolMappers": [
+        {
+          "name": "email-mapper",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-property-mapper",
+          "consentRequired": false,
+          "config": {
+            "user.attribute": "email",
+            "claim.name": "email",
+            "jsonType.label": "String",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "userinfo.token.claim": "true"
+          }
+        }
+      ]
     }
   ],
-  "defaultDefaultClientScopes": ["roles", "profile", "email", "web-origins", "acis-tenant"],
-  "defaultOptionalClientScopes": ["offline_access", "microprofile-jwt"]
+  "defaultDefaultClientScopes": ["roles", "email", "acis-tenant"],
+  "defaultOptionalClientScopes": ["offline_access"]
 }

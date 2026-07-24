@@ -132,6 +132,29 @@
   .ag-theme-acis .ag-header-cell-label {
     @apply uppercase tracking-widest font-bold text-[10px];
   }
+
+  /* Distinct theme for the Platform Super Admin console (violet, not the
+     tenant console's orange) — a deliberate visual cue that this is a
+     different, cross-tenant, higher-privilege surface. */
+  .ag-theme-platform-admin {
+    --ag-background-color: #000000;
+    --ag-foreground-color: #FFFFFF;
+    --ag-border-color: #1A1A1A;
+    --ag-header-background-color: #080808;
+    --ag-header-foreground-color: #888888;
+    --ag-odd-row-background-color: #030303;
+    --ag-row-hover-color: #111111;
+    --ag-selected-row-background-color: rgba(124, 58, 237, 0.12);
+    --ag-font-size: 13px;
+    --ag-font-family: 'Inter', sans-serif;
+    --ag-cell-horizontal-padding: 16px;
+    --ag-header-column-separator-display: block;
+    --ag-header-column-separator-color: #1A1A1A;
+  }
+
+  .ag-theme-platform-admin .ag-header-cell-label {
+    @apply uppercase tracking-widest font-bold text-[10px];
+  }
 }
 
 /* ─── Utilities ────────────────────────────────────────────── */
