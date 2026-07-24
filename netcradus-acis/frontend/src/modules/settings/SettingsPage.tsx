@@ -2968,7 +2968,7 @@ export default function SettingsPage() {
               <div className="flex items-center justify-between border-b border-neutral-900 pb-3">
                 <div>
                   <h3 className="text-sm font-bold text-white tracking-tight">Connected Integrations</h3>
-                  <p className="text-[10px] text-neutral-500 mt-1">Third-party services connected to OOURAA for ingestion and SOAR actions.</p>
+                  <p className="text-[10px] text-neutral-500 mt-1">Third-party services connected to Kiro AI for ingestion and SOAR actions.</p>
                 </div>
                 <button 
                   onClick={() => setIsIntegrationModalOpen(true)}

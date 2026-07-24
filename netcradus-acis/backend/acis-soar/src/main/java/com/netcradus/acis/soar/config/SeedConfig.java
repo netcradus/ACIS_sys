@@ -123,7 +123,7 @@ public class SeedConfig {
             PlaybookExecution pe1 = new PlaybookExecution();
             pe1.setPlaybookId(p3.getId());
             pe1.setTriggeredBy(mockUserUuid);
-            pe1.setTriggeredByName("analyst2@oouraa");
+            pe1.setTriggeredByName("analyst2@kiro.ai");
             pe1.setStatus("completed");
             pe1.setStartedAt(OffsetDateTime.now().minusMinutes(14));
             pe1.setCompletedAt(OffsetDateTime.now().minusMinutes(14).plusSeconds(12));
@@ -134,7 +134,7 @@ public class SeedConfig {
             PlaybookExecution pe2 = new PlaybookExecution();
             pe2.setPlaybookId(p1.getId());
             pe2.setTriggeredBy(mockUserUuid);
-            pe2.setTriggeredByName("analyst1@oouraa");
+            pe2.setTriggeredByName("analyst1@kiro.ai");
             pe2.setStatus("completed");
             pe2.setStartedAt(OffsetDateTime.now().minusHours(1));
             pe2.setCompletedAt(OffsetDateTime.now().minusHours(1).plusSeconds(41));
@@ -156,7 +156,7 @@ public class SeedConfig {
             PlaybookExecution pe4 = new PlaybookExecution();
             pe4.setPlaybookId(p3.getId());
             pe4.setTriggeredBy(mockUserUuid);
-            pe4.setTriggeredByName("analyst3@oouraa");
+            pe4.setTriggeredByName("analyst3@kiro.ai");
             pe4.setStatus("failed");
             pe4.setStartedAt(OffsetDateTime.now().minusHours(3));
             pe4.setCompletedAt(OffsetDateTime.now().minusHours(3).plusSeconds(8));
@@ -167,7 +167,7 @@ public class SeedConfig {
             PlaybookExecution pe5 = new PlaybookExecution();
             pe5.setPlaybookId(p1.getId());
             pe5.setTriggeredBy(mockUserUuid);
-            pe5.setTriggeredByName("analyst1@oouraa");
+            pe5.setTriggeredByName("analyst1@kiro.ai");
             pe5.setStatus("completed");
             pe5.setStartedAt(OffsetDateTime.now().minusHours(5));
             pe5.setCompletedAt(OffsetDateTime.now().minusHours(5).plusSeconds(39));
@@ -178,7 +178,7 @@ public class SeedConfig {
             PlaybookExecution pe6 = new PlaybookExecution();
             pe6.setPlaybookId(p2.getId());
             pe6.setTriggeredBy(mockUserUuid);
-            pe6.setTriggeredByName("analyst2@oouraa");
+            pe6.setTriggeredByName("analyst2@kiro.ai");
             pe6.setStatus("running");
             pe6.setStartedAt(OffsetDateTime.now());
             pe6.setStepLogs("[{\"step\":\"Disable AD account\",\"status\":\"Success\"}]");
@@ -240,7 +240,7 @@ public class SeedConfig {
                 ApiKey k1 = new ApiKey();
                 k1.setTenantId(defaultTenantId);
                 k1.setKeyName("SOAR Automation Script");
-                k1.setToken("oouraa_live_x8Fx8e...d9q");
+                k1.setToken("kiro_live_x8Fx8e...d9q");
                 k1.setRole("API Read/Write");
                 k1.setCreatedAt(OffsetDateTime.now().minusDays(50));
                 k1.setLastUsedAt(OffsetDateTime.now().minusMinutes(2));
@@ -250,7 +250,7 @@ public class SeedConfig {
                 ApiKey k2 = new ApiKey();
                 k2.setTenantId(defaultTenantId);
                 k2.setKeyName("Splunk Forwarder Sync");
-                k2.setToken("oouraa_live_k2Mk2m...a4z");
+                k2.setToken("kiro_live_k2Mk2m...a4z");
                 k2.setRole("Data Ingest Only");
                 k2.setCreatedAt(OffsetDateTime.now().minusDays(30));
                 k2.setLastUsedAt(OffsetDateTime.now().minusHours(1));
@@ -260,7 +260,7 @@ public class SeedConfig {
                 ApiKey k3 = new ApiKey();
                 k3.setTenantId(defaultTenantId);
                 k3.setKeyName("Custom Dashboard Reader");
-                k3.setToken("oouraa_read_f9Pf9p...v1m");
+                k3.setToken("kiro_read_f9Pf9p...v1m");
                 k3.setRole("API Read Only");
                 k3.setCreatedAt(OffsetDateTime.now().minusDays(20));
                 k3.setStatus("Active");

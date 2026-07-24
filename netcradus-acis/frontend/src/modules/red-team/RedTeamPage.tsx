@@ -251,7 +251,7 @@ export default function RedTeamPage() {
                 <input
                   value={query}
                   onChange={(event) => setQuery(event.target.value)}
-                  placeholder="Search OOURAA..."
+                  placeholder="Search Kiro AI..."
                   className="w-full bg-transparent text-sm font-semibold text-white placeholder:text-text-muted outline-none"
                 />
               </label>

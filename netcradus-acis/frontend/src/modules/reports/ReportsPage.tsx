@@ -97,7 +97,7 @@ export default function ReportsPage() {
 
   // Dynamically generate file downloads
   const triggerDownload = (reportType: string) => {
-    let content = `OOURAA ACIS REPORT EXPORT\n`
+    let content = `Kiro AI ACIS REPORT EXPORT\n`
     content += `=========================\n`
     content += `Type: ${reportType}\n`
     content += `Export Date: ${new Date().toUTCString()}\n\n`
@@ -157,7 +157,7 @@ export default function ReportsPage() {
             <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-500" />
             <input 
               type="text" 
-              placeholder="Search OOURAA..." 
+              placeholder="Search Kiro AI..." 
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="w-full bg-transparent pl-10 pr-4 py-2 text-xs placeholder:text-neutral-600 text-white focus:outline-none focus:border-neutral-700"
@@ -195,7 +195,7 @@ export default function ReportsPage() {
             <div className="mt-4 space-y-1 text-[10px] text-neutral-400 font-semibold">
               <div className="flex items-center gap-1.5"><Clock className="w-3.5 h-3.5 text-neutral-600" /> Generated: Weekly • Every Monday 08:00</div>
               <div className="flex items-center gap-1.5"><Activity className="w-3.5 h-3.5 text-neutral-600" /> Coverage: Last 7 days</div>
-              <div className="flex items-center gap-1.5"><CheckCircle2 className="w-3.5 h-3.5 text-neutral-600" /> Recipients: exec-team@oouraa.com (+3)</div>
+              <div className="flex items-center gap-1.5"><CheckCircle2 className="w-3.5 h-3.5 text-neutral-600" /> Recipients: exec-team@kiro.ai (+3)</div>
             </div>
           </div>
 
@@ -238,7 +238,7 @@ export default function ReportsPage() {
             <div className="mt-4 space-y-1 text-[10px] text-neutral-400 font-semibold">
               <div className="flex items-center gap-1.5"><Clock className="w-3.5 h-3.5 text-neutral-600" /> On-demand + monthly scheduled</div>
               <div className="flex items-center gap-1.5"><Activity className="w-3.5 h-3.5 text-neutral-600" /> Coverage: Per incident + monthly rollup</div>
-              <div className="flex items-center gap-1.5"><CheckCircle2 className="w-3.5 h-3.5 text-neutral-600" /> Recipients: board@oouraa.com, legal@oouraa.com</div>
+              <div className="flex items-center gap-1.5"><CheckCircle2 className="w-3.5 h-3.5 text-neutral-600" /> Recipients: board@kiro.ai, legal@kiro.ai</div>
             </div>
           </div>
 
@@ -280,7 +280,7 @@ export default function ReportsPage() {
             <div className="mt-4 space-y-1 text-[10px] text-neutral-400 font-semibold">
               <div className="flex items-center gap-1.5"><Clock className="w-3.5 h-3.5 text-neutral-600" /> Monthly - 1st of each month</div>
               <div className="flex items-center gap-1.5"><Activity className="w-3.5 h-3.5 text-neutral-600" /> Coverage: MITRE ATT&CK Enterprise v14</div>
-              <div className="flex items-center gap-1.5"><CheckCircle2 className="w-3.5 h-3.5 text-neutral-600" /> Recipients: security-team@oouraa.com</div>
+              <div className="flex items-center gap-1.5"><CheckCircle2 className="w-3.5 h-3.5 text-neutral-600" /> Recipients: security-team@kiro.ai</div>
             </div>
           </div>
 

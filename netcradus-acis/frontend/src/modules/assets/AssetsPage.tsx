@@ -197,7 +197,7 @@ export default function AssetsPage() {
           <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-500" />
           <input 
             type="text" 
-            placeholder="Search OOURAA..." 
+            placeholder="Search Kiro AI..." 
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="w-full bg-transparent pl-10 pr-4 py-2 text-xs placeholder:text-neutral-600 text-white focus:outline-none focus:border-neutral-700"
@@ -335,7 +335,7 @@ export default function AssetsPage() {
                 <span className="text-[9px] text-neutral-500 font-black uppercase tracking-wider block border-b border-neutral-900 pb-1">Asset Profile</span>
                 <div className="grid grid-cols-3 gap-y-2">
                   <span className="text-neutral-500 font-semibold">Owner:</span>
-                  <span className="col-span-2 text-neutral-300 font-bold font-mono">{selectedAsset.owner}@oouraa.com</span>
+                  <span className="col-span-2 text-neutral-300 font-bold font-mono">{selectedAsset.owner}@kiro.ai</span>
 
                   <span className="text-neutral-500 font-semibold">IP Address:</span>
                   <span className="col-span-2 text-neutral-300 font-bold font-mono">{selectedAsset.ipAddress}</span>

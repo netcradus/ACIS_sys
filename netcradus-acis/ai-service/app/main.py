@@ -179,7 +179,6 @@ async def explain_alert(request: AlertRequest):
     alert = request.raw_alert or {}
     title = alert.get("title") or alert.get("name") or "this alert"
     severity = str(alert.get("severity") or "medium").lower()
-
     completion = await _llm_complete(EXPLAIN_SYSTEM_PROMPT, json.dumps(alert, default=str))
     if completion is not None:
         parsed = kiro_client.parse_json_object(completion)

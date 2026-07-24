@@ -403,7 +403,7 @@ public class SettingsController {
     private String generateRandomToken() {
         String chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
         SecureRandom random = new SecureRandom();
-        StringBuilder sb = new StringBuilder("oouraa_live_");
+        StringBuilder sb = new StringBuilder("kiro_live_");
         for (int i = 0; i < 16; i++) {
             sb.append(chars.charAt(random.nextInt(chars.length())));
         }
