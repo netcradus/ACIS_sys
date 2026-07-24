@@ -8,7 +8,10 @@ from sentence_transformers import SentenceTransformer
 from sklearn.ensemble import IsolationForest
 from typing import List, Optional
 import threading
-import grpc_server
+from . import grpc_server
+from . import kiro_client
+from . import groq_client
+from . import threat_intel_client
 
 # Setup logger
 logging.basicConfig(level=logging.INFO)
@@ -80,9 +83,24 @@ class AlertRequest(BaseModel):
 class QueryRequest(BaseModel):
     query: str
 
-# No LLM provider is wired up in this build (no LangChain/OpenAI/Anthropic
-# client is ever constructed), so /ai/explain and /ai/query always run in
-# mock mode and always advertise that fact via the X-ACIS-AI-Mode header.
+# /ai/explain and /ai/query try Groq first (official free tier), then
+# kiro_client (opt-in, unofficial), and fall back to the honest mock
+# templates below — tagged via X-ACIS-AI-Mode — whenever neither is
+# configured or both fail. The fallback must never raise; a broken LLM
+# backend should degrade to mock mode, not break the endpoint.
+
+async def _llm_complete(system_prompt: str, user_prompt: str, **kwargs) -> Optional[str]:
+    if groq_client.is_configured():
+        try:
+            return await groq_client.chat_completion(system_prompt, user_prompt, **kwargs)
+        except groq_client.GroqUnavailableError as e:
+            logger.warning(f"Groq unavailable, trying next backend: {e}")
+    if kiro_client.is_configured():
+        try:
+            return await kiro_client.chat_completion(system_prompt, user_prompt, **kwargs)
+        except kiro_client.KiroUnavailableError as e:
+            logger.warning(f"Kiro gateway unavailable: {e}")
+    return None
 
 # 5-dim feature vector shared by the anomaly + classifier models:
 # [bytes_out_norm, failed_logins, has_admin_signal, has_lolbin_signal, severity_weight]
@@ -142,11 +160,49 @@ CLASSIFIER_TRAINING_ROWS = [
 # Internal REST endpoints (Callable by Spring Boot only, not Gateway - User Constraint 6)
 # ------------------------------------------------------------------------------------------------
 
+EXPLAIN_SYSTEM_PROMPT = (
+    "You are a senior SOC analyst assistant. Given a security alert as a JSON object, "
+    "respond with ONLY a JSON object with exactly two keys: \"explanation\" (2-4 plain-English "
+    "sentences covering what happened and why it matters) and \"recommended_action\" (one concise, "
+    "concrete next step for an analyst). No markdown, no code fences, no extra text — just the JSON object."
+)
+
+NL_TO_SPL_SYSTEM_PROMPT = (
+    "Convert the natural language security query into Splunk-like SPL syntax. "
+    "Available fields: index, sourcetype, src_ip, dest_ip, user, action, severity, timestamp. "
+    "Respond with ONLY the SPL query string — no explanation, no markdown, no code fences."
+)
+
+
 @app.post("/ai/explain")
 async def explain_alert(request: AlertRequest):
     alert = request.raw_alert or {}
     title = alert.get("title") or alert.get("name") or "this alert"
     severity = str(alert.get("severity") or "medium").lower()
+
+    completion = await _llm_complete(EXPLAIN_SYSTEM_PROMPT, json.dumps(alert, default=str))
+    if completion is not None:
+        parsed = kiro_client.parse_json_object(completion)
+        if parsed and parsed.get("explanation"):
+            return JSONResponse(
+                content={
+                    "explanation": parsed["explanation"],
+                    "recommended_action": parsed.get("recommended_action")
+                    or "Review the alert details and assign an owner.",
+                },
+                headers={"X-ACIS-AI-Mode": "live"},
+            )
+        # Model produced real output but didn't follow the JSON schema —
+        # still genuine LLM output, just pass it through unstructured
+        # rather than discarding it.
+        return JSONResponse(
+            content={
+                "explanation": completion,
+                "recommended_action": "Review the alert details and assign an owner.",
+            },
+            headers={"X-ACIS-AI-Mode": "live"},
+        )
+
     return JSONResponse(
         content={
             "explanation": (
@@ -160,7 +216,11 @@ async def explain_alert(request: AlertRequest):
 
 @app.post("/ai/query")
 async def nl_to_spl(request: QueryRequest):
-    # Returning a parsed SPL string for demonstration
+    completion = await _llm_complete(NL_TO_SPL_SYSTEM_PROMPT, request.query, max_tokens=256, temperature=0.0)
+    if completion is not None:
+        spl = completion.strip().strip("`").strip()
+        return JSONResponse(content={"spl": spl}, headers={"X-ACIS-AI-Mode": "live"})
+
     return JSONResponse(
         content={"spl": f'index=acis sourcetype=firewall | search "{request.query}" | stats count by dest_ip'},
         headers={"X-ACIS-AI-Mode": "mock"}
@@ -196,7 +256,15 @@ async def classify_threat(event: dict):
 
 @app.get("/ai/health")
 async def health_check():
-    return {"status": "ok", "components": {"xgboost": XGBOOST_AVAILABLE}}
+    return {
+        "status": "ok",
+        "components": {
+            "xgboost": XGBOOST_AVAILABLE,
+            "groq_llm_configured": groq_client.is_configured(),
+            "kiro_llm_configured": kiro_client.is_configured(),
+            "threat_intel_configured": threat_intel_client.is_configured(),
+        },
+    }
 
 @app.post("/ai/mitre")
 async def mitre_map(request: QueryRequest):

@@ -3,6 +3,7 @@ package com.netcradus.acis.log.service;
 import com.netcradus.acis.log.model.LogDocument;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
@@ -16,6 +17,7 @@ import java.util.UUID;
 @Slf4j
 @Service
 @RequiredArgsConstructor
+@ConditionalOnProperty(prefix = "acis.mock-log-generator", name = "enabled", havingValue = "true")
 public class MockLogGenerator {
 
     // Matches the tenant_id attribute seeded on the demo Keycloak users in

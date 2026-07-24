@@ -8,3 +8,7 @@
 *.err
 out/
 build/
+
+# Kiro credentials — never commit. Real content is dropped in locally by the
+# operator, referenced by docker-compose's kiro-gateway volume mount.
+secrets/

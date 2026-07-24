@@ -62,14 +62,54 @@ services:
       - gateway
 
   # 2. ACIS AI Intelligence Service (Python FastAPI) — internal only
+  # KIRO_GATEWAY_URL is empty by default — /ai/explain and /ai/query run in
+  # honest mock mode (tagged X-ACIS-AI-Mode: mock) until you both set it AND
+  # start the optional kiro-gateway service below.
   ai-service:
     build:
       context: ./ai-service
       dockerfile: Dockerfile
+    environment:
+      # Primary LLM backend for /ai/explain and /ai/query — Groq's official
+      # free tier. Tried first; falls back to Kiro (if configured), then to
+      # the honest mock templates.
+      GROQ_API_KEY: ${GROQ_API_KEY:-}
+      GROQ_MODEL: ${GROQ_MODEL:-llama-3.3-70b-versatile}
+      KIRO_GATEWAY_URL: ${KIRO_GATEWAY_URL:-}
+      KIRO_GATEWAY_API_KEY: ${KIRO_GATEWAY_API_KEY:-}
+      KIRO_MODEL: ${KIRO_MODEL:-claude-sonnet-4-5}
+      # Real IOC enrichment (EnrichIoc gRPC) — optional; without these,
+      # enrichment returns an explicit "unconfigured" result, never fake data.
+      VIRUSTOTAL_API_KEY: ${VIRUSTOTAL_API_KEY:-}
+      ABUSEIPDB_API_KEY: ${ABUSEIPDB_API_KEY:-}
     expose:
       - "8090"
       - "50051"
     restart: always
+
+  # 2b. OPTIONAL — Kiro Gateway (unofficial, community-maintained proxy —
+  # see project notes on the ToS/stability risk before enabling this).
+  # Disabled unless you explicitly opt in:
+  #   docker compose -f docker-compose.prod.yml --profile kiro up -d --build
+  # Requires a Kiro Desktop Auth JSON file dropped at
+  # ./secrets/kiro-auth-token.json (gitignored — never commit it).
+  kiro-gateway:
+    image: ghcr.io/jwadow/kiro-gateway:latest
+    profiles: ["kiro"]
+    environment:
+      # NOTE: intentionally NOT a required (${VAR:?...}) variable — Compose
+      # interpolates every service's variables up front regardless of which
+      # profiles are active, so a hard requirement here would break the
+      # default (no --profile kiro) deploy too. Set KIRO_GATEWAY_API_KEY in
+      # .env yourself before running with --profile kiro; if you forget,
+      # this container just won't authenticate anything, not the whole stack.
+      PROXY_API_KEY: ${KIRO_GATEWAY_API_KEY:-}
+      KIRO_CREDS_FILE: /home/kiro/.aws/sso/cache/kiro-auth-token.json
+    volumes:
+      - ./secrets/kiro-auth-token.json:/home/kiro/.aws/sso/cache/kiro-auth-token.json:ro
+    expose:
+      - "8000"
+    restart: unless-stopped
 
   # 3. PostgreSQL Database — internal only
   # POSTGRES_USER ("acis") is the bootstrap/admin role — Postgres always makes
@@ -246,6 +286,10 @@ services:
       KEYCLOAK_URL: http://keycloak:8080
       KEYCLOAK_REALM: ${KEYCLOAK_REALM:-acis}
       AI_SERVICE_URL: http://ai-service:8090
+      # Synthetic demo log generator — leave unset/false in real deployments;
+      # it exists only to populate the log explorer before real log sources
+      # (syslog/agents/cloud log forwarders) are wired into acis-ingestion.
+      MOCK_LOG_GENERATOR_ENABLED: ${MOCK_LOG_GENERATOR_ENABLED:-false}
     expose:
       - "8082"
     depends_on:

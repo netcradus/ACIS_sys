@@ -77,8 +77,14 @@ public class LogController {
                     return b.getTimestamp().compareTo(a.getTimestamp());
                 })
                 .collect(Collectors.toList());
-                
-        return Mono.just(filtered);
+
+        int safePage = Math.max(page, 0);
+        int safeSize = Math.min(Math.max(size, 1), 500);
+        int fromIndex = Math.min(safePage * safeSize, filtered.size());
+        int toIndex = Math.min(fromIndex + safeSize, filtered.size());
+        List<LogDocument> paged = filtered.subList(fromIndex, toIndex);
+
+        return Mono.just(paged);
     }
 
     @GetMapping("/latest")

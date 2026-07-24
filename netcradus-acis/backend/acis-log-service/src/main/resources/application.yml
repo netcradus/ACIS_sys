@@ -37,6 +37,10 @@ spring:
 acis:
   ai-service:
     url: ${AI_SERVICE_URL:http://localhost:8090}
+  mock-log-generator:
+    # Synthetic demo log generator — off by default everywhere, including prod.
+    # Only for local/demo environments with no real log sources wired up yet.
+    enabled: ${MOCK_LOG_GENERATOR_ENABLED:false}
 
 # Actuator Configuration
 management:
