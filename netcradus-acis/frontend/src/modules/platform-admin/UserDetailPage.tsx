@@ -18,8 +18,10 @@ import {
 } from '@/lib/platformAdminApi'
 import { usePlatformToastStore } from '@/store/platformToastStore'
 import ConfirmDialog from '@/modules/platform-admin/components/ConfirmDialog'
+import UserSecurityTab from '@/modules/platform-admin/components/UserSecurityTab'
 
 type ConfirmAction = 'activate' | 'deactivate' | 'delete' | 'move-tenant' | null
+type TabId = 'profile' | 'security'
 
 const NON_DISPLAY_ROLES = new Set(['default-roles-acis', 'offline_access', 'uma_authorization'])
 
@@ -44,6 +46,7 @@ export default function UserDetailPage() {
   const [confirmAction, setConfirmAction] = useState<ConfirmAction>(null)
   const [confirmBusy, setConfirmBusy] = useState(false)
   const [pendingRole, setPendingRole] = useState<string | null>(null)
+  const [activeTab, setActiveTab] = useState<TabId>('profile')
 
   const load = async () => {
     if (!id) return
@@ -226,6 +229,24 @@ export default function UserDetailPage() {
         </div>
       </div>
 
+      {/* Tab Navigation */}
+      <div className="flex gap-1 border-b border-neutral-900">
+        <button
+          onClick={() => setActiveTab('profile')}
+          className={clsx('px-4 py-2 text-xs font-bold uppercase tracking-wider transition-colors border-b-2 -mb-px',
+            activeTab === 'profile' ? 'text-[#7C3AED] border-[#7C3AED]' : 'text-neutral-500 border-transparent hover:text-white')}
+        >Profile &amp; Roles</button>
+        <button
+          onClick={() => setActiveTab('security')}
+          className={clsx('px-4 py-2 text-xs font-bold uppercase tracking-wider transition-colors border-b-2 -mb-px',
+            activeTab === 'security' ? 'text-[#7C3AED] border-[#7C3AED]' : 'text-neutral-500 border-transparent hover:text-white')}
+        >Security</button>
+      </div>
+
+      {activeTab === 'security' ? (
+        <UserSecurityTab userId={id!} />
+      ) : (
+      <>
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Profile */}
         <div className="bg-[#0C0C0D] border border-neutral-800 rounded-xl p-5 space-y-4">
@@ -351,6 +372,8 @@ export default function UserDetailPage() {
           })}
         </div>
       </div>
+      </>
+      )}
 
       <ConfirmDialog
         open={confirmAction === 'deactivate'}

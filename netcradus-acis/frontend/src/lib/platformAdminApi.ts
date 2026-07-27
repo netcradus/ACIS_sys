@@ -203,3 +203,173 @@ export async function removeRole(userId: string, role: string): Promise<string[]
   const res = await apiClient.delete<string[]>(`${USERS_BASE}/${userId}/roles/${role}`)
   return res.data
 }
+
+// ── Phase 1c.2: Advanced Security Management ────────────────────────
+
+export interface UserSecurityInfo {
+  userId: string
+  username: string
+  accountStatus: 'ACTIVE' | 'DISABLED' | 'TEMPORARILY_BLOCKED'
+  enabled: boolean
+  bruteForceLocked: boolean
+  failedLoginAttempts: number
+  lastFailureTimestamp: string | null
+  mfaEnabled: boolean
+  mfaRequired: boolean
+  otpDeviceCount: number
+  passwordChangeRequired: boolean
+  requiredActions: string[]
+  activeSessionCount: number
+  createdTimestamp: number | null
+}
+
+export interface UserSessionInfo {
+  sessionId: string
+  startTimestamp: number | null
+  lastAccessTimestamp: number | null
+  ipAddress: string | null
+  clients: string | null
+  userAgent: string | null
+}
+
+export interface AuditEvent {
+  id: string
+  timestamp: string
+  adminUserId: string
+  adminUsername: string
+  adminEmail: string | null
+  targetUserId: string | null
+  targetUsername: string | null
+  targetEmail: string | null
+  tenantId: string | null
+  tenantName: string | null
+  action: string
+  resourceType: string
+  previousValue: string | null
+  newValue: string | null
+  ipAddress: string | null
+  userAgent: string | null
+  status: 'SUCCESS' | 'FAILURE'
+  failureReason: string | null
+}
+
+export interface AuditSearchResult {
+  content: AuditEvent[]
+  totalElements: number
+  totalPages: number
+  page: number
+  size: number
+}
+
+export interface AuditSearchParams {
+  startDate?: string
+  endDate?: string
+  tenantId?: string
+  adminUserId?: string
+  targetUserId?: string
+  action?: string
+  status?: string
+  search?: string
+  page?: number
+  size?: number
+}
+
+const SECURITY_BASE = (userId: string) => `${USERS_BASE}/${userId}/security`
+
+export async function getUserSecurityInfo(userId: string): Promise<UserSecurityInfo> {
+  const res = await apiClient.get<UserSecurityInfo>(SECURITY_BASE(userId))
+  return res.data
+}
+
+export async function resetUserPassword(userId: string, newPassword: string, temporary: boolean): Promise<void> {
+  await apiClient.post(`${SECURITY_BASE(userId)}/password/reset`, { newPassword, temporary })
+}
+
+export async function generateTempPassword(userId: string): Promise<string> {
+  const res = await apiClient.post<{ tempPassword: string }>(`${SECURITY_BASE(userId)}/password/temp-generate`, {})
+  return res.data.tempPassword
+}
+
+export async function forcePasswordChange(userId: string): Promise<void> {
+  await apiClient.post(`${SECURITY_BASE(userId)}/password/force-change`, {})
+}
+
+export async function sendPasswordResetEmail(userId: string): Promise<void> {
+  await apiClient.post(`${SECURITY_BASE(userId)}/password/send-reset-email`, {})
+}
+
+export async function lockUserAccount(userId: string): Promise<void> {
+  await apiClient.post(`${SECURITY_BASE(userId)}/lock`, {})
+}
+
+export async function unlockUserAccount(userId: string): Promise<void> {
+  await apiClient.post(`${SECURITY_BASE(userId)}/unlock`, {})
+}
+
+export async function clearBruteForce(userId: string): Promise<void> {
+  await apiClient.post(`${SECURITY_BASE(userId)}/brute-force/clear`, {})
+}
+
+export async function requireMfa(userId: string): Promise<void> {
+  await apiClient.post(`${SECURITY_BASE(userId)}/mfa/require`, {})
+}
+
+export async function removeMfa(userId: string): Promise<void> {
+  await apiClient.post(`${SECURITY_BASE(userId)}/mfa/remove`, {})
+}
+
+export async function resetMfaDevices(userId: string): Promise<void> {
+  await apiClient.post(`${SECURITY_BASE(userId)}/mfa/reset`, {})
+}
+
+export async function listUserSessions(userId: string): Promise<UserSessionInfo[]> {
+  const res = await apiClient.get<UserSessionInfo[]>(`${SECURITY_BASE(userId)}/sessions`)
+  return res.data
+}
+
+export async function terminateSession(userId: string, sessionId: string): Promise<void> {
+  await apiClient.delete(`${SECURITY_BASE(userId)}/sessions/${sessionId}`)
+}
+
+export async function terminateAllSessions(userId: string): Promise<void> {
+  await apiClient.delete(`${SECURITY_BASE(userId)}/sessions`)
+}
+
+// ── Audit Log API ───────────────────────────────────────────────────
+
+const AUDIT_BASE = '/api/platform/audit'
+
+export async function searchAuditLogs(params: AuditSearchParams): Promise<AuditSearchResult> {
+  const queryParams = new URLSearchParams()
+  if (params.startDate) queryParams.set('startDate', params.startDate)
+  if (params.endDate) queryParams.set('endDate', params.endDate)
+  if (params.tenantId) queryParams.set('tenantId', params.tenantId)
+  if (params.adminUserId) queryParams.set('adminUserId', params.adminUserId)
+  if (params.targetUserId) queryParams.set('targetUserId', params.targetUserId)
+  if (params.action) queryParams.set('action', params.action)
+  if (params.status) queryParams.set('status', params.status)
+  if (params.search) queryParams.set('search', params.search)
+  queryParams.set('page', String(params.page ?? 0))
+  queryParams.set('size', String(params.size ?? 50))
+
+  const res = await apiClient.get<AuditSearchResult>(`${AUDIT_BASE}?${queryParams.toString()}`)
+  return res.data
+}
+
+export async function getAuditActions(): Promise<string[]> {
+  const res = await apiClient.get<string[]>(`${AUDIT_BASE}/actions`)
+  return res.data
+}
+
+export function getAuditExportCsvUrl(params: AuditSearchParams): string {
+  const queryParams = new URLSearchParams()
+  if (params.startDate) queryParams.set('startDate', params.startDate)
+  if (params.endDate) queryParams.set('endDate', params.endDate)
+  if (params.tenantId) queryParams.set('tenantId', params.tenantId)
+  if (params.adminUserId) queryParams.set('adminUserId', params.adminUserId)
+  if (params.targetUserId) queryParams.set('targetUserId', params.targetUserId)
+  if (params.action) queryParams.set('action', params.action)
+  if (params.status) queryParams.set('status', params.status)
+  if (params.search) queryParams.set('search', params.search)
+  return `${AUDIT_BASE}/export/csv?${queryParams.toString()}`
+}

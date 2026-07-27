@@ -1,5 +1,5 @@
 import { NavLink } from 'react-router-dom'
-import { LayoutDashboard, Building2, Users, ChevronLeft, ChevronRight, ShieldAlert } from 'lucide-react'
+import { LayoutDashboard, Building2, Users, ChevronLeft, ChevronRight, ShieldAlert, ScrollText } from 'lucide-react'
 import { useState } from 'react'
 import { clsx } from 'clsx'
 
@@ -7,6 +7,7 @@ const navItems = [
   { icon: LayoutDashboard, label: 'Platform Dashboard', path: '/platform-admin' },
   { icon: Building2,       label: 'Tenants',            path: '/platform-admin/tenants' },
   { icon: Users,           label: 'Users',              path: '/platform-admin/users' },
+  { icon: ScrollText,      label: 'Audit Logs',         path: '/platform-admin/audit-logs' },
 ]
 
 /**

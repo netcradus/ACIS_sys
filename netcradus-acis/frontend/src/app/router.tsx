@@ -29,6 +29,7 @@ import TenantListPage          from '@/modules/platform-admin/TenantListPage'
 import TenantDetailPage        from '@/modules/platform-admin/TenantDetailPage'
 import UserListPage            from '@/modules/platform-admin/UserListPage'
 import UserDetailPage          from '@/modules/platform-admin/UserDetailPage'
+import AuditLogsPage           from '@/modules/platform-admin/AuditLogsPage'
 
 function RouteErrorFallback() {
   const error: any = useRouteError()
@@ -115,6 +116,7 @@ export const router = createBrowserRouter([
           { path: 'tenants/:id',     element: <TenantDetailPage /> },
           { path: 'users',          element: <UserListPage /> },
           { path: 'users/:id',      element: <UserDetailPage /> },
+          { path: 'audit-logs',     element: <AuditLogsPage /> },
         ],
       },
     ],

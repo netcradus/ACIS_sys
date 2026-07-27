@@ -1,13 +1,14 @@
 import { useState } from 'react'
 import { User, Lock, Eye, EyeOff, Globe, ChevronDown, ShieldCheck } from 'lucide-react'
 import keycloak from '../../lib/keycloak'
-import { useAuthStore } from '../../store/authStore'
+import { useAuthStore, useHasRole } from '../../store/authStore'
 import { Navigate } from 'react-router-dom'
 import NetcradusLogo from '../../components/NetcradusLogo'
 
 export default function LoginPage() {
   const { isAuthenticated } = useAuthStore()
   const isUserAuthenticated = isAuthenticated || Boolean(keycloak.authenticated)
+  const isPlatformAdmin = useHasRole('platform-admin')
 
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
@@ -15,8 +16,11 @@ export default function LoginPage() {
   const [isLangOpen, setIsLangOpen] = useState(false)
   const [selectedLanguage, setSelectedLanguage] = useState('English')
 
-  // If already authenticated, redirect to dashboard
+  // If already authenticated, redirect based on role
   if (isUserAuthenticated) {
+    if (isPlatformAdmin) {
+      return <Navigate to="/platform-admin" replace />
+    }
     return <Navigate to="/dashboard" replace />
   }
 

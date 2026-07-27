@@ -1,17 +1,19 @@
 import { Navigate, Outlet } from 'react-router-dom'
-import { useAuthStore }      from '@/store/authStore'
+import { useAuthStore, useHasRole } from '@/store/authStore'
 import keycloak              from '@/lib/keycloak'
 
 /**
- * Protected route wrapper.
+ * Protected route wrapper for the TENANT dashboard.
  *
  * Flow:
  * 1. While Keycloak is initializing → show full-page loading spinner
  * 2. If not authenticated → navigate to /login (branded page, not direct keycloak.login())
- * 3. If authenticated → render child routes via <Outlet />
+ * 3. If user is a platform-admin (no tenant context) → redirect to /platform-admin
+ * 4. If authenticated tenant user → render child routes via <Outlet />
  */
 export default function ProtectedRoute() {
   const { keycloakReady, isAuthenticated } = useAuthStore()
+  const isPlatformAdmin = useHasRole('platform-admin')
 
   if (!keycloakReady) {
     return <LoadingScreen />
@@ -21,6 +23,11 @@ export default function ProtectedRoute() {
 
   if (!isUserAuthenticated) {
     return <Navigate to="/login" replace />
+  }
+
+  // Platform admins don't have a tenant_id — redirect them to their own console
+  if (isPlatformAdmin) {
+    return <Navigate to="/platform-admin" replace />
   }
 
   return <Outlet />
