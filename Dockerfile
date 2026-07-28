@@ -2,8 +2,8 @@
 FROM node:18-alpine AS builder
 
 WORKDIR /app
-COPY netcradus-acis/frontend/package*.json ./netcradus-acis/frontend/
-RUN cd netcradus-acis/frontend && npm ci
+COPY netcradus-acis/frontend/package.json ./netcradus-acis/frontend/
+RUN cd netcradus-acis/frontend && npm install
 
 COPY netcradus-acis/frontend ./netcradus-acis/frontend
 RUN cd netcradus-acis/frontend && npm run build
