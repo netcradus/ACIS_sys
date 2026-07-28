@@ -178,7 +178,7 @@
     },
     {
       "name": "roles",
-      "description": "Realm and client role claims (realm_access.roles, resource_access.*.roles) - required for any role-based check (e.g. platform-admin) to see role data in the token at all, and for Keycloak's own Admin REST API to honor a service account's granted client roles (e.g. acis-backend's manage-users/view-users).",
+      "description": "Realm and client role claims - required for role-based checks and service accounts.",
       "protocol": "openid-connect",
       "attributes": {
         "include.in.token.scope": "false",
