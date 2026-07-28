@@ -1,6 +1,15 @@
-// Polyfill for sockjs-client which expects 'global' to be defined
-if (typeof (window as any).global === 'undefined') {
-  (window as any).global = window
+// Polyfills for libraries that expect Node.js globals (sockjs-client, etc.)
+if (typeof globalThis.global === 'undefined') {
+  (globalThis as any).global = globalThis
+}
+// Ensure Request/Response are available on global for any library that
+// destructures them from the global object (e.g. node-fetch polyfills
+// bundled inside keycloak-js).
+if (typeof globalThis.Request === 'undefined' && typeof Request !== 'undefined') {
+  (globalThis as any).Request = Request;
+  (globalThis as any).Response = Response;
+  (globalThis as any).Headers = Headers;
+  (globalThis as any).fetch = fetch;
 }
 
 

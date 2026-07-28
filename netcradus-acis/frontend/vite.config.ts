@@ -6,11 +6,22 @@ import path from 'path'
 export default defineConfig({
   plugins: [react()],
   define: {
-    global: 'window',
+    // Only polyfill 'global' as a standalone identifier — use globalThis
+    // which is the standard cross-environment global object reference.
+    // This avoids breaking library code that destructures from global.
+    global: 'globalThis',
   },
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
+    },
+  },
+  build: {
+    // Ensure SPA fallback works — single index.html entry
+    rollupOptions: {
+      output: {
+        manualChunks: undefined,
+      },
     },
   },
 

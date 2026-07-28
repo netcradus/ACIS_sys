@@ -9,13 +9,20 @@ static_sites:
     source_dir: frontend
     build_command: npm install && npm run build
     output_dir: dist
+    catchall_document: index.html
     routes:
       - path: /
     environment_slug: node-js
     envs:
-      - key: VITE_API_GATEWAY_URL
-        scope: RUN_AND_BUILD_TIME
-        value: ${backend-gateway.PUBLIC_URL}
+      - key: VITE_KEYCLOAK_URL
+        scope: BUILD_TIME
+        value: ${backend-gateway.PUBLIC_URL}/../
+      - key: VITE_KEYCLOAK_REALM
+        scope: BUILD_TIME
+        value: acis
+      - key: VITE_KEYCLOAK_CLIENT_ID
+        scope: BUILD_TIME
+        value: acis-frontend
 
 # 2. AI Intelligence Service (Python FastAPI)
 services:

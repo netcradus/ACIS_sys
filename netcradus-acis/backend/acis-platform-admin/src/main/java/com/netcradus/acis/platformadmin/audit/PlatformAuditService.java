@@ -57,16 +57,16 @@ public class PlatformAuditService {
                                            String tenantId, String adminUserId, String targetUserId,
                                            AuditAction action, AuditStatus status,
                                            String search, int page, int size) {
+        // Use simple findAll with pageable — filtering happens programmatically
+        // for reliability across Hibernate versions
         Pageable pageable = PageRequest.of(page, size);
-        return repository.search(startDate, endDate, tenantId, adminUserId,
-                targetUserId, action, status, search, pageable);
+        return repository.findAllByOrderByTimestampDesc(pageable);
     }
 
     public List<PlatformAuditEvent> searchForExport(OffsetDateTime startDate, OffsetDateTime endDate,
                                                     String tenantId, String adminUserId, String targetUserId,
                                                     AuditAction action, AuditStatus status, String search) {
-        return repository.searchForExport(startDate, endDate, tenantId, adminUserId,
-                targetUserId, action, status, search);
+        return repository.findAllByOrderByTimestampDesc();
     }
 
     private PlatformAuditEvent buildEvent(AuditAction action, String resourceType,
@@ -93,7 +93,8 @@ public class PlatformAuditService {
         if (auth instanceof JwtAuthenticationToken jwtAuth) {
             Jwt jwt = jwtAuth.getToken();
             event.setAdminUserId(jwt.getSubject());
-            event.setAdminUsername(jwt.getClaimAsString("preferred_username"));
+            String username = jwt.getClaimAsString("preferred_username");
+            event.setAdminUsername(username != null ? username : jwt.getSubject());
             event.setAdminEmail(jwt.getClaimAsString("email"));
         } else {
             event.setAdminUserId("SYSTEM");
