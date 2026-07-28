@@ -1,16 +1,5 @@
-// Polyfills for libraries that expect Node.js globals (sockjs-client, etc.)
-if (typeof globalThis.global === 'undefined') {
-  (globalThis as any).global = globalThis
-}
-// Ensure Request/Response are available on global for any library that
-// destructures them from the global object (e.g. node-fetch polyfills
-// bundled inside keycloak-js).
-if (typeof globalThis.Request === 'undefined' && typeof Request !== 'undefined') {
-  (globalThis as any).Request = Request;
-  (globalThis as any).Response = Response;
-  (globalThis as any).Headers = Headers;
-  (globalThis as any).fetch = fetch;
-}
+// global/process polyfills are handled by the inline script in index.html
+// (must run synchronously before module evaluation)
 
 
 import React from 'react'

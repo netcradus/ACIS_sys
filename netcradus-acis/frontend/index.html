@@ -11,6 +11,13 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
   </head>
   <body>
+    <script>
+      // Polyfill: sockjs-client and some transitive deps expect a Node.js-like
+      // 'global' object. This must run synchronously BEFORE any ES module loads.
+      var g = typeof globalThis !== 'undefined' ? globalThis : typeof window !== 'undefined' ? window : typeof self !== 'undefined' ? self : {};
+      if (!g.global) g.global = g;
+      if (!g.process) g.process = { env: {}, version: '', platform: 'browser' };
+    </script>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

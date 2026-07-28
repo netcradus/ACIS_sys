@@ -1,14 +1,12 @@
 import { Client, StompSubscription, IMessage } from '@stomp/stompjs'
-import SockJS from 'sockjs-client'
 
 type MessageCallback = (message: IMessage) => void
 
 /**
  * Lazy-connect STOMP WebSocket singleton.
  *
- * IMPORTANT: connect() is called ONLY on the first subscribe() call.
- * It is NEVER called on module import or app initialization.
- * This prevents WebSocket connection errors in Phase 1 where no WS server exists.
+ * Uses native WebSocket (no sockjs-client) for production compatibility.
+ * @stomp/stompjs v7+ supports native WebSocket directly.
  */
 
 let stompClient: Client | null = null
@@ -16,11 +14,14 @@ let connectPromise: Promise<void> | null = null
 
 let currentEndpoint = '/ws'
 
+function buildWsUrl(endpoint: string): string {
+  const proto = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
+  return `${proto}//${window.location.host}${endpoint}`
+}
+
 function createClient(endpoint: string): Client {
   return new Client({
-    webSocketFactory: () =>
-      new SockJS(endpoint),
-
+    brokerURL: buildWsUrl(endpoint),
     reconnectDelay: 5000,
     onConnect: () => {
       console.info('[WS] STOMP connected')
