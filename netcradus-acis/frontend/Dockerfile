@@ -3,7 +3,7 @@
 FROM node:18-alpine AS build
 WORKDIR /app
 COPY frontend/package*.json ./
-RUN npm ci
+RUN npm install
 COPY frontend/ .
 
 # Vite inlines VITE_* variables into the static bundle at BUILD time, so they
