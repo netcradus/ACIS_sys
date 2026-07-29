@@ -26,6 +26,7 @@ COPY backend/acis-alerts/pom.xml ./acis-alerts/pom.xml
 COPY backend/acis-correlation/pom.xml ./acis-correlation/pom.xml
 COPY backend/acis-ingestion/pom.xml ./acis-ingestion/pom.xml
 COPY backend/acis-soar/pom.xml ./acis-soar/pom.xml
+COPY backend/acis-platform-admin/pom.xml ./acis-platform-admin/pom.xml
 
 RUN mvn -q -B dependency:go-offline -pl ${SERVICE} -am || true
 
