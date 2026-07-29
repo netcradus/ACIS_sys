@@ -20,7 +20,8 @@ $services = @(
     @{ Name = "acis-threat-service"; Jar = "acis-threat-service\target\acis-threat-service-1.0.0-SNAPSHOT.jar" },
     @{ Name = "acis-correlation"; Jar = "acis-correlation\target\acis-correlation-1.0.0-SNAPSHOT.jar" },
     @{ Name = "acis-ingestion"; Jar = "acis-ingestion\target\acis-ingestion-1.0.0-SNAPSHOT.jar" },
-    @{ Name = "acis-soar"; Jar = "acis-soar\target\acis-soar-1.0.0-SNAPSHOT.jar" }
+    @{ Name = "acis-soar"; Jar = "acis-soar\target\acis-soar-1.0.0-SNAPSHOT.jar" },
+    @{ Name = "acis-platform-admin"; Jar = "acis-platform-admin\target\acis-platform-admin-1.0.0-SNAPSHOT.jar" }
 )
 
 foreach ($s in $services) {
