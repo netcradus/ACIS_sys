@@ -231,7 +231,7 @@
     },
     {
       "name": "email",
-      "description": "Email claim - used by TenantContextFilter to populate TenantContext.userEmail for audit logging.",
+      "description": "Email + username claims - used by TenantContextFilter to populate TenantContext.userEmail, and by PlatformAuditService to record a human-readable admin identity (instead of the raw subject UUID) for audit logging.",
       "protocol": "openid-connect",
       "attributes": {
         "include.in.token.scope": "true",
@@ -250,6 +250,21 @@
             "id.token.claim": "true",
             "access.token.claim": "true",
             "userinfo.token.claim": "true"
+          }
+        },
+        {
+          "name": "username-mapper",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-property-mapper",
+          "consentRequired": false,
+          "config": {
+            "user.attribute": "username",
+            "claim.name": "preferred_username",
+            "jsonType.label": "String",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "userinfo.token.claim": "true",
+            "introspection.token.claim": "true"
           }
         }
       ]

@@ -117,8 +117,7 @@ public class PlatformAuditService {
         if (auth instanceof JwtAuthenticationToken jwtAuth) {
             Jwt jwt = jwtAuth.getToken();
             event.setAdminUserId(jwt.getSubject());
-            String username = jwt.getClaimAsString("preferred_username");
-            event.setAdminUsername(username != null ? username : jwt.getSubject());
+            event.setAdminUsername(resolveAdminUsername(jwt));
             event.setAdminEmail(jwt.getClaimAsString("email"));
         } else {
             event.setAdminUserId("SYSTEM");
@@ -139,5 +138,28 @@ public class PlatformAuditService {
             log.debug("Could not extract request metadata: {}", e.getMessage());
         }
         return event;
+    }
+
+    /**
+     * Resolves a human-readable admin identity from the JWT. preferred_username
+     * is the primary source (populated by the "email" client scope's
+     * username-mapper — see realm-acis.json/apply-audit-username-mapper.sh);
+     * email is a real, already-present fallback for any token minted before
+     * that mapper was deployed or by a client that never picks up the scope.
+     * The raw subject UUID is the last resort — never fabricated, always an
+     * actual, already-present JWT value. Historical audit rows written before
+     * this fix keep whatever was resolved at the time (immutable, write-once)
+     * and are unaffected by this method.
+     */
+    static String resolveAdminUsername(Jwt jwt) {
+        String preferredUsername = jwt.getClaimAsString("preferred_username");
+        if (preferredUsername != null && !preferredUsername.isBlank()) {
+            return preferredUsername;
+        }
+        String email = jwt.getClaimAsString("email");
+        if (email != null && !email.isBlank()) {
+            return email;
+        }
+        return jwt.getSubject();
     }
 }
