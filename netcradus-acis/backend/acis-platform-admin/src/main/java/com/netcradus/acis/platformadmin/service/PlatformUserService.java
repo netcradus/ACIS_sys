@@ -7,6 +7,7 @@ import com.netcradus.acis.platformadmin.dto.PlatformUserSummary;
 import com.netcradus.acis.platformadmin.exception.CompanyAdminConflictException;
 import com.netcradus.acis.platformadmin.model.Tenant;
 import com.netcradus.acis.platformadmin.repository.TenantRepository;
+import jakarta.annotation.PreDestroy;
 import jakarta.ws.rs.core.Response;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -30,6 +31,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 @Service
@@ -46,6 +48,7 @@ public class PlatformUserService {
     private final Keycloak keycloak;
     private final TenantRepository tenantRepository;
     private final PlatformAuditService auditService;
+    private final PlatformAdminGuard platformAdminGuard;
 
     @Value("${acis.keycloak.realm}")
     private String realmName;
@@ -55,6 +58,19 @@ public class PlatformUserService {
     // cross-instance constraint (a small DB table) is not built here.
     private final Map<String, Object> tenantLocks = new ConcurrentHashMap<>();
     private final ExecutorService roleFetchPool = Executors.newFixedThreadPool(16);
+
+    @PreDestroy
+    void shutdownRoleFetchPool() {
+        roleFetchPool.shutdown();
+        try {
+            if (!roleFetchPool.awaitTermination(5, TimeUnit.SECONDS)) {
+                roleFetchPool.shutdownNow();
+            }
+        } catch (InterruptedException e) {
+            roleFetchPool.shutdownNow();
+            Thread.currentThread().interrupt();
+        }
+    }
 
     private RealmResource realm() {
         return keycloak.realm(realmName);
@@ -76,6 +92,14 @@ public class PlatformUserService {
                 .collect(Collectors.toList());
 
         return futures.stream().map(CompletableFuture::join).collect(Collectors.toList());
+    }
+
+    /** Used by TenantAdminController's delete guard — reuses the existing
+     * paginated Keycloak user fetch rather than duplicating it there. */
+    public long countUsersInTenant(String tenantId) {
+        return fetchAllUsers().stream()
+                .filter(u -> tenantId.equals(firstAttribute(u, TENANT_ID_ATTRIBUTE)))
+                .count();
     }
 
     private List<UserRepresentation> fetchAllUsers() {
@@ -118,8 +142,9 @@ public class PlatformUserService {
     }
 
     public PlatformUserDetail getUserDetail(String userId) {
-        UserResource userResource = resolveUserResource(userId);
-        UserRepresentation user = userResource.toRepresentation();
+        ResolvedUser resolved = resolveUser(userId);
+        UserResource userResource = resolved.resource();
+        UserRepresentation user = resolved.representation();
 
         List<String> roles = userResource.roles().realmLevel().listAll().stream()
                 .map(RoleRepresentation::getName)
@@ -209,8 +234,9 @@ public class PlatformUserService {
     }
 
     public void updateProfile(String userId, UpdateUserRequest req) {
-        UserResource userResource = resolveUserResource(userId);
-        UserRepresentation user = userResource.toRepresentation();
+        ResolvedUser resolved = resolveUser(userId);
+        UserResource userResource = resolved.resource();
+        UserRepresentation user = resolved.representation();
         String tenantId = firstAttribute(user, TENANT_ID_ATTRIBUTE);
         String previousValue = String.format("username=%s, email=%s, firstName=%s, lastName=%s",
                 user.getUsername(), user.getEmail(), user.getFirstName(), user.getLastName());
@@ -228,7 +254,8 @@ public class PlatformUserService {
     }
 
     public void deleteUser(String userId) {
-        UserRepresentation user = resolveUserResource(userId).toRepresentation();
+        platformAdminGuard.assertNotLastPlatformAdmin(userId, "delete");
+        UserRepresentation user = resolveUser(userId).representation();
         String tenantId = firstAttribute(user, TENANT_ID_ATTRIBUTE);
 
         try (Response response = realm().users().delete(userId)) {
@@ -243,8 +270,12 @@ public class PlatformUserService {
     }
 
     public void setEnabled(String userId, boolean enabled) {
-        UserResource userResource = resolveUserResource(userId);
-        UserRepresentation user = userResource.toRepresentation();
+        if (!enabled) {
+            platformAdminGuard.assertNotLastPlatformAdmin(userId, "deactivate");
+        }
+        ResolvedUser resolved = resolveUser(userId);
+        UserResource userResource = resolved.resource();
+        UserRepresentation user = resolved.representation();
         user.setEnabled(enabled);
         userResource.update(user);
 
@@ -257,8 +288,9 @@ public class PlatformUserService {
         if (tenantRepository.findById(safeUuid(newTenantId)).isEmpty()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Unknown target tenant: " + newTenantId);
         }
-        UserResource userResource = resolveUserResource(userId);
-        UserRepresentation user = userResource.toRepresentation();
+        ResolvedUser resolved = resolveUser(userId);
+        UserResource userResource = resolved.resource();
+        UserRepresentation user = resolved.representation();
         String previousTenantId = firstAttribute(user, TENANT_ID_ATTRIBUTE);
 
         List<String> currentRoles = userResource.roles().realmLevel().listAll().stream()
@@ -283,8 +315,9 @@ public class PlatformUserService {
     }
 
     public void assignRole(String userId, String roleName) {
-        UserResource userResource = resolveUserResource(userId);
-        UserRepresentation user = userResource.toRepresentation();
+        ResolvedUser resolved = resolveUser(userId);
+        UserResource userResource = resolved.resource();
+        UserRepresentation user = resolved.representation();
         String tenantId = firstAttribute(user, TENANT_ID_ATTRIBUTE);
 
         if (COMPANY_ADMIN_ROLE.equals(roleName)) {
@@ -322,8 +355,12 @@ public class PlatformUserService {
     }
 
     public void removeRole(String userId, String roleName) {
-        UserResource userResource = resolveUserResource(userId);
-        UserRepresentation user = userResource.toRepresentation();
+        if (PlatformAdminGuard.PLATFORM_ADMIN_ROLE.equals(roleName)) {
+            platformAdminGuard.assertNotLastPlatformAdmin(userId, "remove the Platform Admin role from");
+        }
+        ResolvedUser resolved = resolveUser(userId);
+        UserResource userResource = resolved.resource();
+        UserRepresentation user = resolved.representation();
         String tenantId = firstAttribute(user, TENANT_ID_ATTRIBUTE);
 
         RoleRepresentation role = realm().roles().get(roleName).toRepresentation();
@@ -334,13 +371,23 @@ public class PlatformUserService {
     }
 
     private UserResource resolveUserResource(String userId) {
+        return resolveUser(userId).resource();
+    }
+
+    private record ResolvedUser(UserResource resource, UserRepresentation representation) {
+    }
+
+    /** Fetches a user's resource + representation together — a single Keycloak
+     * round-trip instead of the two separate toRepresentation() calls a
+     * resolve-then-refetch pattern would otherwise require. */
+    private ResolvedUser resolveUser(String userId) {
         UserResource resource = realm().users().get(userId);
         try {
-            resource.toRepresentation();
+            UserRepresentation representation = resource.toRepresentation();
+            return new ResolvedUser(resource, representation);
         } catch (jakarta.ws.rs.NotFoundException e) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Unknown user: " + userId);
         }
-        return resource;
     }
 
     private String tenantNameOrNull(String tenantId) {

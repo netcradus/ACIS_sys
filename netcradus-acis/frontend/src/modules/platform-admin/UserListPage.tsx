@@ -386,6 +386,7 @@ function CreateUserModal({
             <label className="text-neutral-500 font-bold uppercase tracking-wider block">Temporary Password *</label>
             <input
               type="text"
+              autoComplete="new-password"
               value={tempPassword}
               onChange={(e) => setTempPassword(e.target.value)}
               className="w-full bg-[#050505] border border-neutral-800 rounded-lg px-3 py-2 text-white placeholder:text-neutral-700 focus:outline-none focus:border-[#7C3AED]/50"

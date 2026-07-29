@@ -12,6 +12,8 @@ import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.Setter;
+import org.hibernate.annotations.Fetch;
+import org.hibernate.annotations.FetchMode;
 
 import java.time.OffsetDateTime;
 import java.util.HashSet;
@@ -56,6 +58,10 @@ public class Tenant {
     @CollectionTable(name = "tenant_enabled_modules", joinColumns = @jakarta.persistence.JoinColumn(name = "tenant_id"))
     @Enumerated(EnumType.STRING)
     @Column(name = "module")
+    // EAGER's default fetch mode is SELECT (one extra query per row) — SUBSELECT
+    // batches it into a single follow-up query for the whole result set instead,
+    // avoiding an N+1 on listTenants()/findAll() as tenant count grows.
+    @Fetch(FetchMode.SUBSELECT)
     private Set<TenantModule> enabledModules = new HashSet<>();
 
     private String contactEmail;

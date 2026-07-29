@@ -43,6 +43,7 @@ public class UserSecurityService {
 
     private final Keycloak keycloak;
     private final PlatformAuditService auditService;
+    private final PlatformAdminGuard platformAdminGuard;
 
     @Value("${acis.keycloak.realm}")
     private String realmName;
@@ -51,14 +52,24 @@ public class UserSecurityService {
         return keycloak.realm(realmName);
     }
 
-    private UserResource resolveUser(String userId) {
+    private UserResource resolveUserResource(String userId) {
+        return resolveUser(userId).resource();
+    }
+
+    private record ResolvedUser(UserResource resource, UserRepresentation representation) {
+    }
+
+    /** Fetches a user's resource + representation together — a single Keycloak
+     * round-trip instead of the two separate toRepresentation() calls a
+     * resolve-then-refetch pattern would otherwise require. */
+    private ResolvedUser resolveUser(String userId) {
         UserResource resource = realm().users().get(userId);
         try {
-            resource.toRepresentation();
+            UserRepresentation representation = resource.toRepresentation();
+            return new ResolvedUser(resource, representation);
         } catch (jakarta.ws.rs.NotFoundException e) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Unknown user: " + userId);
         }
-        return resource;
     }
 
     // ═══════════════════════════════════════════════════════════════════
@@ -66,8 +77,9 @@ public class UserSecurityService {
     // ═══════════════════════════════════════════════════════════════════
 
     public UserSecurityInfo getSecurityInfo(String userId) {
-        UserResource userResource = resolveUser(userId);
-        UserRepresentation user = userResource.toRepresentation();
+        ResolvedUser resolved = resolveUser(userId);
+        UserResource userResource = resolved.resource();
+        UserRepresentation user = resolved.representation();
 
         Map<String, Object> bruteForce = realm().attackDetection()
                 .bruteForceUserStatus(userId);
@@ -132,8 +144,9 @@ public class UserSecurityService {
     // ═══════════════════════════════════════════════════════════════════
 
     public void resetPassword(String userId, String newPassword, boolean temporary) {
-        UserResource userResource = resolveUser(userId);
-        UserRepresentation user = userResource.toRepresentation();
+        ResolvedUser resolved = resolveUser(userId);
+        UserResource userResource = resolved.resource();
+        UserRepresentation user = resolved.representation();
 
         CredentialRepresentation cred = new CredentialRepresentation();
         cred.setType(CredentialRepresentation.PASSWORD);
@@ -148,8 +161,9 @@ public class UserSecurityService {
     }
 
     public String generateTempPassword(String userId) {
-        UserResource userResource = resolveUser(userId);
-        UserRepresentation user = userResource.toRepresentation();
+        ResolvedUser resolved = resolveUser(userId);
+        UserResource userResource = resolved.resource();
+        UserRepresentation user = resolved.representation();
 
         String tempPassword = generateSecurePassword(16);
         CredentialRepresentation cred = new CredentialRepresentation();
@@ -165,8 +179,9 @@ public class UserSecurityService {
     }
 
     public void forcePasswordChangeOnNextLogin(String userId) {
-        UserResource userResource = resolveUser(userId);
-        UserRepresentation user = userResource.toRepresentation();
+        ResolvedUser resolved = resolveUser(userId);
+        UserResource userResource = resolved.resource();
+        UserRepresentation user = resolved.representation();
 
         List<String> actions = user.getRequiredActions() != null
                 ? new java.util.ArrayList<>(user.getRequiredActions())
@@ -183,8 +198,9 @@ public class UserSecurityService {
     }
 
     public void sendPasswordResetEmail(String userId) {
-        UserResource userResource = resolveUser(userId);
-        UserRepresentation user = userResource.toRepresentation();
+        ResolvedUser resolved = resolveUser(userId);
+        UserResource userResource = resolved.resource();
+        UserRepresentation user = resolved.representation();
         try {
             userResource.executeActionsEmail(List.of("UPDATE_PASSWORD"));
             auditService.record(AuditAction.PASSWORD_RESET_EMAIL_SENT, RESOURCE_USER,
@@ -207,8 +223,10 @@ public class UserSecurityService {
     // ═══════════════════════════════════════════════════════════════════
 
     public void lockAccount(String userId) {
-        UserResource userResource = resolveUser(userId);
-        UserRepresentation user = userResource.toRepresentation();
+        platformAdminGuard.assertNotLastPlatformAdmin(userId, "lock");
+        ResolvedUser resolved = resolveUser(userId);
+        UserResource userResource = resolved.resource();
+        UserRepresentation user = resolved.representation();
         user.setEnabled(false);
         userResource.update(user);
 
@@ -218,8 +236,9 @@ public class UserSecurityService {
     }
 
     public void unlockAccount(String userId) {
-        UserResource userResource = resolveUser(userId);
-        UserRepresentation user = userResource.toRepresentation();
+        ResolvedUser resolved = resolveUser(userId);
+        UserResource userResource = resolved.resource();
+        UserRepresentation user = resolved.representation();
         user.setEnabled(true);
         userResource.update(user);
 
@@ -232,8 +251,7 @@ public class UserSecurityService {
     }
 
     public void clearBruteForceStatus(String userId) {
-        UserResource userResource = resolveUser(userId);
-        UserRepresentation user = userResource.toRepresentation();
+        UserRepresentation user = resolveUser(userId).representation();
         realm().attackDetection().clearBruteForceForUser(userId);
 
         auditService.record(AuditAction.BRUTE_FORCE_CLEARED, RESOURCE_USER,
@@ -246,8 +264,9 @@ public class UserSecurityService {
     // ═══════════════════════════════════════════════════════════════════
 
     public void requireMfa(String userId) {
-        UserResource userResource = resolveUser(userId);
-        UserRepresentation user = userResource.toRepresentation();
+        ResolvedUser resolved = resolveUser(userId);
+        UserResource userResource = resolved.resource();
+        UserRepresentation user = resolved.representation();
 
         List<String> actions = user.getRequiredActions() != null
                 ? new java.util.ArrayList<>(user.getRequiredActions())
@@ -264,8 +283,9 @@ public class UserSecurityService {
     }
 
     public void removeMfa(String userId) {
-        UserResource userResource = resolveUser(userId);
-        UserRepresentation user = userResource.toRepresentation();
+        ResolvedUser resolved = resolveUser(userId);
+        UserResource userResource = resolved.resource();
+        UserRepresentation user = resolved.representation();
 
         // Remove all OTP credentials
         List<org.keycloak.representations.idm.CredentialRepresentation> creds =
@@ -290,8 +310,9 @@ public class UserSecurityService {
     }
 
     public void resetMfaDevices(String userId) {
-        UserResource userResource = resolveUser(userId);
-        UserRepresentation user = userResource.toRepresentation();
+        ResolvedUser resolved = resolveUser(userId);
+        UserResource userResource = resolved.resource();
+        UserRepresentation user = resolved.representation();
 
         // Remove all OTP credentials
         List<org.keycloak.representations.idm.CredentialRepresentation> creds =
@@ -322,8 +343,8 @@ public class UserSecurityService {
     // ═══════════════════════════════════════════════════════════════════
 
     public List<UserSessionInfo> listSessions(String userId) {
-        resolveUser(userId); // validates user exists
-        List<UserSessionRepresentation> sessions = realm().users().get(userId).getUserSessions();
+        UserResource userResource = resolveUserResource(userId);
+        List<UserSessionRepresentation> sessions = userResource.getUserSessions();
         return sessions.stream()
                 .map(s -> new UserSessionInfo(
                         s.getId(),
@@ -340,8 +361,7 @@ public class UserSecurityService {
     }
 
     public void terminateSession(String userId, String sessionId) {
-        UserResource userResource = resolveUser(userId);
-        UserRepresentation user = userResource.toRepresentation();
+        UserRepresentation user = resolveUser(userId).representation();
 
         realm().deleteSession(sessionId, false);
 
@@ -351,8 +371,9 @@ public class UserSecurityService {
     }
 
     public void terminateAllSessions(String userId) {
-        UserResource userResource = resolveUser(userId);
-        UserRepresentation user = userResource.toRepresentation();
+        ResolvedUser resolved = resolveUser(userId);
+        UserResource userResource = resolved.resource();
+        UserRepresentation user = resolved.representation();
 
         userResource.logout();
 
@@ -373,7 +394,7 @@ public class UserSecurityService {
      * "we never asked Keycloak to record any."
      */
     public List<LoginEventInfo> getLoginEvents(String userId, int limit) {
-        resolveUser(userId); // validates user exists
+        resolveUserResource(userId); // validates user exists
 
         boolean eventsEnabled = Boolean.TRUE.equals(realm().getRealmEventsConfig().isEventsEnabled());
         if (!eventsEnabled) {

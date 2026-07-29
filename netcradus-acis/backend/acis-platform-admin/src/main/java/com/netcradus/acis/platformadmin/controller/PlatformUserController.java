@@ -4,6 +4,7 @@ import com.netcradus.acis.common.dto.ApiResponse;
 import com.netcradus.acis.platformadmin.dto.PlatformUserDetail;
 import com.netcradus.acis.platformadmin.dto.PlatformUserSummary;
 import com.netcradus.acis.platformadmin.exception.CompanyAdminConflictException;
+import com.netcradus.acis.platformadmin.exception.LastPlatformAdminException;
 import com.netcradus.acis.platformadmin.service.PlatformUserService;
 import jakarta.ws.rs.NotFoundException;
 import lombok.RequiredArgsConstructor;
@@ -114,5 +115,11 @@ public class PlatformUserController {
     public ResponseEntity<ApiResponse<Void>> handleKeycloakNotFound(NotFoundException ex) {
         return ResponseEntity.status(HttpStatus.NOT_FOUND)
                 .body(ApiResponse.failure("ERR_NOT_FOUND", "The requested identity resource was not found."));
+    }
+
+    @ExceptionHandler(LastPlatformAdminException.class)
+    public ResponseEntity<ApiResponse<Void>> handleLastPlatformAdmin(LastPlatformAdminException ex) {
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(ApiResponse.failure("ERR_LAST_PLATFORM_ADMIN", ex.getMessage()));
     }
 }

@@ -66,6 +66,21 @@ apiClient.interceptors.response.use(
     if (error.response?.status === 401) {
       keycloak.login()
     }
+
+    // Axios only runs the fulfilled interceptor above for 2xx responses —
+    // any non-2xx status (409 Conflict, 404 Not Found, etc.) lands here
+    // instead, with error.message stuck at Axios's generic "Request failed
+    // with status code NNN". Backend ApiResponse failure envelopes
+    // ({success:false, error:{code,message}}) carry a real, specific message
+    // in the body regardless of HTTP status — unwrap it the same way the
+    // fulfilled branch does, so callers' `e?.message` (toasts, inline field
+    // errors) show the actual reason instead of a generic status string.
+    const data = error.response?.data
+    if (data && typeof data === 'object' && data.success === false && data.error?.message) {
+      error.message = data.error.message
+      error.apiError = data.error
+    }
+
     return Promise.reject(error)
   }
 )

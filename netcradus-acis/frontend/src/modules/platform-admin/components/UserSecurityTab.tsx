@@ -197,6 +197,7 @@ export default function UserSecurityTab({ userId }: Props) {
             <label className="text-[11px] text-neutral-500 font-bold uppercase tracking-wider block">Set New Password</label>
             <input
               type="text"
+              autoComplete="new-password"
               value={newPassword}
               onChange={(e) => setNewPassword(e.target.value)}
               placeholder="Enter new password..."

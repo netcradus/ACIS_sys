@@ -48,7 +48,10 @@ export default function AuditLogsPage() {
     action: actionFilter || undefined,
     status: statusFilter || undefined,
     startDate: startDate ? new Date(startDate).toISOString() : undefined,
-    endDate: endDate ? new Date(endDate).toISOString() : undefined,
+    // End-of-day, not midnight — a date-only value parses to 00:00:00.000Z,
+    // which would exclude nearly all of the selected day's real events from
+    // a "timestamp <= endDate" filter.
+    endDate: endDate ? new Date(`${endDate}T23:59:59.999Z`).toISOString() : undefined,
     page,
     size,
   }), [search, tenantFilter, actionFilter, statusFilter, startDate, endDate, page, size])

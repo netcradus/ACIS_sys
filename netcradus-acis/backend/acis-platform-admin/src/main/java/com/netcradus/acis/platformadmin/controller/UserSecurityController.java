@@ -4,8 +4,10 @@ import com.netcradus.acis.common.dto.ApiResponse;
 import com.netcradus.acis.platformadmin.dto.LoginEventInfo;
 import com.netcradus.acis.platformadmin.dto.UserSecurityInfo;
 import com.netcradus.acis.platformadmin.dto.UserSessionInfo;
+import com.netcradus.acis.platformadmin.exception.LastPlatformAdminException;
 import com.netcradus.acis.platformadmin.service.UserSecurityService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -143,5 +145,11 @@ public class UserSecurityController {
             @PathVariable String userId,
             @RequestParam(defaultValue = "50") int limit) {
         return ApiResponse.success(userSecurityService.getLoginEvents(userId, Math.min(limit, 200)));
+    }
+
+    @ExceptionHandler(LastPlatformAdminException.class)
+    public ResponseEntity<ApiResponse<Void>> handleLastPlatformAdmin(LastPlatformAdminException ex) {
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(ApiResponse.failure("ERR_LAST_PLATFORM_ADMIN", ex.getMessage()));
     }
 }
