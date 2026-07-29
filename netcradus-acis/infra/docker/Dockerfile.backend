@@ -9,13 +9,9 @@
 
 # ---- Stage 1: build the single target module + its acis-common dependency ----
 FROM maven:3.9-eclipse-temurin-21 AS builder
-ARG SERVICE
 WORKDIR /build
 
-# Copy every module's pom.xml first (Maven's reactor needs all declared
-# <module> entries to resolve, even though only $SERVICE + acis-common are
-# actually compiled) — this also lets Docker cache the dependency layer
-# separately from source changes.
+# Copy every module's pom.xml first
 COPY backend/pom.xml ./pom.xml
 COPY backend/acis-common/pom.xml ./acis-common/pom.xml
 COPY backend/acis-gateway/pom.xml ./acis-gateway/pom.xml
@@ -28,8 +24,11 @@ COPY backend/acis-ingestion/pom.xml ./acis-ingestion/pom.xml
 COPY backend/acis-soar/pom.xml ./acis-soar/pom.xml
 COPY backend/acis-platform-admin/pom.xml ./acis-platform-admin/pom.xml
 
-RUN mvn -q -B dependency:go-offline -pl ${SERVICE} -am || true
+# Run go-offline on the parent project (no SERVICE arg yet, so Docker fully caches this layer)
+RUN mvn -q -B dependency:go-offline || true
 
+# Now bring in the SERVICE arg and copy the module sources
+ARG SERVICE
 COPY backend/acis-common/src ./acis-common/src
 COPY backend/${SERVICE}/src ./${SERVICE}/src
 
