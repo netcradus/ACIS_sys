@@ -20,7 +20,7 @@ server {
     # onward to the individual backend microservices.
     location /api/ {
         set $upstream_gateway ${GATEWAY_UPSTREAM};
-        proxy_pass $upstream_gateway/api/;
+        proxy_pass $upstream_gateway;
         proxy_http_version 1.1;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
@@ -31,7 +31,7 @@ server {
     # STOMP-over-SockJS WebSocket endpoints — same gateway, upgraded connection.
     location /ws/ {
         set $upstream_gateway ${GATEWAY_UPSTREAM};
-        proxy_pass $upstream_gateway/ws/;
+        proxy_pass $upstream_gateway;
         proxy_http_version 1.1;
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection "upgrade";
