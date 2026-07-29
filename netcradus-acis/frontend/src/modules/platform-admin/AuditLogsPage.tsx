@@ -1,12 +1,13 @@
 import { useEffect, useMemo, useState, useCallback } from 'react'
 import { AgGridReact } from 'ag-grid-react'
 import { ColDef } from 'ag-grid-community'
-import { Search, Download, X, Loader2, FileText, RefreshCw } from 'lucide-react'
+import { Search, Download, X, Loader2, FileText, RefreshCw, FileSpreadsheet } from 'lucide-react'
 import { clsx } from 'clsx'
 import {
   searchAuditLogs,
   getAuditActions,
   getAuditExportCsvUrl,
+  getAuditExportXlsxUrl,
   listTenants,
   AuditEvent,
   AuditSearchParams,
@@ -67,22 +68,22 @@ export default function AuditLogsPage() {
 
   useEffect(() => { fetchLogs() }, [fetchLogs])
 
-  const handleExportCsv = () => {
-    const url = getAuditExportCsvUrl(buildParams())
-    const link = document.createElement('a')
-    link.href = url
-    link.setAttribute('download', 'platform-audit-log.csv')
-    // Attach auth header via fetch for the download
+  const downloadExport = (url: string, filename: string) => {
     fetch(url, { headers: { Authorization: `Bearer ${keycloak.token}` } })
       .then(r => r.blob())
       .then(blob => {
         const blobUrl = URL.createObjectURL(blob)
+        const link = document.createElement('a')
         link.href = blobUrl
+        link.setAttribute('download', filename)
         link.click()
         URL.revokeObjectURL(blobUrl)
       })
       .catch(() => showToast('error', 'Export failed'))
   }
+
+  const handleExportCsv = () => downloadExport(getAuditExportCsvUrl(buildParams()), 'platform-audit-log.csv')
+  const handleExportXlsx = () => downloadExport(getAuditExportXlsxUrl(buildParams()), 'platform-audit-log.xlsx')
 
   const totalPages = Math.ceil(totalElements / size)
 
@@ -141,6 +142,9 @@ export default function AuditLogsPage() {
           <button onClick={handleExportCsv} className="flex items-center gap-1.5 bg-[#7C3AED] hover:bg-[#6D28D9] text-white font-bold px-3 py-2 rounded-xl text-[11px]">
             <Download className="w-3.5 h-3.5" /> Export CSV
           </button>
+          <button onClick={handleExportXlsx} className="flex items-center gap-1.5 bg-[#7C3AED] hover:bg-[#6D28D9] text-white font-bold px-3 py-2 rounded-xl text-[11px]">
+            <FileSpreadsheet className="w-3.5 h-3.5" /> Export XLSX
+          </button>
         </div>
       </div>
 
@@ -169,7 +173,7 @@ export default function AuditLogsPage() {
       </div>
 
       {/* Grid */}
-      <div className="ag-theme-alpine-dark w-full" style={{ height: 520 }}>
+      <div className="ag-theme-platform-admin w-full" style={{ height: 520 }}>
         {loading ? (
           <div className="flex items-center justify-center h-full"><Loader2 className="w-6 h-6 text-[#7C3AED] animate-spin" /></div>
         ) : events.length === 0 ? (

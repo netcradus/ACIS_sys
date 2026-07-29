@@ -9,6 +9,7 @@ import jakarta.ws.rs.NotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -16,14 +17,16 @@ import java.util.Map;
 
 /**
  * Every endpoint here is already gated by SecurityConfig's blanket
- * .anyRequest().hasRole("PLATFORM_ADMIN") rule — no per-endpoint
- * authorization annotation needed. All operations go through
- * PlatformUserService, which talks to Keycloak's Admin REST API — this
- * service never manages users via a local database shortcut.
+ * .anyRequest().hasRole("PLATFORM_ADMIN") rule. The class-level @PreAuthorize
+ * below is intentional defense-in-depth, not the primary gate — it guards
+ * against a future refactor accidentally loosening the filter-chain rule.
+ * All operations go through PlatformUserService, which talks to Keycloak's
+ * Admin REST API — this service never manages users via a local database shortcut.
  */
 @RestController
 @RequestMapping("/api/platform/users")
 @RequiredArgsConstructor
+@PreAuthorize("hasRole('PLATFORM_ADMIN')")
 public class PlatformUserController {
 
     private final PlatformUserService platformUserService;

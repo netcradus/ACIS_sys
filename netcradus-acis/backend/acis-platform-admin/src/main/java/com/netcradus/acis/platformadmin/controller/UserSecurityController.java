@@ -1,11 +1,13 @@
 package com.netcradus.acis.platformadmin.controller;
 
 import com.netcradus.acis.common.dto.ApiResponse;
+import com.netcradus.acis.platformadmin.dto.LoginEventInfo;
 import com.netcradus.acis.platformadmin.dto.UserSecurityInfo;
 import com.netcradus.acis.platformadmin.dto.UserSessionInfo;
 import com.netcradus.acis.platformadmin.service.UserSecurityService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -15,11 +17,13 @@ import java.util.Map;
  * REST controller for advanced user security management — password resets,
  * account locking, MFA management, and session management.
  *
- * All endpoints are gated by the blanket PLATFORM_ADMIN role in SecurityConfig.
+ * All endpoints are gated by the blanket PLATFORM_ADMIN role in SecurityConfig;
+ * the class-level @PreAuthorize is defense-in-depth on top of that rule.
  */
 @RestController
 @RequestMapping("/api/platform/users/{userId}/security")
 @RequiredArgsConstructor
+@PreAuthorize("hasRole('PLATFORM_ADMIN')")
 public class UserSecurityController {
 
     private final UserSecurityService userSecurityService;
@@ -128,5 +132,16 @@ public class UserSecurityController {
     public ApiResponse<Map<String, Boolean>> terminateAllSessions(@PathVariable String userId) {
         userSecurityService.terminateAllSessions(userId);
         return ApiResponse.success(Map.of("allTerminated", true));
+    }
+
+    // ═══════════════════════════════════════════════════════════════════
+    // Login History
+    // ═══════════════════════════════════════════════════════════════════
+
+    @GetMapping("/login-events")
+    public ApiResponse<List<LoginEventInfo>> getLoginEvents(
+            @PathVariable String userId,
+            @RequestParam(defaultValue = "50") int limit) {
+        return ApiResponse.success(userSecurityService.getLoginEvents(userId, Math.min(limit, 200)));
     }
 }

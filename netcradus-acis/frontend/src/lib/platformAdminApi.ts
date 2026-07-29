@@ -335,6 +335,19 @@ export async function terminateAllSessions(userId: string): Promise<void> {
   await apiClient.delete(`${SECURITY_BASE(userId)}/sessions`)
 }
 
+export interface LoginEventInfo {
+  type: string
+  time: number | null
+  ipAddress: string | null
+  error: string | null
+  clientId: string | null
+}
+
+export async function getUserLoginEvents(userId: string, limit = 50): Promise<LoginEventInfo[]> {
+  const res = await apiClient.get<LoginEventInfo[]>(`${SECURITY_BASE(userId)}/login-events?limit=${limit}`)
+  return res.data
+}
+
 // ── Audit Log API ───────────────────────────────────────────────────
 
 const AUDIT_BASE = '/api/platform/audit'
@@ -362,6 +375,14 @@ export async function getAuditActions(): Promise<string[]> {
 }
 
 export function getAuditExportCsvUrl(params: AuditSearchParams): string {
+  return `${AUDIT_BASE}/export/csv?${buildAuditExportQuery(params).toString()}`
+}
+
+export function getAuditExportXlsxUrl(params: AuditSearchParams): string {
+  return `${AUDIT_BASE}/export/xlsx?${buildAuditExportQuery(params).toString()}`
+}
+
+function buildAuditExportQuery(params: AuditSearchParams): URLSearchParams {
   const queryParams = new URLSearchParams()
   if (params.startDate) queryParams.set('startDate', params.startDate)
   if (params.endDate) queryParams.set('endDate', params.endDate)
@@ -371,5 +392,5 @@ export function getAuditExportCsvUrl(params: AuditSearchParams): string {
   if (params.action) queryParams.set('action', params.action)
   if (params.status) queryParams.set('status', params.status)
   if (params.search) queryParams.set('search', params.search)
-  return `${AUDIT_BASE}/export/csv?${queryParams.toString()}`
+  return queryParams
 }

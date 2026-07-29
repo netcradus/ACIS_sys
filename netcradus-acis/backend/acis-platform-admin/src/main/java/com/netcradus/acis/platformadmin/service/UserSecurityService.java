@@ -2,6 +2,7 @@ package com.netcradus.acis.platformadmin.service;
 
 import com.netcradus.acis.platformadmin.audit.AuditAction;
 import com.netcradus.acis.platformadmin.audit.PlatformAuditService;
+import com.netcradus.acis.platformadmin.dto.LoginEventInfo;
 import com.netcradus.acis.platformadmin.dto.UserSecurityInfo;
 import com.netcradus.acis.platformadmin.dto.UserSessionInfo;
 import lombok.RequiredArgsConstructor;
@@ -10,6 +11,7 @@ import org.keycloak.admin.client.Keycloak;
 import org.keycloak.admin.client.resource.RealmResource;
 import org.keycloak.admin.client.resource.UserResource;
 import org.keycloak.representations.idm.CredentialRepresentation;
+import org.keycloak.representations.idm.EventRepresentation;
 import org.keycloak.representations.idm.UserRepresentation;
 import org.keycloak.representations.idm.UserSessionRepresentation;
 import org.springframework.beans.factory.annotation.Value;
@@ -83,12 +85,20 @@ public class UserSecurityService {
         boolean passwordChangeRequired = requiredActions.contains("UPDATE_PASSWORD");
         boolean mfaRequired = requiredActions.contains("CONFIGURE_TOTP");
 
-        // Determine account status
+        // Determine account status. bruteForceLocked is checked BEFORE the raw
+        // enabled flag: a real Keycloak brute-force lock also flips enabled to
+        // false as its actual disable mechanism (confirmed live — attack-detection
+        // status showed disabled=true with numFailures below failureFactor, via
+        // Keycloak's "quick login" fast-lockout path), and Keycloak's own scheduler
+        // clears it automatically once the wait window elapses. An admin-initiated
+        // lockAccount() call, by contrast, has bruteForceLocked=false — that's the
+        // only signal that distinguishes a genuine admin disable from a transient
+        // brute-force lock.
         String accountStatus;
-        if (!Boolean.TRUE.equals(user.isEnabled())) {
-            accountStatus = "DISABLED";
-        } else if (bruteForceLocked) {
+        if (bruteForceLocked) {
             accountStatus = "TEMPORARILY_BLOCKED";
+        } else if (!Boolean.TRUE.equals(user.isEnabled())) {
+            accountStatus = "DISABLED";
         } else {
             accountStatus = "ACTIVE";
         }
@@ -317,8 +327,11 @@ public class UserSecurityService {
         return sessions.stream()
                 .map(s -> new UserSessionInfo(
                         s.getId(),
-                        s.getStart() != 0 ? s.getStart() * 1000 : null,
-                        s.getLastAccess() != 0 ? s.getLastAccess() * 1000 : null,
+                        // UserSessionRepresentation.start/lastAccess are already epoch
+                        // milliseconds (confirmed against the raw Admin REST response —
+                        // NOT epoch seconds), so no *1000 conversion here.
+                        s.getStart() != 0 ? s.getStart() : null,
+                        s.getLastAccess() != 0 ? s.getLastAccess() : null,
                         s.getIpAddress(),
                         s.getClients() != null ? String.join(", ", s.getClients().values()) : null,
                         extractUserAgent(s)
@@ -346,6 +359,34 @@ public class UserSecurityService {
         auditService.record(AuditAction.ALL_SESSIONS_TERMINATED, RESOURCE_SESSION,
                 userId, user.getUsername(), user.getEmail(),
                 firstAttr(user, "tenant_id"), null, null, "All sessions terminated");
+    }
+
+    // ═══════════════════════════════════════════════════════════════════
+    // Login History
+    // ═══════════════════════════════════════════════════════════════════
+
+    /**
+     * Reads real login/logout events for a user from Keycloak's own event
+     * store (realm-acis.json / G6/G7 enables this). If the realm has events
+     * disabled, this throws a real 501 rather than returning a fabricated
+     * empty list — an empty result must mean "no events happened", not
+     * "we never asked Keycloak to record any."
+     */
+    public List<LoginEventInfo> getLoginEvents(String userId, int limit) {
+        resolveUser(userId); // validates user exists
+
+        boolean eventsEnabled = Boolean.TRUE.equals(realm().getRealmEventsConfig().isEventsEnabled());
+        if (!eventsEnabled) {
+            throw new ResponseStatusException(HttpStatus.NOT_IMPLEMENTED,
+                    "Login event history is not enabled on this realm.");
+        }
+
+        List<EventRepresentation> events = realm().getEvents(
+                null, null, userId, null, null, null, 0, limit);
+
+        return events.stream()
+                .map(e -> new LoginEventInfo(e.getType(), e.getTime(), e.getIpAddress(), e.getError(), e.getClientId()))
+                .collect(Collectors.toList());
     }
 
     // ═══════════════════════════════════════════════════════════════════

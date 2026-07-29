@@ -8,6 +8,7 @@ import com.netcradus.acis.platformadmin.repository.TenantRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 import org.springframework.http.HttpStatus;
@@ -22,11 +23,13 @@ import java.util.UUID;
  * Every endpoint here explicitly names its target tenant via a path
  * variable and resolves it against the tenants table — never via
  * TenantContext, which is intentionally left empty for platform-admin
- * callers (see TenantContextFilter's carve-out).
+ * callers (see TenantContextFilter's carve-out). The class-level
+ * @PreAuthorize is defense-in-depth on top of SecurityConfig's blanket rule.
  */
 @RestController
 @RequestMapping("/api/platform/tenants")
 @RequiredArgsConstructor
+@PreAuthorize("hasRole('PLATFORM_ADMIN')")
 public class TenantAdminController {
 
     private final TenantRepository tenantRepository;

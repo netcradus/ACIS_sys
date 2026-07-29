@@ -12,6 +12,19 @@
   "accessTokenLifespan": 300,
   "ssoSessionIdleTimeout": 1800,
   "ssoSessionMaxLifespan": 36000,
+  "eventsEnabled": true,
+  "eventsExpiration": 2592000,
+  "adminEventsEnabled": true,
+  "adminEventsDetailsEnabled": true,
+  "bruteForceProtected": true,
+  "permanentLockout": false,
+  "maxFailureWaitSeconds": 900,
+  "minimumQuickLoginWaitSeconds": 60,
+  "waitIncrementSeconds": 60,
+  "quickLoginCheckMilliSeconds": 1000,
+  "maxDeltaTimeSeconds": 43200,
+  "failureFactor": 5,
+  "maxTemporaryLockouts": 0,
   "roles": {
     "realm": [
       { "name": "viewer",   "description": "Read-only access to dashboards and logs" },
@@ -145,7 +158,7 @@
       "username": "service-account-acis-backend",
       "serviceAccountClientId": "acis-backend",
       "clientRoles": {
-        "realm-management": ["manage-users", "view-users", "view-realm"]
+        "realm-management": ["manage-users", "view-users", "view-realm", "view-events"]
       }
     }
   ],

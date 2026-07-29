@@ -6,6 +6,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.oauth2.jwt.Jwt;
@@ -14,6 +16,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
 import java.time.OffsetDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
@@ -57,16 +60,37 @@ public class PlatformAuditService {
                                            String tenantId, String adminUserId, String targetUserId,
                                            AuditAction action, AuditStatus status,
                                            String search, int page, int size) {
-        // Use simple findAll with pageable — filtering happens programmatically
-        // for reliability across Hibernate versions
-        Pageable pageable = PageRequest.of(page, size);
-        return repository.findAllByOrderByTimestampDesc(pageable);
+        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "timestamp"));
+        return repository.findAll(buildSpecification(startDate, endDate, tenantId, adminUserId, targetUserId,
+                action, status, search), pageable);
     }
 
     public List<PlatformAuditEvent> searchForExport(OffsetDateTime startDate, OffsetDateTime endDate,
                                                     String tenantId, String adminUserId, String targetUserId,
                                                     AuditAction action, AuditStatus status, String search) {
-        return repository.findAllByOrderByTimestampDesc();
+        return repository.findAll(buildSpecification(startDate, endDate, tenantId, adminUserId, targetUserId,
+                action, status, search), Sort.by(Sort.Direction.DESC, "timestamp"));
+    }
+
+    private Specification<PlatformAuditEvent> buildSpecification(OffsetDateTime startDate, OffsetDateTime endDate,
+                                                                  String tenantId, String adminUserId, String targetUserId,
+                                                                  AuditAction action, AuditStatus status, String search) {
+        List<Specification<PlatformAuditEvent>> specs = new ArrayList<>();
+        addIfPresent(specs, PlatformAuditSpecifications.startDate(startDate));
+        addIfPresent(specs, PlatformAuditSpecifications.endDate(endDate));
+        addIfPresent(specs, PlatformAuditSpecifications.tenantId(tenantId));
+        addIfPresent(specs, PlatformAuditSpecifications.adminUserId(adminUserId));
+        addIfPresent(specs, PlatformAuditSpecifications.targetUserId(targetUserId));
+        addIfPresent(specs, PlatformAuditSpecifications.action(action));
+        addIfPresent(specs, PlatformAuditSpecifications.status(status));
+        addIfPresent(specs, PlatformAuditSpecifications.freeText(search));
+        return Specification.allOf(specs);
+    }
+
+    private static void addIfPresent(List<Specification<PlatformAuditEvent>> specs, Specification<PlatformAuditEvent> spec) {
+        if (spec != null) {
+            specs.add(spec);
+        }
     }
 
     private PlatformAuditEvent buildEvent(AuditAction action, String resourceType,

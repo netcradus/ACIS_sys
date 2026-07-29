@@ -1,5 +1,7 @@
 package com.netcradus.acis.platformadmin.service;
 
+import com.netcradus.acis.platformadmin.audit.AuditAction;
+import com.netcradus.acis.platformadmin.audit.PlatformAuditService;
 import com.netcradus.acis.platformadmin.dto.PlatformUserDetail;
 import com.netcradus.acis.platformadmin.dto.PlatformUserSummary;
 import com.netcradus.acis.platformadmin.exception.CompanyAdminConflictException;
@@ -43,6 +45,7 @@ public class PlatformUserService {
 
     private final Keycloak keycloak;
     private final TenantRepository tenantRepository;
+    private final PlatformAuditService auditService;
 
     @Value("${acis.keycloak.realm}")
     private String realmName;
@@ -176,6 +179,7 @@ public class PlatformUserService {
                         "Keycloak rejected user creation");
             }
             String newUserId = CreatedResponseUtil.getCreatedId(response);
+            String tenantName = tenantNameOrNull(req.tenantId());
 
             if (req.initialRoles() != null && !req.initialRoles().isEmpty()) {
                 try {
@@ -190,9 +194,13 @@ public class PlatformUserService {
                     try (Response ignored = realm().users().delete(newUserId)) {
                         // best-effort cleanup
                     }
+                    auditService.recordFailure(AuditAction.USER_CREATED, "USER", newUserId, req.username(), req.email(),
+                            req.tenantId(), tenantName, "Rolled back: initial role assignment failed - " + e.getMessage());
                     throw e;
                 }
             }
+            auditService.record(AuditAction.USER_CREATED, "USER", newUserId, req.username(), req.email(),
+                    req.tenantId(), tenantName, null, req.username());
             return newUserId;
         }
     }
@@ -203,19 +211,35 @@ public class PlatformUserService {
     public void updateProfile(String userId, UpdateUserRequest req) {
         UserResource userResource = resolveUserResource(userId);
         UserRepresentation user = userResource.toRepresentation();
+        String tenantId = firstAttribute(user, TENANT_ID_ATTRIBUTE);
+        String previousValue = String.format("username=%s, email=%s, firstName=%s, lastName=%s",
+                user.getUsername(), user.getEmail(), user.getFirstName(), user.getLastName());
+
         if (req.username() != null) user.setUsername(req.username());
         if (req.email() != null) user.setEmail(req.email());
         if (req.firstName() != null) user.setFirstName(req.firstName());
         if (req.lastName() != null) user.setLastName(req.lastName());
         userResource.update(user);
+
+        String newValue = String.format("username=%s, email=%s, firstName=%s, lastName=%s",
+                user.getUsername(), user.getEmail(), user.getFirstName(), user.getLastName());
+        auditService.record(AuditAction.USER_UPDATED, "USER", userId, user.getUsername(), user.getEmail(),
+                tenantId, tenantNameOrNull(tenantId), previousValue, newValue);
     }
 
     public void deleteUser(String userId) {
+        UserRepresentation user = resolveUserResource(userId).toRepresentation();
+        String tenantId = firstAttribute(user, TENANT_ID_ATTRIBUTE);
+
         try (Response response = realm().users().delete(userId)) {
             if (response.getStatus() >= 400) {
+                auditService.recordFailure(AuditAction.USER_DELETED, "USER", userId, user.getUsername(), user.getEmail(),
+                        tenantId, tenantNameOrNull(tenantId), "Keycloak returned status " + response.getStatus());
                 throw new ResponseStatusException(HttpStatus.valueOf(response.getStatus()), "Failed to delete user");
             }
         }
+        auditService.record(AuditAction.USER_DELETED, "USER", userId, user.getUsername(), user.getEmail(),
+                tenantId, tenantNameOrNull(tenantId), null, null);
     }
 
     public void setEnabled(String userId, boolean enabled) {
@@ -223,6 +247,10 @@ public class PlatformUserService {
         UserRepresentation user = userResource.toRepresentation();
         user.setEnabled(enabled);
         userResource.update(user);
+
+        String tenantId = firstAttribute(user, TENANT_ID_ATTRIBUTE);
+        auditService.record(enabled ? AuditAction.USER_ACTIVATED : AuditAction.USER_DEACTIVATED, "USER",
+                userId, user.getUsername(), user.getEmail(), tenantId, tenantNameOrNull(tenantId), null, null);
     }
 
     public void moveTenant(String userId, String newTenantId) {
@@ -231,6 +259,7 @@ public class PlatformUserService {
         }
         UserResource userResource = resolveUserResource(userId);
         UserRepresentation user = userResource.toRepresentation();
+        String previousTenantId = firstAttribute(user, TENANT_ID_ATTRIBUTE);
 
         List<String> currentRoles = userResource.roles().realmLevel().listAll().stream()
                 .map(RoleRepresentation::getName)
@@ -242,6 +271,9 @@ public class PlatformUserService {
 
         user.setAttributes(Map.of(TENANT_ID_ATTRIBUTE, List.of(newTenantId)));
         userResource.update(user);
+
+        auditService.record(AuditAction.USER_MOVED_TENANT, "USER", userId, user.getUsername(), user.getEmail(),
+                newTenantId, tenantNameOrNull(newTenantId), tenantNameOrNull(previousTenantId), tenantNameOrNull(newTenantId));
     }
 
     public List<String> listUserRoles(String userId) {
@@ -252,10 +284,10 @@ public class PlatformUserService {
 
     public void assignRole(String userId, String roleName) {
         UserResource userResource = resolveUserResource(userId);
+        UserRepresentation user = userResource.toRepresentation();
+        String tenantId = firstAttribute(user, TENANT_ID_ATTRIBUTE);
 
         if (COMPANY_ADMIN_ROLE.equals(roleName)) {
-            UserRepresentation user = userResource.toRepresentation();
-            String tenantId = firstAttribute(user, TENANT_ID_ATTRIBUTE);
             if (tenantId == null || tenantId.isBlank()) {
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
                         "User must be assigned to a tenant before being granted Company Admin.");
@@ -265,11 +297,15 @@ public class PlatformUserService {
                 RoleRepresentation role = realm().roles().get(COMPANY_ADMIN_ROLE).toRepresentation();
                 userResource.roles().realmLevel().add(List.of(role));
             }
+            auditService.record(AuditAction.ROLE_ASSIGNED, "USER", userId, user.getUsername(), user.getEmail(),
+                    tenantId, tenantNameOrNull(tenantId), null, COMPANY_ADMIN_ROLE);
             return;
         }
 
         RoleRepresentation role = realm().roles().get(roleName).toRepresentation();
         userResource.roles().realmLevel().add(List.of(role));
+        auditService.record(AuditAction.ROLE_ASSIGNED, "USER", userId, user.getUsername(), user.getEmail(),
+                tenantId, tenantNameOrNull(tenantId), null, roleName);
     }
 
     private void assertNoOtherCompanyAdmin(String tenantId, String userId) {
@@ -287,8 +323,14 @@ public class PlatformUserService {
 
     public void removeRole(String userId, String roleName) {
         UserResource userResource = resolveUserResource(userId);
+        UserRepresentation user = userResource.toRepresentation();
+        String tenantId = firstAttribute(user, TENANT_ID_ATTRIBUTE);
+
         RoleRepresentation role = realm().roles().get(roleName).toRepresentation();
         userResource.roles().realmLevel().remove(List.of(role));
+
+        auditService.record(AuditAction.ROLE_REMOVED, "USER", userId, user.getUsername(), user.getEmail(),
+                tenantId, tenantNameOrNull(tenantId), roleName, null);
     }
 
     private UserResource resolveUserResource(String userId) {
@@ -299,6 +341,17 @@ public class PlatformUserService {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Unknown user: " + userId);
         }
         return resource;
+    }
+
+    private String tenantNameOrNull(String tenantId) {
+        if (tenantId == null || tenantId.isBlank()) {
+            return null;
+        }
+        try {
+            return tenantRepository.findById(UUID.fromString(tenantId)).map(Tenant::getName).orElse(null);
+        } catch (IllegalArgumentException e) {
+            return null;
+        }
     }
 
     private static String firstAttribute(UserRepresentation user, String key) {

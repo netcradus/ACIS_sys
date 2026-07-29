@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Loader2, Lock, Unlock, Key, Shield, ShieldOff, Monitor, Trash2, RefreshCw } from 'lucide-react'
+import { Loader2, Lock, Unlock, Key, Shield, ShieldOff, Monitor, Trash2, RefreshCw, History, AlertTriangle } from 'lucide-react'
 import { clsx } from 'clsx'
 import {
   getUserSecurityInfo,
@@ -16,8 +16,10 @@ import {
   listUserSessions,
   terminateSession,
   terminateAllSessions,
+  getUserLoginEvents,
   UserSecurityInfo,
   UserSessionInfo,
+  LoginEventInfo,
 } from '@/lib/platformAdminApi'
 import { usePlatformToastStore } from '@/store/platformToastStore'
 import ConfirmDialog from './ConfirmDialog'
@@ -35,6 +37,11 @@ export default function UserSecurityTab({ userId }: Props) {
   const [sessions, setSessions] = useState<UserSessionInfo[]>([])
   const [loading, setLoading] = useState(true)
   const [sessionsLoading, setSessionsLoading] = useState(false)
+
+  const [loginEvents, setLoginEvents] = useState<LoginEventInfo[]>([])
+  const [loginEventsLoading, setLoginEventsLoading] = useState(false)
+  const [loginEventsNotEnabled, setLoginEventsNotEnabled] = useState(false)
+  const [loginEventsError, setLoginEventsError] = useState<string | null>(null)
 
   const [confirmType, setConfirmType] = useState<ConfirmType>(null)
   const [confirmBusy, setConfirmBusy] = useState(false)
@@ -70,9 +77,28 @@ export default function UserSecurityTab({ userId }: Props) {
     }
   }
 
+  const loadLoginEvents = async () => {
+    setLoginEventsLoading(true)
+    setLoginEventsNotEnabled(false)
+    setLoginEventsError(null)
+    try {
+      const events = await getUserLoginEvents(userId)
+      setLoginEvents(events)
+    } catch (e: any) {
+      if (e?.response?.status === 501) {
+        setLoginEventsNotEnabled(true)
+      } else {
+        setLoginEventsError(e?.message || 'Failed to load login history')
+      }
+    } finally {
+      setLoginEventsLoading(false)
+    }
+  }
+
   useEffect(() => {
     loadSecurity()
     loadSessions()
+    loadLoginEvents()
   }, [userId])
 
   const handleResetPassword = async () => {
@@ -262,6 +288,56 @@ export default function UserSecurityTab({ userId }: Props) {
                 >
                   Terminate
                 </button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Recent Login Activity */}
+      <div className="bg-[#0C0C0D] border border-neutral-800 rounded-xl p-5 space-y-3">
+        <div className="flex items-center justify-between">
+          <h3 className="text-xs font-bold text-white uppercase tracking-widest">Recent Login Activity</h3>
+          <button onClick={loadLoginEvents} className="text-[10px] text-neutral-500 hover:text-white flex items-center gap-1">
+            <RefreshCw className="w-3 h-3" /> Refresh
+          </button>
+        </div>
+
+        {loginEventsLoading ? (
+          <div className="flex items-center justify-center py-4"><Loader2 className="w-4 h-4 text-[#7C3AED] animate-spin" /></div>
+        ) : loginEventsNotEnabled ? (
+          <div className="flex items-start gap-3 bg-[#050505] border border-neutral-800/60 rounded-lg p-3">
+            <AlertTriangle className="w-4 h-4 text-[#FFAB00] flex-shrink-0 mt-0.5" />
+            <p className="text-[11px] text-neutral-400">
+              Login event history is not enabled on this realm. This is a genuine Keycloak realm-configuration
+              limitation, not an application error — an operator must enable events on the realm to populate this view.
+            </p>
+          </div>
+        ) : loginEventsError ? (
+          <p className="text-xs text-danger py-4">{loginEventsError}</p>
+        ) : loginEvents.length === 0 ? (
+          <p className="text-xs text-neutral-600 py-4">No login events recorded yet.</p>
+        ) : (
+          <div className="space-y-2">
+            {loginEvents.map((e, idx) => (
+              <div key={idx} className="flex items-center justify-between bg-[#050505] border border-neutral-800/60 rounded-lg p-3">
+                <div className="flex items-center gap-3">
+                  <History className="w-4 h-4 text-neutral-500" />
+                  <div>
+                    <p className="text-[11px] text-white font-semibold">
+                      {(e.type || '').replace(/_/g, ' ')}
+                      {e.clientId ? ` — ${e.clientId}` : ''}
+                    </p>
+                    <p className="text-[10px] text-neutral-600">
+                      IP: {e.ipAddress || 'N/A'} | {e.time ? new Date(e.time).toLocaleString() : 'N/A'}
+                    </p>
+                  </div>
+                </div>
+                {e.error && (
+                  <span className="text-[10px] text-danger bg-danger/10 border border-danger/20 px-2 py-1 rounded font-bold">
+                    {e.error}
+                  </span>
+                )}
               </div>
             ))}
           </div>
