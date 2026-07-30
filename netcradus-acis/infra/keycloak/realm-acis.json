@@ -48,18 +48,20 @@
       "redirectUris": [
         "http://localhost:3000/*",
         "http://localhost:3001/*",
-        "http://localhost:3002/*"
+        "http://localhost:3002/*",
+        "https://acis.netcradus.com/*"
       ],
 
       "webOrigins": [
         "http://localhost:3000",
         "http://localhost:3001",
-        "http://localhost:3002"
+        "http://localhost:3002",
+        "https://acis.netcradus.com"
       ],
 
       "attributes": {
         "pkce.code.challenge.method": "S256",
-        "post.logout.redirect.uris": "http://localhost:3000/*##http://localhost:3001/*##http://localhost:3002/*##http://142.93.219.208/*##http://142.93.219.208:8443/*"
+        "post.logout.redirect.uris": "http://localhost:3000/*##http://localhost:3001/*##http://localhost:3002/*##https://acis.netcradus.com/*"
 
       },
       "protocol": "openid-connect",
