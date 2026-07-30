@@ -14,10 +14,10 @@ function StatusBadge({ status }: { status: TenantStatus }) {
     <span
       className={clsx(
         'px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider',
-        status === 'ACTIVE' && 'bg-[#00FF99]/10 text-[#00FF99]',
+        status === 'ACTIVE' && 'bg-success/10 text-success',
         status === 'SUSPENDED' && 'bg-danger/10 text-danger',
-        status === 'TRIAL' && 'bg-[#FFAB00]/10 text-[#FFAB00]',
-        status === 'DEACTIVATED' && 'bg-neutral-800 text-neutral-500'
+        status === 'TRIAL' && 'bg-warning/10 text-warning',
+        status === 'DEACTIVATED' && 'bg-surface-3 text-text-muted'
       )}
     >
       {status}
@@ -75,13 +75,13 @@ export default function TenantListPage() {
         field: 'name',
         headerName: 'TENANT',
         flex: 2,
-        cellRenderer: (params: any) => <span className="font-bold text-white">{params.value}</span>,
+        cellRenderer: (params: any) => <span className="font-bold text-text-primary">{params.value}</span>,
       },
       {
         field: 'slug',
         headerName: 'SLUG',
         flex: 1,
-        cellRenderer: (params: any) => <span className="font-mono text-neutral-500">{params.value || '—'}</span>,
+        cellRenderer: (params: any) => <span className="font-mono text-text-muted">{params.value || '—'}</span>,
       },
       {
         field: 'status',
@@ -93,20 +93,20 @@ export default function TenantListPage() {
         field: 'planName',
         headerName: 'PLAN',
         flex: 1,
-        cellRenderer: (params: any) => <span className="text-neutral-300">{params.value || '—'}</span>,
+        cellRenderer: (params: any) => <span className="text-text-secondary">{params.value || '—'}</span>,
       },
       {
         field: 'enabledModules',
         headerName: 'MODULES',
         flex: 1,
-        cellRenderer: (params: any) => <span className="text-neutral-500">{(params.value || []).length} enabled</span>,
+        cellRenderer: (params: any) => <span className="text-text-muted">{(params.value || []).length} enabled</span>,
       },
       {
         field: 'createdAt',
         headerName: 'CREATED',
         flex: 1,
         cellRenderer: (params: any) => (
-          <span className="font-mono text-[11px] text-neutral-500">{new Date(params.value).toLocaleDateString()}</span>
+          <span className="font-mono text-[11px] text-text-muted">{new Date(params.value).toLocaleDateString()}</span>
         ),
       },
     ],
@@ -115,11 +115,11 @@ export default function TenantListPage() {
 
   return (
     <div className="space-y-6 animate-fade-in">
-      <div className="flex items-center justify-between border-b border-neutral-900 pb-4">
-        <h1 className="text-xl font-bold text-white tracking-tight uppercase">Tenants</h1>
+      <div className="flex items-center justify-between border-b border-fire-border pb-4">
+        <h1 className="text-xl font-bold text-text-primary tracking-tight uppercase">Tenants</h1>
         <button
           onClick={() => setIsModalOpen(true)}
-          className="bg-[#7C3AED] hover:bg-[#6D28D9] text-white font-bold px-4 py-2 rounded-xl text-xs flex items-center gap-2 transition-colors"
+          className="bg-accent-pa hover:bg-accent-pa-dark text-white font-bold px-4 py-2 rounded-xl text-xs flex items-center gap-2 transition-colors"
         >
           <Plus className="w-4 h-4" /> New Tenant
         </button>
@@ -127,22 +127,22 @@ export default function TenantListPage() {
 
       <div className="flex items-center gap-3 flex-wrap">
         <div className="relative flex-1 min-w-[240px]">
-          <Search className="w-4 h-4 text-neutral-600 absolute left-3 top-1/2 -translate-y-1/2" />
+          <Search className="w-4 h-4 text-text-muted absolute left-3 top-1/2 -translate-y-1/2" />
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search by name, slug, or contact email..."
-            className="w-full bg-[#0C0C0D] border border-neutral-800 rounded-lg pl-9 pr-3 py-2.5 text-xs text-white placeholder:text-neutral-700 focus:outline-none focus:border-[#7C3AED]/50"
+            className="w-full bg-surface-2 border border-fire-border rounded-lg pl-9 pr-3 py-2.5 text-xs text-text-primary placeholder:text-text-muted focus:outline-none focus:border-accent-pa/50"
           />
         </div>
-        <div className="flex items-center gap-1 bg-[#0C0C0D] border border-neutral-800 rounded-lg p-1">
+        <div className="flex items-center gap-1 bg-surface-2 border border-fire-border rounded-lg p-1">
           {STATUS_FILTERS.map((s) => (
             <button
               key={s}
               onClick={() => setStatusFilter(s)}
               className={clsx(
                 'px-3 py-1.5 rounded-md text-[10px] font-bold uppercase tracking-wider transition-colors',
-                statusFilter === s ? 'bg-[#7C3AED] text-white' : 'text-neutral-500 hover:text-white'
+                statusFilter === s ? 'bg-accent-pa text-white' : 'text-text-muted hover:text-text-primary'
               )}
             >
               {s}
@@ -157,10 +157,10 @@ export default function TenantListPage() {
 
       {isLoading ? (
         <div className="flex items-center justify-center py-24">
-          <Loader2 className="w-6 h-6 text-[#7C3AED] animate-spin" />
+          <Loader2 className="w-6 h-6 text-accent-pa animate-spin" />
         </div>
       ) : (
-        <div className="min-h-[500px] bg-black border border-[#1A1A1A] rounded-2xl overflow-hidden shadow-2xl">
+        <div className="min-h-[500px] bg-background border border-fire-border rounded-2xl overflow-hidden shadow-2xl">
           <div className="ag-theme-platform-admin w-full h-[500px]">
             <AgGridReact
               rowData={filteredTenants}
@@ -172,7 +172,7 @@ export default function TenantListPage() {
               paginationPageSize={10}
               onRowClicked={(e) => navigate(`/platform-admin/tenants/${e.data.id}`)}
               rowStyle={{ cursor: 'pointer' }}
-              overlayNoRowsTemplate="<span class='text-neutral-600 font-black uppercase tracking-[0.2em] text-[10px]'>No tenants match your filters</span>"
+              overlayNoRowsTemplate="<span class='text-text-muted font-black uppercase tracking-[0.2em] text-[10px]'>No tenants match your filters</span>"
             />
           </div>
         </div>
@@ -242,11 +242,11 @@ function CreateTenantModal({
   }
 
   return (
-    <div className="fixed inset-0 bg-black/85 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <div className="bg-[#0C0C0D] border border-neutral-800 rounded-xl w-full max-w-md overflow-hidden shadow-2xl animate-scale-in">
-        <div className="flex items-center justify-between p-5 border-b border-neutral-900">
-          <h3 className="text-sm font-bold text-white uppercase tracking-wider">New Tenant</h3>
-          <button onClick={onClose} className="text-neutral-500 hover:text-white transition-colors focus:outline-none">
+    <div className="fixed inset-0 bg-background/85 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+      <div className="bg-surface-2 border border-fire-border rounded-xl w-full max-w-md overflow-hidden shadow-2xl animate-scale-in">
+        <div className="flex items-center justify-between p-5 border-b border-fire-border">
+          <h3 className="text-sm font-bold text-text-primary uppercase tracking-wider">New Tenant</h3>
+          <button onClick={onClose} className="text-text-muted hover:text-text-primary transition-colors focus:outline-none">
             <X className="w-5 h-5" />
           </button>
         </div>
@@ -256,68 +256,68 @@ function CreateTenantModal({
           )}
 
           <div className="space-y-1">
-            <label className="text-neutral-500 font-bold uppercase tracking-wider block">Tenant Name *</label>
+            <label className="text-text-muted font-bold uppercase tracking-wider block">Tenant Name *</label>
             <input
               value={name}
               onChange={(e) => setName(e.target.value)}
-              className="w-full bg-[#050505] border border-neutral-800 rounded-lg px-3 py-2 text-white placeholder:text-neutral-700 focus:outline-none focus:border-[#7C3AED]/50"
+              className="w-full bg-surface border border-fire-border rounded-lg px-3 py-2 text-text-primary placeholder:text-text-muted focus:outline-none focus:border-accent-pa/50"
               placeholder="Acme Corp"
             />
           </div>
 
           <div className="space-y-1">
-            <label className="text-neutral-500 font-bold uppercase tracking-wider block">Slug</label>
+            <label className="text-text-muted font-bold uppercase tracking-wider block">Slug</label>
             <input
               value={slug}
               onChange={(e) => setSlug(e.target.value)}
-              className="w-full bg-[#050505] border border-neutral-800 rounded-lg px-3 py-2 text-white placeholder:text-neutral-700 focus:outline-none focus:border-[#7C3AED]/50"
+              className="w-full bg-surface border border-fire-border rounded-lg px-3 py-2 text-text-primary placeholder:text-text-muted focus:outline-none focus:border-accent-pa/50"
               placeholder="acme-corp"
             />
           </div>
 
           <div className="space-y-1">
-            <label className="text-neutral-500 font-bold uppercase tracking-wider block">Plan Name</label>
+            <label className="text-text-muted font-bold uppercase tracking-wider block">Plan Name</label>
             <input
               value={planName}
               onChange={(e) => setPlanName(e.target.value)}
-              className="w-full bg-[#050505] border border-neutral-800 rounded-lg px-3 py-2 text-white placeholder:text-neutral-700 focus:outline-none focus:border-[#7C3AED]/50"
+              className="w-full bg-surface border border-fire-border rounded-lg px-3 py-2 text-text-primary placeholder:text-text-muted focus:outline-none focus:border-accent-pa/50"
               placeholder="Growth Shield"
             />
           </div>
 
           <div className="space-y-1">
-            <label className="text-neutral-500 font-bold uppercase tracking-wider block">Contact Name</label>
+            <label className="text-text-muted font-bold uppercase tracking-wider block">Contact Name</label>
             <input
               value={contactName}
               onChange={(e) => setContactName(e.target.value)}
-              className="w-full bg-[#050505] border border-neutral-800 rounded-lg px-3 py-2 text-white placeholder:text-neutral-700 focus:outline-none focus:border-[#7C3AED]/50"
+              className="w-full bg-surface border border-fire-border rounded-lg px-3 py-2 text-text-primary placeholder:text-text-muted focus:outline-none focus:border-accent-pa/50"
               placeholder="Jane Doe"
             />
           </div>
 
           <div className="space-y-1">
-            <label className="text-neutral-500 font-bold uppercase tracking-wider block">Contact Email</label>
+            <label className="text-text-muted font-bold uppercase tracking-wider block">Contact Email</label>
             <input
               value={contactEmail}
               onChange={(e) => setContactEmail(e.target.value)}
-              className="w-full bg-[#050505] border border-neutral-800 rounded-lg px-3 py-2 text-white placeholder:text-neutral-700 focus:outline-none focus:border-[#7C3AED]/50"
+              className="w-full bg-surface border border-fire-border rounded-lg px-3 py-2 text-text-primary placeholder:text-text-muted focus:outline-none focus:border-accent-pa/50"
               placeholder="jane@acme.example"
             />
           </div>
 
-          <div className="flex items-center justify-end gap-3 pt-3 border-t border-neutral-900 mt-4">
+          <div className="flex items-center justify-end gap-3 pt-3 border-t border-fire-border mt-4">
             <button
               type="button"
               onClick={onClose}
               disabled={submitting}
-              className="border border-neutral-800 bg-[#0C0C0D] hover:bg-neutral-800 text-neutral-400 hover:text-white font-bold px-4 py-2 rounded-xl focus:outline-none transition-colors disabled:opacity-50"
+              className="border border-fire-border bg-surface-2 hover:bg-surface-3 text-text-secondary hover:text-text-primary font-bold px-4 py-2 rounded-xl focus:outline-none transition-colors disabled:opacity-50"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={submitting}
-              className="bg-[#7C3AED] hover:bg-[#6D28D9] text-white font-bold px-4 py-2 rounded-xl focus:outline-none transition-colors disabled:opacity-50"
+              className="bg-accent-pa hover:bg-accent-pa-dark text-white font-bold px-4 py-2 rounded-xl focus:outline-none transition-colors disabled:opacity-50"
             >
               {submitting ? 'Creating...' : 'Create Tenant'}
             </button>

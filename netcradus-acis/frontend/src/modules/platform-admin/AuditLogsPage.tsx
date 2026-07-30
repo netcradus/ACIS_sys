@@ -93,59 +93,59 @@ export default function AuditLogsPage() {
   const columnDefs = useMemo<ColDef[]>(() => [
     {
       field: 'timestamp', headerName: 'TIME', flex: 1.2,
-      cellRenderer: (p: any) => <span className="text-[11px] text-neutral-300">{p.value ? new Date(p.value).toLocaleString() : ''}</span>
+      cellRenderer: (p: any) => <span className="text-[11px] text-text-secondary">{p.value ? new Date(p.value).toLocaleString() : ''}</span>
     },
     {
       field: 'adminUsername', headerName: 'ADMIN', flex: 1,
-      cellRenderer: (p: any) => <span className="text-[11px] text-white font-semibold">{p.value}</span>
+      cellRenderer: (p: any) => <span className="text-[11px] text-text-primary font-semibold">{p.value}</span>
     },
     {
       field: 'action', headerName: 'ACTION', flex: 1.2,
       cellRenderer: (p: any) => (
-        <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-[#7C3AED]/10 text-[#7C3AED]">
+        <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-accent-pa/10 text-accent-pa">
           {(p.value || '').replace(/_/g, ' ')}
         </span>
       )
     },
     {
       field: 'targetUsername', headerName: 'TARGET', flex: 1,
-      cellRenderer: (p: any) => <span className="text-[11px] text-neutral-300">{p.value || '—'}</span>
+      cellRenderer: (p: any) => <span className="text-[11px] text-text-secondary">{p.value || '—'}</span>
     },
     {
       field: 'tenantName', headerName: 'TENANT', flex: 0.8,
-      cellRenderer: (p: any) => <span className="text-[11px] text-neutral-400">{p.value || '—'}</span>
+      cellRenderer: (p: any) => <span className="text-[11px] text-text-secondary">{p.value || '—'}</span>
     },
     {
       field: 'status', headerName: 'STATUS', flex: 0.6,
       cellRenderer: (p: any) => (
         <span className={clsx('text-[10px] font-bold px-2 py-0.5 rounded',
-          p.value === 'SUCCESS' ? 'bg-[#00FF99]/10 text-[#00FF99]' : 'bg-danger/10 text-danger'
+          p.value === 'SUCCESS' ? 'bg-success/10 text-success' : 'bg-danger/10 text-danger'
         )}>{p.value}</span>
       )
     },
     {
       headerName: '', width: 60,
       cellRenderer: (p: any) => (
-        <button onClick={() => setDetailEvent(p.data)} className="text-[10px] text-[#7C3AED] hover:underline font-bold">View</button>
+        <button onClick={() => setDetailEvent(p.data)} className="text-[10px] text-accent-pa hover:underline font-bold">View</button>
       )
     },
   ], [])
 
   return (
     <div className="space-y-6 animate-fade-in">
-      <div className="flex items-center justify-between border-b border-neutral-900 pb-4">
+      <div className="flex items-center justify-between border-b border-fire-border pb-4">
         <div>
-          <h1 className="text-xl font-bold text-white tracking-tight uppercase">Audit Logs</h1>
-          <p className="text-[10px] text-neutral-600 mt-1">{totalElements} total records</p>
+          <h1 className="text-xl font-bold text-text-primary tracking-tight uppercase">Audit Logs</h1>
+          <p className="text-[10px] text-text-muted mt-1">{totalElements} total records</p>
         </div>
         <div className="flex items-center gap-2">
-          <button onClick={fetchLogs} className="flex items-center gap-1.5 bg-neutral-900 hover:bg-neutral-800 border border-neutral-800 text-neutral-300 font-bold px-3 py-2 rounded-xl text-[11px]">
+          <button onClick={fetchLogs} className="flex items-center gap-1.5 bg-surface-3 hover:bg-surface-2 border border-fire-border text-text-secondary font-bold px-3 py-2 rounded-xl text-[11px]">
             <RefreshCw className="w-3.5 h-3.5" /> Refresh
           </button>
-          <button onClick={handleExportCsv} className="flex items-center gap-1.5 bg-[#7C3AED] hover:bg-[#6D28D9] text-white font-bold px-3 py-2 rounded-xl text-[11px]">
+          <button onClick={handleExportCsv} className="flex items-center gap-1.5 bg-accent-pa hover:bg-accent-pa-dark text-white font-bold px-3 py-2 rounded-xl text-[11px]">
             <Download className="w-3.5 h-3.5" /> Export CSV
           </button>
-          <button onClick={handleExportXlsx} className="flex items-center gap-1.5 bg-[#7C3AED] hover:bg-[#6D28D9] text-white font-bold px-3 py-2 rounded-xl text-[11px]">
+          <button onClick={handleExportXlsx} className="flex items-center gap-1.5 bg-accent-pa hover:bg-accent-pa-dark text-white font-bold px-3 py-2 rounded-xl text-[11px]">
             <FileSpreadsheet className="w-3.5 h-3.5" /> Export XLSX
           </button>
         </div>
@@ -154,35 +154,35 @@ export default function AuditLogsPage() {
       {/* Filters */}
       <div className="grid grid-cols-2 md:grid-cols-6 gap-3">
         <div className="relative col-span-2">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-neutral-600" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-text-muted" />
           <input value={search} onChange={(e) => { setSearch(e.target.value); setPage(0) }}
             placeholder="Search users, emails, tenants..."
-            className="w-full bg-[#0C0C0D] border border-neutral-800 rounded-lg pl-9 pr-3 py-2 text-xs text-white focus:outline-none focus:border-[#7C3AED]/50" />
+            className="w-full bg-surface-2 border border-fire-border rounded-lg pl-9 pr-3 py-2 text-xs text-text-primary focus:outline-none focus:border-accent-pa/50" />
         </div>
         <select value={tenantFilter} onChange={(e) => { setTenantFilter(e.target.value); setPage(0) }}
-          className="bg-[#0C0C0D] border border-neutral-800 rounded-lg px-3 py-2 text-xs text-white">
+          className="bg-surface-2 border border-fire-border rounded-lg px-3 py-2 text-xs text-text-primary">
           <option value="">All Tenants</option>
           {tenants.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
         </select>
         <select value={actionFilter} onChange={(e) => { setActionFilter(e.target.value); setPage(0) }}
-          className="bg-[#0C0C0D] border border-neutral-800 rounded-lg px-3 py-2 text-xs text-white">
+          className="bg-surface-2 border border-fire-border rounded-lg px-3 py-2 text-xs text-text-primary">
           <option value="">All Actions</option>
           {actions.map(a => <option key={a} value={a}>{a.replace(/_/g, ' ')}</option>)}
         </select>
         <input type="date" value={startDate} onChange={(e) => { setStartDate(e.target.value); setPage(0) }}
-          className="bg-[#0C0C0D] border border-neutral-800 rounded-lg px-3 py-2 text-xs text-white" />
+          className="bg-surface-2 border border-fire-border rounded-lg px-3 py-2 text-xs text-text-primary" />
         <input type="date" value={endDate} onChange={(e) => { setEndDate(e.target.value); setPage(0) }}
-          className="bg-[#0C0C0D] border border-neutral-800 rounded-lg px-3 py-2 text-xs text-white" />
+          className="bg-surface-2 border border-fire-border rounded-lg px-3 py-2 text-xs text-text-primary" />
       </div>
 
       {/* Grid */}
       <div className="ag-theme-platform-admin w-full" style={{ height: 520 }}>
         {loading ? (
-          <div className="flex items-center justify-center h-full"><Loader2 className="w-6 h-6 text-[#7C3AED] animate-spin" /></div>
+          <div className="flex items-center justify-center h-full"><Loader2 className="w-6 h-6 text-accent-pa animate-spin" /></div>
         ) : events.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full gap-3">
-            <FileText className="w-10 h-10 text-neutral-700" />
-            <p className="text-xs text-neutral-600">No audit events found.</p>
+            <FileText className="w-10 h-10 text-text-muted" />
+            <p className="text-xs text-text-muted">No audit events found.</p>
           </div>
         ) : (
           <AgGridReact
@@ -201,16 +201,16 @@ export default function AuditLogsPage() {
       {/* Pagination */}
       {totalPages > 1 && (
         <div className="flex items-center justify-between pt-2">
-          <p className="text-[10px] text-neutral-500">
+          <p className="text-[10px] text-text-muted">
             Page {page + 1} of {totalPages} ({totalElements} records)
           </p>
           <div className="flex gap-2">
             <button disabled={page === 0} onClick={() => setPage(p => p - 1)}
-              className="px-3 py-1.5 rounded-lg text-[11px] font-bold bg-neutral-900 border border-neutral-800 text-neutral-300 disabled:opacity-30">
+              className="px-3 py-1.5 rounded-lg text-[11px] font-bold bg-surface-3 border border-fire-border text-text-secondary disabled:opacity-30">
               Previous
             </button>
             <button disabled={page >= totalPages - 1} onClick={() => setPage(p => p + 1)}
-              className="px-3 py-1.5 rounded-lg text-[11px] font-bold bg-neutral-900 border border-neutral-800 text-neutral-300 disabled:opacity-30">
+              className="px-3 py-1.5 rounded-lg text-[11px] font-bold bg-surface-3 border border-fire-border text-text-secondary disabled:opacity-30">
               Next
             </button>
           </div>
@@ -219,11 +219,11 @@ export default function AuditLogsPage() {
 
       {/* Detail Modal */}
       {detailEvent && (
-        <div className="fixed inset-0 bg-black/85 backdrop-blur-sm flex items-center justify-center z-[110] p-4">
-          <div className="bg-[#0C0C0D] border border-neutral-800 rounded-xl w-full max-w-lg overflow-hidden shadow-2xl animate-scale-in">
-            <div className="flex items-center justify-between p-4 border-b border-neutral-900">
-              <h3 className="text-xs font-bold text-white uppercase tracking-widest">Audit Event Detail</h3>
-              <button onClick={() => setDetailEvent(null)} className="text-neutral-500 hover:text-white"><X className="w-4 h-4" /></button>
+        <div className="fixed inset-0 bg-background/85 backdrop-blur-sm flex items-center justify-center z-[110] p-4">
+          <div className="bg-surface-2 border border-fire-border rounded-xl w-full max-w-lg overflow-hidden shadow-2xl animate-scale-in">
+            <div className="flex items-center justify-between p-4 border-b border-fire-border">
+              <h3 className="text-xs font-bold text-text-primary uppercase tracking-widest">Audit Event Detail</h3>
+              <button onClick={() => setDetailEvent(null)} className="text-text-muted hover:text-text-primary"><X className="w-4 h-4" /></button>
             </div>
             <div className="p-4 space-y-2 max-h-[70vh] overflow-y-auto text-[11px]">
               <DetailRow label="Timestamp" value={detailEvent.timestamp ? new Date(detailEvent.timestamp).toLocaleString() : ''} />
@@ -249,8 +249,8 @@ export default function AuditLogsPage() {
 function DetailRow({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex gap-3">
-      <span className="text-neutral-500 font-bold uppercase tracking-wider w-28 flex-shrink-0">{label}</span>
-      <span className="text-neutral-200 break-all">{value}</span>
+      <span className="text-text-muted font-bold uppercase tracking-wider w-28 flex-shrink-0">{label}</span>
+      <span className="text-text-secondary break-all">{value}</span>
     </div>
   )
 }

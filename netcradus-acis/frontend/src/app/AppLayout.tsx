@@ -38,7 +38,7 @@ export default function AppLayout() {
   }, [])
 
   return (
-    <div className="flex h-screen bg-black text-white overflow-hidden font-sans">
+    <div className="flex h-screen bg-background text-text-primary overflow-hidden font-sans">
       {/* Sidebar - Fixed width */}
       <Sidebar />
 
@@ -54,8 +54,8 @@ export default function AppLayout() {
         </main>
 
         {/* Live Threat Feed Ticker */}
-        <footer className="h-10 bg-black border-t border-fire-border flex items-center overflow-hidden z-20 absolute bottom-0 w-full backdrop-blur-md bg-black/80">
-          <div className="flex items-center gap-3 px-6 bg-black z-10 border-r border-fire-border h-full relative">
+        <footer className="h-10 bg-background border-t border-fire-border flex items-center overflow-hidden z-20 absolute bottom-0 w-full backdrop-blur-md bg-background/80">
+          <div className="flex items-center gap-3 px-6 bg-background z-10 border-r border-fire-border h-full relative">
             <div className="w-2 h-2 rounded-full bg-success animate-pulse shadow-success-glow" />
             <span className="text-[10px] font-black uppercase tracking-[0.2em] text-success whitespace-nowrap">
               LIVE THREAT FEED
@@ -76,7 +76,7 @@ export default function AppLayout() {
                     <span className="text-[11px] font-bold text-text-secondary tracking-tight">
                       {alert.title}
                     </span>
-                    <span className="text-border px-2">|</span>
+                    <span className="text-fire-border px-2">|</span>
                   </div>
                 ))
               ) : (
@@ -96,18 +96,18 @@ export default function AppLayout() {
                   <span className="text-[11px] font-bold text-text-secondary tracking-tight">
                     {alert.title}
                   </span>
-                  <span className="text-border px-2">|</span>
+                  <span className="text-fire-border px-2">|</span>
                 </div>
               ))}
             </div>
           </div>
           
-          <div className="px-6 bg-black z-10 border-l border-fire-border h-full flex items-center gap-4">
+          <div className="px-6 bg-background z-10 border-l border-fire-border h-full flex items-center gap-4">
             <span className="text-[9px] font-bold text-text-muted tracking-widest uppercase">
               GRID_STATUS: <span className="text-success">NOMINAL</span>
             </span>
             <span className="text-[9px] font-bold text-text-muted tracking-widest uppercase">
-              TZ: <span className="text-white">IST</span>
+              TZ: <span className="text-text-primary">IST</span>
             </span>
           </div>
         </footer>

@@ -11,7 +11,7 @@ import ToastContainer from '@/modules/platform-admin/components/ToastContainer'
  */
 export default function PlatformAdminLayout() {
   return (
-    <div className="flex h-screen bg-black text-white overflow-hidden font-sans">
+    <div className="flex h-screen bg-background text-text-primary overflow-hidden font-sans">
       <PlatformAdminSidebar />
 
       <div className="flex-1 flex flex-col min-w-0 relative">

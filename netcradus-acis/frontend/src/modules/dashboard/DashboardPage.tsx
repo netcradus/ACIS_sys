@@ -29,6 +29,7 @@ import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 import apiClient from '@/lib/apiClient'
 import wsClient from '@/lib/wsClient'
 import { clsx } from 'clsx'
+import { useChartColors } from '@/hooks/useChartColors'
 
 interface DashboardStats {
   totalAlerts: number
@@ -39,6 +40,7 @@ interface DashboardStats {
 }
 
 export default function DashboardPage() {
+  const chartColors = useChartColors()
   const [activeTab, setActiveTab] = useState<'architecture' | 'overview'>('architecture')
   const [stats, setStats] = useState<DashboardStats | null>(null)
   const [incidents, setIncidents] = useState<any[]>([])
@@ -194,13 +196,13 @@ export default function DashboardPage() {
   }, [simVector])
 
   return (
-    <div className="space-y-6 animate-fade-in relative min-h-screen text-white pb-12">
+    <div className="space-y-6 animate-fade-in relative min-h-screen text-text-primary pb-12">
       {/* Top Banner and Navigation Tabs */}
-      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between border-b border-white/5 pb-4 gap-4">
+      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between border-b border-fire-border pb-4 gap-4">
         <div>
           <div className="flex items-center gap-2">
             <span className="h-2 w-2 rounded-full bg-accent animate-pulse shadow-accent-glow" />
-            <h1 className="text-2xl font-black uppercase tracking-wider text-white">Autonomous Cyber Immune System</h1>
+            <h1 className="text-2xl font-black uppercase tracking-wider text-text-primary">Autonomous Cyber Immune System</h1>
           </div>
           <p className="text-[10px] text-text-secondary font-bold uppercase tracking-[0.25em] mt-1">
             Real-time closed-loop security automation & validation console
@@ -208,12 +210,12 @@ export default function DashboardPage() {
         </div>
 
         {/* Tab Controls */}
-        <div className="flex items-center bg-black/60 p-1 border border-white/5 rounded-2xl w-fit">
+        <div className="flex items-center bg-background/60 p-1 border border-fire-border rounded-2xl w-fit">
           <button 
             onClick={() => setActiveTab('architecture')}
             className={clsx(
               "px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all duration-200",
-              activeTab === 'architecture' ? "bg-accent text-white shadow-accent-glow" : "text-text-secondary hover:text-white"
+              activeTab === 'architecture' ? "bg-accent text-white shadow-accent-glow" : "text-text-secondary hover:text-text-primary"
             )}
           >
             Immune Architecture
@@ -222,7 +224,7 @@ export default function DashboardPage() {
             onClick={() => setActiveTab('overview')}
             className={clsx(
               "px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all duration-200",
-              activeTab === 'overview' ? "bg-accent text-white shadow-accent-glow" : "text-text-secondary hover:text-white"
+              activeTab === 'overview' ? "bg-accent text-white shadow-accent-glow" : "text-text-secondary hover:text-text-primary"
             )}
           >
             SOC Operational View
@@ -235,8 +237,8 @@ export default function DashboardPage() {
           {/* Cyber Immune Flow Chart View */}
           
           {/* Simulation Dashboard Controller */}
-          <div className="relative overflow-hidden rounded-[2rem] border border-white/10 bg-surface-2 p-6 shadow-2xl">
-            <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(255,77,0,0.08),transparent_40%)] pointer-events-none" />
+          <div className="relative overflow-hidden rounded-[2rem] border border-fire-border bg-surface-2 p-6 shadow-2xl">
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,color-mix(in_srgb,var(--accent)_8%,transparent),transparent_40%)] pointer-events-none" />
             
             <div className="relative z-10 flex flex-col xl:flex-row gap-6 items-start xl:items-center justify-between">
               <div className="space-y-2">
@@ -244,7 +246,7 @@ export default function DashboardPage() {
                   <span className="badge-mission bg-accent/10 border-accent text-accent">Active Sandbox Mode</span>
                   <span className="text-[10px] font-bold text-text-secondary uppercase tracking-widest">Closed-loop simulator</span>
                 </div>
-                <h2 className="text-xl font-extrabold text-white uppercase tracking-tight">Closed-Loop Attack & Remediation Simulator</h2>
+                <h2 className="text-xl font-extrabold text-text-primary uppercase tracking-tight">Closed-Loop Attack & Remediation Simulator</h2>
                 <p className="max-w-2xl text-[11px] uppercase tracking-[0.1em] text-text-secondary">
                   Select a threat vector to trigger a simulated red-team attack campaign. Watch as the system moves automatically through the defense lifecycle.
                 </p>
@@ -263,8 +265,8 @@ export default function DashboardPage() {
                     onClick={() => runSimulation(v.id)}
                     disabled={simState === 'simulating'}
                     className={clsx(
-                      "btn-mission text-[9px] font-black uppercase tracking-widest py-3 px-4 flex-1 xl:flex-none border border-white/10 hover:border-accent/40 rounded-xl",
-                      simVector === v.id ? "border-accent text-accent bg-accent/5 font-extrabold" : "text-white bg-black/40 hover:bg-black/60"
+                      "btn-mission text-[9px] font-black uppercase tracking-widest py-3 px-4 flex-1 xl:flex-none border border-fire-border hover:border-accent/40 rounded-xl",
+                      simVector === v.id ? "border-accent text-accent bg-accent/5 font-extrabold" : "text-text-primary bg-background/40 hover:bg-background/60"
                     )}
                   >
                     {v.label}
@@ -281,7 +283,7 @@ export default function DashboardPage() {
                     setSimLogs([`[${new Date().toLocaleTimeString()}] [SYSTEM] Telemetry reset. System secure.`]);
                   }}
                   disabled={simState !== 'simulating'}
-                  className="bg-black/40 border border-white/10 hover:border-danger/40 hover:text-danger text-text-muted rounded-xl p-3 flex items-center justify-center transition-all active:scale-95 disabled:opacity-30 disabled:pointer-events-none"
+                  className="bg-background/40 border border-fire-border hover:border-danger/40 hover:text-danger text-text-muted rounded-xl p-3 flex items-center justify-center transition-all active:scale-95 disabled:opacity-30 disabled:pointer-events-none"
                   title="Reset System State"
                 >
                   <RefreshCw className="h-4 w-4" />
@@ -290,7 +292,7 @@ export default function DashboardPage() {
             </div>
             
             {/* Visual Steps Tracker */}
-            <div className="mt-6 border-t border-white/5 pt-6 grid grid-cols-2 md:grid-cols-5 gap-4">
+            <div className="mt-6 border-t border-fire-border pt-6 grid grid-cols-2 md:grid-cols-5 gap-4">
               {[
                 { step: 1, label: 'TEST / TRIGGER', desc: 'Campaign Launch', status: simStep === 1 },
                 { step: 2, label: 'DETECT (L1)', desc: 'AI-Powered SIEM', status: simStep === 2 },
@@ -306,7 +308,7 @@ export default function DashboardPage() {
                       ? "bg-accent/10 border-accent/70 shadow-lg shadow-accent/5 scale-102" 
                       : simStep > item.step 
                         ? "bg-success/5 border-success/30 opacity-70"
-                        : "bg-surface-3/30 border-white/5 opacity-40"
+                        : "bg-surface-3/30 border-fire-border opacity-40"
                   )}
                 >
                   {simStep > item.step && (
@@ -315,7 +317,7 @@ export default function DashboardPage() {
                     </div>
                   )}
                   <span className="text-[9px] font-black uppercase text-text-secondary tracking-widest leading-none">Step {item.step}</span>
-                  <div className="text-xs font-black text-white mt-1 uppercase tracking-tight">{item.label}</div>
+                  <div className="text-xs font-black text-text-primary mt-1 uppercase tracking-tight">{item.label}</div>
                   <div className="text-[9px] text-text-secondary mt-1">{item.desc}</div>
                 </div>
               ))}
@@ -331,19 +333,19 @@ export default function DashboardPage() {
               {/* Layer 1 Module Box */}
               <div className={clsx(
                 "card-mission relative transition-all duration-300",
-                simStep === 2 ? "border-info/80 shadow-[0_0_20px_rgba(0,194,255,0.15)] bg-surface-2" : "border-white/5 bg-black/40"
+                simStep === 2 ? "border-info/80 shadow-[0_0_20px_color-mix(in_srgb,var(--info)_15%,transparent)] bg-surface-2" : "border-fire-border bg-background/40"
               )}>
                 <div className="flex items-center justify-between mb-4">
                   <div>
                     <span className="badge-mission bg-info/10 border-info text-info">Layer 1</span>
-                    <h3 className="text-sm font-black uppercase tracking-wider text-white mt-1">AI-Powered SIEM</h3>
+                    <h3 className="text-sm font-black uppercase tracking-wider text-text-primary mt-1">AI-Powered SIEM</h3>
                   </div>
                   <Activity className={clsx("h-5 w-5", simStep === 2 ? "text-info animate-pulse" : "text-text-muted")} />
                 </div>
 
                 <div className="space-y-4">
                   {/* Log Ingestion Path */}
-                  <div className="rounded-xl border border-white/5 bg-black/50 p-3">
+                  <div className="rounded-xl border border-fire-border bg-background/50 p-3">
                     <div className="text-[9px] font-black text-text-muted uppercase tracking-widest mb-2">Ingestion Telemetry</div>
                     <div className="space-y-1.5 text-[10px] font-bold text-text-secondary uppercase">
                       <div className="flex items-center justify-between">
@@ -363,37 +365,37 @@ export default function DashboardPage() {
 
                   {/* Flow Steps */}
                   <div className="flex items-center justify-between gap-1 text-[9px] font-black text-center">
-                    <div className="flex-1 p-2 rounded bg-surface-3 border border-white/5 text-text-secondary">Kafka/Fluentd</div>
+                    <div className="flex-1 p-2 rounded bg-surface-3 border border-fire-border text-text-secondary">Kafka/Fluentd</div>
                     <span className="text-text-muted">➔</span>
-                    <div className="flex-1 p-2 rounded bg-surface-3 border border-white/5 text-text-secondary">Normalization</div>
+                    <div className="flex-1 p-2 rounded bg-surface-3 border border-fire-border text-text-secondary">Normalization</div>
                     <span className="text-text-muted">➔</span>
-                    <div className="flex-1 p-2 rounded bg-surface-3 border border-white/5 text-text-secondary">Correlation</div>
+                    <div className="flex-1 p-2 rounded bg-surface-3 border border-fire-border text-text-secondary">Correlation</div>
                   </div>
 
                   {/* Models State */}
                   <div className="grid grid-cols-2 gap-2">
-                    <div className="p-3 bg-black/40 border border-white/5 rounded-xl">
+                    <div className="p-3 bg-background/40 border border-fire-border rounded-xl">
                       <div className="text-[9px] font-black uppercase text-text-muted">LSTM Predictor</div>
-                      <div className="text-xs font-black text-white mt-1">ACTIVE</div>
+                      <div className="text-xs font-black text-text-primary mt-1">ACTIVE</div>
                     </div>
-                    <div className="p-3 bg-black/40 border border-white/5 rounded-xl">
+                    <div className="p-3 bg-background/40 border border-fire-border rounded-xl">
                       <div className="text-[9px] font-black uppercase text-text-muted">Isolation Forest</div>
-                      <div className="text-xs font-black text-white mt-1">MONITORING</div>
+                      <div className="text-xs font-black text-text-primary mt-1">MONITORING</div>
                     </div>
                   </div>
 
                   {/* Holographic Ingestion HUD */}
-                  <div className="p-4 bg-black border border-white/5 rounded-xl flex items-center justify-between relative overflow-hidden">
+                  <div className="p-4 bg-background border border-fire-border rounded-xl flex items-center justify-between relative overflow-hidden">
                     <div>
                       <div className="text-[9px] font-black uppercase text-text-muted tracking-widest">Ingest Lag</div>
-                      <div className="text-xl font-black text-white mt-1 font-mono">&lt; 5s</div>
+                      <div className="text-xl font-black text-text-primary mt-1 font-mono">&lt; 5s</div>
                     </div>
 
                     {/* Circular gauge */}
                     <div className="relative h-16 w-16 flex items-center justify-center">
                       <svg className="w-full h-full transform -rotate-90" viewBox="0 0 36 36">
                         <path
-                          className="text-white/5"
+                          className="text-text-primary/5"
                           strokeWidth="3.5"
                           stroke="currentColor"
                           fill="none"
@@ -410,7 +412,7 @@ export default function DashboardPage() {
                         />
                       </svg>
                       <div className="absolute flex flex-col items-center justify-center">
-                        <span className="text-xs font-black font-mono text-white leading-none">{simRisk}%</span>
+                        <span className="text-xs font-black font-mono text-text-primary leading-none">{simRisk}%</span>
                         <span className="text-[6px] font-bold text-text-secondary uppercase mt-0.5">Risk</span>
                       </div>
                     </div>
@@ -426,12 +428,12 @@ export default function DashboardPage() {
               {/* Layer 2 Module Box */}
               <div className={clsx(
                 "card-mission relative transition-all duration-300",
-                simStep === 3 ? "border-accent/80 shadow-[0_0_20px_rgba(255,77,0,0.15)] bg-surface-2" : "border-white/5 bg-black/40"
+                simStep === 3 ? "border-accent/80 shadow-[0_0_20px_color-mix(in_srgb,var(--accent)_15%,transparent)] bg-surface-2" : "border-fire-border bg-background/40"
               )}>
                 <div className="flex items-center justify-between mb-4">
                   <div>
                     <span className="badge-mission bg-accent/10 border-accent text-accent">Layer 2</span>
-                    <h3 className="text-sm font-black uppercase tracking-wider text-white mt-1 font-bold">Autonomous SOAR</h3>
+                    <h3 className="text-sm font-black uppercase tracking-wider text-text-primary mt-1 font-bold">Autonomous SOAR</h3>
                   </div>
                   <Zap className={clsx("h-5 w-5", simStep === 3 ? "text-accent animate-pulse" : "text-text-muted")} />
                 </div>
@@ -439,12 +441,12 @@ export default function DashboardPage() {
                 <div className="space-y-4">
                   {/* Architecture & Orchestration tags */}
                   <div className="flex items-center gap-2">
-                    <span className="badge-mission border-white/5 bg-black/50 text-text-muted">Python Microservices</span>
-                    <span className="badge-mission border-white/5 bg-black/50 text-text-muted">K8s Orchestration</span>
+                    <span className="badge-mission border-fire-border bg-background/50 text-text-muted">Python Microservices</span>
+                    <span className="badge-mission border-fire-border bg-background/50 text-text-muted">K8s Orchestration</span>
                   </div>
 
                   {/* Flow logic */}
-                  <div className="p-3 bg-black/40 border border-white/5 rounded-xl text-center text-[10px] uppercase font-bold text-text-secondary">
+                  <div className="p-3 bg-background/40 border border-fire-border rounded-xl text-center text-[10px] uppercase font-bold text-text-secondary">
                     Playbooks ➔ Automated Actions
                   </div>
 
@@ -459,23 +461,23 @@ export default function DashboardPage() {
                         key={a.key}
                         className={clsx(
                           "px-3 py-2.5 rounded-xl border text-xs font-black uppercase flex items-center justify-between transition-all duration-300",
-                          a.active ? "bg-accent/10 border-accent text-white scale-102" : "bg-black/30 border-white/5 text-text-secondary"
+                          a.active ? "bg-accent/10 border-accent text-text-primary scale-102" : "bg-background/30 border-fire-border text-text-secondary"
                         )}
                       >
                         <span>{a.name}</span>
                         {a.active ? (
                           <span className="h-2 w-2 rounded-full bg-accent animate-ping" />
                         ) : (
-                          <span className="h-1.5 w-1.5 rounded-full bg-white/10" />
+                          <span className="h-1.5 w-1.5 rounded-full bg-surface-3" />
                         )}
                       </div>
                     ))}
                   </div>
 
                   {/* SOAR Telemetry HUD */}
-                  <div className="p-3 bg-black border border-white/5 rounded-xl flex items-center justify-between text-xs font-black uppercase text-text-muted">
+                  <div className="p-3 bg-background border border-fire-border rounded-xl flex items-center justify-between text-xs font-black uppercase text-text-muted">
                     <span>Remediation Lag</span>
-                    <span className="font-mono text-white">&lt; 10s</span>
+                    <span className="font-mono text-text-primary">&lt; 10s</span>
                   </div>
                 </div>
               </div>
@@ -483,12 +485,12 @@ export default function DashboardPage() {
               {/* Layer 4 Module Box */}
               <div className={clsx(
                 "card-mission relative transition-all duration-300",
-                simStep === 4 ? "border-success/80 shadow-[0_0_20px_rgba(0,255,153,0.15)] bg-surface-2" : "border-white/5 bg-black/40"
+                simStep === 4 ? "border-success/80 shadow-[0_0_20px_color-mix(in_srgb,var(--success)_15%,transparent)] bg-surface-2" : "border-fire-border bg-background/40"
               )}>
                 <div className="flex items-center justify-between mb-4">
                   <div>
                     <span className="badge-mission bg-success/10 border-success text-success">Layer 4</span>
-                    <h3 className="text-sm font-black uppercase tracking-wider text-white mt-1">Healing & Deception</h3>
+                    <h3 className="text-sm font-black uppercase tracking-wider text-text-primary mt-1">Healing & Deception</h3>
                   </div>
                   <ShieldCheck className={clsx("h-5 w-5", simStep === 4 ? "text-success animate-pulse" : "text-text-muted")} />
                 </div>
@@ -503,23 +505,23 @@ export default function DashboardPage() {
                   {/* Engine Split layout */}
                   <div className="grid grid-cols-2 gap-3">
                     {/* Self Healing */}
-                    <div className="p-3 bg-black/40 border border-white/5 rounded-xl flex flex-col justify-between min-h-[100px]">
+                    <div className="p-3 bg-background/40 border border-fire-border rounded-xl flex flex-col justify-between min-h-[100px]">
                       <div>
                         <div className="text-[9px] font-black uppercase text-success tracking-widest">Self-Healing</div>
                         <p className="text-[9px] text-text-secondary mt-1 uppercase leading-tight font-medium">Rollback configuration to cached snapshots</p>
                       </div>
-                      <div className="text-xs font-mono font-black text-white mt-3 flex items-center gap-1.5">
+                      <div className="text-xs font-mono font-black text-text-primary mt-3 flex items-center gap-1.5">
                         <Sliders className="h-3 w-3 text-success" /> Snapshot VSS
                       </div>
                     </div>
 
                     {/* Deception */}
-                    <div className="p-3 bg-black/40 border border-white/5 rounded-xl flex flex-col justify-between min-h-[100px]">
+                    <div className="p-3 bg-background/40 border border-fire-border rounded-xl flex flex-col justify-between min-h-[100px]">
                       <div>
                         <div className="text-[9px] font-black uppercase text-warning tracking-widest">Deception</div>
                         <p className="text-[9px] text-text-secondary mt-1 uppercase leading-tight font-medium">Activate honeypots and generate fake credentials</p>
                       </div>
-                      <div className="text-xs font-mono font-black text-white mt-3 flex items-center gap-1.5">
+                      <div className="text-xs font-mono font-black text-text-primary mt-3 flex items-center gap-1.5">
                         <KeyRound className="h-3 w-3 text-warning" /> Honeypots
                       </div>
                     </div>
@@ -533,9 +535,9 @@ export default function DashboardPage() {
                   )}
 
                   {/* Telemetry info */}
-                  <div className="p-3 bg-black border border-white/5 rounded-xl flex items-center justify-between text-xs font-black uppercase text-text-muted">
+                  <div className="p-3 bg-background border border-fire-border rounded-xl flex items-center justify-between text-xs font-black uppercase text-text-muted">
                     <span>Containment lag</span>
-                    <span className="font-mono text-white">&lt; 5s</span>
+                    <span className="font-mono text-text-primary">&lt; 5s</span>
                   </div>
                 </div>
               </div>
@@ -548,12 +550,12 @@ export default function DashboardPage() {
               {/* Layer 3 Module Box */}
               <div className={clsx(
                 "card-mission relative transition-all duration-300",
-                simStep === 1 ? "border-accent/80 shadow-[0_0_20px_rgba(255,77,0,0.15)] bg-surface-2" : "border-white/5 bg-black/40"
+                simStep === 1 ? "border-accent/80 shadow-[0_0_20px_color-mix(in_srgb,var(--accent)_15%,transparent)] bg-surface-2" : "border-fire-border bg-background/40"
               )}>
                 <div className="flex items-center justify-between mb-4">
                   <div>
                     <span className="badge-mission bg-accent/10 border-accent text-accent">Layer 3</span>
-                    <h3 className="text-sm font-black uppercase tracking-wider text-white mt-1">AI Red Team Simulator</h3>
+                    <h3 className="text-sm font-black uppercase tracking-wider text-text-primary mt-1">AI Red Team Simulator</h3>
                   </div>
                   <Crosshair className={clsx("h-5 w-5", simStep === 1 ? "text-accent animate-pulse" : "text-text-muted")} />
                 </div>
@@ -566,7 +568,7 @@ export default function DashboardPage() {
                   </div>
 
                   {/* Holographic matrix nodes */}
-                  <div className="bg-black border border-white/5 rounded-xl p-4">
+                  <div className="bg-background border border-fire-border rounded-xl p-4">
                     <div className="text-[9px] font-black text-text-muted uppercase tracking-widest mb-3 text-center">Interactive Grid Map</div>
                     
                     <div className="grid grid-cols-6 gap-2 w-fit mx-auto">
@@ -575,7 +577,7 @@ export default function DashboardPage() {
                           key={idx}
                           className={clsx(
                             "h-5 w-5 rounded-md border transition-all duration-500",
-                            state === 'secure' && "bg-[#111] border-white/5 hover:border-accent/30",
+                            state === 'secure' && "bg-surface-2 border-fire-border hover:border-accent/30",
                             state === 'probing' && "bg-warning/20 border-warning animate-pulse shadow-lg shadow-warning/20",
                             state === 'compromised' && "bg-danger/25 border-danger animate-pulse shadow-lg shadow-danger/20",
                             state === 'contained' && "bg-info/20 border-info shadow-lg shadow-info/20"
@@ -587,9 +589,9 @@ export default function DashboardPage() {
                   </div>
 
                   {/* Telemetry info */}
-                  <div className="p-3 bg-black border border-white/5 rounded-xl flex items-center justify-between text-xs font-black uppercase text-text-muted">
+                  <div className="p-3 bg-background border border-fire-border rounded-xl flex items-center justify-between text-xs font-black uppercase text-text-muted">
                     <span>Propagation lag</span>
-                    <span className="font-mono text-white">&lt; 10s</span>
+                    <span className="font-mono text-text-primary">&lt; 10s</span>
                   </div>
                 </div>
               </div>
@@ -597,12 +599,12 @@ export default function DashboardPage() {
               {/* Layer 5 Module Box */}
               <div className={clsx(
                 "card-mission relative transition-all duration-300",
-                simStep === 5 ? "border-success/80 shadow-[0_0_20px_rgba(0,255,153,0.15)] bg-surface-2" : "border-white/5 bg-black/40"
+                simStep === 5 ? "border-success/80 shadow-[0_0_20px_color-mix(in_srgb,var(--success)_15%,transparent)] bg-surface-2" : "border-fire-border bg-background/40"
               )}>
                 <div className="flex items-center justify-between mb-4">
                   <div>
                     <span className="badge-mission bg-success/10 border-success text-success">Layer 5</span>
-                    <h3 className="text-sm font-black uppercase tracking-wider text-white mt-1">Threat Intelligence Swarm</h3>
+                    <h3 className="text-sm font-black uppercase tracking-wider text-text-primary mt-1">Threat Intelligence Swarm</h3>
                   </div>
                   <Share2 className={clsx("h-5 w-5", simStep === 5 ? "text-success animate-pulse" : "text-text-muted")} />
                 </div>
@@ -615,25 +617,25 @@ export default function DashboardPage() {
                   </div>
 
                   {/* Collective Intelligence Model */}
-                  <div className="p-3 bg-black/40 border border-white/5 rounded-xl text-center text-[10px] uppercase font-bold text-text-secondary">
+                  <div className="p-3 bg-background/40 border border-fire-border rounded-xl text-center text-[10px] uppercase font-bold text-text-secondary">
                     Collective Intelligence Loop
                   </div>
 
                   {/* Swarm Architecture Details */}
-                  <div className="rounded-xl border border-white/5 bg-black/50 p-3 space-y-2">
+                  <div className="rounded-xl border border-fire-border bg-background/50 p-3 space-y-2">
                     <div className="text-[9px] font-black text-text-muted uppercase tracking-widest">Framework Architecture</div>
                     <div className="flex items-center justify-between text-[10px] font-bold text-text-secondary uppercase">
                       <span>Federated Learning</span>
-                      <span className="text-white font-black">Sync-On-Alert</span>
+                      <span className="text-text-primary font-black">Sync-On-Alert</span>
                     </div>
                     <div className="flex items-center justify-between text-[10px] font-bold text-text-secondary uppercase">
                       <span>Edge-Cloud Architecture</span>
-                      <span className="text-white font-black">Hybrid Swarm</span>
+                      <span className="text-text-primary font-black">Hybrid Swarm</span>
                     </div>
                   </div>
 
                   {/* Sync node count or mesh indicator */}
-                  <div className="p-3 bg-black border border-white/5 rounded-xl">
+                  <div className="p-3 bg-background border border-fire-border rounded-xl">
                     <div className="flex items-center justify-between text-[10px] font-bold uppercase text-text-secondary">
                       <span className="flex items-center gap-1.5">
                         <Dna className={clsx("h-3.5 w-3.5 text-success", simStep === 5 && "animate-spin")} /> 
@@ -646,9 +648,9 @@ export default function DashboardPage() {
                   </div>
 
                   {/* Telemetry Info */}
-                  <div className="p-3 bg-black border border-white/5 rounded-xl flex items-center justify-between text-xs font-black uppercase text-text-muted">
+                  <div className="p-3 bg-background border border-fire-border rounded-xl flex items-center justify-between text-xs font-black uppercase text-text-muted">
                     <span>Propagation lag</span>
-                    <span className="font-mono text-white">&lt; 10s</span>
+                    <span className="font-mono text-text-primary">&lt; 10s</span>
                   </div>
                 </div>
               </div>
@@ -658,13 +660,13 @@ export default function DashboardPage() {
           </div>
 
           {/* Terminal Console Log */}
-          <div className="card-mission border-white/5 bg-black p-5">
-            <div className="flex items-center justify-between border-b border-white/5 pb-3 mb-4">
+          <div className="card-mission border-fire-border bg-background p-5">
+            <div className="flex items-center justify-between border-b border-fire-border pb-3 mb-4">
               <div className="flex items-center gap-2">
                 <Terminal className="h-4 w-4 text-accent animate-pulse" />
-                <h3 className="text-xs font-black uppercase tracking-[0.2em] text-white">Closed-Loop Campaign Logs</h3>
+                <h3 className="text-xs font-black uppercase tracking-[0.2em] text-text-primary">Closed-Loop Campaign Logs</h3>
               </div>
-              <div className="text-[9px] font-bold text-text-secondary uppercase tracking-widest bg-white/5 px-2 py-0.5 rounded">
+              <div className="text-[9px] font-bold text-text-secondary uppercase tracking-widest bg-surface-3 px-2 py-0.5 rounded">
                 {simState === 'simulating' ? `${activeVectorLabel} Running` : 'System Monitoring'}
               </div>
             </div>
@@ -679,7 +681,7 @@ export default function DashboardPage() {
                     log.includes('SOAR') && "text-warning",
                     log.includes('HEALING') && "text-success",
                     log.includes('SWARM') && "text-success",
-                    log.includes('SYSTEM') && "text-white"
+                    log.includes('SYSTEM') && "text-text-primary"
                   )}>
                     {log}
                   </span>
@@ -694,20 +696,20 @@ export default function DashboardPage() {
           {/* Classic SOC Operational Overview (Original Code UI) */}
           
           {/* Hero Panel */}
-          <div className="relative overflow-hidden rounded-[2rem] border border-fire-border/30 bg-surface-3/80 p-8 shadow-[0_30px_80px_rgba(0,0,0,0.35)]">
-            <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(255,77,0,0.18),transparent_28%),radial-gradient(circle_at_bottom_right,rgba(0,194,255,0.14),transparent_30%)] pointer-events-none" />
+          <div className="relative overflow-hidden rounded-[2rem] border border-fire-border/30 bg-surface-3/80 p-8 shadow-card">
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,color-mix(in_srgb,var(--accent)_18%,transparent),transparent_28%),radial-gradient(circle_at_bottom_right,color-mix(in_srgb,var(--info)_14%,transparent),transparent_30%)] pointer-events-none" />
             <div className="relative z-10 grid gap-6 lg:grid-cols-[1.4fr_0.6fr]">
               <div className="space-y-4">
                 <p className="text-[10px] font-black uppercase tracking-[0.35em] text-accent">Command Center</p>
-                <h1 className="text-5xl lg:text-6xl font-extrabold uppercase tracking-tight leading-tight text-white">Secure operations at the speed of threat.</h1>
+                <h1 className="text-5xl lg:text-6xl font-extrabold uppercase tracking-tight leading-tight text-text-primary">Secure operations at the speed of threat.</h1>
                 <p className="max-w-2xl text-sm text-text-secondary leading-7">
                   Monitor live alerts, correlate threats, and act on critical incidents with a unified cyber defense console built for advanced SOC workflows.
                 </p>
                 <div className="flex flex-wrap gap-3">
-                  <span className="inline-flex items-center gap-2 rounded-full bg-black/40 border border-fire-border px-4 py-2 text-[10px] font-bold uppercase tracking-[0.3em] text-white">
+                  <span className="inline-flex items-center gap-2 rounded-full bg-background/40 border border-fire-border px-4 py-2 text-[10px] font-bold uppercase tracking-[0.3em] text-text-primary">
                     <ShieldAlert className="w-3.5 h-3.5 text-accent" /> Active Defense
                   </span>
-                  <span className="inline-flex items-center gap-2 rounded-full bg-black/40 border border-fire-border px-4 py-2 text-[10px] font-bold uppercase tracking-[0.3em] text-text-secondary">
+                  <span className="inline-flex items-center gap-2 rounded-full bg-background/40 border border-fire-border px-4 py-2 text-[10px] font-bold uppercase tracking-[0.3em] text-text-secondary">
                     <Layers className="w-3.5 h-3.5 text-info" /> Full Stack Visibility
                   </span>
                 </div>
@@ -716,12 +718,12 @@ export default function DashboardPage() {
               <div className="grid grid-cols-1 gap-4">
                 <div className="card-mission bg-glass-surface border-fire-border/50 p-6">
                   <p className="text-[10px] font-black uppercase tracking-[0.3em] text-text-muted mb-3">Threat Confidence</p>
-                  <p className="text-4xl font-black text-white tracking-tight">87%</p>
+                  <p className="text-4xl font-black text-text-primary tracking-tight">87%</p>
                   <p className="text-[11px] text-text-secondary mt-3">Based on correlation score and real-time model predictions.</p>
                 </div>
                 <div className="card-mission bg-glass-surface border-fire-border/50 p-6">
                   <p className="text-[10px] font-black uppercase tracking-[0.3em] text-text-muted mb-3">Response Readiness</p>
-                  <p className="text-4xl font-black text-white tracking-tight">95%</p>
+                  <p className="text-4xl font-black text-text-primary tracking-tight">95%</p>
                   <p className="text-[11px] text-text-secondary mt-3">Automated playbooks and analyst workflows are ready.</p>
                 </div>
               </div>
@@ -731,7 +733,7 @@ export default function DashboardPage() {
           {/* Header Info */}
           <div className="flex items-end justify-between mb-2">
             <div>
-              <h1 className="text-3xl font-black text-white tracking-tighter uppercase">Operational Overview</h1>
+              <h1 className="text-3xl font-black text-text-primary tracking-tighter uppercase">Operational Overview</h1>
               <p className="text-[10px] text-text-secondary font-bold tracking-[0.4em] uppercase mt-2">Mission Critical Infrastructure Health</p>
             </div>
             <div className="flex items-center gap-4 bg-surface-2 border border-fire-border px-4 py-2 rounded-xl">
@@ -758,9 +760,9 @@ export default function DashboardPage() {
                     <span className="text-[10px] font-black uppercase tracking-widest text-text-muted group-hover:text-text-secondary transition-colors">
                       {card.title}
                     </span>
-                    <MoreHorizontal className="w-4 h-4 text-text-muted cursor-pointer hover:text-white" />
+                    <MoreHorizontal className="w-4 h-4 text-text-muted cursor-pointer hover:text-text-primary" />
                   </div>
-                  <div className="text-3xl font-black text-white tracking-tighter mb-2 tabular-nums">
+                  <div className="text-3xl font-black text-text-primary tracking-tighter mb-2 tabular-nums">
                     {isLoading ? '---' : (card.value === null ? <span className="text-sm font-normal text-text-muted uppercase">Still in development</span> : card.value)}
                   </div>
                   <div className="flex items-center gap-1.5 mb-6">
@@ -783,7 +785,7 @@ export default function DashboardPage() {
             <div className="lg:col-span-2 card-mission bg-surface-2 border-fire-border/60">
               <div className="flex items-center justify-between mb-8">
                 <div>
-                  <h3 className="text-xs font-black text-white uppercase tracking-[0.2em]">Ingest Volume vs Errors</h3>
+                  <h3 className="text-xs font-black text-text-primary uppercase tracking-[0.2em]">Ingest Volume vs Errors</h3>
                   <p className="text-[10px] text-text-secondary font-bold mt-1">Global collection nodes telemetry — Last 8 Hours</p>
                 </div>
                 <div className="flex items-center gap-6">
@@ -807,16 +809,16 @@ export default function DashboardPage() {
             </div>
 
             <div className="card-mission bg-surface-2 border-fire-border/60">
-              <h3 className="text-xs font-black text-white uppercase tracking-[0.2em] mb-10 text-center">Alert Severity Mix</h3>
+              <h3 className="text-xs font-black text-text-primary uppercase tracking-[0.2em] mb-10 text-center">Alert Severity Mix</h3>
               <div className="h-64 w-full flex items-center justify-center relative">
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
                     <Pie
                       data={[
-                        { name: 'Critical', value: stats?.criticalAlerts ?? 0, color: '#FF3333' },
-                        { name: 'High', value: stats?.highAlerts ?? 0, color: '#FF8800' },
-                        { name: 'Medium', value: (stats?.totalAlerts ?? 0) - (stats?.criticalAlerts ?? 0) - (stats?.highAlerts ?? 0), color: '#FFD700' },
-                        { name: 'Low', value: 0, color: '#00C2FF' },
+                        { name: 'Critical', value: stats?.criticalAlerts ?? 0, color: chartColors.danger },
+                        { name: 'High', value: stats?.highAlerts ?? 0, color: chartColors.severityHigh },
+                        { name: 'Medium', value: (stats?.totalAlerts ?? 0) - (stats?.criticalAlerts ?? 0) - (stats?.highAlerts ?? 0), color: chartColors.severityMedium },
+                        { name: 'Low', value: 0, color: chartColors.info },
                       ]}
                       cx="50%"
                       cy="50%"
@@ -827,10 +829,10 @@ export default function DashboardPage() {
                       stroke="none"
                     >
                       {[
-                        { color: '#FF3333' },
-                        { color: '#FF8800' },
-                        { color: '#FFD700' },
-                        { color: '#00C2FF' },
+                        { color: chartColors.danger },
+                        { color: chartColors.severityHigh },
+                        { color: chartColors.severityMedium },
+                        { color: chartColors.info },
                       ].map((entry, index) => (
                         <Cell key={`cell-${index}`} fill={entry.color} />
                       ))}
@@ -839,22 +841,22 @@ export default function DashboardPage() {
                   </PieChart>
                 </ResponsiveContainer>
                 <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                  <span className="text-4xl font-black text-white tracking-tighter leading-none">{stats?.totalAlerts ?? 221}</span>
+                  <span className="text-4xl font-black text-text-primary tracking-tighter leading-none">{stats?.totalAlerts ?? 221}</span>
                   <span className="text-[10px] text-text-secondary font-bold uppercase tracking-[0.2em] mt-1">Alerts</span>
                 </div>
               </div>
 
               <div className="mt-10 space-y-3">
                 {[
-                  { name: 'Critical', value: stats?.criticalAlerts ?? 18, color: '#FF3333' },
-                  { name: 'High', value: stats?.highAlerts ?? 64, color: '#FF8800' },
-                  { name: 'Medium', value: (stats?.totalAlerts ?? 0) - (stats?.criticalAlerts ?? 0) - (stats?.highAlerts ?? 0) || 55, color: '#FFD700' },
-                  { name: 'Low', value: 84, color: '#00C2FF' },
+                  { name: 'Critical', value: stats?.criticalAlerts ?? 18, color: chartColors.danger },
+                  { name: 'High', value: stats?.highAlerts ?? 64, color: chartColors.severityHigh },
+                  { name: 'Medium', value: (stats?.totalAlerts ?? 0) - (stats?.criticalAlerts ?? 0) - (stats?.highAlerts ?? 0) || 55, color: chartColors.severityMedium },
+                  { name: 'Low', value: 84, color: chartColors.info },
                 ].map((item) => (
-                  <div key={item.name} className="flex items-center gap-3 px-2 py-1.5 hover:bg-white/5 rounded-lg transition-colors group">
+                  <div key={item.name} className="flex items-center gap-3 px-2 py-1.5 hover:bg-surface-3 rounded-lg transition-colors group">
                     <div className="w-2.5 h-2.5 rounded-sm shadow-sm" style={{ backgroundColor: item.color }} />
-                    <span className="text-[11px] font-bold text-text-secondary uppercase tracking-widest group-hover:text-white transition-colors">{item.name}</span>
-                    <span className="text-xs font-black text-white ml-auto tabular-nums">{item.value}</span>
+                    <span className="text-[11px] font-bold text-text-secondary uppercase tracking-widest group-hover:text-text-primary transition-colors">{item.name}</span>
+                    <span className="text-xs font-black text-text-primary ml-auto tabular-nums">{item.value}</span>
                   </div>
                 ))}
               </div>
@@ -865,7 +867,7 @@ export default function DashboardPage() {
           <div className="card-mission bg-surface-2 border-fire-border/60">
             <div className="flex items-center justify-between mb-8">
               <div>
-                <h3 className="text-xs font-black text-white uppercase tracking-[0.2em]">Open Incidents Queue</h3>
+                <h3 className="text-xs font-black text-text-primary uppercase tracking-[0.2em]">Open Incidents Queue</h3>
                 <p className="text-[10px] text-text-secondary font-bold mt-1">Prioritized active threats requiring analyst review</p>
               </div>
               <button className="text-[10px] font-black text-accent uppercase tracking-widest hover:underline px-4 py-2 bg-accent/5 rounded-lg border border-accent/20">
@@ -898,10 +900,10 @@ export default function DashboardPage() {
                   </thead>
                   <tbody className="divide-y divide-border">
                     {incidents.map((inc, i) => (
-                      <tr key={i} className="group hover:bg-white/[0.02] transition-colors">
+                      <tr key={i} className="group hover:bg-surface-3/40 transition-colors">
                         <td className="py-4 px-4 font-mono text-[10px] text-text-muted font-bold whitespace-nowrap">{inc.id}</td>
                         <td className="py-4 px-4">
-                          <p className="text-xs font-bold text-white tracking-tight leading-tight max-w-md">{inc.title}</p>
+                          <p className="text-xs font-bold text-text-primary tracking-tight leading-tight max-w-md">{inc.title}</p>
                         </td>
                         <td className="py-4 px-4">
                           <span className={clsx(
@@ -918,7 +920,7 @@ export default function DashboardPage() {
                             {inc.status}
                           </span>
                         </td>
-                        <td className="py-4 px-4 text-[11px] font-bold text-white text-right font-mono tabular-nums whitespace-nowrap">{inc.updated}</td>
+                        <td className="py-4 px-4 text-[11px] font-bold text-text-primary text-right font-mono tabular-nums whitespace-nowrap">{inc.updated}</td>
                       </tr>
                     ))}
                   </tbody>

@@ -44,7 +44,7 @@ export default function Sidebar() {
   return (
     <aside 
       className={clsx(
-        "relative z-20 h-full bg-black border-r border-fire-border transition-all duration-300 ease-in-out flex flex-col",
+        "relative z-20 h-full bg-background border-r border-fire-border transition-all duration-300 ease-in-out flex flex-col",
         collapsed ? 'w-[70px]' : 'w-[260px]'
       )}
     >
@@ -65,7 +65,7 @@ export default function Sidebar() {
                 "group flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 text-sm font-bold tracking-tight mb-1 relative overflow-hidden",
                 isActive 
                   ? "text-accent bg-accent/5" 
-                  : "text-text-secondary hover:text-white hover:bg-surface-2"
+                  : "text-text-secondary hover:text-text-primary hover:bg-surface-2"
               )
             }
           >

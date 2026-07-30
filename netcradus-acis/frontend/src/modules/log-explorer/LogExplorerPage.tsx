@@ -7,8 +7,10 @@ import apiClient from '@/lib/apiClient'
 import wsClient from '@/lib/wsClient'
 import { LogEntry, LogSearchFilters } from '@/types/log'
 import { clsx } from 'clsx'
+import { useChartColors } from '@/hooks/useChartColors'
 
 export default function LogExplorerPage() {
+  const chartColors = useChartColors()
   const [logs, setLogs] = useState<LogEntry[]>([])
 
   const [selectedSource, setSelectedSource] = useState('ALL')
@@ -49,7 +51,7 @@ export default function LogExplorerPage() {
       flex: 1,
       minWidth: 400,
       cellRenderer: (params: any) => (
-        <span className="font-mono text-[11px] font-black text-white tracking-tight line-clamp-1">{params.value}</span>
+        <span className="font-mono text-[11px] font-black text-text-primary tracking-tight line-clamp-1">{params.value}</span>
       )
     },
     {
@@ -65,7 +67,7 @@ export default function LogExplorerPage() {
       headerName: 'SOURCE_HOST',
       width: 180,
       cellRenderer: (params: any) => (
-        <span className="font-mono text-[10px] font-bold text-text-secondary uppercase bg-white/5 px-2 py-0.5 rounded border border-white/10">{params.value || 'UNKNOWN'}</span>
+        <span className="font-mono text-[10px] font-bold text-text-secondary uppercase bg-surface-3 px-2 py-0.5 rounded border border-fire-border">{params.value || 'UNKNOWN'}</span>
       )
     },
     {
@@ -87,7 +89,7 @@ export default function LogExplorerPage() {
       width: 180,
       cellRenderer: (params: any) => (
         <div className="flex flex-col leading-none">
-          <span className="text-[10px] font-black text-white uppercase">{params.value || 'UNKNOWN'}</span>
+          <span className="text-[10px] font-black text-text-primary uppercase">{params.value || 'UNKNOWN'}</span>
           <span className="text-[8px] text-text-muted font-bold mt-1 uppercase tracking-widest">{params.data.assetType || 'UNMAPPED'}</span>
         </div>
       )
@@ -266,11 +268,11 @@ export default function LogExplorerPage() {
 
 
   return (
-    <div className="space-y-8 animate-fade-in flex flex-col min-h-[calc(100vh-160px)] bg-black">
+    <div className="space-y-8 animate-fade-in flex flex-col min-h-[calc(100vh-160px)] bg-background">
       {/* Header */}
       <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div>
-          <h1 className="text-3xl font-black text-white tracking-tighter uppercase leading-none">Log Explorer (SPL)</h1>
+          <h1 className="text-3xl font-black text-text-primary tracking-tighter uppercase leading-none">Log Explorer (SPL)</h1>
           <p className="text-[10px] text-text-secondary font-bold tracking-[0.4em] uppercase mt-2">Elastic Telemetry & Multi-Source Indexing</p>
         </div>
         <div className="flex items-center gap-3">
@@ -280,14 +282,14 @@ export default function LogExplorerPage() {
             <select
               value={selectedSource}
               onChange={(e) => handleSourceChange(e.target.value)}
-              className="bg-transparent text-[9px] font-black text-white uppercase tracking-widest focus:outline-none cursor-pointer pr-3"
+              className="bg-transparent text-[9px] font-black text-text-primary uppercase tracking-widest focus:outline-none cursor-pointer pr-3"
             >
-              <option value="ALL" className="bg-surface text-white">All Sources</option>
-              <option value="firewall" className="bg-surface text-white">Firewall</option>
-              <option value="ids-ips" className="bg-surface text-white">IDS/IPS</option>
-              <option value="netcradus-waf" className="bg-surface text-white">WAF</option>
-              <option value="acis-gateway" className="bg-surface text-white">Gateway</option>
-              <option value="auth-service" className="bg-surface text-white">Auth Service</option>
+              <option value="ALL" className="bg-surface text-text-primary">All Sources</option>
+              <option value="firewall" className="bg-surface text-text-primary">Firewall</option>
+              <option value="ids-ips" className="bg-surface text-text-primary">IDS/IPS</option>
+              <option value="netcradus-waf" className="bg-surface text-text-primary">WAF</option>
+              <option value="acis-gateway" className="bg-surface text-text-primary">Gateway</option>
+              <option value="auth-service" className="bg-surface text-text-primary">Auth Service</option>
             </select>
           </div>
 
@@ -296,7 +298,7 @@ export default function LogExplorerPage() {
               onClick={() => setIsLive(true)}
               className={clsx(
                 "px-5 py-2 rounded-full text-[9px] font-black uppercase tracking-widest transition-all inline-flex items-center gap-2",
-                isLive ? "bg-accent text-white shadow-lg shadow-accent/20" : "text-text-muted hover:text-white"
+                isLive ? "bg-accent text-white shadow-lg shadow-accent/20" : "text-text-muted hover:text-text-primary"
               )}
             >
               Live Stream
@@ -305,7 +307,7 @@ export default function LogExplorerPage() {
               onClick={() => setIsLive(false)}
               className={clsx(
                 "px-5 py-2 rounded-full text-[9px] font-black uppercase tracking-widest transition-all inline-flex items-center gap-2",
-                !isLive ? "bg-accent text-white shadow-lg shadow-accent/20" : "text-text-muted hover:text-white"
+                !isLive ? "bg-accent text-white shadow-lg shadow-accent/20" : "text-text-muted hover:text-text-primary"
               )}
             >
               Forensic Search
@@ -353,7 +355,7 @@ export default function LogExplorerPage() {
         <textarea
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          className="w-full h-24 bg-black/60 border border-fire-border rounded-xl p-6 font-mono text-sm text-text-secondary focus:outline-none focus:border-accent/40 placeholder:text-text-muted resize-none leading-relaxed selection:bg-accent selection:text-white transition-all shadow-inner"
+          className="w-full h-24 bg-background/60 border border-fire-border rounded-xl p-6 font-mono text-sm text-text-secondary focus:outline-none focus:border-accent/40 placeholder:text-text-muted resize-none leading-relaxed selection:bg-accent selection:text-white transition-all shadow-inner"
           spellCheck="false"
         />
 
@@ -395,20 +397,20 @@ export default function LogExplorerPage() {
       {/* Event Trend Chart */}
       <div className="card-mission bg-surface-2 border-fire-border">
         <div className="flex items-center justify-between mb-6">
-          <h3 className="text-[10px] font-black text-white uppercase tracking-[0.2em]">Event Trend — Last 60 Minutes</h3>
+          <h3 className="text-[10px] font-black text-text-primary uppercase tracking-[0.2em]">Event Trend — Last 60 Minutes</h3>
           <span className="text-[10px] font-bold text-success uppercase tracking-widest tabular-nums">Returned {logs.length.toLocaleString()} events in 0.34s</span>
         </div>
         <div className="h-40 w-full">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={MOCK_TREND_DATA}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#1A1A1A" vertical={false} />
-              <XAxis dataKey="time" stroke="#444" fontSize={9} axisLine={false} tickLine={false} tickMargin={10} />
+              <CartesianGrid strokeDasharray="3 3" stroke={chartColors.border} vertical={false} />
+              <XAxis dataKey="time" stroke={chartColors.textMuted} fontSize={9} axisLine={false} tickLine={false} tickMargin={10} />
               <YAxis hide />
               <Tooltip
-                cursor={{ fill: 'rgba(255,77,0,0.05)' }}
-                contentStyle={{ backgroundColor: '#0A0A0A', border: '1px solid #222', borderRadius: '8px' }}
+                cursor={{ fill: 'color-mix(in srgb, var(--accent) 6%, transparent)' }}
+                contentStyle={{ backgroundColor: chartColors.surface2, border: `1px solid ${chartColors.border}`, borderRadius: '8px' }}
               />
-              <Bar dataKey="count" fill="#FF4D00" radius={[2, 2, 0, 0]} barSize={24} />
+              <Bar dataKey="count" fill={chartColors.accent} radius={[2, 2, 0, 0]} barSize={24} />
             </BarChart>
           </ResponsiveContainer>
         </div>

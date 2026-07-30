@@ -31,11 +31,11 @@ export default function NetcradusLogo({
   if (collapsed) {
     return (
       <div className={clsx("flex items-center justify-center w-full", className)}>
-        <div className={clsx("rounded-2xl bg-[#FF5A1F]/15 border border-[#FF5A1F]/40 flex items-center justify-center p-2 shadow-[0_0_15px_rgba(255,90,31,0.25)] hover:scale-105 transition-all duration-300", iconSizeMap[size])}>
+        <div className={clsx("rounded-2xl bg-accent/15 border border-accent/40 flex items-center justify-center p-2 shadow-[0_0_15px_color-mix(in_srgb,var(--accent)_25%,transparent)] hover:scale-105 transition-all duration-300", iconSizeMap[size])}>
           <img
             src="/netcradus-logo.png"
             alt="NETCRADUS"
-            className="w-full h-full object-contain filter brightness-125 contrast-125 drop-shadow-[0_0_8px_rgba(255,90,31,0.4)]"
+            className="w-full h-full object-contain filter invert hue-rotate-180 dark:invert-0 dark:hue-rotate-0 dark:brightness-125 dark:contrast-125 drop-shadow-[0_0_8px_color-mix(in_srgb,var(--accent)_40%,transparent)]"
           />
         </div>
       </div>
@@ -49,13 +49,13 @@ export default function NetcradusLogo({
           src="/netcradus-logo.png"
           alt="NETCRADUS ACIS"
           className={clsx(
-            "object-contain filter brightness-110 contrast-125 drop-shadow-[0_0_12px_rgba(255,90,31,0.35)] group-hover:drop-shadow-[0_0_18px_rgba(255,90,31,0.55)] group-hover:scale-[1.02] transition-all duration-300",
+            "object-contain filter invert hue-rotate-180 dark:invert-0 dark:hue-rotate-0 dark:brightness-110 dark:contrast-125 drop-shadow-[0_0_12px_color-mix(in_srgb,var(--accent)_35%,transparent)] group-hover:drop-shadow-[0_0_18px_color-mix(in_srgb,var(--accent)_55%,transparent)] group-hover:scale-[1.02] transition-all duration-300",
             heightMap[size]
           )}
         />
       </div>
       {showTagline && (
-        <span className="text-[10px] font-black tracking-[0.28em] text-[#FF5A1F] uppercase mt-1.5 font-mono drop-shadow-[0_0_8px_rgba(255,90,31,0.3)]">
+        <span className="text-[10px] font-black tracking-[0.28em] text-accent uppercase mt-1.5 font-mono drop-shadow-[0_0_8px_color-mix(in_srgb,var(--accent)_30%,transparent)]">
           Autonomous Cyber Immune System
         </span>
       )}

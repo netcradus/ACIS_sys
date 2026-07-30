@@ -164,7 +164,7 @@ export default function TenantDetailPage() {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-24">
-        <Loader2 className="w-6 h-6 text-[#7C3AED] animate-spin" />
+        <Loader2 className="w-6 h-6 text-accent-pa animate-spin" />
       </div>
     )
   }
@@ -172,7 +172,7 @@ export default function TenantDetailPage() {
   if (error || !tenant) {
     return (
       <div className="space-y-4">
-        <button onClick={() => navigate('/platform-admin/tenants')} className="flex items-center gap-2 text-xs text-neutral-400 hover:text-white">
+        <button onClick={() => navigate('/platform-admin/tenants')} className="flex items-center gap-2 text-xs text-text-secondary hover:text-text-primary">
           <ArrowLeft className="w-4 h-4" /> Back to Tenants
         </button>
         <div className="bg-danger/10 border border-danger/30 rounded-xl p-4 text-xs text-danger font-semibold">
@@ -184,36 +184,36 @@ export default function TenantDetailPage() {
 
   return (
     <div className="space-y-6 animate-fade-in">
-      <div className="flex items-center justify-between border-b border-neutral-900 pb-4">
+      <div className="flex items-center justify-between border-b border-fire-border pb-4">
         <div>
           <button
             onClick={() => navigate('/platform-admin/tenants')}
-            className="flex items-center gap-2 text-[11px] text-neutral-500 hover:text-white mb-2 transition-colors"
+            className="flex items-center gap-2 text-[11px] text-text-muted hover:text-text-primary mb-2 transition-colors"
           >
             <ArrowLeft className="w-3.5 h-3.5" /> Back to Tenants
           </button>
           <div className="flex items-center gap-3">
-            <h1 className="text-xl font-bold text-white tracking-tight uppercase">{tenant.name}</h1>
+            <h1 className="text-xl font-bold text-text-primary tracking-tight uppercase">{tenant.name}</h1>
             <span
               className={clsx(
                 'px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider',
-                tenant.status === 'ACTIVE' && 'bg-[#00FF99]/10 text-[#00FF99]',
+                tenant.status === 'ACTIVE' && 'bg-success/10 text-success',
                 tenant.status === 'SUSPENDED' && 'bg-danger/10 text-danger',
-                tenant.status === 'TRIAL' && 'bg-[#FFAB00]/10 text-[#FFAB00]',
-                tenant.status === 'DEACTIVATED' && 'bg-neutral-800 text-neutral-500'
+                tenant.status === 'TRIAL' && 'bg-warning/10 text-warning',
+                tenant.status === 'DEACTIVATED' && 'bg-surface-3 text-text-muted'
               )}
             >
               {tenant.status}
             </span>
           </div>
-          <p className="text-[10px] text-neutral-600 font-mono mt-1">{tenant.id}</p>
+          <p className="text-[10px] text-text-muted font-mono mt-1">{tenant.id}</p>
         </div>
 
         <div className="flex items-center gap-2">
           {tenant.status === 'SUSPENDED' ? (
             <button
               onClick={() => setConfirmAction('reactivate')}
-              className="flex items-center gap-2 bg-[#00FF99]/10 hover:bg-[#00FF99]/20 border border-[#00FF99]/30 text-[#00FF99] font-bold px-4 py-2 rounded-xl text-xs transition-colors"
+              className="flex items-center gap-2 bg-success/10 hover:bg-success/20 border border-success/30 text-success font-bold px-4 py-2 rounded-xl text-xs transition-colors"
             >
               <ShieldCheck className="w-4 h-4" /> Reactivate
             </button>
@@ -227,7 +227,7 @@ export default function TenantDetailPage() {
           )}
           <button
             onClick={() => setConfirmAction('delete')}
-            className="flex items-center gap-2 bg-neutral-900 hover:bg-danger/20 border border-neutral-800 hover:border-danger/30 text-neutral-400 hover:text-danger font-bold px-4 py-2 rounded-xl text-xs transition-colors"
+            className="flex items-center gap-2 bg-surface-3 hover:bg-danger/20 border border-fire-border hover:border-danger/30 text-text-secondary hover:text-danger font-bold px-4 py-2 rounded-xl text-xs transition-colors"
           >
             <Trash2 className="w-4 h-4" /> Delete
           </button>
@@ -242,64 +242,64 @@ export default function TenantDetailPage() {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Details */}
-        <div className="bg-[#0C0C0D] border border-neutral-800 rounded-xl p-5 space-y-4">
-          <h2 className="text-xs font-bold text-white uppercase tracking-widest">Tenant Details</h2>
+        <div className="bg-surface-2 border border-fire-border rounded-xl p-5 space-y-4">
+          <h2 className="text-xs font-bold text-text-primary uppercase tracking-widest">Tenant Details</h2>
           {fieldError && (
             <div className="bg-danger/10 border border-danger/30 rounded-lg p-3 text-xs text-danger font-semibold">{fieldError}</div>
           )}
           <div className="space-y-1">
-            <label className="text-[11px] text-neutral-500 font-bold uppercase tracking-wider block">Name</label>
+            <label className="text-[11px] text-text-muted font-bold uppercase tracking-wider block">Name</label>
             <input
               value={name}
               onChange={(e) => setName(e.target.value)}
-              className="w-full bg-[#050505] border border-neutral-800 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-[#7C3AED]/50"
+              className="w-full bg-surface border border-fire-border rounded-lg px-3 py-2 text-xs text-text-primary focus:outline-none focus:border-accent-pa/50"
             />
           </div>
           <div className="space-y-1">
-            <label className="text-[11px] text-neutral-500 font-bold uppercase tracking-wider block">Contact Name</label>
+            <label className="text-[11px] text-text-muted font-bold uppercase tracking-wider block">Contact Name</label>
             <input
               value={contactName}
               onChange={(e) => setContactName(e.target.value)}
-              className="w-full bg-[#050505] border border-neutral-800 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-[#7C3AED]/50"
+              className="w-full bg-surface border border-fire-border rounded-lg px-3 py-2 text-xs text-text-primary focus:outline-none focus:border-accent-pa/50"
             />
           </div>
           <div className="space-y-1">
-            <label className="text-[11px] text-neutral-500 font-bold uppercase tracking-wider block">Contact Email</label>
+            <label className="text-[11px] text-text-muted font-bold uppercase tracking-wider block">Contact Email</label>
             <input
               value={contactEmail}
               onChange={(e) => setContactEmail(e.target.value)}
-              className="w-full bg-[#050505] border border-neutral-800 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-[#7C3AED]/50"
+              className="w-full bg-surface border border-fire-border rounded-lg px-3 py-2 text-xs text-text-primary focus:outline-none focus:border-accent-pa/50"
             />
           </div>
           <button
             onClick={handleSaveDetails}
             disabled={savingDetails}
-            className="flex items-center gap-2 bg-[#7C3AED] hover:bg-[#6D28D9] text-white font-bold px-4 py-2 rounded-xl text-xs transition-colors disabled:opacity-50"
+            className="flex items-center gap-2 bg-accent-pa hover:bg-accent-pa-dark text-white font-bold px-4 py-2 rounded-xl text-xs transition-colors disabled:opacity-50"
           >
             <Save className="w-3.5 h-3.5" /> {savingDetails ? 'Saving...' : 'Save Details'}
           </button>
         </div>
 
         {/* Plan */}
-        <div className="bg-[#0C0C0D] border border-neutral-800 rounded-xl p-5 space-y-4">
-          <h2 className="text-xs font-bold text-white uppercase tracking-widest">Subscription Plan</h2>
+        <div className="bg-surface-2 border border-fire-border rounded-xl p-5 space-y-4">
+          <h2 className="text-xs font-bold text-text-primary uppercase tracking-widest">Subscription Plan</h2>
           <div className="space-y-1">
-            <label className="text-[11px] text-neutral-500 font-bold uppercase tracking-wider block">Plan Name</label>
+            <label className="text-[11px] text-text-muted font-bold uppercase tracking-wider block">Plan Name</label>
             <input
               value={planName}
               onChange={(e) => setPlanName(e.target.value)}
               placeholder="e.g. Enterprise Shield"
-              className="w-full bg-[#050505] border border-neutral-800 rounded-lg px-3 py-2 text-xs text-white placeholder:text-neutral-700 focus:outline-none focus:border-[#7C3AED]/50"
+              className="w-full bg-surface border border-fire-border rounded-lg px-3 py-2 text-xs text-text-primary placeholder:text-text-muted focus:outline-none focus:border-accent-pa/50"
             />
           </div>
-          <p className="text-[10px] text-neutral-600 leading-relaxed">
+          <p className="text-[10px] text-text-muted leading-relaxed">
             Internal label only — no payment processor is wired up. Use this to reflect a plan the customer has already
             paid for outside the app.
           </p>
           <button
             onClick={handleSavePlan}
             disabled={savingPlan}
-            className="flex items-center gap-2 bg-[#7C3AED] hover:bg-[#6D28D9] text-white font-bold px-4 py-2 rounded-xl text-xs transition-colors disabled:opacity-50"
+            className="flex items-center gap-2 bg-accent-pa hover:bg-accent-pa-dark text-white font-bold px-4 py-2 rounded-xl text-xs transition-colors disabled:opacity-50"
           >
             <Save className="w-3.5 h-3.5" /> {savingPlan ? 'Saving...' : 'Save Plan'}
           </button>
@@ -307,13 +307,13 @@ export default function TenantDetailPage() {
       </div>
 
       {/* Modules */}
-      <div className="bg-[#0C0C0D] border border-neutral-800 rounded-xl p-5 space-y-4">
+      <div className="bg-surface-2 border border-fire-border rounded-xl p-5 space-y-4">
         <div className="flex items-center justify-between">
-          <h2 className="text-xs font-bold text-white uppercase tracking-widest">Module Access</h2>
+          <h2 className="text-xs font-bold text-text-primary uppercase tracking-widest">Module Access</h2>
           <button
             onClick={handleSaveModules}
             disabled={savingModules}
-            className="flex items-center gap-2 bg-[#7C3AED] hover:bg-[#6D28D9] text-white font-bold px-4 py-2 rounded-xl text-xs transition-colors disabled:opacity-50"
+            className="flex items-center gap-2 bg-accent-pa hover:bg-accent-pa-dark text-white font-bold px-4 py-2 rounded-xl text-xs transition-colors disabled:opacity-50"
           >
             <Save className="w-3.5 h-3.5" /> {savingModules ? 'Saving...' : 'Save Modules'}
           </button>
@@ -326,10 +326,10 @@ export default function TenantDetailPage() {
                 key={mod.key}
                 className={clsx(
                   'flex items-center gap-2 px-3 py-2.5 rounded-lg border cursor-pointer transition-colors text-xs font-semibold',
-                  checked ? 'border-[#7C3AED]/40 bg-[#7C3AED]/10 text-white' : 'border-neutral-800 text-neutral-500 hover:border-neutral-700'
+                  checked ? 'border-accent-pa/40 bg-accent-pa/10 text-text-primary' : 'border-fire-border text-text-muted hover:border-accent-pa/30'
                 )}
               >
-                <input type="checkbox" checked={checked} onChange={() => toggleModule(mod.key)} className="accent-[#7C3AED]" />
+                <input type="checkbox" checked={checked} onChange={() => toggleModule(mod.key)} className="accent-accent-pa" />
                 {mod.label}
               </label>
             )
@@ -348,13 +348,13 @@ export default function TenantDetailPage() {
         onConfirm={runConfirmedAction}
       >
         <div className="space-y-1 mt-2">
-          <label className="text-[11px] text-neutral-500 font-bold uppercase tracking-wider block">Reason (optional)</label>
+          <label className="text-[11px] text-text-muted font-bold uppercase tracking-wider block">Reason (optional)</label>
           <textarea
             value={suspendReason}
             onChange={(e) => setSuspendReason(e.target.value)}
             rows={2}
             placeholder="e.g. Non-payment, ToS violation..."
-            className="w-full bg-[#050505] border border-neutral-800 rounded-lg px-3 py-2 text-xs text-white placeholder:text-neutral-700 focus:outline-none focus:border-danger/50 resize-none"
+            className="w-full bg-surface border border-fire-border rounded-lg px-3 py-2 text-xs text-text-primary placeholder:text-text-muted focus:outline-none focus:border-danger/50 resize-none"
           />
         </div>
       </ConfirmDialog>

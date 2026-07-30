@@ -167,7 +167,7 @@ export default function AssetsPage() {
 
   const getCriticalityBadge = (crit: string) => {
     const c = crit?.toUpperCase() || 'MEDIUM'
-    if (c === 'HIGH') return 'bg-orange-500/10 text-orange-400 border border-orange-500/20 px-2 py-0.5 rounded text-[10px] font-bold'
+    if (c === 'HIGH') return 'bg-orange-500/10 text-accent border border-orange-500/20 px-2 py-0.5 rounded text-[10px] font-bold'
     if (c === 'MEDIUM') return 'bg-yellow-500/10 text-yellow-400 border border-yellow-500/20 px-2 py-0.5 rounded text-[10px] font-bold'
     return 'bg-blue-500/10 text-blue-400 border border-blue-500/20 px-2 py-0.5 rounded text-[10px] font-bold'
   }
@@ -188,19 +188,19 @@ export default function AssetsPage() {
   }
 
   return (
-    <div className="space-y-6 animate-fade-in flex flex-col h-full bg-[#050506] text-neutral-300 p-6 min-h-screen">
+    <div className="space-y-6 animate-fade-in flex flex-col h-full bg-background text-text-secondary p-6 min-h-screen">
       
       {/* Search Header */}
-      <div className="flex items-center justify-between border-b border-neutral-900 pb-4">
-        <h1 className="text-xl font-bold text-white tracking-tight uppercase">Assets & Identities</h1>
-        <div className="relative w-80 bg-[#0C0C0D] border border-neutral-800 rounded-xl overflow-hidden">
-          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-500" />
+      <div className="flex items-center justify-between border-b border-fire-border pb-4">
+        <h1 className="text-xl font-bold text-text-primary tracking-tight uppercase">Assets & Identities</h1>
+        <div className="relative w-80 bg-surface-2 border border-fire-border rounded-xl overflow-hidden">
+          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted" />
           <input 
             type="text" 
             placeholder="Search Kiro AI..." 
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full bg-transparent pl-10 pr-4 py-2 text-xs placeholder:text-neutral-600 text-white focus:outline-none focus:border-neutral-700"
+            className="w-full bg-transparent pl-10 pr-4 py-2 text-xs placeholder:text-text-muted text-text-primary focus:outline-none focus:border-fire-border"
           />
         </div>
       </div>
@@ -208,14 +208,14 @@ export default function AssetsPage() {
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         {[
-          { label: 'Total Assets', value: totalAssetsCount, border: 'border-neutral-800' },
+          { label: 'Total Assets', value: totalAssetsCount, border: 'border-fire-border' },
           { label: 'High Criticality', value: highCriticalityCount, border: 'border-l-4 border-l-orange-500' },
           { label: 'Quarantined', value: quarantinedCount, border: 'border-l-4 border-l-yellow-500' },
           { label: 'Identity Conflicts', value: identityConflictsCount, border: 'border-l-4 border-l-purple-500' }
         ].map((stat, i) => (
-          <div key={i} className={clsx("bg-[#0C0C0D] border border-neutral-800 rounded-lg p-5 flex flex-col justify-between h-24 shadow-sm", stat.border)}>
-            <span className="text-3xl font-bold text-white tracking-tight leading-none">{stat.value}</span>
-            <span className="text-[10px] text-neutral-500 font-semibold tracking-wider uppercase mt-2">{stat.label}</span>
+          <div key={i} className={clsx("bg-surface-2 border border-fire-border rounded-lg p-5 flex flex-col justify-between h-24 shadow-sm", stat.border)}>
+            <span className="text-3xl font-bold text-text-primary tracking-tight leading-none">{stat.value}</span>
+            <span className="text-[10px] text-text-muted font-semibold tracking-wider uppercase mt-2">{stat.label}</span>
           </div>
         ))}
       </div>
@@ -225,17 +225,17 @@ export default function AssetsPage() {
         
         {/* Left Table Section */}
         <div className={clsx(
-          "bg-[#0C0C0D] border border-neutral-800 rounded-xl p-5 shadow-sm space-y-4 transition-all duration-300",
+          "bg-surface-2 border border-fire-border rounded-xl p-5 shadow-sm space-y-4 transition-all duration-300",
           selectedAsset ? "md:col-span-8" : "md:col-span-12"
         )}>
-          <div className="flex items-center justify-between border-b border-neutral-900 pb-3">
+          <div className="flex items-center justify-between border-b border-fire-border pb-3">
             <div>
-              <h2 className="text-sm font-bold text-white tracking-tight leading-none uppercase">Assets & Identities</h2>
-              <p className="text-[10px] text-neutral-500 mt-1 uppercase tracking-wider">CMDB-like view • criticality • identity stitching</p>
+              <h2 className="text-sm font-bold text-text-primary tracking-tight leading-none uppercase">Assets & Identities</h2>
+              <p className="text-[10px] text-text-muted mt-1 uppercase tracking-wider">CMDB-like view • criticality • identity stitching</p>
             </div>
             <button 
               onClick={() => setIsModalOpen(true)}
-              className="bg-[#FF5A1F] hover:bg-[#E54E18] text-white font-bold px-4 py-2 rounded-xl text-xs flex items-center gap-1.5 transition-colors focus:outline-none"
+              className="bg-accent hover:bg-accent-dark text-white font-bold px-4 py-2 rounded-xl text-xs flex items-center gap-1.5 transition-colors focus:outline-none"
             >
               <Plus className="w-3.5 h-3.5" /> Add Asset
             </button>
@@ -244,7 +244,7 @@ export default function AssetsPage() {
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse text-xs">
               <thead>
-                <tr className="border-b border-neutral-900 text-neutral-500 font-bold uppercase tracking-wider text-[10px]">
+                <tr className="border-b border-fire-border text-text-muted font-bold uppercase tracking-wider text-[10px]">
                   <th className="py-3 px-4 w-[25%]">Asset</th>
                   <th className="py-3 px-4 w-[15%]">Type</th>
                   <th className="py-3 px-4 w-[15%]">Owner</th>
@@ -253,24 +253,24 @@ export default function AssetsPage() {
                   <th className="py-3 px-4 w-[10%]">Status</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-neutral-900/60">
+              <tbody className="divide-y divide-fire-border/60">
                 {filteredAssets.map(asset => (
                   <tr 
                     key={asset.id}
                     onClick={() => setSelectedAssetId(asset.id)}
                     className={clsx(
-                      "hover:bg-[#121214] cursor-pointer transition-colors duration-150",
-                      selectedAssetId === asset.id ? "bg-[#121214]" : ""
+                      "hover:bg-surface-3 cursor-pointer transition-colors duration-150",
+                      selectedAssetId === asset.id ? "bg-surface-3" : ""
                     )}
                   >
-                    <td className="py-4 px-4 font-bold text-orange-400/90 flex items-center gap-2">
+                    <td className="py-4 px-4 font-bold text-accent/90 flex items-center gap-2">
                       {getTypeIcon(asset.type)}
                       {asset.name}
                     </td>
-                    <td className="py-4 px-4 text-neutral-300 font-semibold uppercase tracking-wider text-[10px]">
+                    <td className="py-4 px-4 text-text-secondary font-semibold uppercase tracking-wider text-[10px]">
                       {asset.type}
                     </td>
-                    <td className="py-4 px-4 text-neutral-400 font-semibold">
+                    <td className="py-4 px-4 text-text-secondary font-semibold">
                       {asset.owner}
                     </td>
                     <td className="py-4 px-4">
@@ -281,7 +281,7 @@ export default function AssetsPage() {
                     <td className="py-4 px-4">
                       <div className="flex flex-wrap gap-1.5">
                         {getTagsList(asset.tags).map(t => (
-                          <span key={t} className="bg-neutral-900 border border-neutral-800 text-neutral-400 font-semibold px-2 py-0.5 rounded text-[9px] lowercase tracking-wide">
+                          <span key={t} className="bg-surface-3 border border-fire-border text-text-secondary font-semibold px-2 py-0.5 rounded text-[9px] lowercase tracking-wide">
                             {t}
                           </span>
                         ))}
@@ -297,7 +297,7 @@ export default function AssetsPage() {
                 ))}
                 {filteredAssets.length === 0 && (
                   <tr>
-                    <td colSpan={6} className="py-12 text-center text-neutral-600 uppercase font-black tracking-widest text-[10px]">
+                    <td colSpan={6} className="py-12 text-center text-text-muted uppercase font-black tracking-widest text-[10px]">
                       No discovered assets in this environment
                     </td>
                   </tr>
@@ -309,22 +309,22 @@ export default function AssetsPage() {
 
         {/* Right Side: Detail Drawer */}
         {selectedAsset && (
-          <div className="md:col-span-4 bg-[#0C0C0D] border border-neutral-800 rounded-xl p-5 flex flex-col justify-between shadow-sm space-y-6 animate-slide-in">
+          <div className="md:col-span-4 bg-surface-2 border border-fire-border rounded-xl p-5 flex flex-col justify-between shadow-sm space-y-6 animate-slide-in">
             <div>
               {/* Header */}
-              <div className="flex items-center justify-between border-b border-neutral-900 pb-3">
+              <div className="flex items-center justify-between border-b border-fire-border pb-3">
                 <div className="flex items-center gap-2 flex-wrap">
-                  <h3 className="text-base font-bold text-white">{selectedAsset.name}</h3>
+                  <h3 className="text-base font-bold text-text-primary">{selectedAsset.name}</h3>
                   <span className={getCriticalityBadge(selectedAsset.criticality)}>
                     {selectedAsset.criticality}
                   </span>
-                  <span className="bg-neutral-800/80 text-neutral-400 px-2 py-0.5 rounded text-[10px] font-bold uppercase">
+                  <span className="bg-surface-3/80 text-text-secondary px-2 py-0.5 rounded text-[10px] font-bold uppercase">
                     {selectedAsset.type}
                   </span>
                 </div>
                 <button 
                   onClick={() => setSelectedAssetId(null)}
-                  className="text-neutral-500 hover:text-white transition-colors focus:outline-none"
+                  className="text-text-muted hover:text-text-primary transition-colors focus:outline-none"
                 >
                   <X className="w-4 h-4" />
                 </button>
@@ -332,50 +332,50 @@ export default function AssetsPage() {
 
               {/* Profile Details */}
               <div className="mt-4 space-y-3 text-xs">
-                <span className="text-[9px] text-neutral-500 font-black uppercase tracking-wider block border-b border-neutral-900 pb-1">Asset Profile</span>
+                <span className="text-[9px] text-text-muted font-black uppercase tracking-wider block border-b border-fire-border pb-1">Asset Profile</span>
                 <div className="grid grid-cols-3 gap-y-2">
-                  <span className="text-neutral-500 font-semibold">Owner:</span>
-                  <span className="col-span-2 text-neutral-300 font-bold font-mono">{selectedAsset.owner}@kiro.ai</span>
+                  <span className="text-text-muted font-semibold">Owner:</span>
+                  <span className="col-span-2 text-text-secondary font-bold font-mono">{selectedAsset.owner}@kiro.ai</span>
 
-                  <span className="text-neutral-500 font-semibold">IP Address:</span>
-                  <span className="col-span-2 text-neutral-300 font-bold font-mono">{selectedAsset.ipAddress}</span>
+                  <span className="text-text-muted font-semibold">IP Address:</span>
+                  <span className="col-span-2 text-text-secondary font-bold font-mono">{selectedAsset.ipAddress}</span>
 
-                  <span className="text-neutral-500 font-semibold">OS:</span>
-                  <span className="col-span-2 text-neutral-300 font-bold">{selectedAsset.os || '—'}</span>
+                  <span className="text-text-muted font-semibold">OS:</span>
+                  <span className="col-span-2 text-text-secondary font-bold">{selectedAsset.os || '—'}</span>
 
-                  <span className="text-neutral-500 font-semibold">Last Seen:</span>
-                  <span className="col-span-2 text-neutral-300 font-mono text-[11px]">{new Date(selectedAsset.createdAt).toUTCString()}</span>
+                  <span className="text-text-muted font-semibold">Last Seen:</span>
+                  <span className="col-span-2 text-text-secondary font-mono text-[11px]">{new Date(selectedAsset.createdAt).toUTCString()}</span>
                 </div>
               </div>
 
               {/* Identity Stitching */}
               <div className="mt-6 space-y-3">
                 <div>
-                  <span className="text-[9px] text-neutral-500 font-black uppercase tracking-wider block">Identity Stitching</span>
-                  <p className="text-[10px] text-neutral-600 mt-0.5 font-medium leading-none">Users with access to this asset</p>
+                  <span className="text-[9px] text-text-muted font-black uppercase tracking-wider block">Identity Stitching</span>
+                  <p className="text-[10px] text-text-muted mt-0.5 font-medium leading-none">Users with access to this asset</p>
                 </div>
                 <div className="space-y-2">
                   {(assetIdentities[selectedAsset.name] || [
                     { username: selectedAsset.owner, role: "Owner", lastActive: "Just now" }
                   ]).map((user, idx) => (
-                    <div key={idx} className="flex items-center justify-between bg-[#050505] p-3 rounded-lg border border-neutral-900">
+                    <div key={idx} className="flex items-center justify-between bg-surface p-3 rounded-lg border border-fire-border">
                       <div className="flex items-center gap-2.5">
-                        <div className="w-7 h-7 rounded-full bg-neutral-900 border border-neutral-800 text-[10px] font-black uppercase tracking-tighter text-orange-400 flex items-center justify-center">
+                        <div className="w-7 h-7 rounded-full bg-surface-3 border border-fire-border text-[10px] font-black uppercase tracking-tighter text-accent flex items-center justify-center">
                           {user.username.slice(0, 2)}
                         </div>
                         <div>
                           <div className="flex items-center gap-1.5">
-                            <span className="text-xs font-bold text-neutral-200">{user.username}</span>
+                            <span className="text-xs font-bold text-text-secondary">{user.username}</span>
                             {user.flagged && (
                               <span className="text-[8px] bg-red-500/10 text-red-500 border border-red-500/20 px-1 rounded font-black uppercase tracking-wider flex items-center gap-1">
                                 <ShieldAlert className="w-2.5 h-2.5" /> Flagged
                               </span>
                             )}
                           </div>
-                          <span className="text-[9px] text-neutral-500 font-medium">{user.role}</span>
+                          <span className="text-[9px] text-text-muted font-medium">{user.role}</span>
                         </div>
                       </div>
-                      <span className="text-[10px] text-neutral-600 font-mono font-semibold">{user.lastActive}</span>
+                      <span className="text-[10px] text-text-muted font-mono font-semibold">{user.lastActive}</span>
                     </div>
                   ))}
                 </div>
@@ -383,7 +383,7 @@ export default function AssetsPage() {
 
               {/* Open Alerts */}
               <div className="mt-6 space-y-3">
-                <span className="text-[9px] text-neutral-500 font-black uppercase tracking-wider block">Open Alerts</span>
+                <span className="text-[9px] text-text-muted font-black uppercase tracking-wider block">Open Alerts</span>
                 <div className="space-y-2">
                   {(assetAlerts[selectedAsset.name] || []).map((alert, idx) => (
                     <div key={idx} className="flex items-center justify-between bg-red-950/5 border border-red-900/10 p-3 rounded-lg">
@@ -391,9 +391,9 @@ export default function AssetsPage() {
                         <span className="bg-red-500/10 text-red-500 border border-red-500/25 px-1.5 py-0.5 rounded text-[8px] font-black uppercase">
                           {alert.severity}
                         </span>
-                        <span className="text-xs font-bold text-neutral-200">{alert.title}</span>
+                        <span className="text-xs font-bold text-text-secondary">{alert.title}</span>
                       </div>
-                      <span className="text-[10px] text-neutral-600 font-mono font-semibold">{alert.time}</span>
+                      <span className="text-[10px] text-text-muted font-mono font-semibold">{alert.time}</span>
                     </div>
                   ))}
                   {(!assetAlerts[selectedAsset.name] || assetAlerts[selectedAsset.name].length === 0) && (
@@ -407,15 +407,15 @@ export default function AssetsPage() {
             </div>
 
             {/* Actions */}
-            <div className="border-t border-neutral-900 pt-4 space-y-2">
-              <span className="text-[9px] text-neutral-500 font-black uppercase tracking-wider block">CMDB Node Actions</span>
+            <div className="border-t border-fire-border pt-4 space-y-2">
+              <span className="text-[9px] text-text-muted font-black uppercase tracking-wider block">CMDB Node Actions</span>
               <button 
                 onClick={() => handleIsolateToggle(selectedAsset)}
                 className={clsx(
                   "w-full py-2.5 rounded-xl text-xs font-bold transition-all focus:outline-none border flex items-center justify-center gap-1.5",
                   selectedAsset.isolationStatus 
-                    ? "bg-[#FF5A1F] text-white border-transparent hover:bg-[#E54E18]" 
-                    : "border-neutral-700 bg-neutral-800/40 hover:bg-neutral-800 text-neutral-300"
+                    ? "bg-accent text-white border-transparent hover:bg-accent-dark" 
+                    : "border-fire-border bg-surface-3/40 hover:bg-surface-3 text-text-secondary"
                 )}
               >
                 <AlertTriangle className="w-3.5 h-3.5" />
@@ -430,37 +430,37 @@ export default function AssetsPage() {
 
       {/* Register Node Modal */}
       {isModalOpen && (
-        <div className="fixed inset-0 bg-black/85 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-[#0C0C0D] border border-neutral-800 rounded-xl w-full max-w-md overflow-hidden shadow-2xl animate-scale-in">
-            <div className="flex items-center justify-between p-5 border-b border-neutral-900">
-              <h3 className="text-sm font-bold text-white uppercase tracking-wider">Register Corporate Node</h3>
+        <div className="fixed inset-0 bg-background/85 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-surface-2 border border-fire-border rounded-xl w-full max-w-md overflow-hidden shadow-2xl animate-scale-in">
+            <div className="flex items-center justify-between p-5 border-b border-fire-border">
+              <h3 className="text-sm font-bold text-text-primary uppercase tracking-wider">Register Corporate Node</h3>
               <button 
                 onClick={() => setIsModalOpen(false)}
-                className="text-neutral-500 hover:text-white transition-colors focus:outline-none"
+                className="text-text-muted hover:text-text-primary transition-colors focus:outline-none"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
             <form onSubmit={handleCreateAsset} className="p-5 space-y-4 text-xs">
               <div className="space-y-1">
-                <label className="text-neutral-500 font-bold uppercase tracking-wider block">Node Name</label>
+                <label className="text-text-muted font-bold uppercase tracking-wider block">Node Name</label>
                 <input 
                   type="text" 
                   required
                   placeholder="e.g. dc-prod-02"
                   value={newName}
                   onChange={(e) => setNewName(e.target.value)}
-                  className="w-full bg-[#050505] border border-neutral-800 rounded-lg px-3 py-2 text-white placeholder:text-neutral-700 focus:outline-none focus:border-neutral-700"
+                  className="w-full bg-surface border border-fire-border rounded-lg px-3 py-2 text-text-primary placeholder:text-text-muted focus:outline-none focus:border-fire-border"
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1">
-                  <label className="text-neutral-500 font-bold uppercase tracking-wider block">Node Type</label>
+                  <label className="text-text-muted font-bold uppercase tracking-wider block">Node Type</label>
                   <select 
                     value={newType}
                     onChange={(e) => setNewType(e.target.value)}
-                    className="w-full bg-[#050505] border border-neutral-800 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-neutral-700"
+                    className="w-full bg-surface border border-fire-border rounded-lg px-3 py-2 text-text-primary focus:outline-none focus:border-fire-border"
                   >
                     <option value="SERVER">SERVER</option>
                     <option value="WORKSTATION">WORKSTATION</option>
@@ -470,11 +470,11 @@ export default function AssetsPage() {
                 </div>
 
                 <div className="space-y-1">
-                  <label className="text-neutral-500 font-bold uppercase tracking-wider block">Criticality</label>
+                  <label className="text-text-muted font-bold uppercase tracking-wider block">Criticality</label>
                   <select 
                     value={newCriticality}
                     onChange={(e) => setNewCriticality(e.target.value)}
-                    className="w-full bg-[#050505] border border-neutral-800 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-neutral-700"
+                    className="w-full bg-surface border border-fire-border rounded-lg px-3 py-2 text-text-primary focus:outline-none focus:border-fire-border"
                   >
                     <option value="HIGH">HIGH</option>
                     <option value="MEDIUM">MEDIUM</option>
@@ -484,62 +484,62 @@ export default function AssetsPage() {
               </div>
 
               <div className="space-y-1">
-                <label className="text-neutral-500 font-bold uppercase tracking-wider block">Custodian Owner Username</label>
+                <label className="text-text-muted font-bold uppercase tracking-wider block">Custodian Owner Username</label>
                 <input 
                   type="text" 
                   required
                   placeholder="e.g. it-admin"
                   value={newOwner}
                   onChange={(e) => setNewOwner(e.target.value)}
-                  className="w-full bg-[#050505] border border-neutral-800 rounded-lg px-3 py-2 text-white placeholder:text-neutral-700 focus:outline-none focus:border-neutral-700"
+                  className="w-full bg-surface border border-fire-border rounded-lg px-3 py-2 text-text-primary placeholder:text-text-muted focus:outline-none focus:border-fire-border"
                 />
               </div>
 
               <div className="space-y-1">
-                <label className="text-neutral-500 font-bold uppercase tracking-wider block">IP Address (bound)</label>
+                <label className="text-text-muted font-bold uppercase tracking-wider block">IP Address (bound)</label>
                 <input 
                   type="text" 
                   required
                   placeholder="e.g. 192.168.1.102"
                   value={newIp}
                   onChange={(e) => setNewIp(e.target.value)}
-                  className="w-full bg-[#050505] border border-neutral-800 rounded-lg px-3 py-2 text-white placeholder:text-neutral-700 focus:outline-none focus:border-neutral-700"
+                  className="w-full bg-surface border border-fire-border rounded-lg px-3 py-2 text-text-primary placeholder:text-text-muted focus:outline-none focus:border-fire-border"
                 />
               </div>
 
               <div className="space-y-1">
-                <label className="text-neutral-500 font-bold uppercase tracking-wider block">Operating System</label>
+                <label className="text-text-muted font-bold uppercase tracking-wider block">Operating System</label>
                 <input 
                   type="text" 
                   placeholder="e.g. Windows Server 2022"
                   value={newOs}
                   onChange={(e) => setNewOs(e.target.value)}
-                  className="w-full bg-[#050505] border border-neutral-800 rounded-lg px-3 py-2 text-white placeholder:text-neutral-700 focus:outline-none focus:border-neutral-700"
+                  className="w-full bg-surface border border-fire-border rounded-lg px-3 py-2 text-text-primary placeholder:text-text-muted focus:outline-none focus:border-fire-border"
                 />
               </div>
 
               <div className="space-y-1">
-                <label className="text-neutral-500 font-bold uppercase tracking-wider block">Tags (comma-separated)</label>
+                <label className="text-text-muted font-bold uppercase tracking-wider block">Tags (comma-separated)</label>
                 <input 
                   type="text" 
                   placeholder="e.g. windows,prod,domain-controller"
                   value={newTags}
                   onChange={(e) => setNewTags(e.target.value)}
-                  className="w-full bg-[#050505] border border-neutral-800 rounded-lg px-3 py-2 text-white placeholder:text-neutral-700 focus:outline-none focus:border-neutral-700"
+                  className="w-full bg-surface border border-fire-border rounded-lg px-3 py-2 text-text-primary placeholder:text-text-muted focus:outline-none focus:border-fire-border"
                 />
               </div>
 
-              <div className="flex items-center justify-end gap-3 pt-3 border-t border-neutral-900 mt-4">
+              <div className="flex items-center justify-end gap-3 pt-3 border-t border-fire-border mt-4">
                 <button 
                   type="button"
                   onClick={() => setIsModalOpen(false)}
-                  className="border border-neutral-800 bg-[#0C0C0D] hover:bg-neutral-800 text-neutral-400 hover:text-white font-bold px-4 py-2 rounded-xl focus:outline-none transition-colors"
+                  className="border border-fire-border bg-surface-2 hover:bg-surface-3 text-text-secondary hover:text-text-primary font-bold px-4 py-2 rounded-xl focus:outline-none transition-colors"
                 >
                   Cancel
                 </button>
                 <button 
                   type="submit"
-                  className="bg-[#FF5A1F] hover:bg-[#E54E18] text-white font-bold px-4 py-2 rounded-xl focus:outline-none transition-colors"
+                  className="bg-accent hover:bg-accent-dark text-white font-bold px-4 py-2 rounded-xl focus:outline-none transition-colors"
                 >
                   Register Node
                 </button>

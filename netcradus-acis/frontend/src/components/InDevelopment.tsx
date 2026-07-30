@@ -15,12 +15,12 @@ export default function InDevelopment({ children }: InDevelopmentProps) {
 
       {/* Development Overlay */}
       <div className="absolute inset-0 flex items-center justify-center p-6 z-50">
-        <div className="card-mission bg-black/80 backdrop-blur-md border-accent/40 max-w-md w-full p-12 text-center shadow-accent-glow animate-fade-in">
+        <div className="card-mission bg-background/80 backdrop-blur-md border-accent/40 max-w-md w-full p-12 text-center shadow-accent-glow animate-fade-in">
           <div className="w-16 h-16 rounded-2xl bg-accent/10 border border-accent/30 flex items-center justify-center mx-auto mb-8">
             <Construction className="text-accent animate-pulse" size={32} />
           </div>
-          
-          <h2 className="text-2xl font-black text-white tracking-widest uppercase mb-4">
+
+          <h2 className="text-2xl font-black text-text-primary tracking-widest uppercase mb-4">
             Module Under Development
           </h2>
           
@@ -32,7 +32,7 @@ export default function InDevelopment({ children }: InDevelopmentProps) {
             <Zap size={14} /> PHASE 4-5 INTEGRATION PENDING
           </div>
           
-          <div className="mt-8 pt-8 border-t border-border">
+          <div className="mt-8 pt-8 border-t border-fire-border">
              <div className="flex items-center justify-center gap-2 text-text-muted text-[9px] font-bold uppercase tracking-widest">
                 <CloudOff size={12} /> BACKEND SERVICE MISSING
              </div>

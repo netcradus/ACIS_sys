@@ -8,7 +8,9 @@
 
 /* ─── Base Styles ──────────────────────────────────────────── */
 @layer base {
-  :root {
+  /* Dark theme (default / no explicit preference yet) */
+  :root,
+  :root[data-theme="dark"] {
     --background: #000000;
     --surface: #0B0B0B;
     --surface-2: #141414;
@@ -16,6 +18,8 @@
     --accent: #FF4D00;
     --accent-dark: #CC3D00;
     --accent-light: #FF7033;
+    --accent-pa: #7C3AED;
+    --accent-pa-dark: #6D28D9;
     --text-primary: #FFFFFF;
     --text-secondary: #888888;
     --text-muted: #444444;
@@ -24,6 +28,94 @@
     --warning: #FFAB00;
     --success: #00FF99;
     --info: #00C2FF;
+    --row-stripe: rgba(255, 255, 255, 0.02);
+    --row-hover: rgba(255, 255, 255, 0.05);
+    --bg-glow-1: rgba(255, 77, 0, 0.14);
+    --bg-glow-2: rgba(0, 194, 255, 0.1);
+    --shadow-accent-glow: 0 0 20px rgba(255, 77, 0, 0.3);
+    --shadow-success-glow: 0 0 20px rgba(0, 255, 153, 0.3);
+    --shadow-card: 0 10px 40px rgba(0, 0, 0, 0.8);
+    --glow-accent-drop: rgba(255, 77, 0, 0.3);
+    --glow-border-accent: rgba(255, 77, 0, 0.1);
+    --glass-bg: rgba(8, 8, 8, 0.82);
+    --glass-border: rgba(255, 255, 255, 0.06);
+    --severity-high: #FF8800;
+    --severity-medium: #FFD700;
+    color-scheme: dark;
+  }
+
+  /* Light theme */
+  :root[data-theme="light"] {
+    --background: #EEF0F3;
+    --surface: #FFFFFF;
+    --surface-2: #F5F6F8;
+    --surface-3: #E9EAEE;
+    --accent: #CC3D00;
+    --accent-dark: #A63200;
+    --accent-light: #FF4D00;
+    --accent-pa: #6D28D9;
+    --accent-pa-dark: #5B21B6;
+    --text-primary: #0A0A0B;
+    --text-secondary: #52525B;
+    --text-muted: #8A8A93;
+    --border: #E2E3E7;
+    --danger: #DC2626;
+    --warning: #B45309;
+    --success: #047857;
+    --info: #0369A1;
+    --row-stripe: rgba(10, 10, 11, 0.03);
+    --row-hover: rgba(10, 10, 11, 0.05);
+    --bg-glow-1: rgba(255, 77, 0, 0.05);
+    --bg-glow-2: rgba(0, 194, 255, 0.04);
+    --shadow-accent-glow: 0 4px 24px rgba(204, 61, 0, 0.16);
+    --shadow-success-glow: 0 4px 24px rgba(4, 120, 87, 0.16);
+    --shadow-card: 0 4px 20px rgba(20, 22, 28, 0.08);
+    --glow-accent-drop: rgba(204, 61, 0, 0.18);
+    --glow-border-accent: rgba(204, 61, 0, 0.08);
+    --glass-bg: rgba(255, 255, 255, 0.72);
+    --glass-border: rgba(10, 10, 11, 0.08);
+    --severity-high: #B45309;
+    --severity-medium: #946800;
+    color-scheme: light;
+  }
+
+  /* Safety-net for the brief window before the FOUC-prevention script in
+     index.html sets data-theme (e.g. JS disabled) — mirrors the light block
+     above, only applied when no explicit theme has been chosen yet. */
+  @media (prefers-color-scheme: light) {
+    :root:not([data-theme="dark"]):not([data-theme="light"]) {
+      --background: #EEF0F3;
+      --surface: #FFFFFF;
+      --surface-2: #F5F6F8;
+      --surface-3: #E9EAEE;
+      --accent: #CC3D00;
+      --accent-dark: #A63200;
+      --accent-light: #FF4D00;
+      --accent-pa: #6D28D9;
+      --accent-pa-dark: #5B21B6;
+      --text-primary: #0A0A0B;
+      --text-secondary: #52525B;
+      --text-muted: #8A8A93;
+      --border: #E2E3E7;
+      --danger: #DC2626;
+      --warning: #B45309;
+      --success: #047857;
+      --info: #0369A1;
+      --row-stripe: rgba(10, 10, 11, 0.03);
+      --row-hover: rgba(10, 10, 11, 0.05);
+      --bg-glow-1: rgba(255, 77, 0, 0.05);
+      --bg-glow-2: rgba(0, 194, 255, 0.04);
+      --shadow-accent-glow: 0 4px 24px rgba(204, 61, 0, 0.16);
+      --shadow-success-glow: 0 4px 24px rgba(4, 120, 87, 0.16);
+      --shadow-card: 0 4px 20px rgba(20, 22, 28, 0.08);
+      --glow-accent-drop: rgba(204, 61, 0, 0.18);
+      --glow-border-accent: rgba(204, 61, 0, 0.08);
+      --glass-bg: rgba(255, 255, 255, 0.72);
+      --glass-border: rgba(10, 10, 11, 0.08);
+      --severity-high: #B45309;
+      --severity-medium: #946800;
+      color-scheme: light;
+    }
   }
 
   *,
@@ -40,8 +132,8 @@
   body {
     font-family: 'Inter', system-ui, -apple-system, sans-serif;
     background-color: var(--background);
-    background-image: radial-gradient(circle at 18% 10%, rgba(255, 77, 0, 0.14), transparent 18%),
-      radial-gradient(circle at 82% 32%, rgba(0, 194, 255, 0.1), transparent 28%);
+    background-image: radial-gradient(circle at 18% 10%, var(--bg-glow-1), transparent 18%),
+      radial-gradient(circle at 82% 32%, var(--bg-glow-2), transparent 28%);
     background-attachment: fixed;
     min-height: 100vh;
     color: var(--text-primary);
@@ -50,6 +142,19 @@
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     overflow-x: hidden;
+  }
+
+  /* Smooth theme switching — scoped to cheap, non-layout-affecting
+     properties only (never `transition: all`), and skipped entirely for
+     users who've asked the OS for reduced motion. Utility classes like
+     `transition-colors`/`transition-all` on individual elements still take
+     precedence via normal specificity. */
+  @media (prefers-reduced-motion: no-preference) {
+    *,
+    *::before,
+    *::after {
+      transition: background-color 0.18s ease, border-color 0.18s ease, color 0.18s ease, fill 0.18s ease, stroke 0.18s ease, box-shadow 0.18s ease;
+    }
   }
 
   code,
@@ -91,13 +196,13 @@
   }
 
   .bg-glass-surface {
-    background: rgba(8, 8, 8, 0.82);
+    background: var(--glass-bg);
     backdrop-filter: blur(18px);
-    border: 1px solid rgba(255, 255, 255, 0.06);
+    border: 1px solid var(--glass-border);
   }
 
   .text-metric {
-    @apply font-mono font-bold tracking-tighter text-white;
+    @apply font-mono font-bold tracking-tighter text-text-primary;
   }
 
   .badge-mission {
@@ -112,21 +217,23 @@
     @apply inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl bg-surface-2 hover:bg-surface-3 text-text-primary border border-fire-border font-bold text-xs uppercase tracking-widest transition-all duration-200 active:scale-95;
   }
 
-  /* AG Grid Mission Control Theme */
+  /* AG Grid Mission Control Theme — driven entirely by the app's own tokens
+     (background/surface/border/row-stripe/row-hover), so it re-themes for
+     free on every data-theme change with no separate light/dark blocks. */
   .ag-theme-acis {
-    --ag-background-color: #000000;
-    --ag-foreground-color: #FFFFFF;
-    --ag-border-color: #1A1A1A;
-    --ag-header-background-color: #080808;
-    --ag-header-foreground-color: #888888;
-    --ag-odd-row-background-color: #030303;
-    --ag-row-hover-color: #111111;
-    --ag-selected-row-background-color: rgba(255, 77, 0, 0.08);
+    --ag-background-color: var(--background);
+    --ag-foreground-color: var(--text-primary);
+    --ag-border-color: var(--border);
+    --ag-header-background-color: var(--surface-2);
+    --ag-header-foreground-color: var(--text-secondary);
+    --ag-odd-row-background-color: var(--row-stripe);
+    --ag-row-hover-color: var(--row-hover);
+    --ag-selected-row-background-color: color-mix(in srgb, var(--accent) 10%, transparent);
     --ag-font-size: 13px;
     --ag-font-family: 'Inter', sans-serif;
     --ag-cell-horizontal-padding: 16px;
     --ag-header-column-separator-display: block;
-    --ag-header-column-separator-color: #1A1A1A;
+    --ag-header-column-separator-color: var(--border);
   }
 
   .ag-theme-acis .ag-header-cell-label {
@@ -135,21 +242,22 @@
 
   /* Distinct theme for the Platform Super Admin console (violet, not the
      tenant console's orange) — a deliberate visual cue that this is a
-     different, cross-tenant, higher-privilege surface. */
+     different, cross-tenant, higher-privilege surface. Same token-driven
+     approach as .ag-theme-acis, swapping in the platform-admin accent. */
   .ag-theme-platform-admin {
-    --ag-background-color: #000000;
-    --ag-foreground-color: #FFFFFF;
-    --ag-border-color: #1A1A1A;
-    --ag-header-background-color: #080808;
-    --ag-header-foreground-color: #888888;
-    --ag-odd-row-background-color: #030303;
-    --ag-row-hover-color: #111111;
-    --ag-selected-row-background-color: rgba(124, 58, 237, 0.12);
+    --ag-background-color: var(--background);
+    --ag-foreground-color: var(--text-primary);
+    --ag-border-color: var(--border);
+    --ag-header-background-color: var(--surface-2);
+    --ag-header-foreground-color: var(--text-secondary);
+    --ag-odd-row-background-color: var(--row-stripe);
+    --ag-row-hover-color: var(--row-hover);
+    --ag-selected-row-background-color: color-mix(in srgb, var(--accent-pa) 12%, transparent);
     --ag-font-size: 13px;
     --ag-font-family: 'Inter', sans-serif;
     --ag-cell-horizontal-padding: 16px;
     --ag-header-column-separator-display: block;
-    --ag-header-column-separator-color: #1A1A1A;
+    --ag-header-column-separator-color: var(--border);
   }
 
   .ag-theme-platform-admin .ag-header-cell-label {
@@ -160,11 +268,11 @@
 /* ─── Utilities ────────────────────────────────────────────── */
 @layer utilities {
   .shadow-accent-glow {
-    filter: drop-shadow(0 0 8px rgba(255, 77, 0, 0.3));
+    filter: drop-shadow(0 0 8px var(--glow-accent-drop));
   }
 
   .border-glow-orange {
-    box-shadow: 0 0 15px rgba(255, 77, 0, 0.1);
+    box-shadow: 0 0 15px var(--glow-border-accent);
   }
 
   .animate-fade-in {

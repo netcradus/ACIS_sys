@@ -53,11 +53,11 @@ export default function ThreatIntelPage() {
   }
 
   return (
-    <div className="space-y-8 animate-fade-in bg-black">
+    <div className="space-y-8 animate-fade-in bg-background">
       {/* Header */}
       <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
         <div>
-          <h1 className="text-3xl font-black text-white tracking-tighter uppercase leading-none">Threat Intelligence Swarm</h1>
+          <h1 className="text-3xl font-black text-text-primary tracking-tighter uppercase leading-none">Threat Intelligence Swarm</h1>
           <p className="text-[10px] text-text-secondary font-bold tracking-[0.4em] uppercase mt-2">Shared anonymized IOC enrichment and swarm telemetry</p>
         </div>
 
@@ -71,7 +71,7 @@ export default function ThreatIntelPage() {
           </div>
           <div className="flex items-center gap-3 bg-surface-2 border border-fire-border px-4 py-3 rounded-2xl">
             <span className="text-[9px] font-black uppercase tracking-[0.3em] text-text-muted">Live Nodes</span>
-            <span className="text-lg font-black text-white">847</span>
+            <span className="text-lg font-black text-text-primary">847</span>
           </div>
         </div>
       </div>
@@ -88,13 +88,13 @@ export default function ThreatIntelPage() {
           <div className="card-mission bg-surface-2 border-fire-border/60 p-10">
             <h2 className="text-[10px] font-black text-text-muted uppercase tracking-[0.3em] mb-6">Swarm Intelligence — Model-Assisted Enrichment</h2>
             <div className="grid gap-6 lg:grid-cols-[1fr_auto] items-center">
-              <div className="relative group overflow-hidden rounded-[28px] border border-fire-border bg-black shadow-inner">
+              <div className="relative group overflow-hidden rounded-[28px] border border-fire-border bg-background shadow-inner">
                 <input
                   type="text"
                   value={ioc}
                   onChange={(e) => setIoc(e.target.value)}
                   placeholder="PASTE INDICATOR (HASH, DOMAIN, IP)..."
-                  className="bg-transparent px-8 py-6 text-lg font-black tracking-widest text-white placeholder:text-text-muted focus:outline-none w-full uppercase selection:bg-accent selection:text-white"
+                  className="bg-transparent px-8 py-6 text-lg font-black tracking-widest text-text-primary placeholder:text-text-muted focus:outline-none w-full uppercase selection:bg-accent selection:text-white"
                 />
               </div>
               <button
@@ -120,7 +120,7 @@ export default function ThreatIntelPage() {
               <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between mb-10">
                 <div className="space-y-3">
                   <div className="flex flex-wrap items-center gap-3">
-                    <span className="text-2xl font-black text-white tracking-widest uppercase">{result.value || ioc}</span>
+                    <span className="text-2xl font-black text-text-primary tracking-widest uppercase">{result.value || ioc}</span>
                     <span className={clsx(
                       'px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border',
                       result.severity === 'HIGH' ? 'bg-danger/15 text-danger border-danger/30' : 'bg-warning/15 text-warning border-warning/30'
@@ -131,10 +131,10 @@ export default function ThreatIntelPage() {
                   <p className="text-[11px] font-bold uppercase tracking-[0.35em] text-text-muted">Risk Score</p>
                 </div>
 
-                <div className="flex flex-col items-start gap-2 rounded-3xl border border-fire-border bg-black/60 p-4">
+                <div className="flex flex-col items-start gap-2 rounded-3xl border border-fire-border bg-background/60 p-4">
                   <span className="text-[10px] text-text-muted uppercase tracking-[0.35em]">Risk Score</span>
                   <span className="text-4xl font-black text-danger tracking-tight">{result.confidenceScore || 0}</span>
-                  <div className="h-2 w-full rounded-full bg-white/10 overflow-hidden">
+                  <div className="h-2 w-full rounded-full bg-text-primary/10 overflow-hidden">
                     <div
                       className="h-full bg-danger"
                       style={{ width: `${Math.min(Math.max(result.confidenceScore || 0, 0), 100)}%` }}
@@ -147,15 +147,15 @@ export default function ThreatIntelPage() {
                 <div className="space-y-4">
                   <div className="flex items-center justify-between border-b border-fire-border pb-4">
                     <span className="text-[10px] font-black uppercase tracking-[0.35em] text-text-muted">Type</span>
-                    <span className="text-xs font-bold uppercase tracking-tight text-white">{result.type || 'Tor Exit Node / C2 Relay'}</span>
+                    <span className="text-xs font-bold uppercase tracking-tight text-text-primary">{result.type || 'Tor Exit Node / C2 Relay'}</span>
                   </div>
                   <div className="flex items-center justify-between border-b border-fire-border pb-4">
                     <span className="text-[10px] font-black uppercase tracking-[0.35em] text-text-muted">Country</span>
-                    <span className="text-xs font-bold uppercase tracking-tight text-white">{result.country || 'Netherlands • AS-201011'}</span>
+                    <span className="text-xs font-bold uppercase tracking-tight text-text-primary">{result.country || 'Netherlands • AS-201011'}</span>
                   </div>
                   <div className="flex items-center justify-between border-b border-fire-border pb-4">
                     <span className="text-[10px] font-black uppercase tracking-[0.35em] text-text-muted">First Seen</span>
-                    <span className="text-xs font-bold uppercase tracking-tight text-white">{result.firstSeen || '2024-11-03'}</span>
+                    <span className="text-xs font-bold uppercase tracking-tight text-text-primary">{result.firstSeen || '2024-11-03'}</span>
                   </div>
                   <div className="flex items-center justify-between border-b border-fire-border pb-4">
                     <span className="text-[10px] font-black uppercase tracking-[0.35em] text-text-muted">Last Active</span>
@@ -164,14 +164,14 @@ export default function ThreatIntelPage() {
                 </div>
 
                 <div className="space-y-4">
-                  <div className="flex flex-col gap-2 p-5 rounded-3xl bg-black border border-fire-border">
+                  <div className="flex flex-col gap-2 p-5 rounded-3xl bg-background border border-fire-border">
                     <span className="text-[10px] font-black uppercase tracking-[0.35em] text-accent">Detected by</span>
-                    <span className="text-lg font-black uppercase tracking-tighter text-white">847 ACIS nodes in last 24h</span>
+                    <span className="text-lg font-black uppercase tracking-tighter text-text-primary">847 ACIS nodes in last 24h</span>
                     <span className="text-[10px] text-text-muted uppercase tracking-[0.35em]">MITRE ATT&CK: T1090.003 — Proxy: Multi-hop Proxy</span>
                   </div>
                   <div className="grid gap-3 sm:grid-cols-2">
                     {['AbuseIPDB', 'Shodan', 'VirusTotal', 'ACIS Swarm'].map((source) => (
-                      <div key={source} className="flex items-center gap-2 px-3 py-2 bg-black border border-fire-border rounded-2xl text-[10px] font-bold uppercase tracking-[0.3em] text-text-secondary">
+                      <div key={source} className="flex items-center gap-2 px-3 py-2 bg-background border border-fire-border rounded-2xl text-[10px] font-bold uppercase tracking-[0.3em] text-text-secondary">
                         <Database size={14} className="text-accent" /> {source}
                       </div>
                     ))}
@@ -190,7 +190,7 @@ export default function ThreatIntelPage() {
                   </p>
                 </div>
 
-                <div className="rounded-3xl border border-accent/20 bg-black/60 p-6">
+                <div className="rounded-3xl border border-accent/20 bg-background/60 p-6">
                   <div className="flex items-center justify-between mb-4">
                     <span className="text-[10px] font-bold uppercase tracking-[0.35em] text-text-muted">Threat Context</span>
                     <span className="text-[10px] font-bold uppercase tracking-[0.35em] text-success">Live</span>
@@ -222,27 +222,27 @@ export default function ThreatIntelPage() {
 
         <div className="xl:col-span-4 space-y-6">
           <div className="card-mission bg-surface-2 border-fire-border/60">
-            <h3 className="text-xs font-black text-white uppercase tracking-[0.3em] mb-6">Latest Community Signals</h3>
+            <h3 className="text-xs font-black text-text-primary uppercase tracking-[0.3em] mb-6">Latest Community Signals</h3>
             <div className="grid grid-cols-3 gap-3 mb-8">
-              <div className="flex flex-col items-center p-4 bg-black border border-fire-border rounded-3xl">
-                <span className="text-[12px] font-black text-white tabular-nums">12,441</span>
+              <div className="flex flex-col items-center p-4 bg-background border border-fire-border rounded-3xl">
+                <span className="text-[12px] font-black text-text-primary tabular-nums">12,441</span>
                 <span className="text-[8px] text-text-muted uppercase tracking-widest mt-1">IOCS UPDATED</span>
               </div>
-              <div className="flex flex-col items-center p-4 bg-black border border-fire-border rounded-3xl">
-                <span className="text-[12px] font-black text-white tabular-nums">847</span>
+              <div className="flex flex-col items-center p-4 bg-background border border-fire-border rounded-3xl">
+                <span className="text-[12px] font-black text-text-primary tabular-nums">847</span>
                 <span className="text-[8px] text-text-muted uppercase tracking-widest mt-1">ACTIVE NODES</span>
               </div>
-              <div className="flex flex-col items-center p-4 bg-black border border-fire-border rounded-3xl">
-                <span className="text-[12px] font-black text-white tabular-nums">v2.1.3</span>
+              <div className="flex flex-col items-center p-4 bg-background border border-fire-border rounded-3xl">
+                <span className="text-[12px] font-black text-text-primary tabular-nums">v2.1.3</span>
                 <span className="text-[8px] text-text-muted uppercase tracking-widest mt-1">MODEL VERSION</span>
               </div>
             </div>
 
             <div className="space-y-4">
               {communitySignals.map((signal, i) => (
-                <div key={i} className={clsx('p-4 rounded-3xl border border-fire-border bg-black transition-all hover:bg-surface-3', signal.color)}>
+                <div key={i} className={clsx('p-4 rounded-3xl border border-fire-border bg-background transition-all hover:bg-surface-3', signal.color)}>
                   <div className="flex items-start justify-between gap-3">
-                    <p className="text-[10px] font-bold uppercase tracking-tight text-text-secondary group-hover:text-white leading-relaxed">
+                    <p className="text-[10px] font-bold uppercase tracking-tight text-text-secondary group-hover:text-text-primary leading-relaxed">
                       {signal.title}
                     </p>
                     <span className="text-[9px] font-mono text-text-muted whitespace-nowrap">{signal.time}</span>
@@ -263,18 +263,18 @@ export default function ThreatIntelPage() {
                 <span>Global Accuracy</span>
                 <span className="text-[11px] font-black text-success">98.4%</span>
               </div>
-              <div className="w-full h-2 rounded-full bg-black border border-fire-border overflow-hidden">
+              <div className="w-full h-2 rounded-full bg-background border border-fire-border overflow-hidden">
                 <div className="h-full bg-success w-[98.4%] shadow-success-glow" />
               </div>
             </div>
             <div className="grid gap-3">
               <div className="flex items-center justify-between text-[10px] uppercase tracking-[0.25em] text-text-muted">
                 <span>Average Detection</span>
-                <span className="text-white font-black">92.3%</span>
+                <span className="text-text-primary font-black">92.3%</span>
               </div>
               <div className="flex items-center justify-between text-[10px] uppercase tracking-[0.25em] text-text-muted">
                 <span>Update Cadence</span>
-                <span className="text-white font-black">15m</span>
+                <span className="text-text-primary font-black">15m</span>
               </div>
             </div>
           </div>

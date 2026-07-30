@@ -32,11 +32,11 @@ export default function PlatformAdminRoute() {
 
 function LoadingScreen() {
   return (
-    <div className="fixed inset-0 bg-black flex flex-col items-center justify-center gap-4">
+    <div className="fixed inset-0 bg-background flex flex-col items-center justify-center gap-4">
       <div className="relative">
-        <div className="w-16 h-16 rounded-full border-2 border-[#7C3AED]/30 flex items-center justify-center animate-pulse-slow">
-          <div className="w-12 h-12 rounded-full border-2 border-[#7C3AED]/60 flex items-center justify-center">
-            <svg className="w-6 h-6 text-[#7C3AED]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <div className="w-16 h-16 rounded-full border-2 border-accent-pa/30 flex items-center justify-center animate-pulse-slow">
+          <div className="w-12 h-12 rounded-full border-2 border-accent-pa/60 flex items-center justify-center">
+            <svg className="w-6 h-6 text-accent-pa" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
                 d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955
                    11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824
@@ -44,9 +44,9 @@ function LoadingScreen() {
             </svg>
           </div>
         </div>
-        <div className="absolute inset-0 rounded-full border-t-2 border-[#7C3AED] animate-spin" />
+        <div className="absolute inset-0 rounded-full border-t-2 border-accent-pa animate-spin" />
       </div>
-      <p className="text-neutral-500 text-sm tracking-widest uppercase">Initialising Platform Console...</p>
+      <p className="text-text-muted text-sm tracking-widest uppercase">Initialising Platform Console...</p>
     </div>
   )
 }

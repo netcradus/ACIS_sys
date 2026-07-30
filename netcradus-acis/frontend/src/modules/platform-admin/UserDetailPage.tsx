@@ -160,7 +160,7 @@ export default function UserDetailPage() {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-24">
-        <Loader2 className="w-6 h-6 text-[#7C3AED] animate-spin" />
+        <Loader2 className="w-6 h-6 text-accent-pa animate-spin" />
       </div>
     )
   }
@@ -168,7 +168,7 @@ export default function UserDetailPage() {
   if (error || !user) {
     return (
       <div className="space-y-4">
-        <button onClick={() => navigate('/platform-admin/users')} className="flex items-center gap-2 text-xs text-neutral-400 hover:text-white">
+        <button onClick={() => navigate('/platform-admin/users')} className="flex items-center gap-2 text-xs text-text-secondary hover:text-text-primary">
           <ArrowLeft className="w-4 h-4" /> Back to Users
         </button>
         <div className="bg-danger/10 border border-danger/30 rounded-xl p-4 text-xs text-danger font-semibold">
@@ -182,26 +182,26 @@ export default function UserDetailPage() {
 
   return (
     <div className="space-y-6 animate-fade-in">
-      <div className="flex items-center justify-between border-b border-neutral-900 pb-4">
+      <div className="flex items-center justify-between border-b border-fire-border pb-4">
         <div>
           <button
             onClick={() => navigate('/platform-admin/users')}
-            className="flex items-center gap-2 text-[11px] text-neutral-500 hover:text-white mb-2 transition-colors"
+            className="flex items-center gap-2 text-[11px] text-text-muted hover:text-text-primary mb-2 transition-colors"
           >
             <ArrowLeft className="w-3.5 h-3.5" /> Back to Users
           </button>
           <div className="flex items-center gap-3">
-            <h1 className="text-xl font-bold text-white tracking-tight uppercase">{user.username}</h1>
+            <h1 className="text-xl font-bold text-text-primary tracking-tight uppercase">{user.username}</h1>
             <span
               className={clsx(
                 'px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider',
-                user.enabled ? 'bg-[#00FF99]/10 text-[#00FF99]' : 'bg-danger/10 text-danger'
+                user.enabled ? 'bg-success/10 text-success' : 'bg-danger/10 text-danger'
               )}
             >
               {user.enabled ? 'ACTIVE' : 'DISABLED'}
             </span>
           </div>
-          <p className="text-[10px] text-neutral-600 font-mono mt-1">{user.id}</p>
+          <p className="text-[10px] text-text-muted font-mono mt-1">{user.id}</p>
         </div>
 
         <div className="flex items-center gap-2">
@@ -215,14 +215,14 @@ export default function UserDetailPage() {
           ) : (
             <button
               onClick={() => setConfirmAction('activate')}
-              className="flex items-center gap-2 bg-[#00FF99]/10 hover:bg-[#00FF99]/20 border border-[#00FF99]/30 text-[#00FF99] font-bold px-4 py-2 rounded-xl text-xs transition-colors"
+              className="flex items-center gap-2 bg-success/10 hover:bg-success/20 border border-success/30 text-success font-bold px-4 py-2 rounded-xl text-xs transition-colors"
             >
               <ShieldCheck className="w-4 h-4" /> Activate
             </button>
           )}
           <button
             onClick={() => setConfirmAction('delete')}
-            className="flex items-center gap-2 bg-neutral-900 hover:bg-danger/20 border border-neutral-800 hover:border-danger/30 text-neutral-400 hover:text-danger font-bold px-4 py-2 rounded-xl text-xs transition-colors"
+            className="flex items-center gap-2 bg-surface-3 hover:bg-danger/20 border border-fire-border hover:border-danger/30 text-text-secondary hover:text-danger font-bold px-4 py-2 rounded-xl text-xs transition-colors"
           >
             <Trash2 className="w-4 h-4" /> Delete
           </button>
@@ -230,16 +230,16 @@ export default function UserDetailPage() {
       </div>
 
       {/* Tab Navigation */}
-      <div className="flex gap-1 border-b border-neutral-900">
+      <div className="flex gap-1 border-b border-fire-border">
         <button
           onClick={() => setActiveTab('profile')}
           className={clsx('px-4 py-2 text-xs font-bold uppercase tracking-wider transition-colors border-b-2 -mb-px',
-            activeTab === 'profile' ? 'text-[#7C3AED] border-[#7C3AED]' : 'text-neutral-500 border-transparent hover:text-white')}
+            activeTab === 'profile' ? 'text-accent-pa border-accent-pa' : 'text-text-muted border-transparent hover:text-text-primary')}
         >Profile &amp; Roles</button>
         <button
           onClick={() => setActiveTab('security')}
           className={clsx('px-4 py-2 text-xs font-bold uppercase tracking-wider transition-colors border-b-2 -mb-px',
-            activeTab === 'security' ? 'text-[#7C3AED] border-[#7C3AED]' : 'text-neutral-500 border-transparent hover:text-white')}
+            activeTab === 'security' ? 'text-accent-pa border-accent-pa' : 'text-text-muted border-transparent hover:text-text-primary')}
         >Security</button>
       </div>
 
@@ -249,69 +249,69 @@ export default function UserDetailPage() {
       <>
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Profile */}
-        <div className="bg-[#0C0C0D] border border-neutral-800 rounded-xl p-5 space-y-4">
-          <h2 className="text-xs font-bold text-white uppercase tracking-widest">Profile</h2>
+        <div className="bg-surface-2 border border-fire-border rounded-xl p-5 space-y-4">
+          <h2 className="text-xs font-bold text-text-primary uppercase tracking-widest">Profile</h2>
           {fieldError && (
             <div className="bg-danger/10 border border-danger/30 rounded-lg p-3 text-xs text-danger font-semibold">{fieldError}</div>
           )}
           <div className="space-y-1">
-            <label className="text-[11px] text-neutral-500 font-bold uppercase tracking-wider block">Username</label>
+            <label className="text-[11px] text-text-muted font-bold uppercase tracking-wider block">Username</label>
             <input
               value={username}
               onChange={(e) => setUsername(e.target.value)}
-              className="w-full bg-[#050505] border border-neutral-800 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-[#7C3AED]/50"
+              className="w-full bg-surface border border-fire-border rounded-lg px-3 py-2 text-xs text-text-primary focus:outline-none focus:border-accent-pa/50"
             />
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1">
-              <label className="text-[11px] text-neutral-500 font-bold uppercase tracking-wider block">First Name</label>
+              <label className="text-[11px] text-text-muted font-bold uppercase tracking-wider block">First Name</label>
               <input
                 value={firstName}
                 onChange={(e) => setFirstName(e.target.value)}
-                className="w-full bg-[#050505] border border-neutral-800 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-[#7C3AED]/50"
+                className="w-full bg-surface border border-fire-border rounded-lg px-3 py-2 text-xs text-text-primary focus:outline-none focus:border-accent-pa/50"
               />
             </div>
             <div className="space-y-1">
-              <label className="text-[11px] text-neutral-500 font-bold uppercase tracking-wider block">Last Name</label>
+              <label className="text-[11px] text-text-muted font-bold uppercase tracking-wider block">Last Name</label>
               <input
                 value={lastName}
                 onChange={(e) => setLastName(e.target.value)}
-                className="w-full bg-[#050505] border border-neutral-800 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-[#7C3AED]/50"
+                className="w-full bg-surface border border-fire-border rounded-lg px-3 py-2 text-xs text-text-primary focus:outline-none focus:border-accent-pa/50"
               />
             </div>
           </div>
           <div className="space-y-1">
-            <label className="text-[11px] text-neutral-500 font-bold uppercase tracking-wider block">Email</label>
+            <label className="text-[11px] text-text-muted font-bold uppercase tracking-wider block">Email</label>
             <input
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full bg-[#050505] border border-neutral-800 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-[#7C3AED]/50"
+              className="w-full bg-surface border border-fire-border rounded-lg px-3 py-2 text-xs text-text-primary focus:outline-none focus:border-accent-pa/50"
             />
           </div>
           <button
             onClick={handleSaveDetails}
             disabled={savingDetails}
-            className="flex items-center gap-2 bg-[#7C3AED] hover:bg-[#6D28D9] text-white font-bold px-4 py-2 rounded-xl text-xs transition-colors disabled:opacity-50"
+            className="flex items-center gap-2 bg-accent-pa hover:bg-accent-pa-dark text-white font-bold px-4 py-2 rounded-xl text-xs transition-colors disabled:opacity-50"
           >
             <Save className="w-3.5 h-3.5" /> {savingDetails ? 'Saving...' : 'Save Profile'}
           </button>
         </div>
 
         {/* Tenant assignment */}
-        <div className="bg-[#0C0C0D] border border-neutral-800 rounded-xl p-5 space-y-4">
-          <h2 className="text-xs font-bold text-white uppercase tracking-widest">Tenant Assignment</h2>
+        <div className="bg-surface-2 border border-fire-border rounded-xl p-5 space-y-4">
+          <h2 className="text-xs font-bold text-text-primary uppercase tracking-widest">Tenant Assignment</h2>
           <div className="space-y-1">
-            <label className="text-[11px] text-neutral-500 font-bold uppercase tracking-wider block">Current Tenant</label>
-            <div className="bg-[#050505] border border-neutral-800 rounded-lg px-3 py-2 text-xs text-white">
-              {user.tenantName || <span className="text-neutral-600">Unassigned</span>}
+            <label className="text-[11px] text-text-muted font-bold uppercase tracking-wider block">Current Tenant</label>
+            <div className="bg-surface border border-fire-border rounded-lg px-3 py-2 text-xs text-text-primary">
+              {user.tenantName || <span className="text-text-muted">Unassigned</span>}
             </div>
           </div>
           <div className="space-y-1">
-            <label className="text-[11px] text-neutral-500 font-bold uppercase tracking-wider block">Move To</label>
+            <label className="text-[11px] text-text-muted font-bold uppercase tracking-wider block">Move To</label>
             <select
               value={moveTargetTenantId}
               onChange={(e) => setMoveTargetTenantId(e.target.value)}
-              className="w-full bg-[#050505] border border-neutral-800 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-[#7C3AED]/50"
+              className="w-full bg-surface border border-fire-border rounded-lg px-3 py-2 text-xs text-text-primary focus:outline-none focus:border-accent-pa/50"
             >
               {tenants
                 .filter((t) => t.id !== user.tenantId)
@@ -323,7 +323,7 @@ export default function UserDetailPage() {
             </select>
           </div>
           {heldRoles.has('company-admin') && (
-            <p className="text-[10px] text-[#FFAB00] leading-relaxed">
+            <p className="text-[10px] text-warning leading-relaxed">
               This user holds Company Admin in their current tenant — moving them will strip that role, since
               ownership is scoped to a specific tenant.
             </p>
@@ -331,7 +331,7 @@ export default function UserDetailPage() {
           <button
             onClick={() => setConfirmAction('move-tenant')}
             disabled={!moveTargetTenantId}
-            className="flex items-center gap-2 bg-[#7C3AED] hover:bg-[#6D28D9] text-white font-bold px-4 py-2 rounded-xl text-xs transition-colors disabled:opacity-50"
+            className="flex items-center gap-2 bg-accent-pa hover:bg-accent-pa-dark text-white font-bold px-4 py-2 rounded-xl text-xs transition-colors disabled:opacity-50"
           >
             <ArrowRightLeft className="w-3.5 h-3.5" /> Move Tenant
           </button>
@@ -339,9 +339,9 @@ export default function UserDetailPage() {
       </div>
 
       {/* Roles */}
-      <div className="bg-[#0C0C0D] border border-neutral-800 rounded-xl p-5 space-y-4">
-        <h2 className="text-xs font-bold text-white uppercase tracking-widest">Roles</h2>
-        <p className="text-[10px] text-neutral-600">
+      <div className="bg-surface-2 border border-fire-border rounded-xl p-5 space-y-4">
+        <h2 className="text-xs font-bold text-text-primary uppercase tracking-widest">Roles</h2>
+        <p className="text-[10px] text-text-muted">
           Changes apply immediately — each toggle calls the API directly so a rejected change (e.g. Company Admin
           already held elsewhere in this tenant) shows up right at the checkbox.
         </p>
@@ -354,7 +354,7 @@ export default function UserDetailPage() {
                 key={role.key}
                 className={clsx(
                   'flex items-center gap-2 px-3 py-2.5 rounded-lg border cursor-pointer transition-colors text-xs font-semibold',
-                  checked ? 'border-[#7C3AED]/40 bg-[#7C3AED]/10 text-white' : 'border-neutral-800 text-neutral-500 hover:border-neutral-700',
+                  checked ? 'border-accent-pa/40 bg-accent-pa/10 text-text-primary' : 'border-fire-border text-text-muted hover:border-accent-pa/30',
                   busy && 'opacity-50 pointer-events-none'
                 )}
               >
@@ -363,7 +363,7 @@ export default function UserDetailPage() {
                   checked={checked}
                   disabled={busy}
                   onChange={() => toggleRole(role.key, checked)}
-                  className="accent-[#7C3AED]"
+                  className="accent-accent-pa"
                 />
                 {role.label}
                 {busy && <Loader2 className="w-3 h-3 animate-spin ml-auto" />}

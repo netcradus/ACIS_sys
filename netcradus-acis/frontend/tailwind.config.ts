@@ -1,6 +1,7 @@
 import type { Config } from 'tailwindcss'
 
 const config: Config = {
+  darkMode: ['selector', '[data-theme="dark"]'],
   content: ['./index.html', './src/**/*.{ts,tsx}'],
   theme: {
     extend: {
@@ -11,6 +12,9 @@ const config: Config = {
         'surface-3':   'var(--surface-3)',
         accent:        'var(--accent)',
         'accent-dark': 'var(--accent-dark)',
+        'accent-light': 'var(--accent-light)',
+        'accent-pa':      'var(--accent-pa)',
+        'accent-pa-dark': 'var(--accent-pa-dark)',
         'text-primary':   'var(--text-primary)',
         'text-secondary': 'var(--text-secondary)',
         'text-muted':     'var(--text-muted)',
@@ -25,9 +29,9 @@ const config: Config = {
         mono:  ['JetBrains Mono', 'monospace'],
       },
       boxShadow: {
-        'accent-glow': '0 0 20px rgba(255, 77, 0, 0.3)',
-        'success-glow': '0 0 20px rgba(0, 255, 153, 0.3)',
-        'card':        '0 10px 40px rgba(0, 0, 0, 0.8)',
+        'accent-glow': 'var(--shadow-accent-glow)',
+        'success-glow': 'var(--shadow-success-glow)',
+        'card':        'var(--shadow-card)',
       },
       animation: {
         'pulse-slow': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',

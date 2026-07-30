@@ -34,28 +34,28 @@ export default function ConfirmDialog({
   if (!open) return null
 
   return (
-    <div className="fixed inset-0 bg-black/85 backdrop-blur-sm flex items-center justify-center z-[110] p-4">
-      <div className="bg-[#0C0C0D] border border-neutral-800 rounded-xl w-full max-w-sm overflow-hidden shadow-2xl animate-scale-in">
+    <div className="fixed inset-0 bg-background/85 backdrop-blur-sm flex items-center justify-center z-[110] p-4">
+      <div className="bg-surface-2 border border-fire-border rounded-xl w-full max-w-sm overflow-hidden shadow-2xl animate-scale-in">
         <div className="p-6 space-y-4">
           <div
             className={`w-12 h-12 rounded-2xl flex items-center justify-center ${
-              danger ? 'bg-danger/10 border border-danger/30 text-danger' : 'bg-[#7C3AED]/10 border border-[#7C3AED]/30 text-[#7C3AED]'
+              danger ? 'bg-danger/10 border border-danger/30 text-danger' : 'bg-accent-pa/10 border border-accent-pa/30 text-accent-pa'
             }`}
           >
             <AlertTriangle className="w-6 h-6" />
           </div>
           <div>
-            <h3 className="text-sm font-bold text-white uppercase tracking-wider">{title}</h3>
-            <p className="text-xs text-neutral-400 mt-2 leading-relaxed">{message}</p>
+            <h3 className="text-sm font-bold text-text-primary uppercase tracking-wider">{title}</h3>
+            <p className="text-xs text-text-secondary mt-2 leading-relaxed">{message}</p>
           </div>
           {children}
         </div>
-        <div className="flex items-center justify-end gap-3 p-4 border-t border-neutral-900">
+        <div className="flex items-center justify-end gap-3 p-4 border-t border-fire-border">
           <button
             type="button"
             disabled={busy}
             onClick={onCancel}
-            className="border border-neutral-800 bg-[#0C0C0D] hover:bg-neutral-800 text-neutral-400 hover:text-white font-bold px-4 py-2 rounded-xl text-xs transition-colors disabled:opacity-50"
+            className="border border-fire-border bg-surface-2 hover:bg-surface-3 text-text-secondary hover:text-text-primary font-bold px-4 py-2 rounded-xl text-xs transition-colors disabled:opacity-50"
           >
             Cancel
           </button>
@@ -64,7 +64,7 @@ export default function ConfirmDialog({
             disabled={busy}
             onClick={onConfirm}
             className={`font-bold px-4 py-2 rounded-xl text-xs transition-colors disabled:opacity-50 text-white ${
-              danger ? 'bg-danger hover:bg-danger/80' : 'bg-[#7C3AED] hover:bg-[#6D28D9]'
+              danger ? 'bg-danger hover:bg-danger/80' : 'bg-accent-pa hover:bg-accent-pa-dark'
             }`}
           >
             {busy ? 'Working...' : confirmLabel}

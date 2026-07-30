@@ -11,17 +11,17 @@ export default function ToastContainer() {
       {toasts.map((toast) => (
         <div
           key={toast.id}
-          className={`flex items-start gap-3 p-4 rounded-xl border shadow-2xl animate-slide-up bg-[#0C0C0D] ${
-            toast.type === 'success' ? 'border-[#00FF99]/30' : 'border-danger/30'
+          className={`flex items-start gap-3 p-4 rounded-xl border shadow-2xl animate-slide-up bg-surface-2 ${
+            toast.type === 'success' ? 'border-success/30' : 'border-danger/30'
           }`}
         >
           {toast.type === 'success' ? (
-            <CheckCircle2 className="w-5 h-5 text-[#00FF99] flex-shrink-0 mt-0.5" />
+            <CheckCircle2 className="w-5 h-5 text-success flex-shrink-0 mt-0.5" />
           ) : (
             <XCircle className="w-5 h-5 text-danger flex-shrink-0 mt-0.5" />
           )}
-          <p className="text-xs font-semibold text-neutral-200 flex-1 leading-relaxed">{toast.message}</p>
-          <button onClick={() => dismiss(toast.id)} className="text-neutral-600 hover:text-white transition-colors">
+          <p className="text-xs font-semibold text-text-secondary flex-1 leading-relaxed">{toast.message}</p>
+          <button onClick={() => dismiss(toast.id)} className="text-text-muted hover:text-text-primary transition-colors">
             <X className="w-4 h-4" />
           </button>
         </div>

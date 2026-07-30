@@ -221,22 +221,22 @@ export default function RedTeamPage() {
 
   return (
     <div className="space-y-6 animate-fade-in pb-12">
-      <section className="relative overflow-hidden rounded-[28px] border border-fire-border/70 bg-[#070707] shadow-[0_0_0_1px_rgba(255,77,0,0.04),0_30px_80px_rgba(0,0,0,0.45)]">
+      <section className="relative overflow-hidden rounded-[28px] border border-fire-border/70 bg-surface-2 shadow-[0_0_0_1px_rgba(255,77,0,0.04),0_30px_80px_rgba(0,0,0,0.45)]">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(255,77,0,0.18),transparent_30%),radial-gradient(circle_at_80%_0%,rgba(0,194,255,0.10),transparent_25%),linear-gradient(180deg,rgba(255,255,255,0.02),transparent)]" />
         <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-accent/70 to-transparent" />
         <div className="relative z-10 p-6 sm:p-8 lg:p-10">
           <div className="flex flex-col gap-6 xl:flex-row xl:items-end xl:justify-between">
             <div className="space-y-3">
               <div className="flex flex-wrap items-center gap-2 text-[10px] font-black uppercase tracking-[0.4em] text-text-muted">
-                <span className="inline-flex items-center gap-2 rounded-full border border-fire-border bg-black/50 px-3 py-1 text-success">
+                <span className="inline-flex items-center gap-2 rounded-full border border-fire-border bg-background/50 px-3 py-1 text-success">
                   <Radar className="h-3.5 w-3.5" /> Red Team Simulator
                 </span>
-                <span className="inline-flex items-center gap-2 rounded-full border border-fire-border bg-black/50 px-3 py-1">
+                <span className="inline-flex items-center gap-2 rounded-full border border-fire-border bg-background/50 px-3 py-1">
                   <Activity className="h-3.5 w-3.5 text-info" /> Continuous attack emulation
                 </span>
               </div>
               <div className="space-y-2">
-                <h1 className="text-4xl sm:text-5xl font-black tracking-tighter uppercase leading-none text-white">
+                <h1 className="text-4xl sm:text-5xl font-black tracking-tighter uppercase leading-none text-text-primary">
                   Mission Control for Attack Validation
                 </h1>
                 <p className="max-w-3xl text-[11px] sm:text-xs font-medium uppercase tracking-[0.28em] text-text-secondary">
@@ -246,19 +246,19 @@ export default function RedTeamPage() {
             </div>
 
             <div className="grid gap-3 sm:grid-cols-2 xl:w-[420px]">
-              <label className="group flex items-center gap-3 rounded-2xl border border-fire-border bg-black/70 px-4 py-3 transition-all focus-within:border-accent/50 focus-within:shadow-[0_0_0_1px_rgba(255,77,0,0.10)]">
+              <label className="group flex items-center gap-3 rounded-2xl border border-fire-border bg-background/70 px-4 py-3 transition-all focus-within:border-accent/50 focus-within:shadow-[0_0_0_1px_rgba(255,77,0,0.10)]">
                 <Search className="h-4 w-4 text-text-muted transition-colors group-focus-within:text-accent" />
                 <input
                   value={query}
                   onChange={(event) => setQuery(event.target.value)}
                   placeholder="Search Kiro AI..."
-                  className="w-full bg-transparent text-sm font-semibold text-white placeholder:text-text-muted outline-none"
+                  className="w-full bg-transparent text-sm font-semibold text-text-primary placeholder:text-text-muted outline-none"
                 />
               </label>
 
               <button
                 onClick={() => navigate('/dashboard/reports')}
-                className="btn-mission justify-center border-fire-border/70 bg-black/70 py-3 text-[10px] font-black uppercase tracking-[0.35em]"
+                className="btn-mission justify-center border-fire-border/70 bg-background/70 py-3 text-[10px] font-black uppercase tracking-[0.35em]"
               >
                 View Reports <ArrowUpRight className="h-4 w-4" />
               </button>
@@ -320,7 +320,7 @@ export default function RedTeamPage() {
               return (
                 <article
                   key={simulation.id}
-                  className="group relative overflow-hidden rounded-[24px] border border-fire-border/70 bg-[#090909] p-5 shadow-[0_0_0_1px_rgba(255,255,255,0.02)] transition-all duration-300 hover:-translate-y-0.5 hover:border-accent/45 hover:shadow-[0_16px_50px_rgba(0,0,0,0.45)]"
+                  className="group relative overflow-hidden rounded-[24px] border border-fire-border/70 bg-surface-2 p-5 shadow-[0_0_0_1px_rgba(255,255,255,0.02)] transition-all duration-300 hover:-translate-y-0.5 hover:border-accent/45 hover:shadow-[0_16px_50px_rgba(0,0,0,0.45)]"
                 >
                   <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(255,255,255,0.02),transparent_22%),radial-gradient(circle_at_top_right,rgba(255,77,0,0.10),transparent_24%)] opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
                   <div className="absolute -right-6 top-4 opacity-[0.07] transition-opacity group-hover:opacity-[0.14]">
@@ -332,11 +332,11 @@ export default function RedTeamPage() {
                       <div className="space-y-2">
                         <div className="flex flex-wrap gap-2">
                           <span className="badge-mission border-accent/70 bg-accent/10 text-accent">{attackTag}</span>
-                          <span className="badge-mission border-fire-border/70 bg-black/50 text-text-muted">{simulation.mitreTactics?.[0] || 'Lateral Movement'}</span>
+                          <span className="badge-mission border-fire-border/70 bg-background/50 text-text-muted">{simulation.mitreTactics?.[0] || 'Lateral Movement'}</span>
                         </div>
-                        <h2 className="text-[22px] font-black tracking-tighter text-white leading-[1.02]">{simulation.name}</h2>
+                        <h2 className="text-[22px] font-black tracking-tighter text-text-primary leading-[1.02]">{simulation.name}</h2>
                       </div>
-                      <div className="rounded-lg border border-fire-border/70 bg-black/60 px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.3em] text-accent">
+                      <div className="rounded-lg border border-fire-border/70 bg-background/60 px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.3em] text-accent">
                         {coverage.total} Stages
                       </div>
                     </div>
@@ -350,7 +350,7 @@ export default function RedTeamPage() {
                         <span>Last run result</span>
                         <span className={runTone}>Coverage {detectedLabel} techniques detected</span>
                       </div>
-                      <div className="rounded-2xl border border-fire-border/70 bg-[#0f0f0f] p-4">
+                      <div className="rounded-2xl border border-fire-border/70 bg-surface-3 p-4">
                         <div className={clsx('text-sm font-black uppercase tracking-wide', runTone)}>
                           {coverage.completed >= coverage.total ? 'Detection: Caught at Step 3' : coverage.completed >= Math.ceil(coverage.total * 0.7) ? 'Detection: Missed at Step 7' : 'Detection: Partial coverage observed'}
                         </div>
@@ -365,7 +365,7 @@ export default function RedTeamPage() {
                       <InfoPill icon={Flame} label="Run Count" value={simulation.runCount.toString()} />
                     </div>
 
-                    <div className="rounded-2xl border border-fire-border/70 bg-black/50 p-3">
+                    <div className="rounded-2xl border border-fire-border/70 bg-background/50 p-3">
                       <div className="mb-3 flex items-center justify-between text-[9px] font-black uppercase tracking-[0.35em] text-text-muted">
                         <span>Technique Trail</span>
                         <span>{simulation.mitreTechniques?.length || 0} mapped</span>
@@ -401,7 +401,7 @@ export default function RedTeamPage() {
                       </button>
                       <button
                         onClick={() => navigate('/dashboard/reports')}
-                        className="btn-mission justify-center border-fire-border/70 bg-black/50 py-3 text-[10px] tracking-[0.32em]"
+                        className="btn-mission justify-center border-fire-border/70 bg-background/50 py-3 text-[10px] tracking-[0.32em]"
                       >
                         View Report
                       </button>
@@ -413,10 +413,10 @@ export default function RedTeamPage() {
           </section>
 
           <section className="grid gap-5 xl:grid-cols-[1.2fr_0.8fr]">
-            <div className="rounded-[24px] border border-fire-border/70 bg-[#090909] p-5">
+            <div className="rounded-[24px] border border-fire-border/70 bg-surface-2 p-5">
               <div className="mb-5 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
                 <div>
-                  <h3 className="text-xl font-black uppercase tracking-tighter text-white">
+                  <h3 className="text-xl font-black uppercase tracking-tighter text-text-primary">
                     MITRE ATT&CK Coverage - Enterprise Matrix
                   </h3>
                   <p className="mt-1 text-[10px] font-bold uppercase tracking-[0.3em] text-text-muted">
@@ -443,7 +443,7 @@ export default function RedTeamPage() {
                         ? 'border-[#48e0c5]/35 bg-[#2ec9a5] text-black shadow-[inset_0_0_0_1px_rgba(255,255,255,0.08)]'
                         : cell.state === 'partial'
                           ? 'border-[#f0a01a]/40 bg-[#a86a12] text-white'
-                          : 'border-fire-border/80 bg-[#171717] text-text-muted'
+                          : 'border-fire-border/80 bg-surface-3 text-text-muted'
                     )}
                   >
                     <span className={clsx('text-[9px] font-black uppercase tracking-[0.25em]', cell.state === 'open' ? 'text-text-muted' : 'opacity-70')}>
@@ -457,20 +457,20 @@ export default function RedTeamPage() {
               </div>
             </div>
 
-            <div className="rounded-[24px] border border-fire-border/70 bg-[#090909] p-5">
+            <div className="rounded-[24px] border border-fire-border/70 bg-surface-2 p-5">
               <div className="mb-5 flex items-start justify-between gap-4">
                 <div>
-                  <h3 className="text-xl font-black uppercase tracking-tighter text-white">Execution History</h3>
+                  <h3 className="text-xl font-black uppercase tracking-tighter text-text-primary">Execution History</h3>
                   <p className="mt-1 text-[10px] font-bold uppercase tracking-[0.3em] text-text-muted">
                     Latest campaign telemetry from the simulator
                   </p>
                 </div>
-                <div className="rounded-full border border-fire-border/70 bg-black/50 px-3 py-1 text-[10px] font-black uppercase tracking-[0.3em] text-success">
+                <div className="rounded-full border border-fire-border/70 bg-background/50 px-3 py-1 text-[10px] font-black uppercase tracking-[0.3em] text-success">
                   Live feed
                 </div>
               </div>
 
-              <div className="overflow-hidden rounded-2xl border border-fire-border/70 bg-[#0d0d0d]">
+              <div className="overflow-hidden rounded-2xl border border-fire-border/70 bg-surface-2">
                 <table className="w-full border-separate border-spacing-0">
                   <thead>
                     <tr className="text-left text-[9px] font-black uppercase tracking-[0.3em] text-text-muted">
@@ -485,7 +485,7 @@ export default function RedTeamPage() {
                     {executionHistory.map((row, index) => (
                       <tr key={`${row.simulation}-${index}`} className="border-t border-fire-border/60 text-sm">
                         <td className="px-4 py-4">
-                          <div className="font-black text-white tracking-tight">{row.simulation}</div>
+                          <div className="font-black text-text-primary tracking-tight">{row.simulation}</div>
                         </td>
                         <td className="px-4 py-4">
                           <span
@@ -538,15 +538,15 @@ function StatCard({
   helper: string
 }) {
   return (
-    <div className={clsx('relative overflow-hidden rounded-[22px] border border-fire-border/70 bg-[#090909] px-5 py-4', accent)}>
+    <div className={clsx('relative overflow-hidden rounded-[22px] border border-fire-border/70 bg-surface-2 px-5 py-4', accent)}>
       <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(255,255,255,0.03),transparent)] opacity-60" />
       <div className="relative z-10 flex items-start justify-between gap-4">
         <div className="space-y-2">
           <div className="text-[9px] font-black uppercase tracking-[0.32em] text-text-muted">{label}</div>
-          <div className="text-3xl font-black tracking-tighter text-white">{value}</div>
+          <div className="text-3xl font-black tracking-tighter text-text-primary">{value}</div>
           <div className="max-w-[220px] text-[10px] font-medium uppercase tracking-[0.22em] text-text-secondary">{helper}</div>
         </div>
-        <div className="rounded-2xl border border-fire-border/70 bg-black/60 p-3 text-white">
+        <div className="rounded-2xl border border-fire-border/70 bg-background/60 p-3 text-text-primary">
           <Icon className="h-5 w-5" />
         </div>
       </div>
@@ -564,12 +564,12 @@ function InfoPill({
   value: string
 }) {
   return (
-    <div className="rounded-2xl border border-fire-border/70 bg-black/50 px-3 py-2.5">
+    <div className="rounded-2xl border border-fire-border/70 bg-background/50 px-3 py-2.5">
       <div className="flex items-center gap-2 text-[9px] font-black uppercase tracking-[0.28em] text-text-muted">
         <Icon className="h-3.5 w-3.5 text-accent" />
         {label}
       </div>
-      <div className="mt-1 text-[11px] font-black uppercase tracking-tight text-white">{value}</div>
+      <div className="mt-1 text-[11px] font-black uppercase tracking-tight text-text-primary">{value}</div>
     </div>
   )
 }

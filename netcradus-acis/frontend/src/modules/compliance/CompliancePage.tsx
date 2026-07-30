@@ -71,10 +71,10 @@ export default function CompliancePage() {
   }
 
   return (
-    <div className="space-y-8 animate-fade-in bg-black pb-10">
+    <div className="space-y-8 animate-fade-in bg-background pb-10">
       <div className="flex flex-col lg:flex-row items-start lg:items-end justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-black text-white tracking-tighter uppercase leading-none">Compliance & Audit</h1>
+          <h1 className="text-3xl font-black text-text-primary tracking-tighter uppercase leading-none">Compliance & Audit</h1>
           <p className="text-[10px] text-text-secondary font-bold tracking-[0.4em] uppercase mt-2">Regulatory posture, audit trails, and reporting evidence</p>
         </div>
         <div className="flex flex-wrap gap-3">
@@ -99,16 +99,16 @@ export default function CompliancePage() {
             <div key={fw.name} className="card-mission bg-surface-2 border-fire-border/60 hover:border-accent/30 transition-all group">
               <div className="flex items-start justify-between mb-8">
                 <div>
-                  <h2 className="text-2xl font-black text-white tracking-tighter uppercase">{fw.name}</h2>
+                  <h2 className="text-2xl font-black text-text-primary tracking-tighter uppercase">{fw.name}</h2>
                   <p className="text-[10px] text-text-muted font-bold uppercase tracking-widest mt-1">{fw.description}</p>
                 </div>
-                <div className="text-4xl font-black text-white tracking-tighter tabular-nums flex flex-col items-end leading-none">
+                <div className="text-4xl font-black text-text-primary tracking-tighter tabular-nums flex flex-col items-end leading-none">
                   {fw.percentage}%
                   <span className="text-[9px] text-text-muted font-bold uppercase tracking-widest mt-2">Satisfaction</span>
                 </div>
               </div>
 
-              <div className="w-full h-2 bg-black border border-fire-border rounded-full overflow-hidden mb-10">
+              <div className="w-full h-2 bg-background border border-fire-border rounded-full overflow-hidden mb-10">
                 <div
                   className={clsx('h-full rounded-full transition-all duration-1000', fw.barColor)}
                   style={{ width: `${fw.percentage}%` }}
@@ -124,7 +124,7 @@ export default function CompliancePage() {
                       ) : (
                         <div className={clsx('w-1.5 h-1.5 rounded-full', control.status === 'In Progress' ? 'bg-warning' : 'bg-danger')} />
                       )}
-                      <span className="text-[11px] font-bold text-text-secondary group-hover/item:text-white transition-colors">{control.name}</span>
+                      <span className="text-[11px] font-bold text-text-secondary group-hover/item:text-text-primary transition-colors">{control.name}</span>
                     </div>
                     <div className="flex items-center gap-4">
                       <span className="text-[10px] font-mono text-text-muted">{control.count}</span>
@@ -156,7 +156,7 @@ export default function CompliancePage() {
       <div className="card-mission bg-surface-2 border-fire-border/60">
         <div className="flex items-center justify-between mb-8">
           <div>
-            <h3 className="text-xs font-black text-white uppercase tracking-[0.2em]">Audit Trail — Immutable Platform Logs</h3>
+            <h3 className="text-xs font-black text-text-primary uppercase tracking-[0.2em]">Audit Trail — Immutable Platform Logs</h3>
             <p className="text-[10px] text-text-secondary font-bold mt-1">Full traceability for every administrative action</p>
           </div>
           <button className="btn-mission py-2 px-4 flex items-center gap-2">
@@ -176,7 +176,7 @@ export default function CompliancePage() {
                 <th className="pb-4 text-[10px] font-black text-text-muted uppercase tracking-widest px-4 text-right">Integrity</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-border">
+            <tbody className="divide-y divide-fire-border">
               {isLoading ? (
                 Array.from({ length: 5 }).map((_, index) => (
                   <tr key={index} className="animate-pulse">
@@ -191,10 +191,10 @@ export default function CompliancePage() {
                 </tr>
               ) : (
                 auditTrail.map((log) => (
-                  <tr key={log.id} className="group hover:bg-white/[0.02] transition-colors">
+                  <tr key={log.id} className="group hover:bg-surface-3/40 transition-colors">
                     <td className="py-4 px-4 font-mono text-[10px] text-text-muted font-bold">{new Date(log.timestamp).toLocaleString()}</td>
                     <td className="py-4 px-4">
-                      <span className="text-xs font-bold text-white tracking-tight">{log.user}</span>
+                      <span className="text-xs font-bold text-text-primary tracking-tight">{log.user}</span>
                     </td>
                     <td className="py-4 px-4">
                       <span className="text-[10px] font-black text-accent uppercase tracking-tighter bg-accent/5 px-2 py-1 rounded-md border border-accent/20">

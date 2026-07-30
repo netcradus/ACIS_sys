@@ -18,6 +18,24 @@
       if (!g.global) g.global = g;
       if (!g.process) g.process = { env: {}, version: '', platform: 'browser' };
     </script>
+    <script>
+      // Set data-theme before first paint so the app never flashes the wrong
+      // theme. Mirrors themeStore.ts's resolution logic exactly — kept here
+      // too because the store's module-level matchMedia() call happens too
+      // late (after the initial HTML/CSS has already painted once).
+      (function () {
+        try {
+          var saved = localStorage.getItem('acis_theme_mode');
+          var mode = (saved === 'light' || saved === 'dark' || saved === 'system') ? saved : 'system';
+          var resolved = mode === 'system'
+            ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
+            : mode;
+          document.documentElement.setAttribute('data-theme', resolved);
+        } catch (e) {
+          document.documentElement.setAttribute('data-theme', 'dark');
+        }
+      })();
+    </script>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
