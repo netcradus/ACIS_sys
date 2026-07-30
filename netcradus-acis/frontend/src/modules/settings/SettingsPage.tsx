@@ -52,7 +52,7 @@ export default function SettingsPage() {
   }
 
   // Profile states
-  const { user, updateProfile } = useAuthStore()
+  const { user, updateProfile, clearAuth } = useAuthStore()
   const [profileName, setProfileName] = useState(user?.name || 'Security Administrator')
   const [profileEmail, setProfileEmail] = useState(user?.email || 'admin@netcradus.local')
   const [profilePhone, setProfilePhone] = useState(user?.phone || '+1 (555) 019-2834')
@@ -1313,7 +1313,7 @@ export default function SettingsPage() {
                   <p className="text-[11px] text-text-secondary mt-0.5">Host IP: <span className="font-mono text-text-secondary">127.0.0.1</span> | Protocol: <span className="font-mono text-text-secondary">HTTPS / OpenID Connect</span></p>
                 </div>
                 <button
-                  onClick={() => keycloak.logout()}
+                  onClick={() => { clearAuth(); keycloak.logout() }}
                   className="bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/30 px-3 py-1.5 rounded-lg font-bold text-[11px] transition-colors"
                 >
                   Terminate Active Session

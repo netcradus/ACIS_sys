@@ -24,7 +24,7 @@ function formatTimeAgo(isoString: string): string {
 }
 
 export default function TopBar() {
-  const { user } = useAuthStore()
+  const { user, clearAuth } = useAuthStore()
   const { 
     notifications, unreadCount, filter, setFilter, 
     markAsRead, markAllAsRead, clearAll, initNotifications, isWsConnected 
@@ -326,7 +326,7 @@ export default function TopBar() {
               </div>
               <div className="py-2">
                 <button
-                  onClick={() => keycloak.logout()}
+                  onClick={() => { clearAuth(); keycloak.logout() }}
                   className="w-full text-left px-5 py-3 text-[11px] font-bold uppercase tracking-widest text-danger hover:bg-danger/10 transition-all flex items-center gap-3"
                 >
                   <LogOut className="w-4 h-4" /> Terminate Session

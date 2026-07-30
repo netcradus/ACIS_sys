@@ -46,8 +46,18 @@ function getInitialUser(): AuthUser | null {
  * Read throughout the app for user info and auth state.
  */
 export const useAuthStore = create<AuthState>((set) => ({
+  // `user` may optimistically hydrate from a cached profile for display
+  // purposes, but `isAuthenticated` must NEVER be inferred from localStorage
+  // presence alone — that only proves a profile was cached during some past
+  // session, not that the current Keycloak session is still valid. The only
+  // things allowed to assert authentication are setUser() (called from
+  // main.tsx after a real, successful keycloak.init()) and clearAuth().
+  // Trusting stale cache here previously caused a real bug: the app would
+  // render as "logged in" with no live token, every API call would 401, and
+  // apiClient's 401 handler would force a genuine keycloak.login() — which
+  // looked like a redirect loop back to Keycloak's hosted login page.
   user:            getInitialUser(),
-  isAuthenticated: getInitialUser() !== null,
+  isAuthenticated: false,
   keycloakReady:   false,
 
   setUser: (user) => {
