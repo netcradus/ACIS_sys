@@ -5,6 +5,7 @@ import com.netcradus.acis.alerts.repository.AlertRepository;
 import com.netcradus.acis.alerts.service.AlertService;
 import com.netcradus.acis.common.audit.AuditEventPublisher;
 import com.netcradus.acis.common.dto.AlertDto;
+import com.netcradus.acis.common.exception.NotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.web.bind.annotation.*;
@@ -38,14 +39,14 @@ public class AlertController {
     @GetMapping("/{id}")
     public Alert getAlertById(@PathVariable String id, @RequestHeader("X-Tenant-ID") String tenantId) {
         return alertRepository.findByIdAndTenantId(id, tenantId)
-                .orElseThrow(() -> new RuntimeException("Alert not found"));
+                .orElseThrow(() -> new NotFoundException("Alert not found"));
     }
 
     @PutMapping("/{id}/status")
     public Alert updateStatus(@PathVariable String id, @RequestParam String status,
                                @RequestHeader("X-Tenant-ID") String tenantId) {
         Alert alert = alertRepository.findByIdAndTenantId(id, tenantId)
-                .orElseThrow(() -> new RuntimeException("Alert not found"));
+                .orElseThrow(() -> new NotFoundException("Alert not found"));
         alert.setStatus(status);
         Alert saved = alertRepository.save(alert);
         auditEventPublisher.publish("ALERT_STATUS_CHANGE", "alert/" + id, "status=" + status);
@@ -56,7 +57,7 @@ public class AlertController {
     public Alert updateAlert(@PathVariable String id, @RequestBody Map<String, Object> updates,
                               @RequestHeader("X-Tenant-ID") String tenantId) {
         Alert alert = alertRepository.findByIdAndTenantId(id, tenantId)
-                .orElseThrow(() -> new RuntimeException("Alert not found"));
+                .orElseThrow(() -> new NotFoundException("Alert not found"));
         if (updates.containsKey("status")) {
             alert.setStatus((String) updates.get("status"));
         }

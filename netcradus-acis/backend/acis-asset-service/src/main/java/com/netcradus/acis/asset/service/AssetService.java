@@ -2,6 +2,7 @@ package com.netcradus.acis.asset.service;
 
 import com.netcradus.acis.asset.model.Asset;
 import com.netcradus.acis.asset.repository.AssetRepository;
+import com.netcradus.acis.common.exception.NotFoundException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -42,7 +43,7 @@ public class AssetService {
 
     public void deleteById(String id, String tenantId) {
         Asset asset = repository.findByIdAndTenantId(id, tenantId)
-                .orElseThrow(() -> new RuntimeException("Asset not found with id " + id));
+                .orElseThrow(() -> new NotFoundException("Asset not found with id " + id));
         log.info("Deleting asset by ID: {}", id);
         repository.delete(asset);
     }
@@ -60,6 +61,6 @@ public class AssetService {
             asset.setCriticality(assetDetails.getCriticality());
             asset.setTags(assetDetails.getTags());
             return repository.save(asset);
-        }).orElseThrow(() -> new RuntimeException("Asset not found with id " + id));
+        }).orElseThrow(() -> new NotFoundException("Asset not found with id " + id));
     }
 }

@@ -2,6 +2,7 @@ package com.netcradus.acis.correlation.controller;
 
 import com.netcradus.acis.common.audit.AuditEventPublisher;
 import com.netcradus.acis.common.dto.CorrelationRuleDto;
+import com.netcradus.acis.common.exception.NotFoundException;
 import com.netcradus.acis.correlation.model.CorrelationRule;
 import com.netcradus.acis.correlation.repository.CorrelationRuleRepository;
 import com.netcradus.acis.correlation.service.CorrelationEngine;
@@ -49,7 +50,7 @@ public class CorrelationController {
     @PutMapping("/rules/{id}/toggle")
     public CorrelationRule toggleRule(@PathVariable String id, @RequestHeader("X-Tenant-ID") String tenantId) {
         CorrelationRule rule = repository.findByIdAndTenantId(id, tenantId)
-                .orElseThrow(() -> new RuntimeException("Correlation rule not found"));
+                .orElseThrow(() -> new NotFoundException("Correlation rule not found"));
         rule.setEnabled(!rule.isEnabled());
         CorrelationRule saved = repository.save(rule);
         auditEventPublisher.publish("CORRELATION_RULE_TOGGLE", "correlation-rule/" + id, "enabled=" + saved.isEnabled());

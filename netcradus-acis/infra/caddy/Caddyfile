@@ -21,6 +21,22 @@
 {$PUBLIC_APP_DOMAIN:localhost} {
 	encode gzip
 
+	# Baseline browser security headers — the app previously returned none of
+	# these (Keycloak's own responses already set several natively, which is
+	# why they were only missing here). frame-ancestors 'none' + X-Frame-
+	# Options DENY closes the clickjacking gap; the rest is standard defense
+	# in depth. Deliberately NOT setting script-src/style-src etc. here — a
+	# full CSP needs testing against the app's actual resource loading to
+	# avoid breaking it, so this only targets what the assessment flagged.
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Frame-Options "DENY"
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "no-referrer"
+		Permissions-Policy "camera=(), microphone=(), geolocation=()"
+		Content-Security-Policy "frame-ancestors 'none'"
+	}
+
 	reverse_proxy frontend:80
 }
 
