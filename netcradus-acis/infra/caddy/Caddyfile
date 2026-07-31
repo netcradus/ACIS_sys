@@ -3,19 +3,16 @@
 # Caddy automatically obtains and renews a real Let's Encrypt certificate for
 # {$PUBLIC_APP_DOMAIN} the moment that value is a real public hostname whose
 # DNS A/AAAA record points at this host (ports 80+443 must be reachable from
-# the internet for the ACME HTTP-01 challenge). Until you set a real domain,
-# this defaults to "localhost", where Caddy instead uses its own internal CA
-# to serve locally-trusted HTTPS — enough to prove the whole proxy chain
-# works before you ever touch a real domain or certificate.
+# the internet for the ACME HTTP-01 challenge).
 #
 # Two site blocks share the SAME hostname on two ports so only one certificate
 # is needed: :443 for the app itself, :8443 for Keycloak (kept off the main
 # port so Keycloak's own routes/assets never collide with the frontend's).
 {
-	# Let's Encrypt account contact — set ACME_EMAIL in .env to your real
-	# address before going live; the placeholder below only matters if you
-	# forget to (Caddy requires *some* value here, it doesn't verify deliverability).
 	email {$ACME_EMAIL:admin@example.invalid}
+	servers {
+		protocols h1 h2
+	}
 }
 
 {$PUBLIC_APP_DOMAIN:localhost} {
@@ -42,4 +39,12 @@
 
 {$PUBLIC_APP_DOMAIN:localhost}:8443 {
 	reverse_proxy keycloak:8080
+}
+
+# Direct-IP visitors on plain HTTP get sent to the real domain instead of a
+# dead end — HTTPS on the bare IP already fails at the TLS layer (Caddy's
+# automatic HTTPS only holds a certificate for $PUBLIC_APP_DOMAIN), so this
+# only needs to handle the plain-HTTP:80 case.
+http://142.93.219.208 {
+	redir https://{$PUBLIC_APP_DOMAIN}{uri} permanent
 }
