@@ -178,6 +178,13 @@ services:
   # 5. Kafka Event Broker — internal only
   kafka:
     image: confluentinc/cp-kafka:7.6.0
+    # cp-kafka doesn't run a real init as PID 1, so subprocesses spawned by
+    # the healthcheck below (a fresh `kafka-topics` JVM every 15s) that
+    # don't exit cleanly get orphaned onto the broker process itself, which
+    # never reaps them — they accumulate as zombies indefinitely. `init:
+    # true` injects Docker's built-in tini as PID 1 so orphans get reaped
+    # properly. Purely a process-supervision fix — no effect on Kafka itself.
+    init: true
     environment:
       KAFKA_NODE_ID: 1
       KAFKA_PROCESS_ROLES: broker,controller
