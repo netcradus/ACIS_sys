@@ -13,7 +13,8 @@ import { useAuthStore, AuthUser } from './store/authStore'
 async function bootstrap() {
   try {
     // Initialize Keycloak but do NOT force automatic redirects here.
-    // Instead, rely on the ProtectedRoute and manual triggers in LoginPage.
+    // Instead, rely on ProtectedRoute/PlatformAdminRoute to trigger
+    // keycloak.login() (Keycloak's own hosted login page) on demand.
     const authenticated = await keycloak.init({
       checkLoginIframe: false,
       pkceMethod: 'S256',

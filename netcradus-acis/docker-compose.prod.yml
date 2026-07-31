@@ -160,6 +160,8 @@ services:
     environment:
       KEYCLOAK_ADMIN: ${KEYCLOAK_ADMIN_USER:?Set KEYCLOAK_ADMIN_USER in .env}
       KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:?Set KEYCLOAK_ADMIN_PASSWORD in .env — do not reuse the dev default}
+    volumes:
+      - ./infra/keycloak/themes/acis:/opt/keycloak/themes/acis
     expose:
       - "8080"
     depends_on:

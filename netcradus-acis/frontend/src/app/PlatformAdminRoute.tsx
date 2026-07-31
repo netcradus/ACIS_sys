@@ -1,3 +1,4 @@
+import { useEffect } from 'react'
 import { Navigate, Outlet } from 'react-router-dom'
 import { useAuthStore, useHasRole } from '@/store/authStore'
 import keycloak from '@/lib/keycloak'
@@ -6,21 +7,24 @@ import keycloak from '@/lib/keycloak'
  * Gate for the Platform Super Admin console. Unlike ProtectedRoute (which
  * only checks authentication), this also requires the "platform-admin"
  * Keycloak realm role — a regular tenant user (any of viewer/analyst/
- * engineer/admin) is redirected to their own dashboard, not to /login,
- * since they ARE authenticated, just not authorized for this console.
+ * engineer/admin) is redirected to their own dashboard, since they ARE
+ * authenticated, just not authorized for this console. An unauthenticated
+ * visitor is sent straight to Keycloak's own hosted login page (no
+ * intermediate in-app login screen).
  */
 export default function PlatformAdminRoute() {
   const { keycloakReady, isAuthenticated } = useAuthStore()
   const isPlatformAdmin = useHasRole('platform-admin')
-
-  if (!keycloakReady) {
-    return <LoadingScreen />
-  }
-
   const isUserAuthenticated = isAuthenticated || Boolean(keycloak.authenticated)
 
-  if (!isUserAuthenticated) {
-    return <Navigate to="/login" replace />
+  useEffect(() => {
+    if (keycloakReady && !isUserAuthenticated) {
+      keycloak.login({ pkceMethod: 'S256', redirectUri: window.location.href })
+    }
+  }, [keycloakReady, isUserAuthenticated])
+
+  if (!keycloakReady || !isUserAuthenticated) {
+    return <LoadingScreen />
   }
 
   if (!isPlatformAdmin) {

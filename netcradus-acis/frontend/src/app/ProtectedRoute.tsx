@@ -1,3 +1,4 @@
+import { useEffect } from 'react'
 import { Navigate, Outlet } from 'react-router-dom'
 import { useAuthStore, useHasRole } from '@/store/authStore'
 import keycloak              from '@/lib/keycloak'
@@ -7,22 +8,25 @@ import keycloak              from '@/lib/keycloak'
  *
  * Flow:
  * 1. While Keycloak is initializing → show full-page loading spinner
- * 2. If not authenticated → navigate to /login (branded page, not direct keycloak.login())
+ * 2. If not authenticated → redirect straight to Keycloak's own hosted
+ *    login page (no intermediate in-app login screen); the browser lands
+ *    back on this same URL after a successful login
  * 3. If user is a platform-admin (no tenant context) → redirect to /platform-admin
  * 4. If authenticated tenant user → render child routes via <Outlet />
  */
 export default function ProtectedRoute() {
   const { keycloakReady, isAuthenticated } = useAuthStore()
   const isPlatformAdmin = useHasRole('platform-admin')
-
-  if (!keycloakReady) {
-    return <LoadingScreen />
-  }
-
   const isUserAuthenticated = isAuthenticated || Boolean(keycloak.authenticated)
 
-  if (!isUserAuthenticated) {
-    return <Navigate to="/login" replace />
+  useEffect(() => {
+    if (keycloakReady && !isUserAuthenticated) {
+      keycloak.login({ pkceMethod: 'S256', redirectUri: window.location.href })
+    }
+  }, [keycloakReady, isUserAuthenticated])
+
+  if (!keycloakReady || !isUserAuthenticated) {
+    return <LoadingScreen />
   }
 
   // Platform admins don't have a tenant_id — redirect them to their own console

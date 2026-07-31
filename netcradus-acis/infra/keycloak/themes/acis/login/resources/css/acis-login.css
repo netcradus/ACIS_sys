@@ -1,0 +1,673 @@
+/* ACIS branded login theme — CSS + a small DOM-injection script
+   (js/acis-login.js) layered on top of Keycloak's built-in "keycloak"
+   (classic) theme. No template/FTL changes: Keycloak's own form element,
+   its inputs, CSRF token, and submission handling are never re-created,
+   only wrapped/restyled — every security-critical behavior is untouched. */
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  /* Force light-styled native form controls (checkboxes, buttons) even
+     when the visitor's OS/browser is set to dark mode — this theme is a
+     single fixed light-card design, not a light/dark-aware one, so native
+     controls must not silently pick up a dark UA stylesheet. */
+  color-scheme: light;
+}
+
+html,
+body,
+.login-pf,
+.login-pf body {
+  background: #02050e !important;
+  min-height: 100vh;
+  margin: 0;
+  padding: 0;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+}
+
+/* acis-login.js relocates #kc-header-wrapper's content into the card
+   column, leaving this original wrapper empty at the top of the page. */
+.login-pf-page-header {
+  display: none !important;
+}
+
+.login-pf-page {
+  display: block !important;
+  min-height: 100vh;
+  padding: 0;
+}
+
+/* ---------------------------------------------------------------------
+   Two-column shell (built by acis-login.js around the real Keycloak card)
+   --------------------------------------------------------------------- */
+
+.acis-shell {
+  display: flex;
+  min-height: 100vh;
+  width: 100%;
+}
+
+@media (max-width: 960px) {
+  .acis-shell {
+    flex-direction: column;
+  }
+}
+
+/* ---------------------------------------------------------------------
+   Left: dark hero panel
+   --------------------------------------------------------------------- */
+
+.acis-hero {
+  position: relative;
+  flex: 1 1 55%;
+  min-height: 100vh;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  padding: 64px 56px;
+  background: #02050e;
+}
+
+@media (max-width: 960px) {
+  .acis-hero {
+    min-height: auto;
+    padding: 48px 32px 32px;
+  }
+}
+
+.acis-hero-bg {
+  position: absolute;
+  inset: 0;
+  background-image: url('../img/world-network.png');
+  background-size: cover;
+  background-position: center;
+  opacity: 0.3;
+  mix-blend-mode: screen;
+  pointer-events: none;
+}
+
+.acis-hero-bg::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(circle at 15% 20%, rgba(249, 99, 2, 0.18), transparent 45%),
+    radial-gradient(circle at 85% 80%, rgba(59, 130, 246, 0.16), transparent 45%);
+}
+
+.acis-hero-content {
+  position: relative;
+  z-index: 2;
+  max-width: 560px;
+}
+
+.acis-hero-title {
+  color: #ffffff;
+  font-weight: 800;
+  font-size: 3.2rem;
+  line-height: 1.08;
+  letter-spacing: -0.02em;
+  margin: 0;
+}
+
+@media (max-width: 1200px) {
+  .acis-hero-title {
+    font-size: 2.5rem;
+  }
+}
+
+.acis-hero-underline {
+  width: 72px;
+  height: 4px;
+  border-radius: 2px;
+  margin: 20px 0 24px;
+  background: linear-gradient(to right, #22d3ee, #a855f7);
+}
+
+.acis-hero-lines {
+  font-size: 1.15rem;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  line-height: 1.9;
+}
+
+.acis-hero-lines p {
+  margin: 0;
+  color: #cbd5e1;
+}
+
+.acis-cyan { color: #0ea5e9; font-weight: 700; }
+.acis-purple { color: #a855f7; font-weight: 700; }
+.acis-blue { color: #3b82f6; font-weight: 700; }
+
+.acis-stat-grid {
+  margin-top: 40px;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+  max-width: 520px;
+}
+
+@media (max-width: 640px) {
+  .acis-stat-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.acis-stat-card {
+  background: rgba(11, 19, 41, 0.45);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 16px;
+  padding: 16px;
+}
+
+.acis-stat-icon {
+  width: 30px;
+  height: 30px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 10px;
+}
+
+.acis-stat-icon svg { width: 16px; height: 16px; }
+
+.acis-stat-icon--cyan   { background: rgba(34, 211, 238, 0.1); color: #22d3ee; }
+.acis-stat-icon--purple { background: rgba(168, 85, 247, 0.1); color: #a855f7; }
+.acis-stat-icon--blue   { background: rgba(59, 130, 246, 0.1); color: #60a5fa; }
+
+.acis-stat-label {
+  color: #94a3b8;
+  font-size: 0.68rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  margin-bottom: 4px;
+}
+
+.acis-stat-value {
+  color: #ffffff;
+  font-size: 1.5rem;
+  font-weight: 800;
+  line-height: 1.1;
+}
+
+.acis-stat-trend {
+  margin-top: 6px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.68rem;
+  font-weight: 700;
+}
+
+.acis-stat-trend svg { width: 10px; height: 10px; }
+
+.acis-stat-trend--up   { color: #34d399; }
+.acis-stat-trend--down { color: #f87171; }
+
+/* Faint decorative hologram, bottom-right of the hero panel */
+.acis-hologram {
+  position: absolute;
+  right: -60px;
+  bottom: -60px;
+  width: 320px;
+  height: 320px;
+  z-index: 1;
+  pointer-events: none;
+}
+
+.acis-holo-ring {
+  position: absolute;
+  inset: 0;
+  border: 1px solid rgba(14, 165, 233, 0.18);
+  border-radius: 50%;
+  animation: acis-holo-rotate 18s linear infinite;
+}
+
+.acis-holo-ring--2 { inset: 15%; border-color: rgba(168, 85, 247, 0.16); animation-duration: 24s; animation-direction: reverse; }
+.acis-holo-ring--3 { inset: 30%; border-color: rgba(59, 130, 246, 0.2); animation-duration: 14s; }
+
+.acis-beam {
+  position: absolute;
+  width: 2px;
+  height: 90px;
+  background: linear-gradient(to bottom, rgba(14, 165, 233, 0.5), transparent);
+  border-radius: 2px;
+}
+
+.acis-beam--1 { left: 30%; top: 0; animation: acis-beam-float 6s ease-in-out infinite; }
+.acis-beam--2 { left: 55%; top: 10%; animation: acis-beam-float 7s ease-in-out infinite 1s; }
+.acis-beam--3 { left: 75%; top: 5%; animation: acis-beam-float 5s ease-in-out infinite 0.5s; }
+
+@keyframes acis-holo-rotate {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+@keyframes acis-beam-float {
+  0%, 100% { transform: translateY(0); opacity: 0.6; }
+  50% { transform: translateY(-14px); opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .acis-holo-ring, .acis-beam { animation: none !important; }
+}
+
+@media (max-width: 960px) {
+  .acis-hologram { display: none; }
+}
+
+/* ---------------------------------------------------------------------
+   Right: white card column
+   --------------------------------------------------------------------- */
+
+.acis-card-col {
+  flex: 1 1 45%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 48px 32px;
+  background: #f8fafc;
+}
+
+.card-pf,
+#kc-login,
+.acis-card-col .card-pf {
+  background: #ffffff !important;
+  border-radius: 32px !important;
+  box-shadow: 0 25px 60px rgba(15, 23, 42, 0.12) !important;
+  border: 1px solid rgba(15, 23, 42, 0.04) !important;
+  padding: 40px !important;
+  width: 100%;
+  max-width: 440px;
+}
+
+/* Header content is replaced by acis-login.js (logo + tagline + powered-by) */
+#kc-header-wrapper {
+  text-align: center;
+  margin-bottom: 8px;
+}
+
+.acis-logo-mark {
+  height: 40px;
+  width: auto;
+  margin: 6px auto 0;
+  display: block;
+}
+
+.acis-tagline {
+  display: block;
+  margin-top: 6px;
+  color: #111827;
+  font-size: 0.5rem;
+  font-weight: 700;
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+}
+
+.acis-tagline-accent {
+  color: #f96302;
+}
+
+.acis-powered-by {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  max-width: 150px;
+  margin: 14px auto 10px;
+}
+
+.acis-divider-line {
+  height: 1px;
+  background: #e5e7eb;
+  flex: 1;
+}
+
+.acis-powered-by span:not(.acis-divider-line) {
+  font-size: 0.6rem;
+  color: #9ca3af;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.acis-netcradus-wordmark {
+  text-align: center;
+  font-weight: 900;
+  font-size: 1.05rem;
+  letter-spacing: 0.06em;
+  margin-bottom: 22px;
+}
+
+.acis-netcradus-wordmark .net { color: #030712; }
+.acis-netcradus-wordmark .cradus { color: #f96302; }
+.acis-netcradus-wordmark sup { color: #f96302; font-size: 0.6rem; }
+
+#kc-page-title,
+.login-pf-header h1,
+.login-pf-header h2 {
+  color: #111827;
+  font-weight: 800;
+  font-size: 1.5rem;
+  text-align: center;
+  letter-spacing: -0.01em;
+  margin-bottom: 4px;
+}
+
+.acis-subtitle {
+  text-align: center;
+  color: #6b7280;
+  font-size: 0.85rem;
+  margin: 0 0 26px;
+}
+
+label,
+.control-label {
+  color: #374151 !important;
+  font-weight: 700 !important;
+  font-size: 0.75rem !important;
+}
+
+#kc-form-options label {
+  color: #4b5563 !important;
+  font-weight: 500 !important;
+}
+
+/* Input icon wrapper (built by acis-login.js). Keycloak's real password
+   field is natively wrapped in a `.pf-c-input-group` flex row alongside a
+   real, functional "show/hide password" button (`.pf-c-button.pf-m-control`
+   containing a fontawesome eye icon) — our wrap sits INSIDE that group as
+   one flex item next to the untouched toggle button, so it must grow to
+   fill the row rather than size to its own content. */
+.acis-input-wrap {
+  position: relative;
+  display: block;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.acis-input-icon {
+  position: absolute;
+  left: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #9ca3af;
+  width: 16px;
+  height: 16px;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.acis-input-icon svg { width: 16px; height: 16px; display: block; }
+
+#kc-form input[type="text"],
+#kc-form input[type="password"],
+#kc-form input[type="email"],
+.login-pf-page input[type="text"],
+.login-pf-page input[type="password"],
+.login-pf-page input[type="email"] {
+  background: #ffffff !important;
+  border: 1px solid #e5e7eb !important;
+  border-radius: 12px !important;
+  padding: 12px 16px !important;
+  font-size: 0.9rem !important;
+  color: #111827 !important;
+  box-shadow: none !important;
+  height: auto !important;
+  width: 100%;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+/* Left padding is only reserved on inputs acis-login.js actually wrapped
+   with an icon (data-acis-wrapped) — fields it doesn't touch (e.g. a
+   password-reset flow's password-new/password-confirm) must not get a
+   hollow, icon-less gap on the left. */
+#kc-form input[type="text"][data-acis-wrapped="true"],
+#kc-form input[type="password"][data-acis-wrapped="true"],
+#kc-form input[type="email"][data-acis-wrapped="true"] {
+  padding-left: 40px !important;
+}
+
+#kc-form input[type="text"]::placeholder,
+#kc-form input[type="password"]::placeholder,
+#kc-form input[type="email"]::placeholder {
+  color: #9ca3af;
+  opacity: 1;
+}
+
+#kc-form input[type="text"]:hover,
+#kc-form input[type="password"]:hover,
+#kc-form input[type="email"]:hover {
+  border-color: #d1d5db !important;
+}
+
+#kc-form input[type="text"]:focus,
+#kc-form input[type="password"]:focus,
+#kc-form input[type="email"]:focus {
+  border-color: #4f46e5 !important;
+  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.14) !important;
+  outline: none !important;
+}
+
+/* The password field's native `.pf-c-input-group` (input + real show/hide
+   toggle button) becomes the single bordered "box" instead of the input
+   itself, so the two pieces read as one seamless control. */
+.pf-c-input-group {
+  display: flex !important;
+  align-items: stretch;
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  overflow: hidden;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.pf-c-input-group:hover {
+  border-color: #d1d5db;
+}
+
+.pf-c-input-group:focus-within {
+  border-color: #4f46e5;
+  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.14);
+}
+
+#kc-form .pf-c-input-group input[type="password"],
+#kc-form .pf-c-input-group input[type="text"],
+.login-pf-page .pf-c-input-group input[type="password"],
+.login-pf-page .pf-c-input-group input[type="text"] {
+  border: none !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+}
+
+/* The group wrapper owns the visible border/focus ring now — suppress the
+   input's own hover/focus border so it doesn't show through underneath. */
+#kc-form .pf-c-input-group input[type="password"]:hover,
+#kc-form .pf-c-input-group input[type="password"]:focus,
+#kc-form .pf-c-input-group input[type="text"]:hover,
+#kc-form .pf-c-input-group input[type="text"]:focus {
+  border: none !important;
+  box-shadow: none !important;
+}
+
+.pf-c-input-group .pf-c-button.pf-m-control {
+  flex: 0 0 auto;
+  width: 44px;
+  border: none;
+  border-left: 1px solid #f3f4f6;
+  background: transparent !important;
+  color: #9ca3af;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  cursor: pointer;
+  transition: color 0.15s ease, background 0.15s ease;
+}
+
+.pf-c-input-group .pf-c-button.pf-m-control:hover {
+  color: #4b5563;
+  background: #f9fafb !important;
+}
+
+.pf-c-input-group .pf-c-button.pf-m-control:focus {
+  outline: none;
+  color: #4f46e5;
+}
+
+.pf-c-input-group .pf-c-button.pf-m-control i {
+  font-size: 0.9rem;
+}
+
+#kc-form-options {
+  font-size: 0.78rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 14px 0 20px;
+}
+
+#kc-form-buttons {
+  position: relative;
+}
+
+#kc-form-buttons input[type="submit"],
+.login-pf-page .btn-primary,
+#kc-login button[type="submit"],
+#kc-form-login button[type="submit"] {
+  background: linear-gradient(to right, #2563eb, #4f46e5) !important;
+  background-image: linear-gradient(to right, #2563eb, #4f46e5) !important;
+  border: none !important;
+  border-radius: 12px !important;
+  font-weight: 700 !important;
+  text-transform: none !important;
+  padding: 13px 20px !important;
+  width: 100%;
+  box-shadow: 0 10px 25px rgba(79, 70, 229, 0.3) !important;
+  transition: filter 0.15s ease;
+  position: relative;
+}
+
+#kc-form-buttons input[type="submit"]:hover,
+.login-pf-page .btn-primary:hover {
+  filter: brightness(1.08);
+}
+
+.acis-btn-arrow {
+  position: absolute;
+  right: 26px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 16px;
+  height: 16px;
+  color: #ffffff;
+  pointer-events: none;
+}
+
+.acis-btn-arrow svg { width: 16px; height: 16px; display: block; }
+
+a,
+#kc-form a,
+.login-pf-page a {
+  color: #4f46e5 !important;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+a:hover {
+  text-decoration: underline;
+}
+
+.alert-error,
+#kc-error-message,
+.pf-c-alert.pf-m-danger {
+  background: rgba(239, 68, 68, 0.08) !important;
+  border: 1px solid rgba(239, 68, 68, 0.3) !important;
+  color: #b91c1c !important;
+  border-radius: 12px !important;
+  padding: 12px 16px !important;
+  margin-bottom: 16px;
+}
+
+#kc-registration,
+#kc-info,
+.login-pf-signup {
+  text-align: center;
+  color: #6b7280;
+  font-size: 0.8rem;
+  margin-top: 20px;
+}
+
+/* ---------------------------------------------------------------------
+   Decorative "or" divider + social buttons (built by acis-login.js;
+   mirrors the ACIS app's own login screen, which is likewise decorative)
+   --------------------------------------------------------------------- */
+
+.acis-or-divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 22px 0 16px;
+}
+
+.acis-or-divider span {
+  height: 1px;
+  background: #e5e7eb;
+  flex: 1;
+}
+
+.acis-or-divider em {
+  font-style: normal;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #9ca3af;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.acis-social {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.acis-social-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+  padding: 11px 16px;
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #374151;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.acis-social-btn:hover {
+  background: #f9fafb;
+  border-color: #d1d5db;
+}
+
+.acis-footer {
+  text-align: center;
+  margin-top: 24px;
+  color: #9ca3af;
+  font-size: 0.68rem;
+  line-height: 1.6;
+}
+
+.acis-footer p { margin: 0; }
+
+/* OTP / required-action screens reuse the same card + button styling
+   above automatically since they share the same IDs/classes. */

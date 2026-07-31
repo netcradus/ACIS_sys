@@ -1,12 +1,9 @@
-import { createBrowserRouter, useRouteError, useNavigate } from 'react-router-dom'
+import { createBrowserRouter, useRouteError, useNavigate, Navigate } from 'react-router-dom'
 import { ShieldAlert, RefreshCw, Home } from 'lucide-react'
 import ProtectedRoute          from './ProtectedRoute'
 import AppLayout               from './AppLayout'
 import PlatformAdminRoute      from './PlatformAdminRoute'
 import PlatformAdminLayout     from './PlatformAdminLayout'
-
-// Auth
-import LoginPage               from '@/modules/auth/LoginPage'
 
 // Dashboard modules
 import DashboardPage           from '@/modules/dashboard/DashboardPage'
@@ -72,11 +69,6 @@ function RouteErrorFallback() {
 
 export const router = createBrowserRouter([
   {
-    path:    '/login',
-    element: <LoginPage />,
-    errorElement: <RouteErrorFallback />,
-  },
-  {
     path:    '/dashboard',
     element: <ProtectedRoute />,
     errorElement: <RouteErrorFallback />,
@@ -121,10 +113,11 @@ export const router = createBrowserRouter([
       },
     ],
   },
-  // Catch-all: redirect unknown paths to /dashboard
+  // Catch-all: redirect unknown paths to /dashboard, which itself sends
+  // unauthenticated visitors straight to Keycloak's hosted login page.
   {
     path: '*',
-    element: <LoginPage />,
+    element: <Navigate to="/dashboard" replace />,
     errorElement: <RouteErrorFallback />,
   }
 ])
