@@ -186,9 +186,20 @@
       // endpoint), so this link sends the visitor there instead.
       var formEl = $('#kc-form-login');
       if (formEl) {
+        // Must be an absolute URL: this script runs on a page served BY
+        // Keycloak itself, so a relative "/signup" resolves against
+        // Keycloak's own origin, not the frontend app's. Keycloak always
+        // runs on :8443 with the app on the same host's default HTTPS port
+        // in production (infra/caddy/Caddyfile), and on :8180 with the app
+        // on :3000 in local dev (infra/docker-compose.yml, vite.config.ts).
+        var loc = window.location;
+        var signupUrl = loc.port === '8443'
+          ? loc.protocol + '//' + loc.hostname + '/signup'
+          : loc.protocol + '//' + loc.hostname + ':3000/signup';
+
         var signup = document.createElement('div');
         signup.className = 'acis-signup-link';
-        signup.innerHTML = '<span>New to ACIS?</span> <a href="/signup">Create New Account</a>';
+        signup.innerHTML = '<span>New to ACIS?</span> <a href="' + signupUrl + '">Create New Account</a>';
         formEl.parentNode.insertBefore(signup, formEl.nextSibling);
       }
     }
