@@ -160,6 +160,7 @@
     },
     {
       "username": "service-account-acis-backend",
+      "enabled": true,
       "serviceAccountClientId": "acis-backend",
       "clientRoles": {
         "realm-management": ["manage-users", "view-users", "view-realm", "view-events"]

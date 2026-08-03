@@ -63,7 +63,7 @@ public class TenantAdminController {
         Tenant tenant = new Tenant();
         tenant.setId(UUID.randomUUID());
         tenant.setName(request.name());
-        tenant.setSlug(request.slug());
+        tenant.setSlug(request.slug() != null && !request.slug().isBlank() ? request.slug() : slugify(request.name()));
         tenant.setPlanName(request.planName());
         tenant.setContactEmail(request.contactEmail());
         tenant.setContactName(request.contactName());
@@ -167,6 +167,21 @@ public class TenantAdminController {
         auditService.record(AuditAction.TENANT_DELETED, "TENANT", null, null, null,
                 tenant.getId().toString(), tenant.getName(), tenant.getName(), null);
         return ApiResponse.success(Map.of("deleted", true));
+    }
+
+    // Mirrors TenantSignupController's slugify() — an admin-created tenant
+    // with no explicit slug would otherwise be saved with slug=null, and a
+    // second such tenant would then collide with it under Postgres's
+    // NULLS-NOT-DISTINCT-by-default behavior... except when the DB treats
+    // repeated NULLs as distinct, in which case every unnamed-slug tenant
+    // instead silently ends up with no usable slug at all. Generating one
+    // from the name keeps this endpoint consistent with the self-service
+    // signup path, where a slug has always been mandatory.
+    private static String slugify(String name) {
+        String base = name.trim().toLowerCase()
+                .replaceAll("[^a-z0-9]+", "-")
+                .replaceAll("^-+|-+$", "");
+        return base.isBlank() ? UUID.randomUUID().toString() : base;
     }
 
     private static String describeModules(Set<TenantModule> modules) {
