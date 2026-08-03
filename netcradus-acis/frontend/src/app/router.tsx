@@ -4,6 +4,7 @@ import ProtectedRoute          from './ProtectedRoute'
 import AppLayout               from './AppLayout'
 import PlatformAdminRoute      from './PlatformAdminRoute'
 import PlatformAdminLayout     from './PlatformAdminLayout'
+import SignupPage              from '@/modules/auth/SignupPage'
 
 // Dashboard modules
 import DashboardPage           from '@/modules/dashboard/DashboardPage'
@@ -112,6 +113,15 @@ export const router = createBrowserRouter([
         ],
       },
     ],
+  },
+  // Deliberately NOT wrapped in ProtectedRoute/PlatformAdminRoute — those
+  // force-redirect unauthenticated visitors straight to Keycloak, which
+  // would make this page unreachable by the exact people it's for. Must be
+  // registered ahead of the catch-all below or it falls through to it.
+  {
+    path: '/signup',
+    element: <SignupPage />,
+    errorElement: <RouteErrorFallback />,
   },
   // Catch-all: redirect unknown paths to /dashboard, which itself sends
   // unauthenticated visitors straight to Keycloak's hosted login page.

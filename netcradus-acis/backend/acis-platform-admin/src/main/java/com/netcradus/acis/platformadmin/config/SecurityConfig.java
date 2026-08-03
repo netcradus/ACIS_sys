@@ -43,6 +43,11 @@ public class SecurityConfig {
             .csrf(csrf -> csrf.disable())
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/actuator/**").permitAll()
+                // The one deliberately public, unauthenticated endpoint in this
+                // service — see TenantSignupController's own class javadoc for
+                // why (self-service tenant signup can't require a pre-existing
+                // token) and its rate-limiting caveats.
+                .requestMatchers(org.springframework.http.HttpMethod.POST, "/api/platform/signup").permitAll()
                 .anyRequest().hasRole("PLATFORM_ADMIN")
             )
             .oauth2ResourceServer(oauth -> oauth.jwt(jwt -> jwt.jwtAuthenticationConverter(jwtAuthenticationConverter())))

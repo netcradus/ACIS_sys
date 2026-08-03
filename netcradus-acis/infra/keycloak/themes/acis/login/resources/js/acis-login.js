@@ -178,39 +178,18 @@
         submit.dataset.acisArrow = 'true';
       }
 
-      // Decorative social buttons — mirrors the ACIS app's own dashboard
-      // login page, which has no real Microsoft/Google identity providers
-      // wired up either; there, clicking them just re-triggers the standard
-      // Keycloak login rather than doing nothing. Only added if this realm
-      // doesn't already have real social providers configured
-      // (#kc-social-providers would exist in that case).
-      if (!$('#kc-social-providers')) {
-        var formEl = $('#kc-form-login');
-        if (formEl) {
-          var social = document.createElement('div');
-          social.className = 'acis-social';
-          social.innerHTML =
-            '<div class="acis-or-divider"><span></span><em>or</em><span></span></div>' +
-            '<button type="button" class="acis-social-btn">' +
-            '<svg viewBox="0 0 23 23" width="16" height="16"><path fill="#f35022" d="M1 1h10v10H1z"/><path fill="#80bb0a" d="M12 1h10v10H12z"/><path fill="#00a1f1" d="M1 12h10v10H1z"/><path fill="#ffb900" d="M12 12h10v10H12z"/></svg>' +
-            '<span>Continue with Microsoft</span></button>' +
-            '<button type="button" class="acis-social-btn">' +
-            '<svg viewBox="0 0 24 24" width="16" height="16"><path fill="#4285F4" d="M21.35 11.1H12v2.7h5.38c-.24 1.28-.96 2.37-2.04 3.1v2.58h3.3c1.93-1.78 3.04-4.4 3.04-7.48 0-.6-.05-1.2-.15-1.72z"/><path fill="#34A853" d="M12 20.6c2.43 0 4.47-.8 5.96-2.2l-3.3-2.58c-.9.6-2.07.98-3.3.98-2.34 0-4.33-1.58-5.04-3.72H2.9v2.66c1.49 2.96 4.54 4.86 8.1 4.86z"/><path fill="#FBBC05" d="M6.96 13.08c-.18-.54-.28-1.1-.28-1.68s.1-1.14.28-1.68V7.06H2.9c-.6 1.2-.9 2.56-.9 4 0 1.44.3 2.8.9 4l4.06-3.32z"/><path fill="#EA4335" d="M12 6.4c1.32 0 2.5.46 3.44 1.36l2.58-2.58C16.46 3.64 14.43 2.8 12 2.8c-3.56 0-6.61 1.9-8.1 4.86l4.06 3.32c.71-2.14 2.7-3.72 5.04-3.72z"/></svg>' +
-            '<span>Continue with Google</span></button>';
-          formEl.parentNode.insertBefore(social, formEl.nextSibling);
-
-          // Buttons sit as siblings AFTER the real <form>, not inside it —
-          // a bare type="submit" would silently do nothing when clicked.
-          // Explicitly restart the login flow instead, so the click does
-          // *something* rather than dead-ending (same non-functional-but-
-          // responsive precedent as the ACIS app's own social buttons).
-          var socialButtons = social.querySelectorAll('.acis-social-btn');
-          for (var i = 0; i < socialButtons.length; i++) {
-            socialButtons[i].addEventListener('click', function () {
-              window.location.reload();
-            });
-          }
-        }
+      // "Create New Account" — deliberately NOT Keycloak's native
+      // registration link. Self-service signup here means provisioning a
+      // brand-new tenant (company-admin + tenant_id), which Keycloak's own
+      // registration form has no concept of — it only creates a bare user.
+      // That logic lives in the real ACIS app (new /signup page + backend
+      // endpoint), so this link sends the visitor there instead.
+      var formEl = $('#kc-form-login');
+      if (formEl) {
+        var signup = document.createElement('div');
+        signup.className = 'acis-signup-link';
+        signup.innerHTML = '<span>New to ACIS?</span> <a href="/signup">Create New Account</a>';
+        formEl.parentNode.insertBefore(signup, formEl.nextSibling);
       }
     }
 

@@ -170,7 +170,16 @@ public class PlatformUserService {
 
     public record CreateUserRequest(
             String tenantId, String username, String email, String firstName, String lastName,
-            String tempPassword, boolean forcePasswordResetNextLogin, List<String> initialRoles) {
+            String tempPassword, boolean forcePasswordResetNextLogin, List<String> initialRoles,
+            boolean requireEmailVerification) {
+        // Back-compat convenience for existing admin-created-user callers, which
+        // never set requireEmailVerification (an admin vouches for the address) —
+        // defaults it to false so their behavior is byte-for-byte unchanged.
+        public CreateUserRequest(String tenantId, String username, String email, String firstName, String lastName,
+                                  String tempPassword, boolean forcePasswordResetNextLogin, List<String> initialRoles) {
+            this(tenantId, username, email, firstName, lastName, tempPassword, forcePasswordResetNextLogin,
+                    initialRoles, false);
+        }
     }
 
     public String createUser(CreateUserRequest req) {
@@ -187,7 +196,15 @@ public class PlatformUserService {
         user.setFirstName(req.firstName());
         user.setLastName(req.lastName());
         user.setEnabled(true);
-        user.setEmailVerified(true);
+        // Self-service signups must prove ownership of the email address before
+        // it's trusted — Keycloak's native VERIFY_EMAIL required action sends the
+        // confirmation email on first login attempt (via the SMTP config already
+        // in place) and blocks access until the link is clicked. Admin-created
+        // users skip this: the admin already vouches for the address.
+        user.setEmailVerified(!req.requireEmailVerification());
+        if (req.requireEmailVerification()) {
+            user.setRequiredActions(List.of("VERIFY_EMAIL"));
+        }
         user.setAttributes(Map.of(TENANT_ID_ATTRIBUTE, List.of(req.tenantId())));
 
         if (req.tempPassword() != null && !req.tempPassword().isBlank()) {

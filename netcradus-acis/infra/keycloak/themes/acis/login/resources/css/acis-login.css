@@ -605,58 +605,24 @@ a:hover {
 }
 
 /* ---------------------------------------------------------------------
-   Decorative "or" divider + social buttons (built by acis-login.js;
-   mirrors the ACIS app's own login screen, which is likewise decorative)
+   Sign-up link (built by acis-login.js) — routes to the real ACIS app's
+   /signup page, not Keycloak's own registration flow (see acis-login.js
+   for why: self-service signup here provisions a whole new tenant, which
+   Keycloak's bare registration form has no way to do).
    --------------------------------------------------------------------- */
 
-.acis-or-divider {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin: 22px 0 16px;
-}
-
-.acis-or-divider span {
-  height: 1px;
-  background: #e5e7eb;
-  flex: 1;
-}
-
-.acis-or-divider em {
-  font-style: normal;
-  font-size: 0.72rem;
-  font-weight: 700;
-  color: #9ca3af;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-}
-
-.acis-social {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.acis-social-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 10px;
-  width: 100%;
-  padding: 11px 16px;
-  background: #ffffff;
-  border: 1px solid #e5e7eb;
-  border-radius: 12px;
+.acis-signup-link {
+  text-align: center;
+  margin-top: 22px;
+  padding-top: 18px;
+  border-top: 1px solid #e5e7eb;
   font-size: 0.85rem;
-  font-weight: 600;
-  color: #374151;
-  cursor: pointer;
-  transition: background 0.15s ease, border-color 0.15s ease;
+  color: #6b7280;
 }
 
-.acis-social-btn:hover {
-  background: #f9fafb;
-  border-color: #d1d5db;
+.acis-signup-link a {
+  font-weight: 700;
+  margin-left: 4px;
 }
 
 .acis-footer {
