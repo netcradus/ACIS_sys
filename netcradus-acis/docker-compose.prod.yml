@@ -423,6 +423,11 @@ services:
       DB_PASSWORD: ${DB_PASSWORD:?Set DB_PASSWORD in .env}
       KEYCLOAK_URL: http://keycloak:8080
       KEYCLOAK_REALM: ${KEYCLOAK_REALM:-acis}
+      # Without this, application.yml's own fallback silently uses the
+      # guessable literal "acis-backend-secret" (VAPT finding C-02) — this
+      # is the only thing that makes the real rotated secret actually reach
+      # the service that authenticates with it via client_credentials.
+      KEYCLOAK_BACKEND_CLIENT_SECRET: ${KEYCLOAK_BACKEND_CLIENT_SECRET:?Set KEYCLOAK_BACKEND_CLIENT_SECRET in .env}
     expose:
       - "8088"
     depends_on:
