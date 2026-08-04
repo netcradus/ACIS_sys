@@ -21,6 +21,7 @@ import {
 import { useState } from 'react'
 import { clsx } from 'clsx'
 import NetcradusLogo from './NetcradusLogo'
+import { useAuthStore } from '../store/authStore'
 
 const navItems = [
   { icon: LayoutDashboard, label: 'Dashboard',             path: '/dashboard' },
@@ -40,6 +41,7 @@ const navItems = [
 
 export default function Sidebar() {
   const [collapsed, setCollapsed] = useState(false)
+  const { user } = useAuthStore()
 
   return (
     <aside 
@@ -63,18 +65,15 @@ export default function Sidebar() {
             className={({ isActive }) =>
               clsx(
                 "group flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 text-sm font-bold tracking-tight mb-1 relative overflow-hidden",
-                isActive 
-                  ? "text-accent bg-accent/5" 
+                isActive
+                  ? "text-accent bg-accent/10 shadow-sm"
                   : "text-text-secondary hover:text-text-primary hover:bg-surface-2"
               )
             }
           >
             {({ isActive }) => (
               <>
-                {isActive && (
-                  <div className="absolute left-0 top-0 bottom-0 w-1 bg-accent shadow-accent-glow" />
-                )}
-                <item.icon className={clsx("w-5 h-5 flex-shrink-0 transition-transform group-hover:scale-110", isActive && "shadow-accent-glow")} />
+                <item.icon className={clsx("w-5 h-5 flex-shrink-0 transition-transform group-hover:scale-110")} />
                 {!collapsed && <span className="animate-fade-in truncate uppercase text-[11px] tracking-wider">{item.label}</span>}
               </>
             )}
@@ -82,14 +81,32 @@ export default function Sidebar() {
         ))}
       </nav>
 
-      {/* Footer Branding */}
+      {/* Footer Branding + Profile */}
       {!collapsed && (
-        <div className="px-7 py-6 border-t border-fire-border animate-fade-in bg-surface/20">
-          <div className="flex items-center gap-2 mb-1">
-            <div className="w-1.5 h-1.5 rounded-full bg-success animate-pulse shadow-success-glow" />
-            <span className="text-[10px] uppercase font-bold text-success tracking-widest">System Active</span>
+        <div className="border-t border-fire-border animate-fade-in bg-surface/20">
+          <div className="px-7 py-4">
+            <div className="flex items-center gap-2 mb-1">
+              <div className="w-1.5 h-1.5 rounded-full bg-success animate-pulse shadow-success-glow" />
+              <span className="text-[10px] uppercase font-bold text-success tracking-widest">System Active</span>
+            </div>
+            <p className="text-[9px] font-medium text-text-muted uppercase tracking-[0.2em]">Netcradus ACIS v1.2</p>
           </div>
-          <p className="text-[9px] font-medium text-text-muted uppercase tracking-[0.2em]">Netcradus ACIS v1.2</p>
+
+          <div className="flex items-center gap-3 px-4 py-3 mx-3 mb-3 rounded-xl bg-surface-2 border border-fire-border">
+            <div className="w-9 h-9 rounded-full bg-accent/10 border border-accent/30 flex items-center justify-center text-accent font-black text-xs shrink-0 overflow-hidden">
+              {user?.avatarUrl ? (
+                <img src={user.avatarUrl} alt="" className="w-full h-full object-cover" />
+              ) : (
+                <span>{user?.name?.charAt(0).toUpperCase() || 'S'}</span>
+              )}
+            </div>
+            <div className="min-w-0">
+              <p className="text-xs font-bold text-text-primary truncate">{user?.name || 'Security Operator'}</p>
+              <p className="text-[9px] font-bold text-text-muted uppercase tracking-widest truncate">
+                {user?.roles?.[0] || 'Viewer'} • Zone_01
+              </p>
+            </div>
+          </div>
         </div>
       )}
 

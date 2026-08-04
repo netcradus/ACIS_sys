@@ -1,19 +1,19 @@
 import { useEffect, useState, useMemo } from 'react'
-import { 
-  LayoutDashboard, 
-  Activity, 
-  ShieldAlert, 
-  Zap, 
-  Layers, 
-  ArrowUpRight, 
-  ArrowDownRight, 
-  MoreHorizontal, 
-  Terminal, 
-  RefreshCw, 
-  Play, 
-  ShieldCheck, 
-  Network, 
-  Cloud, 
+import {
+  LayoutDashboard,
+  Activity,
+  ShieldAlert,
+  Zap,
+  Layers,
+  ArrowUpRight,
+  ArrowDownRight,
+  MoreHorizontal,
+  Terminal,
+  RefreshCw,
+  Play,
+  ShieldCheck,
+  Network,
+  Cloud,
   Database,
   Sliders,
   Binary,
@@ -23,7 +23,15 @@ import {
   Crosshair,
   KeyRound,
   FileCode2,
-  AlertTriangle
+  AlertTriangle,
+  Cpu,
+  Brain,
+  ChevronRight,
+  Ban,
+  MonitorOff,
+  Bug,
+  ClipboardCheck,
+  MapPin
 } from 'lucide-react'
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, PieChart, Pie } from 'recharts'
 import apiClient from '@/lib/apiClient'
@@ -57,6 +65,37 @@ export default function DashboardPage() {
   const [gridNodes, setGridNodes] = useState<('secure' | 'probing' | 'compromised' | 'contained')[]>(
     Array(24).fill('secure')
   )
+
+  // Demo telemetry for the architecture view's decorative widgets — this
+  // simulator screen has no real backend feed for ingest-lag history or
+  // CPU load, matching the existing pattern of synthetic flavor data
+  // elsewhere in this component (e.g. the campaign log messages).
+  const ingestLagHistory = useMemo(
+    () => Array.from({ length: 20 }, (_, i) => ({ t: i, v: 18 + Math.round(Math.sin(i / 2.3) * 6 + Math.random() * 4) })),
+    []
+  )
+  const cpuUsage = 28
+
+  const liveThreatFeed = [
+    { severity: 'CRITICAL', message: 'Possible ransomware activity detected', category: 'Endpoint', time: '12 sec ago' },
+    { severity: 'HIGH', message: 'Credential dumping attempt', category: 'Identity', time: '1 min ago' },
+    { severity: 'MEDIUM', message: 'Unusual outbound connection', category: 'Network', time: '2 min ago' },
+    { severity: 'LOW', message: 'Port scan detected', category: 'Network', time: '5 min ago' },
+  ]
+
+  const attackMapNodes = [
+    { id: 'n1', x: 22, y: 38 },
+    { id: 'n2', x: 48, y: 28 },
+    { id: 'n3', x: 52, y: 58 },
+    { id: 'n4', x: 78, y: 40 },
+    { id: 'n5', x: 68, y: 66 },
+  ]
+  const attackMapLinks: [string, string][] = [
+    ['n1', 'n2'],
+    ['n2', 'n4'],
+    ['n3', 'n5'],
+    ['n1', 'n3'],
+  ]
 
   const fetchData = async () => {
     try {
@@ -210,21 +249,25 @@ export default function DashboardPage() {
         </div>
 
         {/* Tab Controls */}
-        <div className="flex items-center bg-background/60 p-1 border border-fire-border rounded-2xl w-fit">
-          <button 
+        <div className="flex items-center gap-3 w-fit">
+          <button
             onClick={() => setActiveTab('architecture')}
             className={clsx(
-              "px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all duration-200",
-              activeTab === 'architecture' ? "bg-accent text-white shadow-accent-glow" : "text-text-secondary hover:text-text-primary"
+              "px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all duration-200 border",
+              activeTab === 'architecture'
+                ? "bg-accent border-accent text-white shadow-accent-glow"
+                : "bg-surface-2 border-fire-border text-text-secondary hover:text-text-primary hover:border-accent/30"
             )}
           >
             Immune Architecture
           </button>
-          <button 
+          <button
             onClick={() => setActiveTab('overview')}
             className={clsx(
-              "px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all duration-200",
-              activeTab === 'overview' ? "bg-accent text-white shadow-accent-glow" : "text-text-secondary hover:text-text-primary"
+              "px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all duration-200 border",
+              activeTab === 'overview'
+                ? "bg-accent border-accent text-white shadow-accent-glow"
+                : "bg-surface-2 border-fire-border text-text-secondary hover:text-text-primary hover:border-accent/30"
             )}
           >
             SOC Operational View
@@ -294,19 +337,19 @@ export default function DashboardPage() {
             {/* Visual Steps Tracker */}
             <div className="mt-6 border-t border-fire-border pt-6 grid grid-cols-2 md:grid-cols-5 gap-4">
               {[
-                { step: 1, label: 'TEST / TRIGGER', desc: 'Campaign Launch', status: simStep === 1 },
-                { step: 2, label: 'DETECT (L1)', desc: 'AI-Powered SIEM', status: simStep === 2 },
-                { step: 3, label: 'ANALYZE / RESPOND (L2)', desc: 'Autonomous SOAR', status: simStep === 3 },
-                { step: 4, label: 'HEAL & DECEIVE (L4)', desc: 'State Snapshot Restore', status: simStep === 4 },
-                { step: 5, label: 'LEARN (L5)', desc: 'Swarm Retraining', status: simStep === 5 }
+                { step: 1, label: 'TEST / TRIGGER', desc: 'Campaign Launch', status: simStep === 1, icon: Play, color: 'text-accent bg-accent/10 border-accent/30' },
+                { step: 2, label: 'DETECT (L1)', desc: 'AI-Powered SIEM', status: simStep === 2, icon: Cpu, color: 'text-success bg-success/10 border-success/30' },
+                { step: 3, label: 'ANALYZE / RESPOND (L2)', desc: 'Autonomous SOAR', status: simStep === 3, icon: Network, color: 'text-accent-pa bg-accent-pa/10 border-accent-pa/30' },
+                { step: 4, label: 'HEAL & DECEIVE (L4)', desc: 'State Snapshot Restore', status: simStep === 4, icon: ShieldCheck, color: 'text-accent bg-accent/10 border-accent/30' },
+                { step: 5, label: 'LEARN (L5)', desc: 'Swarm Retraining', status: simStep === 5, icon: Brain, color: 'text-accent bg-accent/10 border-accent/30' }
               ].map(item => (
-                <div 
+                <div
                   key={item.step}
                   className={clsx(
                     "p-3 rounded-xl border transition-all duration-300 relative",
-                    item.status 
-                      ? "bg-accent/10 border-accent/70 shadow-lg shadow-accent/5 scale-102" 
-                      : simStep > item.step 
+                    item.status
+                      ? "bg-accent/10 border-accent/70 shadow-lg shadow-accent/5 scale-102"
+                      : simStep > item.step
                         ? "bg-success/5 border-success/30 opacity-70"
                         : "bg-surface-3/30 border-fire-border opacity-40"
                   )}
@@ -316,6 +359,9 @@ export default function DashboardPage() {
                       <ShieldCheck className="h-3 w-3" />
                     </div>
                   )}
+                  <div className={clsx("h-8 w-8 rounded-full border flex items-center justify-center mb-2", item.color)}>
+                    <item.icon className="h-4 w-4" />
+                  </div>
                   <span className="text-[9px] font-black uppercase text-text-secondary tracking-widest leading-none">Step {item.step}</span>
                   <div className="text-xs font-black text-text-primary mt-1 uppercase tracking-tight">{item.label}</div>
                   <div className="text-[9px] text-text-secondary mt-1">{item.desc}</div>
@@ -324,339 +370,298 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          {/* Interactive Flow Grid */}
+          {/* Interactive Flow Grid — Layer 1 / 2 / 3 in a single row */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
-            {/* Left Column: Layer 1 (Detect) */}
-            <div className="space-y-6">
-              
-              {/* Layer 1 Module Box */}
-              <div className={clsx(
-                "card-mission relative transition-all duration-300",
-                simStep === 2 ? "border-info/80 shadow-[0_0_20px_color-mix(in_srgb,var(--info)_15%,transparent)] bg-surface-2" : "border-fire-border bg-background/40"
-              )}>
-                <div className="flex items-center justify-between mb-4">
-                  <div>
-                    <span className="badge-mission bg-info/10 border-info text-info">Layer 1</span>
-                    <h3 className="text-sm font-black uppercase tracking-wider text-text-primary mt-1">AI-Powered SIEM</h3>
-                  </div>
-                  <Activity className={clsx("h-5 w-5", simStep === 2 ? "text-info animate-pulse" : "text-text-muted")} />
+            {/* Layer 1 — AI-Powered SIEM (blue/info) */}
+            <div className={clsx(
+              "card-mission relative transition-all duration-300",
+              simStep === 2 ? "border-info/80 shadow-[0_0_20px_color-mix(in_srgb,var(--info)_15%,transparent)] bg-surface-2" : "border-fire-border bg-background/40"
+            )}>
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <span className="badge-mission bg-info/10 border-info text-info">Layer 1</span>
+                  <h3 className="text-sm font-black uppercase tracking-wider text-text-primary mt-1">AI-Powered SIEM</h3>
                 </div>
-
-                <div className="space-y-4">
-                  {/* Log Ingestion Path */}
-                  <div className="rounded-xl border border-fire-border bg-background/50 p-3">
-                    <div className="text-[9px] font-black text-text-muted uppercase tracking-widest mb-2">Ingestion Telemetry</div>
-                    <div className="space-y-1.5 text-[10px] font-bold text-text-secondary uppercase">
-                      <div className="flex items-center justify-between">
-                        <span>Network Logs</span>
-                        <span className={clsx(simStep === 2 ? "text-info" : "text-text-muted")}>Active</span>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <span>Cloud Telemetry</span>
-                        <span className={clsx(simStep === 2 ? "text-info" : "text-text-muted")}>Active</span>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <span>Application Logs</span>
-                        <span className={clsx(simStep === 2 ? "text-info" : "text-text-muted")}>Active</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Flow Steps */}
-                  <div className="flex items-center justify-between gap-1 text-[9px] font-black text-center">
-                    <div className="flex-1 p-2 rounded bg-surface-3 border border-fire-border text-text-secondary">Kafka/Fluentd</div>
-                    <span className="text-text-muted">➔</span>
-                    <div className="flex-1 p-2 rounded bg-surface-3 border border-fire-border text-text-secondary">Normalization</div>
-                    <span className="text-text-muted">➔</span>
-                    <div className="flex-1 p-2 rounded bg-surface-3 border border-fire-border text-text-secondary">Correlation</div>
-                  </div>
-
-                  {/* Models State */}
-                  <div className="grid grid-cols-2 gap-2">
-                    <div className="p-3 bg-background/40 border border-fire-border rounded-xl">
-                      <div className="text-[9px] font-black uppercase text-text-muted">LSTM Predictor</div>
-                      <div className="text-xs font-black text-text-primary mt-1">ACTIVE</div>
-                    </div>
-                    <div className="p-3 bg-background/40 border border-fire-border rounded-xl">
-                      <div className="text-[9px] font-black uppercase text-text-muted">Isolation Forest</div>
-                      <div className="text-xs font-black text-text-primary mt-1">MONITORING</div>
-                    </div>
-                  </div>
-
-                  {/* Holographic Ingestion HUD */}
-                  <div className="p-4 bg-background border border-fire-border rounded-xl flex items-center justify-between relative overflow-hidden">
-                    <div>
-                      <div className="text-[9px] font-black uppercase text-text-muted tracking-widest">Ingest Lag</div>
-                      <div className="text-xl font-black text-text-primary mt-1 font-mono">&lt; 5s</div>
-                    </div>
-
-                    {/* Circular gauge */}
-                    <div className="relative h-16 w-16 flex items-center justify-center">
-                      <svg className="w-full h-full transform -rotate-90" viewBox="0 0 36 36">
-                        <path
-                          className="text-text-primary/5"
-                          strokeWidth="3.5"
-                          stroke="currentColor"
-                          fill="none"
-                          d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
-                        />
-                        <path
-                          className="text-info transition-all duration-500"
-                          strokeDasharray={`${simRisk}, 100`}
-                          strokeWidth="3.5"
-                          strokeLinecap="round"
-                          stroke="currentColor"
-                          fill="none"
-                          d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
-                        />
-                      </svg>
-                      <div className="absolute flex flex-col items-center justify-center">
-                        <span className="text-xs font-black font-mono text-text-primary leading-none">{simRisk}%</span>
-                        <span className="text-[6px] font-bold text-text-secondary uppercase mt-0.5">Risk</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
+                <Activity className={clsx("h-5 w-5", simStep === 2 ? "text-info animate-pulse" : "text-text-muted")} />
               </div>
 
-            </div>
-
-            {/* Center Column: Layer 2 (Respond) & Layer 4 (Heal) */}
-            <div className="space-y-6">
-              
-              {/* Layer 2 Module Box */}
-              <div className={clsx(
-                "card-mission relative transition-all duration-300",
-                simStep === 3 ? "border-accent/80 shadow-[0_0_20px_color-mix(in_srgb,var(--accent)_15%,transparent)] bg-surface-2" : "border-fire-border bg-background/40"
-              )}>
-                <div className="flex items-center justify-between mb-4">
-                  <div>
-                    <span className="badge-mission bg-accent/10 border-accent text-accent">Layer 2</span>
-                    <h3 className="text-sm font-black uppercase tracking-wider text-text-primary mt-1 font-bold">Autonomous SOAR</h3>
-                  </div>
-                  <Zap className={clsx("h-5 w-5", simStep === 3 ? "text-accent animate-pulse" : "text-text-muted")} />
-                </div>
-
-                <div className="space-y-4">
-                  {/* Architecture & Orchestration tags */}
-                  <div className="flex items-center gap-2">
-                    <span className="badge-mission border-fire-border bg-background/50 text-text-muted">Python Microservices</span>
-                    <span className="badge-mission border-fire-border bg-background/50 text-text-muted">K8s Orchestration</span>
-                  </div>
-
-                  {/* Flow logic */}
-                  <div className="p-3 bg-background/40 border border-fire-border rounded-xl text-center text-[10px] uppercase font-bold text-text-secondary">
-                    Playbooks ➔ Automated Actions
-                  </div>
-
-                  {/* Action HUD list */}
-                  <div className="space-y-2">
-                    {[
-                      { key: 'block', name: 'Block IP Range', active: simStep === 3 && simVector === 'cloud' },
-                      { key: 'isolate', name: 'Isolate Endpoint Node', active: simStep === 3 && (simVector === 'privilege' || simVector === 'lateral') },
-                      { key: 'script', name: 'Execute Containment Script', active: simStep === 3 && simVector === 'phishing' }
-                    ].map(a => (
-                      <div 
-                        key={a.key}
-                        className={clsx(
-                          "px-3 py-2.5 rounded-xl border text-xs font-black uppercase flex items-center justify-between transition-all duration-300",
-                          a.active ? "bg-accent/10 border-accent text-text-primary scale-102" : "bg-background/30 border-fire-border text-text-secondary"
-                        )}
-                      >
-                        <span>{a.name}</span>
-                        {a.active ? (
-                          <span className="h-2 w-2 rounded-full bg-accent animate-ping" />
-                        ) : (
-                          <span className="h-1.5 w-1.5 rounded-full bg-surface-3" />
-                        )}
+              <div className="space-y-4">
+                {/* Log Ingestion Path */}
+                <div className="rounded-xl border border-fire-border bg-background/50 p-3">
+                  <div className="text-[9px] font-black text-text-muted uppercase tracking-widest mb-2">Ingestion Telemetry</div>
+                  <div className="space-y-1.5 text-[10px] font-bold text-text-secondary uppercase">
+                    {['Network Logs', 'Cloud Telemetry', 'Application Logs'].map((label) => (
+                      <div key={label} className="flex items-center justify-between">
+                        <span>{label}</span>
+                        <span className={clsx("flex items-center gap-1.5", simStep === 2 ? "text-info" : "text-success")}>
+                          <span className={clsx("h-1.5 w-1.5 rounded-full", simStep === 2 ? "bg-info animate-pulse" : "bg-success")} />
+                          Active
+                        </span>
                       </div>
                     ))}
                   </div>
+                </div>
 
-                  {/* SOAR Telemetry HUD */}
-                  <div className="p-3 bg-background border border-fire-border rounded-xl flex items-center justify-between text-xs font-black uppercase text-text-muted">
-                    <span>Remediation Lag</span>
-                    <span className="font-mono text-text-primary">&lt; 10s</span>
+                {/* Flow Steps */}
+                <div className="flex items-center justify-between gap-1 text-[9px] font-black text-center">
+                  <div className="flex-1 p-2 rounded bg-surface-3 border border-fire-border text-text-secondary">Kafka/Fluentd</div>
+                  <span className="text-text-muted">➔</span>
+                  <div className="flex-1 p-2 rounded bg-surface-3 border border-fire-border text-text-secondary">Normalization</div>
+                  <span className="text-text-muted">➔</span>
+                  <div className="flex-1 p-2 rounded bg-surface-3 border border-fire-border text-text-secondary">Correlation</div>
+                </div>
+
+                {/* Models State */}
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="p-3 bg-background/40 border border-fire-border rounded-xl">
+                    <div className="text-[9px] font-black uppercase text-text-muted">LSTM Predictor</div>
+                    <div className="text-xs font-black text-text-primary mt-1">ACTIVE</div>
+                  </div>
+                  <div className="p-3 bg-background/40 border border-fire-border rounded-xl">
+                    <div className="text-[9px] font-black uppercase text-text-muted">Isolation Forest</div>
+                    <div className="text-xs font-black text-text-primary mt-1">MONITORING</div>
                   </div>
                 </div>
-              </div>
 
-              {/* Layer 4 Module Box */}
-              <div className={clsx(
-                "card-mission relative transition-all duration-300",
-                simStep === 4 ? "border-success/80 shadow-[0_0_20px_color-mix(in_srgb,var(--success)_15%,transparent)] bg-surface-2" : "border-fire-border bg-background/40"
-              )}>
-                <div className="flex items-center justify-between mb-4">
+                {/* Ingest Lag sparkline + CPU usage gauge */}
+                <div className="p-3 bg-background border border-fire-border rounded-xl grid grid-cols-[1fr_auto] gap-3 items-center">
                   <div>
-                    <span className="badge-mission bg-success/10 border-success text-success">Layer 4</span>
-                    <h3 className="text-sm font-black uppercase tracking-wider text-text-primary mt-1">Healing & Deception</h3>
-                  </div>
-                  <ShieldCheck className={clsx("h-5 w-5", simStep === 4 ? "text-success animate-pulse" : "text-text-muted")} />
-                </div>
-
-                <div className="space-y-4">
-                  {/* Dynamic behavior flag */}
-                  <div className="flex items-center justify-between text-[10px] font-black text-text-muted uppercase">
-                    <span>Engine Behavior</span>
-                    <span className="text-success tracking-widest font-extrabold">Dynamic</span>
-                  </div>
-
-                  {/* Engine Split layout */}
-                  <div className="grid grid-cols-2 gap-3">
-                    {/* Self Healing */}
-                    <div className="p-3 bg-background/40 border border-fire-border rounded-xl flex flex-col justify-between min-h-[100px]">
-                      <div>
-                        <div className="text-[9px] font-black uppercase text-success tracking-widest">Self-Healing</div>
-                        <p className="text-[9px] text-text-secondary mt-1 uppercase leading-tight font-medium">Rollback configuration to cached snapshots</p>
-                      </div>
-                      <div className="text-xs font-mono font-black text-text-primary mt-3 flex items-center gap-1.5">
-                        <Sliders className="h-3 w-3 text-success" /> Snapshot VSS
-                      </div>
-                    </div>
-
-                    {/* Deception */}
-                    <div className="p-3 bg-background/40 border border-fire-border rounded-xl flex flex-col justify-between min-h-[100px]">
-                      <div>
-                        <div className="text-[9px] font-black uppercase text-warning tracking-widest">Deception</div>
-                        <p className="text-[9px] text-text-secondary mt-1 uppercase leading-tight font-medium">Activate honeypots and generate fake credentials</p>
-                      </div>
-                      <div className="text-xs font-mono font-black text-text-primary mt-3 flex items-center gap-1.5">
-                        <KeyRound className="h-3 w-3 text-warning" /> Honeypots
-                      </div>
+                    <div className="text-[9px] font-black uppercase text-text-muted tracking-widest">Ingest Lag</div>
+                    <div className="text-lg font-black text-text-primary font-mono leading-tight">28 ms</div>
+                    <div className="h-8 w-full mt-1">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <AreaChart data={ingestLagHistory} margin={{ top: 2, right: 0, bottom: 0, left: 0 }}>
+                          <Area type="monotone" dataKey="v" stroke={chartColors.info} fill={chartColors.info} fillOpacity={0.15} strokeWidth={1.5} />
+                        </AreaChart>
+                      </ResponsiveContainer>
                     </div>
                   </div>
 
-                  {/* Restored confirmation popup animation */}
-                  {simStep === 4 && (
-                    <div className="p-2 border border-success/30 bg-success/5 rounded-xl text-center text-[10px] font-black uppercase text-success animate-pulse">
-                      Docker snapshot rollback complete. Config verified.
+                  <div className="relative h-16 w-16 flex items-center justify-center shrink-0">
+                    <svg className="w-full h-full transform -rotate-90" viewBox="0 0 36 36">
+                      <path
+                        className="text-text-primary/5"
+                        strokeWidth="3.5"
+                        stroke="currentColor"
+                        fill="none"
+                        d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                      />
+                      <path
+                        className="text-info transition-all duration-500"
+                        strokeDasharray={`${cpuUsage}, 100`}
+                        strokeWidth="3.5"
+                        strokeLinecap="round"
+                        stroke="currentColor"
+                        fill="none"
+                        d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                      />
+                    </svg>
+                    <div className="absolute flex flex-col items-center justify-center">
+                      <span className="text-xs font-black font-mono text-text-primary leading-none">{cpuUsage}%</span>
+                      <span className="text-[6px] font-bold text-text-secondary uppercase mt-0.5 text-center leading-tight">CPU<br />Usage</span>
                     </div>
-                  )}
-
-                  {/* Telemetry info */}
-                  <div className="p-3 bg-background border border-fire-border rounded-xl flex items-center justify-between text-xs font-black uppercase text-text-muted">
-                    <span>Containment lag</span>
-                    <span className="font-mono text-text-primary">&lt; 5s</span>
                   </div>
                 </div>
               </div>
-
             </div>
 
-            {/* Right Column: Layer 3 (Test) & Layer 5 (Learn) */}
-            <div className="space-y-6">
-              
-              {/* Layer 3 Module Box */}
-              <div className={clsx(
-                "card-mission relative transition-all duration-300",
-                simStep === 1 ? "border-accent/80 shadow-[0_0_20px_color-mix(in_srgb,var(--accent)_15%,transparent)] bg-surface-2" : "border-fire-border bg-background/40"
-              )}>
-                <div className="flex items-center justify-between mb-4">
-                  <div>
-                    <span className="badge-mission bg-accent/10 border-accent text-accent">Layer 3</span>
-                    <h3 className="text-sm font-black uppercase tracking-wider text-text-primary mt-1">AI Red Team Simulator</h3>
-                  </div>
-                  <Crosshair className={clsx("h-5 w-5", simStep === 1 ? "text-accent animate-pulse" : "text-text-muted")} />
+            {/* Layer 2 — Autonomous SOAR (green/success) */}
+            <div className={clsx(
+              "card-mission relative transition-all duration-300",
+              simStep === 3 ? "border-success/80 shadow-[0_0_20px_color-mix(in_srgb,var(--success)_15%,transparent)] bg-surface-2" : "border-fire-border bg-background/40"
+            )}>
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <span className="badge-mission bg-success/10 border-success text-success">Layer 2</span>
+                  <h3 className="text-sm font-black uppercase tracking-wider text-text-primary mt-1 font-bold">Autonomous SOAR</h3>
                 </div>
-
-                <div className="space-y-4">
-                  {/* Framework indicator */}
-                  <div className="flex items-center justify-between text-[10px] font-black text-text-muted uppercase">
-                    <span>Methodology</span>
-                    <span className="badge-mission border-accent bg-accent/5 text-accent font-extrabold tracking-widest">MITRE Framework</span>
-                  </div>
-
-                  {/* Holographic matrix nodes */}
-                  <div className="bg-background border border-fire-border rounded-xl p-4">
-                    <div className="text-[9px] font-black text-text-muted uppercase tracking-widest mb-3 text-center">Interactive Grid Map</div>
-                    
-                    <div className="grid grid-cols-6 gap-2 w-fit mx-auto">
-                      {gridNodes.map((state, idx) => (
-                        <div
-                          key={idx}
-                          className={clsx(
-                            "h-5 w-5 rounded-md border transition-all duration-500",
-                            state === 'secure' && "bg-surface-2 border-fire-border hover:border-accent/30",
-                            state === 'probing' && "bg-warning/20 border-warning animate-pulse shadow-lg shadow-warning/20",
-                            state === 'compromised' && "bg-danger/25 border-danger animate-pulse shadow-lg shadow-danger/20",
-                            state === 'contained' && "bg-info/20 border-info shadow-lg shadow-info/20"
-                          )}
-                          title={`Node ${idx + 1}: ${state.toUpperCase()}`}
-                        />
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Telemetry info */}
-                  <div className="p-3 bg-background border border-fire-border rounded-xl flex items-center justify-between text-xs font-black uppercase text-text-muted">
-                    <span>Propagation lag</span>
-                    <span className="font-mono text-text-primary">&lt; 10s</span>
-                  </div>
-                </div>
+                <Zap className={clsx("h-5 w-5", simStep === 3 ? "text-success animate-pulse" : "text-text-muted")} />
               </div>
 
-              {/* Layer 5 Module Box */}
-              <div className={clsx(
-                "card-mission relative transition-all duration-300",
-                simStep === 5 ? "border-success/80 shadow-[0_0_20px_color-mix(in_srgb,var(--success)_15%,transparent)] bg-surface-2" : "border-fire-border bg-background/40"
-              )}>
-                <div className="flex items-center justify-between mb-4">
-                  <div>
-                    <span className="badge-mission bg-success/10 border-success text-success">Layer 5</span>
-                    <h3 className="text-sm font-black uppercase tracking-wider text-text-primary mt-1">Threat Intelligence Swarm</h3>
-                  </div>
-                  <Share2 className={clsx("h-5 w-5", simStep === 5 ? "text-success animate-pulse" : "text-text-muted")} />
+              <div className="space-y-4">
+                {/* Architecture & Orchestration tags */}
+                <div className="flex items-center gap-2">
+                  <span className="badge-mission border-fire-border bg-background/50 text-text-muted">Python Microservices</span>
+                  <span className="badge-mission border-fire-border bg-background/50 text-text-muted">K8s Orchestration</span>
                 </div>
 
-                <div className="space-y-4">
-                  {/* Swarm details */}
-                  <div className="flex items-center justify-between text-[10px] font-black text-text-muted uppercase">
-                    <span>Sync Scope</span>
-                    <span className="text-success font-extrabold tracking-widest">Global & Edge</span>
-                  </div>
+                {/* Flow logic */}
+                <div className="p-3 bg-background/40 border border-fire-border rounded-xl text-center text-[10px] uppercase font-bold text-text-secondary">
+                  Playbooks ➔ Automated Actions
+                </div>
 
-                  {/* Collective Intelligence Model */}
-                  <div className="p-3 bg-background/40 border border-fire-border rounded-xl text-center text-[10px] uppercase font-bold text-text-secondary">
-                    Collective Intelligence Loop
-                  </div>
-
-                  {/* Swarm Architecture Details */}
-                  <div className="rounded-xl border border-fire-border bg-background/50 p-3 space-y-2">
-                    <div className="text-[9px] font-black text-text-muted uppercase tracking-widest">Framework Architecture</div>
-                    <div className="flex items-center justify-between text-[10px] font-bold text-text-secondary uppercase">
-                      <span>Federated Learning</span>
-                      <span className="text-text-primary font-black">Sync-On-Alert</span>
-                    </div>
-                    <div className="flex items-center justify-between text-[10px] font-bold text-text-secondary uppercase">
-                      <span>Edge-Cloud Architecture</span>
-                      <span className="text-text-primary font-black">Hybrid Swarm</span>
-                    </div>
-                  </div>
-
-                  {/* Sync node count or mesh indicator */}
-                  <div className="p-3 bg-background border border-fire-border rounded-xl">
-                    <div className="flex items-center justify-between text-[10px] font-bold uppercase text-text-secondary">
-                      <span className="flex items-center gap-1.5">
-                        <Dna className={clsx("h-3.5 w-3.5 text-success", simStep === 5 && "animate-spin")} /> 
-                        Swarm Updates
+                {/* Action HUD list */}
+                <div className="space-y-2">
+                  {[
+                    { key: 'block', name: 'Block IP Range', icon: Ban, active: simStep === 3 && simVector === 'cloud' },
+                    { key: 'isolate', name: 'Isolate Endpoint Node', icon: MonitorOff, active: simStep === 3 && (simVector === 'privilege' || simVector === 'lateral') },
+                    { key: 'script', name: 'Execute Containment Script', icon: FileCode2, active: simStep === 3 && simVector === 'phishing' },
+                    { key: 'kill', name: 'Kill Malicious Process', icon: Bug, active: false },
+                    { key: 'remediate', name: 'Remediate & Log', icon: ClipboardCheck, active: false },
+                  ].map(a => (
+                    <div
+                      key={a.key}
+                      className={clsx(
+                        "px-3 py-2.5 rounded-xl border text-xs font-black uppercase flex items-center justify-between gap-2 transition-all duration-300",
+                        a.active ? "bg-success/10 border-success text-text-primary scale-102" : "bg-background/30 border-fire-border text-text-secondary"
+                      )}
+                    >
+                      <span className="flex items-center gap-2 min-w-0">
+                        <a.icon className={clsx("h-3.5 w-3.5 shrink-0", a.active ? "text-success" : "text-text-muted")} />
+                        <span className="truncate">{a.name}</span>
                       </span>
-                      <span className={clsx("font-mono font-black transition-all", simStep === 5 ? "text-success" : "text-text-muted")}>
-                        {simStep === 5 ? "+1,204 Param Sync" : "Idle"}
-                      </span>
+                      {a.active ? (
+                        <span className="h-2 w-2 rounded-full bg-success animate-ping shrink-0" />
+                      ) : (
+                        <ChevronRight className="h-3.5 w-3.5 text-text-muted shrink-0" />
+                      )}
                     </div>
-                  </div>
+                  ))}
+                </div>
 
-                  {/* Telemetry Info */}
-                  <div className="p-3 bg-background border border-fire-border rounded-xl flex items-center justify-between text-xs font-black uppercase text-text-muted">
-                    <span>Propagation lag</span>
-                    <span className="font-mono text-text-primary">&lt; 10s</span>
-                  </div>
+                {/* SOAR Telemetry HUD */}
+                <div className="p-3 bg-background border border-fire-border rounded-xl flex items-center justify-between text-xs font-black uppercase text-text-muted">
+                  <span>Remediation Lag</span>
+                  <span className="font-mono text-text-primary">&lt; 10s</span>
                 </div>
               </div>
-
             </div>
 
+            {/* Layer 3 — AI Red Team Simulator (purple/accent-pa) */}
+            <div className={clsx(
+              "card-mission relative transition-all duration-300",
+              simStep === 1 ? "border-accent-pa/80 shadow-[0_0_20px_color-mix(in_srgb,var(--accent-pa)_15%,transparent)] bg-surface-2" : "border-fire-border bg-background/40"
+            )}>
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <span className="badge-mission bg-accent-pa/10 border-accent-pa text-accent-pa">Layer 3</span>
+                  <h3 className="text-sm font-black uppercase tracking-wider text-text-primary mt-1">AI Red Team Simulator</h3>
+                </div>
+                <Crosshair className={clsx("h-5 w-5", simStep === 1 ? "text-accent-pa animate-pulse" : "text-text-muted")} />
+              </div>
+
+              <div className="space-y-4">
+                {/* Framework indicator */}
+                <div className="flex items-center justify-between text-[10px] font-black text-text-muted uppercase">
+                  <span>Methodology</span>
+                  <span className="badge-mission border-accent-pa bg-accent-pa/5 text-accent-pa font-extrabold tracking-widest">MITRE Framework</span>
+                </div>
+
+                {/* Holographic matrix nodes */}
+                <div className="bg-background border border-fire-border rounded-xl p-4">
+                  <div className="text-[9px] font-black text-text-muted uppercase tracking-widest mb-3 text-center">Interactive Grid Map</div>
+
+                  <div className="grid grid-cols-6 gap-2 w-fit mx-auto">
+                    {gridNodes.map((state, idx) => (
+                      <div
+                        key={idx}
+                        className={clsx(
+                          "h-5 w-5 rounded-md border transition-all duration-500",
+                          state === 'secure' && "bg-accent-pa/10 border-accent-pa/20 hover:border-accent-pa/40",
+                          state === 'probing' && "bg-warning/20 border-warning animate-pulse shadow-lg shadow-warning/20",
+                          state === 'compromised' && "bg-danger/25 border-danger animate-pulse shadow-lg shadow-danger/20",
+                          state === 'contained' && "bg-accent-pa/30 border-accent-pa shadow-lg shadow-accent-pa/20"
+                        )}
+                        title={`Node ${idx + 1}: ${state.toUpperCase()}`}
+                      />
+                    ))}
+                  </div>
+                </div>
+
+                {/* Telemetry info */}
+                <div className="p-3 bg-background border border-fire-border rounded-xl flex items-center justify-between text-xs font-black uppercase text-text-muted">
+                  <span>Propagation lag</span>
+                  <span className="font-mono text-text-primary">&lt; 10s</span>
+                </div>
+              </div>
+            </div>
+
+          </div>
+
+          {/* Live Threat Feed + Global Attack Map */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="lg:col-span-2 card-mission border-fire-border bg-background/40 p-5">
+              <div className="flex items-center justify-between border-b border-fire-border pb-3 mb-3">
+                <div className="flex items-center gap-2">
+                  <span className="h-2 w-2 rounded-full bg-danger animate-pulse" />
+                  <h3 className="text-xs font-black uppercase tracking-[0.2em] text-text-primary">Live Threat Feed</h3>
+                </div>
+                <button
+                  onClick={() => (window.location.href = '/dashboard/alerts')}
+                  className="text-[10px] font-black text-accent uppercase tracking-widest hover:underline"
+                >
+                  View All
+                </button>
+              </div>
+
+              <div className="divide-y divide-fire-border/60">
+                {liveThreatFeed.map((t, i) => (
+                  <div key={i} className="flex items-center gap-3 py-3">
+                    <span className={clsx(
+                      "h-2 w-2 rounded-full shrink-0",
+                      t.severity === 'CRITICAL' && "bg-danger",
+                      t.severity === 'HIGH' && "bg-[var(--severity-high)]",
+                      t.severity === 'MEDIUM' && "bg-[var(--severity-medium)]",
+                      t.severity === 'LOW' && "bg-info"
+                    )} />
+                    <span className={clsx(
+                      "text-[9px] font-black uppercase tracking-widest w-16 shrink-0",
+                      t.severity === 'CRITICAL' && "text-danger",
+                      t.severity === 'HIGH' && "text-[var(--severity-high)]",
+                      t.severity === 'MEDIUM' && "text-[var(--severity-medium)]",
+                      t.severity === 'LOW' && "text-info"
+                    )}>
+                      {t.severity}
+                    </span>
+                    <span className="flex-1 text-xs font-bold text-text-primary truncate">{t.message}</span>
+                    <span className="text-[9px] font-black uppercase tracking-widest text-text-muted bg-surface-3 border border-fire-border px-2 py-0.5 rounded shrink-0">
+                      {t.category}
+                    </span>
+                    <span className="text-[10px] font-bold text-text-muted font-mono shrink-0 w-20 text-right">{t.time}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="card-mission border-fire-border bg-background/40 p-5 relative overflow-hidden">
+              <div className="flex items-center justify-between border-b border-fire-border pb-3 mb-3 relative z-10">
+                <h3 className="text-xs font-black uppercase tracking-[0.2em] text-text-primary">Global Attack Map</h3>
+                <MapPin className="h-4 w-4 text-text-muted" />
+              </div>
+
+              <div className="relative h-40 rounded-xl overflow-hidden border border-fire-border/60 bg-background">
+                <div
+                  className="absolute inset-0 bg-cover bg-center opacity-25"
+                  style={{ backgroundImage: "url('/world-network.png')" }}
+                />
+                <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none">
+                  {attackMapLinks.map(([fromId, toId], i) => {
+                    const from = attackMapNodes.find(n => n.id === fromId)!
+                    const to = attackMapNodes.find(n => n.id === toId)!
+                    return (
+                      <line
+                        key={i}
+                        x1={from.x} y1={from.y} x2={to.x} y2={to.y}
+                        stroke={chartColors.accent}
+                        strokeWidth={0.4}
+                        strokeOpacity={0.5}
+                      />
+                    )
+                  })}
+                  {attackMapNodes.map(n => (
+                    <circle key={n.id} cx={n.x} cy={n.y} r={1.2} fill={chartColors.accent} className="animate-pulse" />
+                  ))}
+                </svg>
+              </div>
+
+              <div className="flex items-center justify-between mt-3 text-[9px] font-black uppercase tracking-widest text-text-muted">
+                <span className="flex items-center gap-1.5">
+                  <span className="h-1.5 w-1.5 rounded-full bg-success animate-pulse" /> Grid Status: <span className="text-success">Nominal</span>
+                </span>
+                <span>TZ: IST</span>
+              </div>
+            </div>
           </div>
 
           {/* Terminal Console Log */}
