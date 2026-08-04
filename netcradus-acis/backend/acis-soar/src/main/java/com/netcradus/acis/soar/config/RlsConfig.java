@@ -35,6 +35,10 @@ public class RlsConfig {
      * are intentionally excluded — they have no tenant_id column (they're
      * child records of a tenant-owned parent) and remain enforced at the
      * application layer, which already scopes them via the parent lookup.
+     *
+     * api_keys is also excluded from this generic list — see
+     * enableApiKeysRowLevelSecurity below for why it needs a non-standard
+     * policy instead of RlsBootstrapper's normal one.
      */
     @Bean
     @Order(1000)
@@ -46,12 +50,39 @@ public class RlsConfig {
                 "role_permissions",
                 "data_sources",
                 "audit_entries",
-                "api_keys",
                 "integrations",
                 "organizations",
                 "license_details",
                 "invoices",
                 "user_members",
                 "user_groups");
+    }
+
+    /**
+     * api_keys needs a policy RlsBootstrapper's generic one can't express:
+     * every other tenant-owned table is only ever queried once the caller's
+     * tenant is already known (from their JWT). api_keys is the one
+     * exception — ApiKeyAuthFilter (acis-ingestion) must look a key up by its
+     * hash *before* it knows which tenant it belongs to, which is the whole
+     * point of the lookup. The extra OR clause permits that one query to see
+     * rows across all tenants, gated by app.allow_api_key_lookup — a GUC only
+     * ApiKeyAuthFilter ever sets (see TenantContext.setApiKeyLookupInProgress
+     * and TenantAwareDataSource), and only for the instant of that query.
+     * Every other read/write of this table (the Settings > API Keys CRUD,
+     * and ApiKeyAuthFilter's own last-used-at update after a successful
+     * lookup) goes through the normal tenant_id-matching path unaffected.
+     */
+    @Bean
+    @Order(1001)
+    public CommandLineRunner enableApiKeysRowLevelSecurity(JdbcTemplate jdbcTemplate) {
+        return args -> {
+            jdbcTemplate.execute("ALTER TABLE api_keys ENABLE ROW LEVEL SECURITY");
+            jdbcTemplate.execute("ALTER TABLE api_keys FORCE ROW LEVEL SECURITY");
+            jdbcTemplate.execute("DROP POLICY IF EXISTS tenant_isolation ON api_keys");
+            jdbcTemplate.execute("CREATE POLICY tenant_isolation ON api_keys" +
+                    " USING (tenant_id::text = current_setting('app.current_tenant_id', true)" +
+                    "        OR current_setting('app.allow_api_key_lookup', true) = 'true')" +
+                    " WITH CHECK (tenant_id::text = current_setting('app.current_tenant_id', true))");
+        };
     }
 }

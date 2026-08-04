@@ -25,6 +25,11 @@ public class SecurityConfig {
                 // its own; a JWT-requiring gateway would reject it before the
                 // downstream service is ever called.
                 .pathMatchers(HttpMethod.POST, "/api/platform/signup").permitAll()
+                // External log ingestion, authenticated by a tenant-scoped API key
+                // instead of a Keycloak JWT (see acis-ingestion's ApiKeyAuthFilter) —
+                // same reasoning as signup above: the gateway must not reject these
+                // for lacking a JWT before ApiKeyAuthFilter ever gets a chance to run.
+                .pathMatchers(HttpMethod.POST, "/api/ingest/external/**").permitAll()
                 // Everything else requires a valid JWT
                 .anyExchange().authenticated()
             )

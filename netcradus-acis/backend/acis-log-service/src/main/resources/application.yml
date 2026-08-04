@@ -16,6 +16,17 @@ spring:
       value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
       properties:
         spring.json.trusted.packages: "*"
+        # Without this, a message produced from a plain Map (as
+        # IngestionController's /syslog, /json, /external/syslog, and
+        # /external/json all do) carries a __TypeId__ header of
+        # java.util.LinkedHashMap, which JsonDeserializer honors over this
+        # listener's declared LogDocument parameter — the message then fails
+        # to convert and is silently dropped (logged, not requeued). Ignoring
+        # the header and always deserializing as LogDocument (Jackson maps
+        # unknown/extra Map keys onto its fields the same way either way)
+        # fixes this for every producer, not just the new ones.
+        spring.json.use.type.headers: false
+        spring.json.value.default.type: com.netcradus.acis.log.model.LogDocument
     producer:
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
       value-serializer: org.springframework.kafka.support.serializer.JsonSerializer

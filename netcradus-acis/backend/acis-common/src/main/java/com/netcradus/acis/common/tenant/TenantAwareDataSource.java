@@ -27,6 +27,7 @@ import java.sql.SQLException;
 public class TenantAwareDataSource extends DelegatingDataSource {
 
     private static final String SET_TENANT_SQL = "SELECT set_config('app.current_tenant_id', ?, false)";
+    private static final String SET_API_KEY_LOOKUP_SQL = "SELECT set_config('app.allow_api_key_lookup', ?, false)";
 
     public TenantAwareDataSource(DataSource targetDataSource) {
         super(targetDataSource);
@@ -48,12 +49,25 @@ public class TenantAwareDataSource extends DelegatingDataSource {
             ps.setString(1, tenantId != null ? tenantId : "");
             ps.execute();
         }
+        // Only api_keys' RLS policy reads this GUC (see RlsConfig in acis-soar) —
+        // every other policy ignores it, so this can't widen visibility on any
+        // other tenant-owned table.
+        try (PreparedStatement ps = connection.prepareStatement(SET_API_KEY_LOOKUP_SQL)) {
+            ps.setString(1, TenantContext.isApiKeyLookupInProgress() ? "true" : "false");
+            ps.execute();
+        }
         return connection;
     }
 
     private void clearTenant(Connection connection) {
         try (PreparedStatement ps = connection.prepareStatement(SET_TENANT_SQL)) {
             ps.setString(1, "");
+            ps.execute();
+        } catch (SQLException ignored) {
+            // Connection may already be invalid/closing — nothing useful to do.
+        }
+        try (PreparedStatement ps = connection.prepareStatement(SET_API_KEY_LOOKUP_SQL)) {
+            ps.setString(1, "false");
             ps.execute();
         } catch (SQLException ignored) {
             // Connection may already be invalid/closing — nothing useful to do.

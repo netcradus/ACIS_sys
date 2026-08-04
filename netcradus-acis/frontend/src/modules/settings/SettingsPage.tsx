@@ -16,7 +16,9 @@ import keycloak from '@/lib/keycloak'
 interface ApiKey {
   id: string
   keyName: string
-  token: string
+  // The real secret is never returned after creation — only a hash is stored
+  // server-side. tokenPreview is the last 4 characters, safe to display.
+  tokenPreview: string
   role: string
   createdAt: string
   lastUsedAt: string | null
@@ -38,7 +40,10 @@ export default function SettingsPage() {
   const [integrations, setIntegrations] = useState<Integration[]>([])
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState(tabParam || 'Profile')
-  const [copiedKeyId, setCopiedKeyId] = useState<string | null>(null)
+  // The raw secret for a just-created key — shown exactly once, since the
+  // backend never persists or returns it again after this response.
+  const [revealedKey, setRevealedKey] = useState<{ keyName: string; rawToken: string } | null>(null)
+  const [revealedTokenCopied, setRevealedTokenCopied] = useState(false)
 
   useEffect(() => {
     if (tabParam) {
@@ -928,11 +933,12 @@ export default function SettingsPage() {
     fetchDataSources()
   }, [])
 
-  // Copy token to clipboard helper
-  const handleCopyToken = (id: string, token: string) => {
-    navigator.clipboard.writeText(token.replace('...', ''))
-    setCopiedKeyId(id)
-    setTimeout(() => setCopiedKeyId(null), 2000)
+  // Copy the one-time-revealed raw secret to clipboard
+  const handleCopyRevealedToken = () => {
+    if (!revealedKey) return
+    navigator.clipboard.writeText(revealedKey.rawToken)
+    setRevealedTokenCopied(true)
+    setTimeout(() => setRevealedTokenCopied(false), 2000)
   }
 
   // Revoke API Key
@@ -950,10 +956,13 @@ export default function SettingsPage() {
   const handleGenerateKey = async (e: React.FormEvent) => {
     e.preventDefault()
     try {
-      await apiClient.post('/api/soar/settings/keys', {
+      const res = await apiClient.post('/api/soar/settings/keys', {
         keyName: newKeyName,
         role: newKeyRole
       })
+      // rawToken only ever appears in this one response — the backend never
+      // stores or returns it again, so this is the only chance to show it.
+      setRevealedKey({ keyName: newKeyName, rawToken: res.data.rawToken })
       setNewKeyName('')
       setIsKeyModalOpen(false)
       fetchData()
@@ -2917,15 +2926,7 @@ export default function SettingsPage() {
                           )}
                         </td>
                         <td className="font-mono text-small text-text-secondary">
-                          <div className="flex items-center gap-1.5">
-                            <span>{k.token}</span>
-                            <button
-                              onClick={() => handleCopyToken(k.id, k.token)}
-                              className="text-text-muted hover:text-text-primary transition-colors focus:outline-none"
-                            >
-                              {copiedKeyId === k.id ? <Check className="w-3.5 h-3.5 text-success" /> : <Copy className="w-3.5 h-3.5" />}
-                            </button>
-                          </div>
+                          acis_live_••••••••••••••••{k.tokenPreview}
                         </td>
                         <td className="font-mono text-text-secondary text-small">{k.role}</td>
                         <td>{new Date(k.createdAt).toLocaleDateString([], { day: '2-digit', month: 'short', year: 'numeric' })}</td>
@@ -3381,6 +3382,48 @@ export default function SettingsPage() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* API Key Created — one-time secret reveal */}
+      {revealedKey && (
+        <div className="fixed inset-0 bg-background/85 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-surface border border-fire-border rounded-xl w-full max-w-lg overflow-hidden shadow-card animate-scale-in">
+            <div className="flex items-center justify-between p-5 border-b border-fire-border">
+              <h3 className="text-h3 text-text-primary">API Key Created — {revealedKey.keyName}</h3>
+              <button
+                onClick={() => setRevealedKey(null)}
+                className="text-text-muted hover:text-text-primary transition-colors focus:outline-none"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="p-5 space-y-4">
+              <div className="bg-warning/10 border border-warning/30 text-warning px-4 py-3 rounded-lg text-small font-semibold">
+                Copy this key now — for your security, it's shown only this once and can't be retrieved again.
+                If you lose it, you'll need to revoke it and generate a new one.
+              </div>
+              <div className="flex items-center gap-2 bg-surface-2 border border-fire-border rounded-lg p-3">
+                <code className="flex-1 font-mono text-small text-text-primary break-all select-all">
+                  {revealedKey.rawToken}
+                </code>
+                <button
+                  onClick={handleCopyRevealedToken}
+                  className="text-text-muted hover:text-text-primary transition-colors focus:outline-none shrink-0"
+                >
+                  {revealedTokenCopied ? <Check className="w-4 h-4 text-success" /> : <Copy className="w-4 h-4" />}
+                </button>
+              </div>
+              <div className="flex items-center justify-end pt-2">
+                <button
+                  onClick={() => setRevealedKey(null)}
+                  className="btn-fire py-2 px-4 text-small"
+                >
+                  Done, I've saved it
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}

@@ -10,12 +10,25 @@ import java.util.UUID;
  * for data isolation.
  */
 public class TenantContext {
-    private static final ThreadLocal<String> TENANT_ID   = new ThreadLocal<>();
-    private static final ThreadLocal<UUID>   USER_ID     = new ThreadLocal<>();
-    private static final ThreadLocal<String> USER_EMAIL  = new ThreadLocal<>();
+    private static final ThreadLocal<String>  TENANT_ID   = new ThreadLocal<>();
+    private static final ThreadLocal<UUID>    USER_ID     = new ThreadLocal<>();
+    private static final ThreadLocal<String>  USER_EMAIL  = new ThreadLocal<>();
+    private static final ThreadLocal<Boolean> API_KEY_LOOKUP = new ThreadLocal<>();
 
     public static void setTenantId(String tenantId) { TENANT_ID.set(tenantId); }
     public static String getTenantId() { return TENANT_ID.get(); }
+
+    /**
+     * True only for the brief window a request is looking up which tenant an
+     * API key belongs to (see acis-ingestion's ApiKeyAuthFilter) — the one
+     * legitimate case in this codebase where a query must see rows across
+     * every tenant, since the tenant isn't known until the lookup succeeds.
+     * TenantAwareDataSource reads this to set a matching Postgres GUC that
+     * api_keys' RLS policy checks; every other RLS-protected table is
+     * unaffected since only that one policy looks at the GUC.
+     */
+    public static void setApiKeyLookupInProgress(boolean inProgress) { API_KEY_LOOKUP.set(inProgress); }
+    public static boolean isApiKeyLookupInProgress() { return Boolean.TRUE.equals(API_KEY_LOOKUP.get()); }
 
     /** Tenant ID as a UUID, for services whose tenant_id columns are typed UUID. */
     public static UUID getTenantIdAsUuid() {
@@ -33,5 +46,6 @@ public class TenantContext {
         TENANT_ID.remove();
         USER_ID.remove();
         USER_EMAIL.remove();
+        API_KEY_LOOKUP.remove();
     }
 }

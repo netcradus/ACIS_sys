@@ -22,20 +22,44 @@ public class IngestionController {
 
     @PostMapping("/syslog")
     public ResponseEntity<Map<String, String>> ingestSyslog(@RequestBody String rawLog) {
+        return doIngestSyslog(rawLog, "syslog");
+    }
+
+    @PostMapping("/json")
+    public ResponseEntity<Map<String, String>> ingestJson(@RequestBody List<Map<String, Object>> logs) {
+        return doIngestJson(logs);
+    }
+
+    /**
+     * Same shape as /syslog, reachable by a customer's own server with an API
+     * key instead of a Keycloak JWT (see ApiKeyAuthFilter / acis-gateway's
+     * SecurityConfig for the /api/ingest/external/** bypass). The "source"
+     * field distinguishes API-key-authenticated traffic in the log record.
+     */
+    @PostMapping("/external/syslog")
+    public ResponseEntity<Map<String, String>> ingestExternalSyslog(@RequestBody String rawLog) {
+        return doIngestSyslog(rawLog, "external-syslog");
+    }
+
+    /** Same shape as /json, for API-key-authenticated external senders — see ingestExternalSyslog. */
+    @PostMapping("/external/json")
+    public ResponseEntity<Map<String, String>> ingestExternalJson(@RequestBody List<Map<String, Object>> logs) {
+        return doIngestJson(logs);
+    }
+
+    private ResponseEntity<Map<String, String>> doIngestSyslog(String rawLog, String service) {
         log.debug("Received syslog: {}", rawLog);
-        // Simple normalization
         Map<String, Object> logDoc = new HashMap<>();
         logDoc.put("tenantId", TenantContext.getTenantId());
         logDoc.put("message", rawLog);
         logDoc.put("level", "INFO");
-        logDoc.put("service", "syslog");
+        logDoc.put("service", service);
         logDoc.put("timestamp", java.time.Instant.now());
         kafkaTemplate.send(TOPIC, logDoc);
         return ResponseEntity.accepted().body(Map.of("status", "accepted"));
     }
 
-    @PostMapping("/json")
-    public ResponseEntity<Map<String, String>> ingestJson(@RequestBody List<Map<String, Object>> logs) {
+    private ResponseEntity<Map<String, String>> doIngestJson(List<Map<String, Object>> logs) {
         log.debug("Received {} JSON logs", logs.size());
         String tenantId = TenantContext.getTenantId();
         for (Map<String, Object> logDoc : logs) {

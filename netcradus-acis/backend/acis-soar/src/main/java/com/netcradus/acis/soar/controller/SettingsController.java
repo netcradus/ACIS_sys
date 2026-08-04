@@ -2,7 +2,8 @@ package com.netcradus.acis.soar.controller;
 
 import com.netcradus.acis.common.audit.AuditEventPublisher;
 import com.netcradus.acis.common.dto.ApiResponse;
-import com.netcradus.acis.soar.model.ApiKey;
+import com.netcradus.acis.common.apikey.ApiKey;
+import com.netcradus.acis.common.apikey.ApiKeyRepository;
 import com.netcradus.acis.soar.model.Integration;
 import com.netcradus.acis.soar.model.Organization;
 import com.netcradus.acis.soar.model.LicenseDetails;
@@ -12,7 +13,7 @@ import com.netcradus.acis.soar.model.UserGroup;
 import com.netcradus.acis.soar.model.ConsoleRole;
 import com.netcradus.acis.soar.model.RolePermission;
 import com.netcradus.acis.soar.model.DataSource;
-import com.netcradus.acis.soar.repository.ApiKeyRepository;
+import com.netcradus.acis.soar.dto.ApiKeyCreatedResponse;
 import com.netcradus.acis.soar.repository.IntegrationRepository;
 import com.netcradus.acis.soar.repository.OrganizationRepository;
 import com.netcradus.acis.soar.repository.LicenseDetailsRepository;
@@ -33,7 +34,10 @@ import java.nio.charset.StandardCharsets;
 import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.UUID;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
+import java.util.HexFormat;
 import java.util.regex.Pattern;
 
 @RestController
@@ -76,18 +80,22 @@ public class SettingsController {
     }
 
     @PostMapping("/keys")
-    public ResponseEntity<ApiResponse<ApiKey>> generateKey(@RequestBody ApiKey key,
+    public ResponseEntity<ApiResponse<ApiKeyCreatedResponse>> generateKey(@RequestBody ApiKey key,
             @RequestHeader(value = "X-Tenant-ID", required = false) UUID tenantId) {
         if (key.getKeyName() == null || key.getKeyName().isBlank()) {
             return ResponseEntity.badRequest().body(ApiResponse.error("Key name is required"));
         }
+        String rawToken = generateRandomToken();
         key.setTenantId(resolveTenant(tenantId));
-        key.setToken(generateRandomToken());
+        key.setTokenHash(hashToken(rawToken));
+        key.setTokenPreview(rawToken.substring(rawToken.length() - 4));
         key.setCreatedAt(OffsetDateTime.now());
         key.setStatus("Active");
         ApiKey saved = apiKeyRepository.save(key);
         auditEventPublisher.publish("API_KEY_CREATE", "api-key/" + saved.getId(), "created");
-        return ResponseEntity.ok(ApiResponse.success(saved));
+        // rawToken is returned here only — it was never persisted, so this response
+        // is the one and only time the caller can see the real secret.
+        return ResponseEntity.ok(ApiResponse.success(new ApiKeyCreatedResponse(saved, rawToken)));
     }
 
     @PutMapping("/keys/{id}/revoke")
@@ -400,18 +408,32 @@ public class SettingsController {
         return ResponseEntity.ok(ApiResponse.success(saved));
     }
 
+    private static final SecureRandom SECURE_RANDOM = new SecureRandom();
+
+    /**
+     * 40 characters of real random entropy (240 bits) — no fake "..." gap in
+     * the middle. Older versions of this token format spliced a literal "..."
+     * into the stored/returned value itself, which looked like a masked
+     * secret but wasn't actually hiding anything.
+     */
     private String generateRandomToken() {
         String chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
-        SecureRandom random = new SecureRandom();
-        StringBuilder sb = new StringBuilder("kiro_live_");
-        for (int i = 0; i < 16; i++) {
-            sb.append(chars.charAt(random.nextInt(chars.length())));
-        }
-        sb.append("...");
-        for (int i = 0; i < 4; i++) {
-            sb.append(chars.charAt(random.nextInt(chars.length())));
+        StringBuilder sb = new StringBuilder("acis_live_");
+        for (int i = 0; i < 40; i++) {
+            sb.append(chars.charAt(SECURE_RANDOM.nextInt(chars.length())));
         }
         return sb.toString();
+    }
+
+    private String hashToken(String rawToken) {
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            byte[] hash = digest.digest(rawToken.getBytes(StandardCharsets.UTF_8));
+            return HexFormat.of().formatHex(hash);
+        } catch (NoSuchAlgorithmException e) {
+            // SHA-256 is a JDK-mandated algorithm; this can't actually happen.
+            throw new IllegalStateException(e);
+        }
     }
 
     // ── Roles & Permissions ───────────────────────────────────
