@@ -34,17 +34,17 @@ export default function PlatformAdminSidebar() {
         ) : (
           <div className="flex flex-col select-none">
             <div className="flex items-center gap-2">
-              <ShieldAlert className="w-6 h-6 text-accent-pa" />
-              <span className="text-text-primary font-black tracking-tight text-sm uppercase">NETCRADUS</span>
+              <ShieldAlert className="w-5 h-5 text-accent-pa" />
+              <span className="text-text-primary font-bold tracking-tight text-sm">NETCRADUS</span>
             </div>
-            <span className="text-[10px] font-black tracking-[0.28em] text-accent-pa uppercase mt-1.5 font-mono">
+            <span className="text-label uppercase text-accent-pa mt-1">
               Platform Console
             </span>
           </div>
         )}
       </div>
 
-      <nav className="flex-1 px-3 space-y-1 overflow-y-auto overflow-x-hidden custom-scrollbar">
+      <nav className="flex-1 px-3 space-y-0.5 overflow-y-auto overflow-x-hidden custom-scrollbar">
         {navItems.map((item) => (
           <NavLink
             key={item.path}
@@ -52,16 +52,15 @@ export default function PlatformAdminSidebar() {
             end={item.path === '/platform-admin'}
             className={({ isActive }) =>
               clsx(
-                'group flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 text-sm font-bold tracking-tight mb-1 relative overflow-hidden',
-                isActive ? 'text-accent-pa bg-accent-pa/10' : 'text-text-secondary hover:text-text-primary hover:bg-surface-3'
+                'group flex items-center gap-3 px-3.5 py-2.5 rounded-lg transition-colors duration-150 text-small mb-0.5 relative overflow-hidden',
+                isActive ? 'text-accent-pa bg-accent-pa/10 font-semibold' : 'text-text-secondary font-medium hover:text-text-primary hover:bg-surface-3'
               )
             }
           >
             {({ isActive }) => (
               <>
-                {isActive && <div className="absolute left-0 top-0 bottom-0 w-1 bg-accent-pa" />}
-                <item.icon className="w-5 h-5 flex-shrink-0 transition-transform group-hover:scale-110" />
-                {!collapsed && <span className="animate-fade-in truncate uppercase text-[11px] tracking-wider">{item.label}</span>}
+                <item.icon className="w-[18px] h-[18px] flex-shrink-0" strokeWidth={isActive ? 2.25 : 2} />
+                {!collapsed && <span className="animate-fade-in truncate">{item.label}</span>}
               </>
             )}
           </NavLink>
@@ -69,12 +68,12 @@ export default function PlatformAdminSidebar() {
       </nav>
 
       {!collapsed && (
-        <div className="px-7 py-6 border-t border-fire-border animate-fade-in bg-surface/40">
+        <div className="px-5 py-3.5 border-t border-fire-border animate-fade-in">
           <div className="flex items-center gap-2 mb-1">
             <div className="w-1.5 h-1.5 rounded-full bg-accent-pa animate-pulse" />
-            <span className="text-[10px] uppercase font-bold text-accent-pa tracking-widest">Cross-Tenant Mode</span>
+            <span className="text-label uppercase text-accent-pa">Cross-Tenant Mode</span>
           </div>
-          <p className="text-[9px] font-medium text-text-muted uppercase tracking-[0.2em]">Platform Admin v1.0</p>
+          <p className="text-label uppercase text-text-muted">Platform Admin v1.0</p>
         </div>
       )}
 

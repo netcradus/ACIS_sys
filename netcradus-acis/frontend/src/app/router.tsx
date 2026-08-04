@@ -35,30 +35,30 @@ function RouteErrorFallback() {
 
   return (
     <div className="min-h-screen bg-background text-text-primary flex items-center justify-center p-6">
-      <div className="max-w-md w-full bg-surface-2 border border-fire-border rounded-2xl p-8 shadow-2xl text-center space-y-6">
-        <div className="w-16 h-16 rounded-2xl bg-accent/10 border border-accent/30 text-accent flex items-center justify-center mx-auto shadow-xl">
+      <div className="max-w-md w-full bg-surface border border-fire-border rounded-xl p-8 shadow-card text-center space-y-6">
+        <div className="w-16 h-16 rounded-xl bg-accent/10 border border-accent/30 text-accent flex items-center justify-center mx-auto">
           <ShieldAlert className="w-8 h-8" />
         </div>
 
         <div className="space-y-2">
-          <h2 className="text-lg font-black uppercase tracking-wider text-text-primary">Console Runtime Recovery</h2>
-          <p className="text-xs text-text-secondary">An isolated component error occurred during rendering.</p>
+          <h2 className="text-h3 text-text-primary">Console Runtime Recovery</h2>
+          <p className="text-small text-text-secondary">An isolated component error occurred during rendering.</p>
         </div>
 
-        <div className="bg-surface-3 border border-fire-border/80 rounded-xl p-3 text-[11px] font-mono text-danger text-left overflow-x-auto max-h-32 leading-relaxed">
+        <div className="bg-surface-3 border border-fire-border rounded-lg p-3 text-small font-mono text-danger text-left overflow-x-auto max-h-32 leading-relaxed">
           {error?.statusText || error?.message || String(error)}
         </div>
 
         <div className="flex items-center gap-3 pt-2">
           <button
             onClick={() => window.location.reload()}
-            className="flex-1 bg-accent hover:bg-accent-dark text-white font-bold py-2.5 rounded-xl text-xs flex items-center justify-center gap-2 transition-all shadow-md"
+            className="btn-fire flex-1 py-2.5 text-small"
           >
             <RefreshCw className="w-4 h-4" /> Reload Console
           </button>
           <button
             onClick={() => navigate('/dashboard')}
-            className="flex-1 bg-surface-3 hover:bg-surface-2 border border-fire-border text-text-secondary font-bold py-2.5 rounded-xl text-xs flex items-center justify-center gap-2 transition-all"
+            className="btn-mission flex-1 py-2.5 text-small"
           >
             <Home className="w-4 h-4 text-accent" /> Return Home
           </button>

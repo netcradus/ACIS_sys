@@ -239,23 +239,23 @@ export default function DashboardPage() {
       {/* Top Banner and Navigation Tabs */}
       <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between border-b border-fire-border pb-4 gap-4">
         <div>
-          <div className="flex items-center gap-2">
-            <span className="h-2 w-2 rounded-full bg-accent animate-pulse shadow-accent-glow" />
-            <h1 className="text-2xl font-black uppercase tracking-wider text-text-primary">Autonomous Cyber Immune System</h1>
+          <div className="flex items-center gap-2.5">
+            <span className="h-2 w-2 rounded-full bg-accent animate-pulse" />
+            <h1 className="text-h1 text-text-primary">Autonomous Cyber Immune System</h1>
           </div>
-          <p className="text-[10px] text-text-secondary font-bold uppercase tracking-[0.25em] mt-1">
+          <p className="text-small text-text-secondary mt-1">
             Real-time closed-loop security automation & validation console
           </p>
         </div>
 
         {/* Tab Controls */}
-        <div className="flex items-center gap-3 w-fit">
+        <div className="flex items-center gap-2 w-fit">
           <button
             onClick={() => setActiveTab('architecture')}
             className={clsx(
-              "px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all duration-200 border",
+              "px-4 py-2 rounded-lg text-small font-semibold transition-colors duration-150 border",
               activeTab === 'architecture'
-                ? "bg-accent border-accent text-white shadow-accent-glow"
+                ? "bg-accent border-accent text-white"
                 : "bg-surface-2 border-fire-border text-text-secondary hover:text-text-primary hover:border-accent/30"
             )}
           >
@@ -264,9 +264,9 @@ export default function DashboardPage() {
           <button
             onClick={() => setActiveTab('overview')}
             className={clsx(
-              "px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all duration-200 border",
+              "px-4 py-2 rounded-lg text-small font-semibold transition-colors duration-150 border",
               activeTab === 'overview'
-                ? "bg-accent border-accent text-white shadow-accent-glow"
+                ? "bg-accent border-accent text-white"
                 : "bg-surface-2 border-fire-border text-text-secondary hover:text-text-primary hover:border-accent/30"
             )}
           >
@@ -713,35 +713,35 @@ export default function DashboardPage() {
           {/* Classic SOC Operational Overview (Original Code UI) */}
           
           {/* Hero Panel */}
-          <div className="relative overflow-hidden rounded-[2rem] border border-fire-border/30 bg-surface-3/80 p-8 shadow-card">
-            <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,color-mix(in_srgb,var(--accent)_18%,transparent),transparent_28%),radial-gradient(circle_at_bottom_right,color-mix(in_srgb,var(--info)_14%,transparent),transparent_30%)] pointer-events-none" />
+          <div className="relative overflow-hidden rounded-2xl border border-fire-border bg-surface-2 p-8 shadow-card">
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,color-mix(in_srgb,var(--accent)_10%,transparent),transparent_28%),radial-gradient(circle_at_bottom_right,color-mix(in_srgb,var(--info)_8%,transparent),transparent_30%)] pointer-events-none" />
             <div className="relative z-10 grid gap-6 lg:grid-cols-[1.4fr_0.6fr]">
               <div className="space-y-4">
-                <p className="text-[10px] font-black uppercase tracking-[0.35em] text-accent">Command Center</p>
-                <h1 className="text-5xl lg:text-6xl font-extrabold uppercase tracking-tight leading-tight text-text-primary">Secure operations at the speed of threat.</h1>
-                <p className="max-w-2xl text-sm text-text-secondary leading-7">
+                <p className="text-label uppercase text-accent">Command Center</p>
+                <h1 className="text-display text-text-primary">Secure operations at the speed of threat.</h1>
+                <p className="max-w-2xl text-body text-text-secondary">
                   Monitor live alerts, correlate threats, and act on critical incidents with a unified cyber defense console built for advanced SOC workflows.
                 </p>
                 <div className="flex flex-wrap gap-3">
-                  <span className="inline-flex items-center gap-2 rounded-full bg-background/40 border border-fire-border px-4 py-2 text-[10px] font-bold uppercase tracking-[0.3em] text-text-primary">
+                  <span className="inline-flex items-center gap-2 rounded-full bg-background border border-fire-border px-3.5 py-1.5 text-small font-medium text-text-primary">
                     <ShieldAlert className="w-3.5 h-3.5 text-accent" /> Active Defense
                   </span>
-                  <span className="inline-flex items-center gap-2 rounded-full bg-background/40 border border-fire-border px-4 py-2 text-[10px] font-bold uppercase tracking-[0.3em] text-text-secondary">
+                  <span className="inline-flex items-center gap-2 rounded-full bg-background border border-fire-border px-3.5 py-1.5 text-small font-medium text-text-secondary">
                     <Layers className="w-3.5 h-3.5 text-info" /> Full Stack Visibility
                   </span>
                 </div>
               </div>
 
               <div className="grid grid-cols-1 gap-4">
-                <div className="card-mission bg-glass-surface border-fire-border/50 p-6">
-                  <p className="text-[10px] font-black uppercase tracking-[0.3em] text-text-muted mb-3">Threat Confidence</p>
-                  <p className="text-4xl font-black text-text-primary tracking-tight">87%</p>
-                  <p className="text-[11px] text-text-secondary mt-3">Based on correlation score and real-time model predictions.</p>
+                <div className="card-mission bg-glass-surface border-fire-border/50 p-5">
+                  <p className="text-label uppercase text-text-muted mb-2">Threat Confidence</p>
+                  <p className="text-display text-text-primary">87%</p>
+                  <p className="text-small text-text-secondary mt-2">Based on correlation score and real-time model predictions.</p>
                 </div>
-                <div className="card-mission bg-glass-surface border-fire-border/50 p-6">
-                  <p className="text-[10px] font-black uppercase tracking-[0.3em] text-text-muted mb-3">Response Readiness</p>
-                  <p className="text-4xl font-black text-text-primary tracking-tight">95%</p>
-                  <p className="text-[11px] text-text-secondary mt-3">Automated playbooks and analyst workflows are ready.</p>
+                <div className="card-mission bg-glass-surface border-fire-border/50 p-5">
+                  <p className="text-label uppercase text-text-muted mb-2">Response Readiness</p>
+                  <p className="text-display text-text-primary">95%</p>
+                  <p className="text-small text-text-secondary mt-2">Automated playbooks and analyst workflows are ready.</p>
                 </div>
               </div>
             </div>
@@ -750,13 +750,13 @@ export default function DashboardPage() {
           {/* Header Info */}
           <div className="flex items-end justify-between mb-2">
             <div>
-              <h1 className="text-3xl font-black text-text-primary tracking-tighter uppercase">Operational Overview</h1>
-              <p className="text-[10px] text-text-secondary font-bold tracking-[0.4em] uppercase mt-2">Mission Critical Infrastructure Health</p>
+              <h1 className="text-h1 text-text-primary">Operational Overview</h1>
+              <p className="text-small text-text-secondary mt-1">Mission-critical infrastructure health</p>
             </div>
-            <div className="flex items-center gap-4 bg-surface-2 border border-fire-border px-4 py-2 rounded-xl">
+            <div className="flex items-center gap-4 bg-surface-2 border border-fire-border px-4 py-2.5 rounded-lg">
               <div className="flex flex-col items-end">
-                <span className="text-[9px] font-bold text-text-muted uppercase tracking-widest leading-none mb-1">Grid Sync</span>
-                <span className="text-xs font-black text-success tabular-nums">100% SECURE</span>
+                <span className="text-label uppercase text-text-muted leading-none mb-1">Grid Sync</span>
+                <span className="text-small font-semibold text-success tabular-nums">100% Secure</span>
               </div>
               <div className="w-px h-6 bg-border" />
               <Activity className="w-4 h-4 text-accent" />
@@ -774,20 +774,20 @@ export default function DashboardPage() {
               <div key={i} className="card-mission group relative overflow-hidden bg-surface-2 border-fire-border/60 hover:border-accent/40">
                 <div className="relative z-10">
                   <div className="flex items-center justify-between mb-2">
-                    <span className="text-[10px] font-black uppercase tracking-widest text-text-muted group-hover:text-text-secondary transition-colors">
+                    <span className="text-label uppercase text-text-muted group-hover:text-text-secondary transition-colors">
                       {card.title}
                     </span>
                     <MoreHorizontal className="w-4 h-4 text-text-muted cursor-pointer hover:text-text-primary" />
                   </div>
-                  <div className="text-3xl font-black text-text-primary tracking-tighter mb-2 tabular-nums">
-                    {isLoading ? '---' : (card.value === null ? <span className="text-sm font-normal text-text-muted uppercase">Still in development</span> : card.value)}
+                  <div className="text-h1 text-text-primary mb-2 tabular-nums">
+                    {isLoading ? '---' : (card.value === null ? <span className="text-small font-normal text-text-muted">Still in development</span> : card.value)}
                   </div>
-                  <div className="flex items-center gap-1.5 mb-6">
+                  <div className="flex items-center gap-1.5 mb-2">
                     {card.value !== null && card.up && <ArrowUpRight className="w-3 h-3 text-accent" />}
                     {card.value !== null && !card.up && <ArrowDownRight className="w-3 h-3 text-success" />}
                     {card.value !== null && (
-                      <span className={clsx("text-[10px] font-black uppercase tracking-tighter", card.up ? "text-accent" : "text-success")}>
-                        {card.change} <span className="text-text-muted font-bold ml-1">vs yesterday</span>
+                      <span className={clsx("text-small font-medium", card.up ? "text-accent" : "text-success")}>
+                        {card.change} <span className="text-text-muted ml-1">vs yesterday</span>
                       </span>
                     )}
                   </div>
@@ -802,31 +802,31 @@ export default function DashboardPage() {
             <div className="lg:col-span-2 card-mission bg-surface-2 border-fire-border/60">
               <div className="flex items-center justify-between mb-8">
                 <div>
-                  <h3 className="text-xs font-black text-text-primary uppercase tracking-[0.2em]">Ingest Volume vs Errors</h3>
-                  <p className="text-[10px] text-text-secondary font-bold mt-1">Global collection nodes telemetry — Last 8 Hours</p>
+                  <h3 className="text-h3 text-text-primary">Ingest Volume vs Errors</h3>
+                  <p className="text-small text-text-secondary mt-1">Global collection nodes telemetry — last 8 hours</p>
                 </div>
-                <div className="flex items-center gap-6">
+                <div className="flex items-center gap-5">
                   <div className="flex items-center gap-2">
-                    <div className="w-2.5 h-2.5 rounded-sm bg-accent shadow-accent-glow" />
-                    <span className="text-[10px] font-bold text-text-secondary uppercase tracking-widest">Events</span>
+                    <div className="w-2.5 h-2.5 rounded-sm bg-accent" />
+                    <span className="text-small font-medium text-text-secondary">Events</span>
                   </div>
                   <div className="flex items-center gap-2">
-                    <div className="w-2.5 h-2.5 rounded-sm bg-danger shadow-lg shadow-danger/20" />
-                    <span className="text-[10px] font-bold text-text-secondary uppercase tracking-widest">Errors</span>
+                    <div className="w-2.5 h-2.5 rounded-sm bg-danger" />
+                    <span className="text-small font-medium text-text-secondary">Errors</span>
                   </div>
                 </div>
               </div>
 
-              <div className="h-[340px] w-full mt-4 flex items-center justify-center border border-dashed border-fire-border/40 rounded-xl relative">
-                <div className="absolute inset-0 flex flex-col items-center justify-center opacity-40">
-                  <span className="text-sm font-semibold uppercase tracking-widest">Still in development</span>
-                  <span className="text-[10px] text-text-muted mt-2">Real-time chart metric feed pending</span>
+              <div className="h-[340px] w-full mt-4 flex items-center justify-center border border-dashed border-fire-border/60 rounded-xl relative">
+                <div className="absolute inset-0 flex flex-col items-center justify-center opacity-50">
+                  <span className="text-small font-semibold text-text-secondary">Still in development</span>
+                  <span className="text-small text-text-muted mt-1">Real-time chart metric feed pending</span>
                 </div>
               </div>
             </div>
 
             <div className="card-mission bg-surface-2 border-fire-border/60">
-              <h3 className="text-xs font-black text-text-primary uppercase tracking-[0.2em] mb-10 text-center">Alert Severity Mix</h3>
+              <h3 className="text-h3 text-text-primary mb-8 text-center">Alert Severity Mix</h3>
               <div className="h-64 w-full flex items-center justify-center relative">
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
@@ -858,12 +858,12 @@ export default function DashboardPage() {
                   </PieChart>
                 </ResponsiveContainer>
                 <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                  <span className="text-4xl font-black text-text-primary tracking-tighter leading-none">{stats?.totalAlerts ?? 221}</span>
-                  <span className="text-[10px] text-text-secondary font-bold uppercase tracking-[0.2em] mt-1">Alerts</span>
+                  <span className="text-h1 text-text-primary leading-none">{stats?.totalAlerts ?? 221}</span>
+                  <span className="text-label uppercase text-text-secondary mt-1">Alerts</span>
                 </div>
               </div>
 
-              <div className="mt-10 space-y-3">
+              <div className="mt-8 space-y-2">
                 {[
                   { name: 'Critical', value: stats?.criticalAlerts ?? 18, color: chartColors.danger },
                   { name: 'High', value: stats?.highAlerts ?? 64, color: chartColors.severityHigh },
@@ -871,9 +871,9 @@ export default function DashboardPage() {
                   { name: 'Low', value: 84, color: chartColors.info },
                 ].map((item) => (
                   <div key={item.name} className="flex items-center gap-3 px-2 py-1.5 hover:bg-surface-3 rounded-lg transition-colors group">
-                    <div className="w-2.5 h-2.5 rounded-sm shadow-sm" style={{ backgroundColor: item.color }} />
-                    <span className="text-[11px] font-bold text-text-secondary uppercase tracking-widest group-hover:text-text-primary transition-colors">{item.name}</span>
-                    <span className="text-xs font-black text-text-primary ml-auto tabular-nums">{item.value}</span>
+                    <div className="w-2.5 h-2.5 rounded-sm" style={{ backgroundColor: item.color }} />
+                    <span className="text-small font-medium text-text-secondary group-hover:text-text-primary transition-colors">{item.name}</span>
+                    <span className="text-small font-semibold text-text-primary ml-auto tabular-nums">{item.value}</span>
                   </div>
                 ))}
               </div>
@@ -882,62 +882,62 @@ export default function DashboardPage() {
 
           {/* Recent Incidents Table */}
           <div className="card-mission bg-surface-2 border-fire-border/60">
-            <div className="flex items-center justify-between mb-8">
+            <div className="flex items-center justify-between mb-6">
               <div>
-                <h3 className="text-xs font-black text-text-primary uppercase tracking-[0.2em]">Open Incidents Queue</h3>
-                <p className="text-[10px] text-text-secondary font-bold mt-1">Prioritized active threats requiring analyst review</p>
+                <h3 className="text-h3 text-text-primary">Open Incidents Queue</h3>
+                <p className="text-small text-text-secondary mt-1">Prioritized active threats requiring analyst review</p>
               </div>
-              <button className="text-[10px] font-black text-accent uppercase tracking-widest hover:underline px-4 py-2 bg-accent/5 rounded-lg border border-accent/20">
-                View All Criticals →
+              <button className="btn-ghost text-accent">
+                View All Criticals <ArrowUpRight className="w-3.5 h-3.5" />
               </button>
             </div>
 
             <div className="overflow-x-auto min-h-[200px]">
               {isLoading ? (
-                <div className="flex items-center justify-center h-48 text-text-muted animate-pulse font-black uppercase tracking-widest text-[10px]">
+                <div className="flex items-center justify-center h-48 text-text-muted animate-pulse text-small font-medium">
                   Syncing with mission logs...
                 </div>
               ) : incidents.length === 0 ? (
-                <div className="flex flex-col items-center justify-center h-48 text-text-muted border border-dashed border-fire-border/40 rounded-2xl mx-4 mb-4">
-                  <ShieldAlert className="w-8 h-8 mb-2 opacity-20" />
-                  <span className="font-black uppercase tracking-widest text-[10px]">No active incidents detected</span>
+                <div className="flex flex-col items-center justify-center h-48 text-text-muted border border-dashed border-fire-border/60 rounded-xl mx-4 mb-4">
+                  <ShieldAlert className="w-8 h-8 mb-2 opacity-30" />
+                  <span className="text-small font-medium">No active incidents detected</span>
                 </div>
               ) : (
-                <table className="w-full text-left border-collapse">
+                <table className="table-enterprise">
                   <thead>
-                    <tr className="border-b border-fire-border">
-                      <th className="pb-4 text-[10px] font-black text-text-muted uppercase tracking-widest px-4">#</th>
-                      <th className="pb-4 text-[10px] font-black text-text-muted uppercase tracking-widest px-4">Title</th>
-                      <th className="pb-4 text-[10px] font-black text-text-muted uppercase tracking-widest px-4">Severity</th>
-                      <th className="pb-4 text-[10px] font-black text-text-muted uppercase tracking-widest px-4">Source</th>
-                      <th className="pb-4 text-[10px] font-black text-text-muted uppercase tracking-widest px-4">Assignee</th>
-                      <th className="pb-4 text-[10px] font-black text-text-muted uppercase tracking-widest px-4">Status</th>
-                      <th className="pb-4 text-[10px] font-black text-text-muted uppercase tracking-widest px-4 text-right">Elapsed</th>
+                    <tr>
+                      <th>#</th>
+                      <th>Title</th>
+                      <th>Severity</th>
+                      <th>Source</th>
+                      <th>Assignee</th>
+                      <th>Status</th>
+                      <th className="text-right">Elapsed</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-border">
+                  <tbody>
                     {incidents.map((inc, i) => (
-                      <tr key={i} className="group hover:bg-surface-3/40 transition-colors">
-                        <td className="py-4 px-4 font-mono text-[10px] text-text-muted font-bold whitespace-nowrap">{inc.id}</td>
-                        <td className="py-4 px-4">
-                          <p className="text-xs font-bold text-text-primary tracking-tight leading-tight max-w-md">{inc.title}</p>
+                      <tr key={i} className="group">
+                        <td className="font-mono text-small text-text-muted whitespace-nowrap">{inc.id}</td>
+                        <td>
+                          <p className="text-small font-semibold text-text-primary leading-tight max-w-md">{inc.title}</p>
                         </td>
-                        <td className="py-4 px-4">
+                        <td>
                           <span className={clsx(
-                            "px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-widest border",
+                            "px-2 py-0.5 rounded-md text-label uppercase border",
                             ['CRITICAL', 'HIGH', 'Critical', 'High'].includes(inc.severity) ? "bg-danger/10 text-danger border-danger/20" : "bg-warning/10 text-warning border-warning/20"
                           )}>
                             {inc.severity}
                           </span>
                         </td>
-                        <td className="py-4 px-4 font-mono text-[10px] text-text-secondary uppercase tracking-tighter">{inc.source}</td>
-                        <td className="py-4 px-4 text-[11px] text-text-secondary font-bold uppercase tracking-tight">{inc.owner}</td>
-                        <td className="py-4 px-4">
-                          <span className="text-[10px] font-black text-accent uppercase tracking-tighter bg-accent/5 px-2 py-1 rounded-md border border-accent/20 underline decoration-dotted underline-offset-4">
+                        <td className="text-small text-text-secondary">{inc.source}</td>
+                        <td className="text-small text-text-secondary">{inc.owner}</td>
+                        <td>
+                          <span className="text-label uppercase text-accent bg-accent/5 px-2 py-1 rounded-md border border-accent/20">
                             {inc.status}
                           </span>
                         </td>
-                        <td className="py-4 px-4 text-[11px] font-bold text-text-primary text-right font-mono tabular-nums whitespace-nowrap">{inc.updated}</td>
+                        <td className="text-small font-medium text-text-primary text-right font-mono tabular-nums whitespace-nowrap">{inc.updated}</td>
                       </tr>
                     ))}
                   </tbody>

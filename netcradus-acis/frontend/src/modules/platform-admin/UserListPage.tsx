@@ -14,7 +14,7 @@ function StatusBadge({ enabled }: { enabled: boolean }) {
   return (
     <span
       className={clsx(
-        'px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider',
+        'px-2 py-0.5 rounded-full text-label uppercase',
         enabled ? 'bg-success/10 text-success' : 'bg-danger/10 text-danger'
       )}
     >
@@ -84,8 +84,8 @@ export default function UserListPage() {
         flex: 2,
         cellRenderer: (params: any) => (
           <div className="leading-tight">
-            <div className="font-bold text-text-primary">{params.value}</div>
-            <div className="text-[10px] text-text-muted">{params.data.email || '—'}</div>
+            <div className="font-semibold text-text-primary">{params.value}</div>
+            <div className="text-label text-text-muted">{params.data.email || '—'}</div>
           </div>
         ),
       },
@@ -100,7 +100,7 @@ export default function UserListPage() {
         headerName: 'ROLES',
         flex: 1.5,
         cellRenderer: (params: any) => (
-          <span className="text-text-muted text-[11px]">
+          <span className="text-text-muted text-small">
             {(params.value || []).filter((r: string) => r !== 'default-roles-acis' && r !== 'offline_access' && r !== 'uma_authorization').join(', ') || '—'}
           </span>
         ),
@@ -116,7 +116,7 @@ export default function UserListPage() {
         headerName: 'MFA',
         flex: 0.7,
         cellRenderer: (params: any) => (
-          <span className={clsx('text-[10px] font-bold uppercase', params.value ? 'text-success' : 'text-text-muted')}>
+          <span className={clsx('text-label uppercase', params.value ? 'text-success' : 'text-text-muted')}>
             {params.value ? 'ON' : 'OFF'}
           </span>
         ),
@@ -128,10 +128,10 @@ export default function UserListPage() {
   return (
     <div className="space-y-6 animate-fade-in">
       <div className="flex items-center justify-between border-b border-fire-border pb-4">
-        <h1 className="text-xl font-bold text-text-primary tracking-tight uppercase">Users</h1>
+        <h1 className="text-h1 text-text-primary">Users</h1>
         <button
           onClick={() => setIsModalOpen(true)}
-          className="bg-accent-pa hover:bg-accent-pa-dark text-white font-bold px-4 py-2 rounded-xl text-xs flex items-center gap-2 transition-colors"
+          className="bg-accent-pa hover:bg-accent-pa-dark text-white font-semibold px-4 py-2 rounded-lg text-small flex items-center gap-2 transition-colors"
         >
           <Plus className="w-4 h-4" /> New User
         </button>
@@ -144,14 +144,14 @@ export default function UserListPage() {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search by name, email, username, or tenant..."
-            className="w-full bg-surface-2 border border-fire-border rounded-lg pl-9 pr-3 py-2.5 text-xs text-text-primary placeholder:text-text-muted focus:outline-none focus:border-accent-pa/50"
+            className="w-full bg-surface-2 border border-fire-border rounded-lg pl-9 pr-3 py-2.5 text-small text-text-primary placeholder:text-text-muted transition-colors focus:outline-none focus:border-accent-pa focus:ring-4 focus:ring-accent-pa/10"
           />
         </div>
 
         <select
           value={tenantFilter}
           onChange={(e) => setTenantFilter(e.target.value)}
-          className="bg-surface-2 border border-fire-border rounded-lg px-3 py-2.5 text-xs text-text-primary focus:outline-none focus:border-accent-pa/50"
+          className="bg-surface-2 border border-fire-border rounded-lg px-3 py-2.5 text-small text-text-primary focus:outline-none focus:border-accent-pa cursor-pointer"
         >
           <option value="ALL">All Tenants</option>
           {tenants.map((t) => (
@@ -164,7 +164,7 @@ export default function UserListPage() {
         <select
           value={roleFilter}
           onChange={(e) => setRoleFilter(e.target.value)}
-          className="bg-surface-2 border border-fire-border rounded-lg px-3 py-2.5 text-xs text-text-primary focus:outline-none focus:border-accent-pa/50"
+          className="bg-surface-2 border border-fire-border rounded-lg px-3 py-2.5 text-small text-text-primary focus:outline-none focus:border-accent-pa cursor-pointer"
         >
           <option value="ALL">All Roles</option>
           {ALL_REALM_ROLES.map((r) => (
@@ -180,7 +180,7 @@ export default function UserListPage() {
               key={s}
               onClick={() => setStatusFilter(s)}
               className={clsx(
-                'px-3 py-1.5 rounded-md text-[10px] font-bold uppercase tracking-wider transition-colors',
+                'px-3 py-1.5 rounded-md text-label uppercase transition-colors',
                 statusFilter === s ? 'bg-accent-pa text-white' : 'text-text-muted hover:text-text-primary'
               )}
             >
@@ -191,7 +191,7 @@ export default function UserListPage() {
       </div>
 
       {error && (
-        <div className="bg-danger/10 border border-danger/30 rounded-xl p-4 text-xs text-danger font-semibold">{error}</div>
+        <div className="bg-danger/10 border border-danger/30 rounded-lg p-4 text-small text-danger font-semibold">{error}</div>
       )}
 
       {isLoading ? (
@@ -199,7 +199,7 @@ export default function UserListPage() {
           <Loader2 className="w-6 h-6 text-accent-pa animate-spin" />
         </div>
       ) : (
-        <div className="min-h-[500px] bg-background border border-fire-border rounded-2xl overflow-hidden shadow-2xl">
+        <div className="min-h-[500px] bg-background border border-fire-border rounded-xl overflow-hidden shadow-card">
           <div className="ag-theme-platform-admin w-full h-[500px]">
             <AgGridReact
               rowData={filteredUsers}
@@ -211,7 +211,7 @@ export default function UserListPage() {
               paginationPageSize={10}
               onRowClicked={(e) => navigate(`/platform-admin/users/${e.data.id}`)}
               rowStyle={{ cursor: 'pointer' }}
-              overlayNoRowsTemplate="<span class='text-text-muted font-black uppercase tracking-[0.2em] text-[10px]'>No users match your filters</span>"
+              overlayNoRowsTemplate="<span class='text-text-muted text-label uppercase'>No users match your filters</span>"
             />
           </div>
         </div>
@@ -299,24 +299,24 @@ function CreateUserModal({
 
   return (
     <div className="fixed inset-0 bg-background/85 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <div className="bg-surface-2 border border-fire-border rounded-xl w-full max-w-md overflow-hidden shadow-2xl animate-scale-in max-h-[90vh] overflow-y-auto">
+      <div className="bg-surface border border-fire-border rounded-xl w-full max-w-md overflow-hidden shadow-card animate-scale-in max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between p-5 border-b border-fire-border">
-          <h3 className="text-sm font-bold text-text-primary uppercase tracking-wider">New User</h3>
+          <h3 className="text-h3 text-text-primary">New User</h3>
           <button onClick={onClose} className="text-text-muted hover:text-text-primary transition-colors focus:outline-none">
             <X className="w-5 h-5" />
           </button>
         </div>
-        <form onSubmit={handleSubmit} className="p-5 space-y-4 text-xs">
+        <form onSubmit={handleSubmit} className="p-5 space-y-4">
           {fieldError && (
-            <div className="bg-danger/10 border border-danger/30 rounded-lg p-3 text-danger font-semibold">{fieldError}</div>
+            <div className="bg-danger/10 border border-danger/30 rounded-lg p-3 text-small text-danger font-semibold">{fieldError}</div>
           )}
 
           <div className="space-y-1">
-            <label className="text-text-muted font-bold uppercase tracking-wider block">Tenant *</label>
+            <label className="text-label text-text-muted uppercase block">Tenant *</label>
             <select
               value={tenantId}
               onChange={(e) => setTenantId(e.target.value)}
-              className="w-full bg-surface border border-fire-border rounded-lg px-3 py-2 text-text-primary focus:outline-none focus:border-accent-pa/50"
+              className="w-full bg-surface border border-fire-border rounded-lg px-3.5 py-2.5 text-body text-text-primary focus:outline-none focus:border-accent-pa cursor-pointer"
             >
               {tenants.map((t) => (
                 <option key={t.id} value={t.id}>
@@ -327,52 +327,52 @@ function CreateUserModal({
           </div>
 
           <div className="space-y-1">
-            <label className="text-text-muted font-bold uppercase tracking-wider block">Username *</label>
+            <label className="text-label text-text-muted uppercase block">Username *</label>
             <input
               value={username}
               onChange={(e) => setUsername(e.target.value)}
-              className="w-full bg-surface border border-fire-border rounded-lg px-3 py-2 text-text-primary placeholder:text-text-muted focus:outline-none focus:border-accent-pa/50"
+              className="w-full bg-surface border border-fire-border rounded-lg px-3.5 py-2.5 text-body text-text-primary placeholder:text-text-muted transition-colors focus:outline-none focus:border-accent-pa focus:ring-4 focus:ring-accent-pa/10"
               placeholder="jane.doe"
             />
           </div>
 
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1">
-              <label className="text-text-muted font-bold uppercase tracking-wider block">First Name</label>
+              <label className="text-label text-text-muted uppercase block">First Name</label>
               <input
                 value={firstName}
                 onChange={(e) => setFirstName(e.target.value)}
-                className="w-full bg-surface border border-fire-border rounded-lg px-3 py-2 text-text-primary placeholder:text-text-muted focus:outline-none focus:border-accent-pa/50"
+                className="w-full bg-surface border border-fire-border rounded-lg px-3.5 py-2.5 text-body text-text-primary placeholder:text-text-muted transition-colors focus:outline-none focus:border-accent-pa focus:ring-4 focus:ring-accent-pa/10"
                 placeholder="Jane"
               />
             </div>
             <div className="space-y-1">
-              <label className="text-text-muted font-bold uppercase tracking-wider block">Last Name</label>
+              <label className="text-label text-text-muted uppercase block">Last Name</label>
               <input
                 value={lastName}
                 onChange={(e) => setLastName(e.target.value)}
-                className="w-full bg-surface border border-fire-border rounded-lg px-3 py-2 text-text-primary placeholder:text-text-muted focus:outline-none focus:border-accent-pa/50"
+                className="w-full bg-surface border border-fire-border rounded-lg px-3.5 py-2.5 text-body text-text-primary placeholder:text-text-muted transition-colors focus:outline-none focus:border-accent-pa focus:ring-4 focus:ring-accent-pa/10"
                 placeholder="Doe"
               />
             </div>
           </div>
 
           <div className="space-y-1">
-            <label className="text-text-muted font-bold uppercase tracking-wider block">Email</label>
+            <label className="text-label text-text-muted uppercase block">Email</label>
             <input
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full bg-surface border border-fire-border rounded-lg px-3 py-2 text-text-primary placeholder:text-text-muted focus:outline-none focus:border-accent-pa/50"
+              className="w-full bg-surface border border-fire-border rounded-lg px-3.5 py-2.5 text-body text-text-primary placeholder:text-text-muted transition-colors focus:outline-none focus:border-accent-pa focus:ring-4 focus:ring-accent-pa/10"
               placeholder="jane@acme.example"
             />
           </div>
 
           <div className="space-y-1">
-            <label className="text-text-muted font-bold uppercase tracking-wider block">Initial Role</label>
+            <label className="text-label text-text-muted uppercase block">Initial Role</label>
             <select
               value={initialRole}
               onChange={(e) => setInitialRole(e.target.value)}
-              className="w-full bg-surface border border-fire-border rounded-lg px-3 py-2 text-text-primary focus:outline-none focus:border-accent-pa/50"
+              className="w-full bg-surface border border-fire-border rounded-lg px-3.5 py-2.5 text-body text-text-primary focus:outline-none focus:border-accent-pa cursor-pointer"
             >
               {ALL_REALM_ROLES.map((r) => (
                 <option key={r.key} value={r.key}>
@@ -383,18 +383,18 @@ function CreateUserModal({
           </div>
 
           <div className="space-y-1">
-            <label className="text-text-muted font-bold uppercase tracking-wider block">Temporary Password *</label>
+            <label className="text-label text-text-muted uppercase block">Temporary Password *</label>
             <input
               type="text"
               autoComplete="new-password"
               value={tempPassword}
               onChange={(e) => setTempPassword(e.target.value)}
-              className="w-full bg-surface border border-fire-border rounded-lg px-3 py-2 text-text-primary placeholder:text-text-muted focus:outline-none focus:border-accent-pa/50"
+              className="w-full bg-surface border border-fire-border rounded-lg px-3.5 py-2.5 text-body text-text-primary placeholder:text-text-muted transition-colors focus:outline-none focus:border-accent-pa focus:ring-4 focus:ring-accent-pa/10"
               placeholder="Min. 8 characters"
             />
           </div>
 
-          <label className="flex items-center gap-2 text-text-secondary font-semibold">
+          <label className="flex items-center gap-2 text-small text-text-secondary font-medium">
             <input type="checkbox" checked={forceReset} onChange={(e) => setForceReset(e.target.checked)} className="accent-accent-pa" />
             Force password reset on first login
           </label>
@@ -404,14 +404,14 @@ function CreateUserModal({
               type="button"
               onClick={onClose}
               disabled={submitting}
-              className="border border-fire-border bg-surface-2 hover:bg-surface-3 text-text-secondary hover:text-text-primary font-bold px-4 py-2 rounded-xl focus:outline-none transition-colors disabled:opacity-50"
+              className="border border-fire-border bg-surface-2 hover:bg-surface-3 text-text-secondary hover:text-text-primary font-semibold px-4 py-2 rounded-lg text-small focus:outline-none transition-colors disabled:opacity-50"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={submitting}
-              className="bg-accent-pa hover:bg-accent-pa-dark text-white font-bold px-4 py-2 rounded-xl focus:outline-none transition-colors disabled:opacity-50"
+              className="bg-accent-pa hover:bg-accent-pa-dark text-white font-semibold px-4 py-2 rounded-lg text-small focus:outline-none transition-colors disabled:opacity-50"
             >
               {submitting ? 'Creating...' : 'Create User'}
             </button>

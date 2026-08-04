@@ -54,59 +54,59 @@ export default function AppLayout() {
         </main>
 
         {/* Live Threat Feed Ticker */}
-        <footer className="h-10 bg-background border-t border-fire-border flex items-center overflow-hidden z-20 absolute bottom-0 w-full backdrop-blur-md bg-background/80">
-          <div className="flex items-center gap-3 px-6 bg-background z-10 border-r border-fire-border h-full relative">
-            <div className="w-2 h-2 rounded-full bg-success animate-pulse shadow-success-glow" />
-            <span className="text-[10px] font-black uppercase tracking-[0.2em] text-success whitespace-nowrap">
-              LIVE THREAT FEED
+        <footer className="h-9 bg-background/90 border-t border-fire-border flex items-center overflow-hidden z-20 absolute bottom-0 w-full backdrop-blur-md">
+          <div className="flex items-center gap-2.5 px-5 bg-background z-10 border-r border-fire-border h-full relative">
+            <div className="w-1.5 h-1.5 rounded-full bg-success animate-pulse" />
+            <span className="text-label uppercase text-success whitespace-nowrap">
+              Live Threat Feed
             </span>
           </div>
-          
+
           <div className="flex-1 overflow-hidden relative h-full flex items-center">
-            <div className="flex gap-12 whitespace-nowrap animate-ticker hover:[animation-play-state:paused] cursor-default">
+            <div className="flex gap-10 whitespace-nowrap animate-ticker hover:[animation-play-state:paused] cursor-default">
               {tickerAlerts.length > 0 ? (
                 tickerAlerts.map((alert, i) => (
-                  <div key={`${alert.id}-${i}`} className="flex items-center gap-3">
-                    <span className={`text-[10px] font-black uppercase ${
-                      alert.severity === 'CRITICAL' ? 'text-danger' : 
+                  <div key={`${alert.id}-${i}`} className="flex items-center gap-2.5">
+                    <span className={`text-label uppercase ${
+                      alert.severity === 'CRITICAL' ? 'text-danger' :
                       alert.severity === 'HIGH' ? 'text-warning' : 'text-info'
                     }`}>
                       {alert.severity}
                     </span>
-                    <span className="text-[11px] font-bold text-text-secondary tracking-tight">
+                    <span className="text-small font-medium text-text-secondary">
                       {alert.title}
                     </span>
-                    <span className="text-fire-border px-2">|</span>
+                    <span className="text-fire-border px-1.5">|</span>
                   </div>
                 ))
               ) : (
-                <div className="text-[10px] font-bold text-text-muted uppercase tracking-widest">
+                <div className="text-label uppercase text-text-muted">
                   Scanning network telemetry... no active threats matching correlation rules... system status nominal...
                 </div>
               )}
               {/* Duplicate for seamless loop if enough content */}
               {tickerAlerts.length > 0 && tickerAlerts.map((alert, i) => (
-                <div key={`dup-${alert.id}-${i}`} className="flex items-center gap-3">
-                  <span className={`text-[10px] font-black uppercase ${
-                    alert.severity === 'CRITICAL' ? 'text-danger' : 
+                <div key={`dup-${alert.id}-${i}`} className="flex items-center gap-2.5">
+                  <span className={`text-label uppercase ${
+                    alert.severity === 'CRITICAL' ? 'text-danger' :
                     alert.severity === 'HIGH' ? 'text-warning' : 'text-info'
                   }`}>
                     {alert.severity}
                   </span>
-                  <span className="text-[11px] font-bold text-text-secondary tracking-tight">
+                  <span className="text-small font-medium text-text-secondary">
                     {alert.title}
                   </span>
-                  <span className="text-fire-border px-2">|</span>
+                  <span className="text-fire-border px-1.5">|</span>
                 </div>
               ))}
             </div>
           </div>
-          
-          <div className="px-6 bg-background z-10 border-l border-fire-border h-full flex items-center gap-4">
-            <span className="text-[9px] font-bold text-text-muted tracking-widest uppercase">
-              GRID_STATUS: <span className="text-success">NOMINAL</span>
+
+          <div className="px-5 bg-background z-10 border-l border-fire-border h-full flex items-center gap-3.5">
+            <span className="text-label uppercase text-text-muted">
+              Grid Status: <span className="text-success">Nominal</span>
             </span>
-            <span className="text-[9px] font-bold text-text-muted tracking-widest uppercase">
+            <span className="text-label uppercase text-text-muted">
               TZ: <span className="text-text-primary">IST</span>
             </span>
           </div>

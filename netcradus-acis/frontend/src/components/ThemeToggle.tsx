@@ -39,17 +39,17 @@ export default function ThemeToggle({ accentClass = 'text-accent' }: ThemeToggle
         aria-expanded={open}
         title="Change theme"
         className={clsx(
-          'relative p-2.5 rounded-xl border transition-all focus:outline-none',
+          'relative p-2.5 rounded-lg border transition-colors focus:outline-none',
           open
             ? clsx('bg-surface-3 border-fire-border', accentClass)
             : 'bg-surface-2 border-fire-border text-text-secondary hover:text-text-primary'
         )}
       >
-        <ActiveIcon className="w-5 h-5" />
+        <ActiveIcon className="w-[18px] h-[18px]" />
       </button>
 
       {open && (
-        <div className="absolute right-0 mt-3 w-44 bg-surface-2 border border-fire-border rounded-2xl shadow-2xl py-1.5 z-50 animate-fade-in overflow-hidden">
+        <div className="absolute right-0 mt-3 w-40 bg-surface border border-fire-border rounded-xl shadow-card py-1.5 z-50 animate-fade-in overflow-hidden">
           {OPTIONS.map(({ mode: optMode, label, icon: Icon }) => (
             <button
               key={optMode}
@@ -58,8 +58,8 @@ export default function ThemeToggle({ accentClass = 'text-accent' }: ThemeToggle
                 setOpen(false)
               }}
               className={clsx(
-                'w-full text-left px-4 py-2.5 text-[11px] font-bold uppercase tracking-widest transition-all flex items-center gap-3 hover:bg-surface-3',
-                mode === optMode ? accentClass : 'text-text-secondary hover:text-text-primary'
+                'w-full text-left px-3.5 py-2.5 text-small font-medium transition-colors flex items-center gap-3 hover:bg-surface-2',
+                mode === optMode ? clsx(accentClass, 'font-semibold') : 'text-text-secondary hover:text-text-primary'
               )}
             >
               <Icon className="w-4 h-4" />

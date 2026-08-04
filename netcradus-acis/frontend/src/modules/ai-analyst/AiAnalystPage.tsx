@@ -129,35 +129,35 @@ export default function AiAnalystPage() {
   const maxLevelCount = Math.max(1, ...levelCounts.map(([, c]) => c))
 
   return (
-    <div className="space-y-6 animate-fade-in flex flex-col h-full bg-background text-text-secondary p-6 min-h-screen">
+    <div className="space-y-6 animate-fade-in flex flex-col h-full text-text-secondary min-h-screen">
 
       {/* Page Header */}
       <div className="flex items-center justify-between border-b border-fire-border pb-4">
-        <h1 className="text-xl font-bold text-text-primary tracking-tight uppercase flex items-center gap-2">
+        <h1 className="text-h1 text-text-primary flex items-center gap-2">
           <Sparkles className="w-5 h-5 text-accent" /> AI Analyst
         </h1>
-        <span className="text-[10px] bg-accent/10 text-accent border border-accent/20 font-bold tracking-widest px-2.5 py-1 rounded-full uppercase">
+        <span className="text-label bg-accent/10 text-accent border border-accent/20 px-2.5 py-1 rounded-full uppercase">
           {demoMode ? 'Demo Mode' : 'AI Analyst'}
         </span>
       </div>
 
       {demoMode && (
-        <div className="bg-warning/20 border border-warning/50 text-warning px-4 py-3 rounded-xl text-xs font-black uppercase flex items-center justify-center gap-2 animate-pulse">
+        <div className="bg-warning/10 border border-warning/30 text-warning px-4 py-3 rounded-lg text-small font-semibold flex items-center justify-center gap-2">
           <AlertTriangle size={16} />
           Demo Mode — AI key not configured. SPL translation is a naive fallback, not real NL understanding. Search results below are real.
         </div>
       )}
 
       {/* Query Bar */}
-      <div className="bg-surface-2 border border-fire-border rounded-xl p-5 shadow-sm space-y-4">
-        <div className="relative bg-surface border border-fire-border rounded-xl overflow-hidden flex items-center">
-          <Sparkles className="absolute left-4 w-4 h-4 text-text-muted" />
+      <div className="card-mission space-y-4">
+        <div className="relative flex items-center">
+          <Sparkles className="absolute left-4 w-4 h-4 text-text-muted z-10" />
           <input
             type="text"
             placeholder="Ask a question about your logs..."
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            className="w-full bg-transparent pl-11 pr-32 py-3.5 text-xs text-text-primary placeholder:text-text-muted font-semibold focus:outline-none"
+            className="input-field pl-11 pr-32 py-3.5"
             onKeyDown={(e) => {
               if (e.key === 'Enter') handleGenerate(query)
             }}
@@ -165,19 +165,19 @@ export default function AiAnalystPage() {
           <button
             onClick={() => handleGenerate(query)}
             disabled={isGenerating || !query.trim()}
-            className="absolute right-3.5 bg-accent hover:bg-accent-dark disabled:opacity-40 text-white font-bold px-4 py-1.5 rounded-lg text-xs transition-colors flex items-center gap-1 focus:outline-none"
+            className="absolute right-2 btn-fire py-1.5 px-4 text-small disabled:opacity-40"
           >
             {isGenerating ? 'Searching...' : 'Generate'}
           </button>
         </div>
 
         {splResult && (
-          <div className="bg-surface border border-fire-border rounded-xl p-4 space-y-2">
+          <div className="bg-surface border border-fire-border rounded-lg p-4 space-y-2">
             <div className="flex items-center justify-between">
-              <span className="text-[9px] text-[#00F5D4] font-black uppercase tracking-wider">Translated Query</span>
+              <span className="text-label text-info uppercase">Translated Query</span>
               <Terminal className="w-3.5 h-3.5 text-text-muted" />
             </div>
-            <div className="font-mono text-[11px] text-text-secondary overflow-x-auto whitespace-pre leading-relaxed select-all">
+            <div className="font-mono text-small text-text-secondary overflow-x-auto whitespace-pre leading-relaxed select-all">
               {splResult}
             </div>
           </div>
@@ -185,7 +185,7 @@ export default function AiAnalystPage() {
       </div>
 
       {errorMsg && (
-        <div className="bg-danger/10 border border-danger/40 text-danger px-4 py-3 rounded-xl text-xs font-bold">
+        <div className="bg-danger/10 border border-danger/30 text-danger px-4 py-3 rounded-lg text-small font-semibold">
           {errorMsg}
         </div>
       )}
@@ -194,39 +194,39 @@ export default function AiAnalystPage() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
           {/* Real results table */}
-          <div className="lg:col-span-2 bg-surface-2 border border-fire-border rounded-xl p-5 shadow-sm space-y-4">
+          <div className="lg:col-span-2 card-mission space-y-4">
             <div className="flex items-center justify-between border-b border-fire-border pb-3">
-              <h3 className="text-sm font-bold text-text-primary tracking-tight uppercase">
+              <h3 className="text-h3 text-text-primary">
                 Query Results ({results.length} event{results.length === 1 ? '' : 's'})
               </h3>
             </div>
 
             {results.length === 0 ? (
-              <p className="text-xs text-text-muted py-8 text-center">No matching log events found.</p>
+              <p className="text-small text-text-muted py-8 text-center">No matching log events found.</p>
             ) : (
               <div className="overflow-x-auto max-h-[420px] overflow-y-auto">
-                <table className="w-full text-left text-xs border-collapse">
-                  <thead className="sticky top-0 bg-surface-2">
-                    <tr className="border-b border-fire-border text-text-muted font-bold uppercase tracking-wider text-[9px]">
-                      <th className="py-2.5 px-3">Time</th>
-                      <th className="py-2.5 px-3">Level</th>
-                      <th className="py-2.5 px-3">Service</th>
-                      <th className="py-2.5 px-3">Host</th>
-                      <th className="py-2.5 px-3">Message</th>
+                <table className="table-enterprise">
+                  <thead className="sticky top-0">
+                    <tr>
+                      <th>Time</th>
+                      <th>Level</th>
+                      <th>Service</th>
+                      <th>Host</th>
+                      <th>Message</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-fire-border font-mono">
+                  <tbody className="font-mono">
                     {results.slice(0, 200).map((log) => (
-                      <tr key={log.id} className="hover:bg-surface-3/40">
-                        <td className="py-2.5 px-3 text-text-muted whitespace-nowrap">
+                      <tr key={log.id}>
+                        <td className="text-text-muted whitespace-nowrap text-label">
                           {log.timestamp ? new Date(log.timestamp).toISOString().replace('T', ' ').substring(0, 19) : '—'}
                         </td>
-                        <td className={clsx('py-2.5 px-3 font-bold', log.level === 'CRITICAL' || log.level === 'ERROR' ? 'text-red-500' : 'text-text-secondary')}>
+                        <td className={clsx('font-semibold text-small', log.level === 'CRITICAL' || log.level === 'ERROR' ? 'text-danger' : 'text-text-secondary')}>
                           {log.level}
                         </td>
-                        <td className="py-2.5 px-3 text-accent">{log.service}</td>
-                        <td className="py-2.5 px-3 text-text-secondary">{log.host || '—'}</td>
-                        <td className="py-2.5 px-3 text-text-secondary max-w-[400px] truncate" title={log.message}>{log.message}</td>
+                        <td className="text-accent text-small">{log.service}</td>
+                        <td className="text-text-secondary text-small">{log.host || '—'}</td>
+                        <td className="text-text-secondary text-small max-w-[400px] truncate" title={log.message}>{log.message}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -236,25 +236,25 @@ export default function AiAnalystPage() {
           </div>
 
           {/* Real aggregates + playbook actions — no fabricated narrative */}
-          <div className="bg-surface-2 border border-fire-border rounded-xl p-5 shadow-sm flex flex-col gap-5">
+          <div className="card-mission flex flex-col gap-5">
             <div>
-              <h3 className="text-xs font-bold text-text-primary tracking-wider uppercase flex items-center gap-1.5 border-b border-fire-border pb-3 mb-4">
+              <h3 className="text-h3 text-text-primary flex items-center gap-1.5 border-b border-fire-border pb-3 mb-4">
                 <Sparkles className="w-3.5 h-3.5 text-accent" /> Result Breakdown
               </h3>
 
               {results.length === 0 ? (
-                <p className="text-[11px] text-text-muted">Nothing to summarize — no events matched.</p>
+                <p className="text-small text-text-muted">Nothing to summarize — no events matched.</p>
               ) : (
                 <div className="space-y-4">
                   <div>
-                    <span className="text-[9px] text-text-muted font-black uppercase tracking-wider block mb-2">By Level</span>
+                    <span className="text-label text-text-muted uppercase block mb-2">By Level</span>
                     <div className="space-y-1.5">
                       {levelCounts.map(([level, count]) => (
-                        <div key={level} className="flex items-center gap-2 text-[10px]">
-                          <span className="w-16 text-text-secondary font-bold">{level}</span>
+                        <div key={level} className="flex items-center gap-2 text-small">
+                          <span className="w-16 text-text-secondary font-semibold">{level}</span>
                           <div className="flex-1 bg-surface-3 rounded h-3 overflow-hidden">
                             <div
-                              className={clsx('h-full', level === 'CRITICAL' || level === 'ERROR' ? 'bg-red-500/60' : 'bg-accent/50')}
+                              className={clsx('h-full', level === 'CRITICAL' || level === 'ERROR' ? 'bg-danger/60' : 'bg-accent/50')}
                               style={{ width: `${(count / maxLevelCount) * 100}%` }}
                             />
                           </div>
@@ -265,10 +265,10 @@ export default function AiAnalystPage() {
                   </div>
 
                   <div>
-                    <span className="text-[9px] text-text-muted font-black uppercase tracking-wider block mb-2">Top Services</span>
+                    <span className="text-label text-text-muted uppercase block mb-2">Top Services</span>
                     <div className="flex flex-wrap gap-1.5">
                       {serviceCounts.map(([svc, count]) => (
-                        <span key={svc} className="text-[10px] font-mono bg-surface-3/60 border border-fire-border px-2 py-1 rounded">
+                        <span key={svc} className="text-label font-mono bg-surface-3 border border-fire-border px-2 py-1 rounded normal-case">
                           {svc} <span className="text-text-muted">×{count}</span>
                         </span>
                       ))}
@@ -277,10 +277,10 @@ export default function AiAnalystPage() {
 
                   {hostCounts.length > 0 && (
                     <div>
-                      <span className="text-[9px] text-text-muted font-black uppercase tracking-wider block mb-2">Top Hosts</span>
+                      <span className="text-label text-text-muted uppercase block mb-2">Top Hosts</span>
                       <div className="flex flex-wrap gap-1.5">
                         {hostCounts.map(([host, count]) => (
-                          <span key={host} className="text-[10px] font-mono bg-surface-3/60 border border-fire-border px-2 py-1 rounded">
+                          <span key={host} className="text-label font-mono bg-surface-3 border border-fire-border px-2 py-1 rounded normal-case">
                             {host} <span className="text-text-muted">×{count}</span>
                           </span>
                         ))}
@@ -292,9 +292,9 @@ export default function AiAnalystPage() {
             </div>
 
             <div className="border-t border-fire-border pt-4">
-              <span className="text-[9px] text-text-muted font-black uppercase tracking-wider block mb-2">Run a Playbook</span>
+              <span className="text-label text-text-muted uppercase block mb-2">Run a Playbook</span>
               {playbooks.length === 0 ? (
-                <p className="text-[11px] text-text-muted">No playbooks available.</p>
+                <p className="text-small text-text-muted">No playbooks available.</p>
               ) : (
                 <div className="space-y-1.5">
                   {playbooks.map((pb) => (
@@ -302,9 +302,9 @@ export default function AiAnalystPage() {
                       key={pb.id}
                       onClick={() => handleTriggerPlaybook(pb.id, pb.name)}
                       disabled={triggering === pb.id}
-                      className="w-full text-left text-emerald-400 hover:text-emerald-300 disabled:opacity-40 font-bold flex items-center gap-1.5 focus:outline-none text-[10px] bg-surface border border-fire-border rounded-lg px-3 py-2"
+                      className="w-full text-left text-success hover:text-success/80 disabled:opacity-40 font-semibold flex items-center gap-1.5 focus:outline-none text-small bg-surface border border-fire-border rounded-lg px-3 py-2"
                     >
-                      <Play className="w-3 h-3 fill-emerald-400 flex-shrink-0" />
+                      <Play className="w-3 h-3 fill-success flex-shrink-0" />
                       {triggering === pb.id ? 'Triggering...' : pb.name}
                     </button>
                   ))}
@@ -313,7 +313,7 @@ export default function AiAnalystPage() {
             </div>
 
             {!demoMode && (
-              <div className="flex items-center gap-1.5 text-[9px] text-text-muted font-bold uppercase tracking-wider justify-center mt-auto pt-2">
+              <div className="flex items-center gap-1.5 text-label text-text-muted uppercase justify-center mt-auto pt-2">
                 <ShieldCheck className="w-3 h-3" /> Live data — acis-log-service
               </div>
             )}

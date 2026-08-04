@@ -64,17 +64,17 @@ export default function Sidebar() {
             end={item.path === '/dashboard'}
             className={({ isActive }) =>
               clsx(
-                "group flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 text-sm font-bold tracking-tight mb-1 relative overflow-hidden",
+                "group flex items-center gap-3 px-3.5 py-2.5 rounded-lg transition-colors duration-150 text-small mb-0.5 relative overflow-hidden",
                 isActive
-                  ? "text-accent bg-accent/10 shadow-sm"
-                  : "text-text-secondary hover:text-text-primary hover:bg-surface-2"
+                  ? "text-accent bg-accent/10 font-semibold"
+                  : "text-text-secondary font-medium hover:text-text-primary hover:bg-surface-2"
               )
             }
           >
             {({ isActive }) => (
               <>
-                <item.icon className={clsx("w-5 h-5 flex-shrink-0 transition-transform group-hover:scale-110")} />
-                {!collapsed && <span className="animate-fade-in truncate uppercase text-[11px] tracking-wider">{item.label}</span>}
+                <item.icon className="w-[18px] h-[18px] flex-shrink-0" strokeWidth={isActive ? 2.25 : 2} />
+                {!collapsed && <span className="animate-fade-in truncate">{item.label}</span>}
               </>
             )}
           </NavLink>
@@ -83,17 +83,17 @@ export default function Sidebar() {
 
       {/* Footer Branding + Profile */}
       {!collapsed && (
-        <div className="border-t border-fire-border animate-fade-in bg-surface/20">
-          <div className="px-7 py-4">
+        <div className="border-t border-fire-border animate-fade-in">
+          <div className="px-5 py-3.5">
             <div className="flex items-center gap-2 mb-1">
-              <div className="w-1.5 h-1.5 rounded-full bg-success animate-pulse shadow-success-glow" />
-              <span className="text-[10px] uppercase font-bold text-success tracking-widest">System Active</span>
+              <div className="w-1.5 h-1.5 rounded-full bg-success animate-pulse" />
+              <span className="text-label uppercase text-success">System Active</span>
             </div>
-            <p className="text-[9px] font-medium text-text-muted uppercase tracking-[0.2em]">Netcradus ACIS v1.2</p>
+            <p className="text-label uppercase text-text-muted">Netcradus ACIS v1.2</p>
           </div>
 
-          <div className="flex items-center gap-3 px-4 py-3 mx-3 mb-3 rounded-xl bg-surface-2 border border-fire-border">
-            <div className="w-9 h-9 rounded-full bg-accent/10 border border-accent/30 flex items-center justify-center text-accent font-black text-xs shrink-0 overflow-hidden">
+          <div className="flex items-center gap-3 px-3.5 py-3 mx-3 mb-3 rounded-lg bg-surface-2 border border-fire-border">
+            <div className="w-8 h-8 rounded-full bg-accent/10 border border-accent/30 flex items-center justify-center text-accent font-semibold text-xs shrink-0 overflow-hidden">
               {user?.avatarUrl ? (
                 <img src={user.avatarUrl} alt="" className="w-full h-full object-cover" />
               ) : (
@@ -101,8 +101,8 @@ export default function Sidebar() {
               )}
             </div>
             <div className="min-w-0">
-              <p className="text-xs font-bold text-text-primary truncate">{user?.name || 'Security Operator'}</p>
-              <p className="text-[9px] font-bold text-text-muted uppercase tracking-widest truncate">
+              <p className="text-small font-semibold text-text-primary truncate">{user?.name || 'Security Operator'}</p>
+              <p className="text-label uppercase text-text-muted truncate">
                 {user?.roles?.[0] || 'Viewer'} • Zone_01
               </p>
             </div>

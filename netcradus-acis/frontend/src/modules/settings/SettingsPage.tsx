@@ -592,7 +592,7 @@ export default function SettingsPage() {
     if (!last4) return
     const expiry = prompt("Enter Card Expiry date (MM/YY, e.g. 08/28):", license?.cardExpiry || '08/28')
     if (!expiry) return
-    const details = prompt("Enter Billing details (e.g. Billed to CyberHaxs Pvt. Ltd.):", license?.billingDetails || '')
+    const details = prompt("Enter Billing details (e.g. Billed to " + (orgName || 'Your Organization') + "):", license?.billingDetails || (orgName ? `Billed to ${orgName}` : ''))
     if (!details) return
 
     try {
@@ -812,13 +812,13 @@ export default function SettingsPage() {
   const renderDropdown = (moduleName: string, currentLevel: string) => {
     const levels = [
       { key: 'NONE', label: 'None', className: 'text-text-muted hover:bg-surface-3' },
-      { key: 'READ', label: 'Read', className: 'text-emerald-400 hover:bg-emerald-500/10' },
-      { key: 'WRITE', label: 'Write', className: 'text-blue-400 hover:bg-blue-500/10' },
+      { key: 'READ', label: 'Read', className: 'text-success hover:bg-success/10' },
+      { key: 'WRITE', label: 'Write', className: 'text-info hover:bg-info/10' },
       { key: 'ADMIN', label: 'Admin', className: 'text-accent hover:bg-accent/10' }
     ]
 
     return (
-      <div className="absolute z-30 mt-2 w-32 right-1/2 translate-x-1/2 bg-surface-2 border border-fire-border rounded-xl shadow-xl py-1 animate-fade-in text-[10px] font-bold uppercase tracking-tight">
+      <div className="absolute z-30 mt-2 w-32 right-1/2 translate-x-1/2 bg-surface-2 border border-fire-border rounded-lg shadow-card py-1 animate-fade-in text-label uppercase">
         {levels.map((lvl) => (
           <button
             key={lvl.key}
@@ -998,19 +998,19 @@ export default function SettingsPage() {
       <aside className="w-56 border-r border-fire-border pr-4 pt-2 space-y-6 shrink-0 hidden md:block">
         
         <div className="space-y-2">
-          <span className="text-[9px] text-text-muted font-bold uppercase tracking-wider block px-3">General</span>
+          <span className="text-label text-text-muted uppercase block px-3">General</span>
           {[
             { label: 'Profile', icon: User },
             { label: 'Organization', icon: Building2 },
             { label: 'License & Billing', icon: CreditCard }
           ].map((tab, idx) => (
-            <button 
+            <button
               key={idx}
               onClick={() => handleTabClick(tab.label)}
               className={clsx(
-                "w-full text-left px-3 py-2 rounded-lg text-xs font-bold transition-colors flex items-center gap-2 focus:outline-none",
-                activeTab === tab.label 
-                  ? "text-accent bg-accent/5" 
+                "w-full text-left px-3 py-2 rounded-lg text-small font-semibold transition-colors flex items-center gap-2 focus:outline-none",
+                activeTab === tab.label
+                  ? "text-accent bg-accent/5"
                   : "text-text-muted hover:text-text-primary hover:bg-surface-3/40"
               )}
             >
@@ -1020,19 +1020,19 @@ export default function SettingsPage() {
         </div>
 
         <div className="space-y-2">
-          <span className="text-[9px] text-text-muted font-bold uppercase tracking-wider block px-3">Access Control</span>
+          <span className="text-label text-text-muted uppercase block px-3">Access Control</span>
           {[
             { label: 'Users & Groups', icon: Users },
             { label: 'Roles & Permissions', icon: Shield },
             { label: 'API Keys', icon: Key }
           ].map((tab, idx) => (
-            <button 
+            <button
               key={idx}
               onClick={() => handleTabClick(tab.label)}
               className={clsx(
-                "w-full text-left px-3 py-2 rounded-lg text-xs font-bold transition-colors flex items-center gap-2 focus:outline-none",
-                activeTab === tab.label 
-                  ? "text-accent bg-accent/5" 
+                "w-full text-left px-3 py-2 rounded-lg text-small font-semibold transition-colors flex items-center gap-2 focus:outline-none",
+                activeTab === tab.label
+                  ? "text-accent bg-accent/5"
                   : "text-text-muted hover:text-text-primary hover:bg-surface-3/40"
               )}
             >
@@ -1042,19 +1042,19 @@ export default function SettingsPage() {
         </div>
 
         <div className="space-y-2">
-          <span className="text-[9px] text-text-muted font-bold uppercase tracking-wider block px-3">Data & Integrations</span>
+          <span className="text-label text-text-muted uppercase block px-3">Data & Integrations</span>
           {[
             { label: 'Data Sources', icon: Database },
             { label: 'Integrations', icon: Layers },
             { label: 'Agent Deployment', icon: Settings }
           ].map((tab, idx) => (
-            <button 
+            <button
               key={idx}
               onClick={() => handleTabClick(tab.label)}
               className={clsx(
-                "w-full text-left px-3 py-2 rounded-lg text-xs font-bold transition-colors flex items-center gap-2 focus:outline-none",
-                activeTab === tab.label 
-                  ? "text-accent bg-accent/5" 
+                "w-full text-left px-3 py-2 rounded-lg text-small font-semibold transition-colors flex items-center gap-2 focus:outline-none",
+                activeTab === tab.label
+                  ? "text-accent bg-accent/5"
                   : "text-text-muted hover:text-text-primary hover:bg-surface-3/40"
               )}
             >
@@ -1072,62 +1072,62 @@ export default function SettingsPage() {
         <div className="border-b border-fire-border pb-4">
           {activeTab === 'Profile' && (
             <div>
-              <div className="text-[10px] text-text-muted font-bold mb-2">
+              <div className="text-small text-text-muted mb-2">
                 <span>Settings</span> <span className="text-text-muted">/</span> <span className="text-text-primary">Profile</span>
               </div>
-              <h2 className="text-xl font-bold text-text-primary tracking-tight leading-none">User Profile Settings</h2>
-              <p className="text-xs text-text-muted mt-2 font-medium">Manage your personal credentials, contact details, security preferences, and alert notifications.</p>
+              <h2 className="text-h1 text-text-primary leading-none">User Profile Settings</h2>
+              <p className="text-small text-text-muted mt-2">Manage your personal credentials, contact details, security preferences, and alert notifications.</p>
             </div>
           )}
           {activeTab === 'Organization' && (
             <div>
-              <div className="text-[10px] text-text-muted font-bold mb-2">
+              <div className="text-small text-text-muted mb-2">
                 <span>Settings</span> <span className="text-text-muted">/</span> <span className="text-text-primary">Organization</span>
               </div>
-              <h2 className="text-xl font-bold text-text-primary tracking-tight leading-none">Organization</h2>
-              <p className="text-xs text-text-muted mt-2 font-medium">Manage your organization's identity, contact details, and account-level controls.</p>
+              <h2 className="text-h1 text-text-primary leading-none">Organization</h2>
+              <p className="text-small text-text-muted mt-2">Manage your organization's identity, contact details, and account-level controls.</p>
             </div>
           )}
           {activeTab === 'License & Billing' && (
             <div>
-              <div className="text-[10px] text-text-muted font-bold mb-2">
+              <div className="text-small text-text-muted mb-2">
                 <span>Settings</span> <span className="text-text-muted">/</span> <span className="text-text-primary">License & Billing</span>
               </div>
-              <h2 className="text-xl font-bold text-text-primary tracking-tight leading-none">License & Billing</h2>
-              <p className="text-xs text-text-muted mt-2 font-medium">Track your subscription tier, usage against plan limits, and payment history.</p>
+              <h2 className="text-h1 text-text-primary leading-none">License & Billing</h2>
+              <p className="text-small text-text-muted mt-2">Track your subscription tier, usage against plan limits, and payment history.</p>
             </div>
           )}
           {activeTab === 'Users & Groups' && (
             <div>
-              <div className="text-[10px] text-text-muted font-bold mb-2">
+              <div className="text-small text-text-muted mb-2">
                 <span>Settings</span> <span className="text-text-muted">/</span> <span className="text-text-primary">Users & Groups</span>
               </div>
-              <h2 className="text-xl font-bold text-text-primary tracking-tight leading-none">Users & Groups</h2>
-              <p className="text-xs text-text-muted mt-2 font-medium">Manage who has access to the console and how they're grouped for permissions.</p>
+              <h2 className="text-h1 text-text-primary leading-none">Users & Groups</h2>
+              <p className="text-small text-text-muted mt-2">Manage who has access to the console and how they're grouped for permissions.</p>
             </div>
           )}
           {activeTab === 'Roles & Permissions' && (
             <div>
-              <div className="text-[10px] text-text-muted font-bold mb-2">
+              <div className="text-small text-text-muted mb-2">
                 <span>Settings</span> <span className="text-text-muted">/</span> <span className="text-text-primary">Roles & Permissions</span>
               </div>
-              <h2 className="text-xl font-bold text-text-primary tracking-tight leading-none">Roles & Permissions</h2>
-              <p className="text-xs text-text-muted mt-2 font-medium">Define what each role can see and do across the security console.</p>
+              <h2 className="text-h1 text-text-primary leading-none">Roles & Permissions</h2>
+              <p className="text-small text-text-muted mt-2">Define what each role can see and do across the security console.</p>
             </div>
           )}
           {activeTab === 'Data Sources' && (
             <div>
-              <div className="text-[10px] text-text-muted font-bold mb-2">
+              <div className="text-small text-text-muted mb-2">
                 <span>Settings</span> <span className="text-text-muted">/</span> <span className="text-text-primary">Data Sources</span>
               </div>
-              <h2 className="text-xl font-bold text-text-primary tracking-tight leading-none">Data Sources</h2>
-              <p className="text-xs text-text-muted mt-2 font-medium">Connect cloud and network telemetry for ingestion, correlation, and alerting.</p>
+              <h2 className="text-h1 text-text-primary leading-none">Data Sources</h2>
+              <p className="text-small text-text-muted mt-2">Connect cloud and network telemetry for ingestion, correlation, and alerting.</p>
             </div>
           )}
           {!['Profile', 'Organization', 'License & Billing', 'Users & Groups', 'Roles & Permissions', 'Data Sources'].includes(activeTab) && (
             <div>
-              <h2 className="text-lg font-bold text-text-primary tracking-tight uppercase leading-none">Access & Integrations</h2>
-              <p className="text-[10px] text-text-muted mt-1 uppercase tracking-wider">Manage API access tokens and connected third-party security tools.</p>
+              <h2 className="text-h1 text-text-primary leading-none">Access & Integrations</h2>
+              <p className="text-small text-text-muted mt-1">Manage API access tokens and connected third-party security tools.</p>
             </div>
           )}
         </div>
@@ -1136,51 +1136,51 @@ export default function SettingsPage() {
         {activeTab === 'Profile' && (
           <div className="space-y-6 animate-fade-in">
             {profileSavedSuccess && (
-              <div className="bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 p-4 rounded-xl text-xs font-bold flex items-center justify-between shadow-lg">
+              <div className="bg-success/10 border border-success/30 text-success p-4 rounded-xl text-small flex items-center justify-between shadow-sm">
                 <div className="flex items-center gap-3">
-                  <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" />
+                  <CheckCircle2 className="w-5 h-5 text-success shrink-0" />
                   <div>
-                    <p className="text-text-primary font-bold">Profile changes saved successfully</p>
-                    <p className="text-[11px] text-emerald-400/80 font-normal">Your display name, email, and preferences have been updated across your active session.</p>
+                    <p className="text-text-primary font-semibold">Profile changes saved successfully</p>
+                    <p className="text-small text-success/80">Your display name, email, and preferences have been updated across your active session.</p>
                   </div>
                 </div>
-                <button onClick={() => setProfileSavedSuccess(false)} className="text-emerald-400 hover:text-text-primary">
+                <button onClick={() => setProfileSavedSuccess(false)} className="text-success hover:text-text-primary">
                   <X className="w-4 h-4" />
                 </button>
               </div>
             )}
 
             {/* Profile Overview Badge Card */}
-            <div className="bg-surface-2 border border-fire-border rounded-xl p-6 shadow-sm space-y-6">
+            <div className="card-mission space-y-6">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-fire-border pb-6">
                 <div className="flex items-center gap-4">
-                  <div className="w-16 h-16 rounded-2xl bg-accent/10 border border-accent/30 flex items-center justify-center text-accent font-black text-2xl shadow-xl shrink-0 relative">
+                  <div className="w-16 h-16 rounded-xl bg-accent/10 border border-accent/30 flex items-center justify-center text-accent font-bold text-2xl shrink-0 relative">
                     {profileName.charAt(0).toUpperCase() || 'A'}
-                    <span className="absolute -bottom-1 -right-1 w-4 h-4 bg-emerald-500 border-2 border-surface-2 rounded-full" title="Active Single Sign-On Session" />
+                    <span className="absolute -bottom-1 -right-1 w-4 h-4 bg-success border-2 border-surface rounded-full" title="Active Single Sign-On Session" />
                   </div>
                   <div>
                     <div className="flex items-center gap-2">
-                      <h3 className="text-base font-bold text-text-primary tracking-tight">{profileName}</h3>
-                      <span className="bg-accent/10 text-accent border border-accent/20 text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-md">
+                      <h3 className="text-h3 text-text-primary">{profileName}</h3>
+                      <span className="badge-mission bg-accent/10 text-accent border-accent/20">
                         {user?.roles?.[0] || 'SUPER_ADMIN'}
                       </span>
                     </div>
-                    <p className="text-xs text-text-secondary font-medium mt-0.5">{profileEmail}</p>
-                    <p className="text-[10px] text-text-muted uppercase tracking-widest font-mono mt-1">Keycloak Subject ID: <span className="text-text-secondary">{user?.sub || 'k8s-admin-sub-001'}</span></p>
+                    <p className="text-small text-text-secondary mt-0.5">{profileEmail}</p>
+                    <p className="text-label text-text-muted uppercase font-mono mt-1">Keycloak Subject ID: <span className="text-text-secondary">{user?.sub || 'k8s-admin-sub-001'}</span></p>
                   </div>
                 </div>
 
                 <div className="flex items-center gap-3">
                   <button
                     onClick={() => keycloak.accountManagement()}
-                    className="bg-surface-3 hover:bg-surface-3 border border-fire-border text-text-secondary hover:text-text-primary font-bold px-4 py-2 rounded-xl text-xs flex items-center gap-2 transition-all"
+                    className="btn-mission py-2 px-4 text-small"
                   >
                     <ExternalLink className="w-3.5 h-3.5 text-accent" /> Manage Keycloak SSO
                   </button>
                   <button
                     onClick={handleSaveProfile}
                     disabled={profileSaving}
-                    className="bg-accent hover:bg-accent-dark disabled:bg-surface-3 text-white font-bold px-5 py-2 rounded-xl text-xs flex items-center gap-1.5 transition-all shadow-md"
+                    className="btn-fire py-2 px-5 text-small"
                   >
                     <Save className="w-3.5 h-3.5" />
                     {profileSaving ? 'Saving...' : 'Save Profile'}
@@ -1189,9 +1189,9 @@ export default function SettingsPage() {
               </div>
 
               {/* Personal Information Form */}
-              <form onSubmit={handleSaveProfile} className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-5 text-xs">
+              <form onSubmit={handleSaveProfile} className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-5">
                 <div className="space-y-1.5">
-                  <label className="text-text-secondary font-bold tracking-tight flex items-center gap-1.5">
+                  <label className="text-small text-text-secondary font-semibold flex items-center gap-1.5">
                     <User className="w-3.5 h-3.5 text-accent" /> Full Display Name
                   </label>
                   <input
@@ -1199,12 +1199,12 @@ export default function SettingsPage() {
                     required
                     value={profileName}
                     onChange={(e) => setProfileName(e.target.value)}
-                    className="w-full bg-surface-3 border border-fire-border rounded-lg px-3 py-2.5 text-text-primary placeholder:text-text-muted focus:outline-none focus:border-accent/50 transition-colors"
+                    className="input-field"
                   />
                 </div>
 
                 <div className="space-y-1.5">
-                  <label className="text-text-secondary font-bold tracking-tight flex items-center gap-1.5">
+                  <label className="text-small text-text-secondary font-semibold flex items-center gap-1.5">
                     <Mail className="w-3.5 h-3.5 text-accent" /> Email Address
                   </label>
                   <input
@@ -1212,42 +1212,42 @@ export default function SettingsPage() {
                     required
                     value={profileEmail}
                     onChange={(e) => setProfileEmail(e.target.value)}
-                    className="w-full bg-surface-3 border border-fire-border rounded-lg px-3 py-2.5 text-text-primary placeholder:text-text-muted focus:outline-none focus:border-accent/50 transition-colors"
+                    className="input-field"
                   />
                 </div>
 
                 <div className="space-y-1.5">
-                  <label className="text-text-secondary font-bold tracking-tight flex items-center gap-1.5">
+                  <label className="text-small text-text-secondary font-semibold flex items-center gap-1.5">
                     <Phone className="w-3.5 h-3.5 text-accent" /> Contact Phone / Extension
                   </label>
                   <input
                     type="text"
                     value={profilePhone}
                     onChange={(e) => setProfilePhone(e.target.value)}
-                    className="w-full bg-surface-3 border border-fire-border rounded-lg px-3 py-2.5 text-text-primary placeholder:text-text-muted focus:outline-none focus:border-accent/50 transition-colors"
+                    className="input-field"
                   />
                 </div>
 
                 <div className="space-y-1.5">
-                  <label className="text-text-secondary font-bold tracking-tight flex items-center gap-1.5">
+                  <label className="text-small text-text-secondary font-semibold flex items-center gap-1.5">
                     <Shield className="w-3.5 h-3.5 text-accent" /> Department / Unit
                   </label>
                   <input
                     type="text"
                     value={profileDepartment}
                     onChange={(e) => setProfileDepartment(e.target.value)}
-                    className="w-full bg-surface-3 border border-fire-border rounded-lg px-3 py-2.5 text-text-primary placeholder:text-text-muted focus:outline-none focus:border-accent/50 transition-colors"
+                    className="input-field"
                   />
                 </div>
 
                 <div className="space-y-1.5 md:col-span-2">
-                  <label className="text-text-secondary font-bold tracking-tight flex items-center gap-1.5">
+                  <label className="text-small text-text-secondary font-semibold flex items-center gap-1.5">
                     <Globe className="w-3.5 h-3.5 text-accent" /> Preferred Console Time Zone
                   </label>
                   <select
                     value={profileTimezone}
                     onChange={(e) => setProfileTimezone(e.target.value)}
-                    className="w-full bg-surface-3 border border-fire-border rounded-lg px-3 py-2.5 text-text-primary focus:outline-none focus:border-accent/50 transition-colors cursor-pointer"
+                    className="input-field"
                   >
                     <option value="IST (UTC +05:30)">IST (UTC +05:30) — India Standard Time</option>
                     <option value="UTC (UTC +00:00)">UTC (UTC +00:00) — Universal Coordinated Time</option>
@@ -1260,44 +1260,44 @@ export default function SettingsPage() {
             </div>
 
             {/* Security & Authentication Settings */}
-            <div className="bg-surface-2 border border-fire-border rounded-xl p-6 shadow-sm space-y-6">
+            <div className="card-mission space-y-6">
               <div className="border-b border-fire-border pb-4">
-                <h3 className="text-sm font-bold text-text-primary tracking-tight flex items-center gap-2">
-                  <ShieldCheck className="w-4 h-4 text-emerald-400" /> Security & Session Credentials
+                <h3 className="text-h3 text-text-primary flex items-center gap-2">
+                  <ShieldCheck className="w-4 h-4 text-success" /> Security & Session Credentials
                 </h3>
-                <p className="text-[10px] text-text-muted mt-1">Authentication state, multi-factor security, and active operator sessions</p>
+                <p className="text-small text-text-muted mt-1">Authentication state, multi-factor security, and active operator sessions</p>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
-                <div className="bg-surface-3 border border-fire-border/80 rounded-xl p-4 space-y-3">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="bg-surface-2 border border-fire-border/80 rounded-xl p-4 space-y-3">
                   <div className="flex items-center justify-between">
-                    <span className="font-bold text-text-primary flex items-center gap-2">
+                    <span className="font-semibold text-text-primary flex items-center gap-2">
                       <Smartphone className="w-4 h-4 text-accent" /> Multi-Factor Authentication (MFA)
                     </span>
-                    <span className="bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-[9px] font-black uppercase px-2 py-0.5 rounded-md">
-                      ENABLED
+                    <span className="badge-mission bg-success/10 text-success border-success/20">
+                      Enabled
                     </span>
                   </div>
-                  <p className="text-[11px] text-text-secondary">TOTP Authenticator app is bound to your account for identity verification on login.</p>
+                  <p className="text-small text-text-secondary">TOTP Authenticator app is bound to your account for identity verification on login.</p>
                   <button
                     onClick={() => keycloak.accountManagement()}
-                    className="text-[11px] text-accent hover:text-accent-dark font-bold flex items-center gap-1 transition-colors"
+                    className="text-small text-accent hover:text-accent-dark font-semibold flex items-center gap-1 transition-colors"
                   >
                     Configure Authenticator App <ExternalLink className="w-3 h-3" />
                   </button>
                 </div>
 
-                <div className="bg-surface-3 border border-fire-border/80 rounded-xl p-4 space-y-3">
+                <div className="bg-surface-2 border border-fire-border/80 rounded-xl p-4 space-y-3">
                   <div className="flex items-center justify-between">
-                    <span className="font-bold text-text-primary flex items-center gap-2">
+                    <span className="font-semibold text-text-primary flex items-center gap-2">
                       <Lock className="w-4 h-4 text-accent" /> Account Password
                     </span>
-                    <span className="text-[10px] text-text-muted font-mono">Last changed: 12 days ago</span>
+                    <span className="text-label text-text-muted font-mono">Last changed: 12 days ago</span>
                   </div>
-                  <p className="text-[11px] text-text-secondary">Managed via Keycloak Central Realm Identity Provider.</p>
+                  <p className="text-small text-text-secondary">Managed via Keycloak Central Realm Identity Provider.</p>
                   <button
                     onClick={() => keycloak.accountManagement()}
-                    className="bg-surface-3 hover:bg-surface-3 text-text-primary font-bold px-3 py-1.5 rounded-lg text-[11px] flex items-center gap-1.5 border border-fire-border transition-colors"
+                    className="btn-mission py-1.5 px-3 text-small"
                   >
                     <Lock className="w-3 h-3 text-accent" /> Change Password in Keycloak
                   </button>
@@ -1305,16 +1305,16 @@ export default function SettingsPage() {
               </div>
 
               {/* Active Session Info */}
-              <div className="bg-surface-3/50 border border-fire-border/50 rounded-xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 text-xs">
+              <div className="bg-surface-2/50 border border-fire-border/50 rounded-xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
-                  <p className="font-bold text-text-primary flex items-center gap-2">
-                    <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" /> Active Operator Console Session
+                  <p className="font-semibold text-text-primary flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-success animate-pulse" /> Active Operator Console Session
                   </p>
-                  <p className="text-[11px] text-text-secondary mt-0.5">Host IP: <span className="font-mono text-text-secondary">127.0.0.1</span> | Protocol: <span className="font-mono text-text-secondary">HTTPS / OpenID Connect</span></p>
+                  <p className="text-small text-text-secondary mt-0.5">Host IP: <span className="font-mono text-text-secondary">127.0.0.1</span> | Protocol: <span className="font-mono text-text-secondary">HTTPS / OpenID Connect</span></p>
                 </div>
                 <button
                   onClick={() => { clearAuth(); keycloak.logout() }}
-                  className="bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/30 px-3 py-1.5 rounded-lg font-bold text-[11px] transition-colors"
+                  className="bg-danger/10 hover:bg-danger/20 text-danger border border-danger/30 px-3 py-1.5 rounded-lg font-semibold text-small transition-colors"
                 >
                   Terminate Active Session
                 </button>
@@ -1322,19 +1322,19 @@ export default function SettingsPage() {
             </div>
 
             {/* Notifications & Console Preferences */}
-            <div className="bg-surface-2 border border-fire-border rounded-xl p-6 shadow-sm space-y-6">
+            <div className="card-mission space-y-6">
               <div className="border-b border-fire-border pb-4">
-                <h3 className="text-sm font-bold text-text-primary tracking-tight flex items-center gap-2">
+                <h3 className="text-h3 text-text-primary flex items-center gap-2">
                   <Bell className="w-4 h-4 text-accent" /> Notification & Alert Preferences
                 </h3>
-                <p className="text-[10px] text-text-muted mt-1">Customize real-time telemetry alerts, email summaries, and console sounds</p>
+                <p className="text-small text-text-muted mt-1">Customize real-time telemetry alerts, email summaries, and console sounds</p>
               </div>
 
-              <div className="space-y-4 text-xs">
+              <div className="space-y-4">
                 <div className="flex items-center justify-between py-2 border-b border-fire-border/50">
                   <div>
-                    <p className="font-bold text-text-primary">Email Digest & Instant Incident Alerts</p>
-                    <p className="text-[11px] text-text-muted">Receive instant email notifications when high-severity threats or correlation rules trigger.</p>
+                    <p className="font-semibold text-text-primary">Email Digest & Instant Incident Alerts</p>
+                    <p className="text-small text-text-muted">Receive instant email notifications when high-severity threats or correlation rules trigger.</p>
                   </div>
                   <button
                     type="button"
@@ -1350,8 +1350,8 @@ export default function SettingsPage() {
 
                 <div className="flex items-center justify-between py-2 border-b border-fire-border/50">
                   <div>
-                    <p className="font-bold text-text-primary">Console Audio Notifications</p>
-                    <p className="text-[11px] text-text-muted">Play subtle audio alert ping when critical threat alerts land in real-time stream.</p>
+                    <p className="font-semibold text-text-primary">Console Audio Notifications</p>
+                    <p className="text-small text-text-muted">Play subtle audio alert ping when critical threat alerts land in real-time stream.</p>
                   </div>
                   <button
                     type="button"
@@ -1367,8 +1367,8 @@ export default function SettingsPage() {
 
                 <div className="flex items-center justify-between py-2">
                   <div>
-                    <p className="font-bold text-text-primary">Filter Low & Informational Alerts</p>
-                    <p className="text-[11px] text-text-muted">Only notify on Medium, High, and Critical security events across the dashboard.</p>
+                    <p className="font-semibold text-text-primary">Filter Low & Informational Alerts</p>
+                    <p className="text-small text-text-muted">Only notify on Medium, High, and Critical security events across the dashboard.</p>
                   </div>
                   <button
                     type="button"
@@ -1390,59 +1390,59 @@ export default function SettingsPage() {
         {activeTab === 'Organization' && (
           <div className="space-y-6 animate-fade-in">
             {/* Organization Profile Card */}
-            <div className="bg-surface-2 border border-fire-border rounded-xl p-6 shadow-sm space-y-6">
+            <div className="card-mission space-y-6">
               <div className="flex items-center justify-between border-b border-fire-border pb-4">
                 <div>
-                  <h3 className="text-sm font-bold text-text-primary tracking-tight">Organization profile</h3>
-                  <p className="text-[10px] text-text-muted mt-1">Visible to your team across the console</p>
+                  <h3 className="text-h3 text-text-primary">Organization profile</h3>
+                  <p className="text-small text-text-muted mt-1">Visible to your team across the console</p>
                 </div>
-                <button 
+                <button
                   onClick={handleSaveOrganization}
                   disabled={orgSaving}
-                  className="bg-accent hover:bg-accent-dark disabled:bg-surface-3 disabled:text-text-muted text-white font-bold px-5 py-2 rounded-xl text-xs flex items-center gap-1 transition-all focus:outline-none"
+                  className="btn-fire py-2 px-5 text-small"
                 >
                   {orgSaving ? 'Saving...' : 'Save changes'}
                 </button>
               </div>
 
               {orgLoading ? (
-                <div className="py-12 text-center text-xs text-text-muted font-bold uppercase tracking-widest animate-pulse">
-                  Loading Profile Data...
+                <div className="py-12 text-center text-small text-text-muted animate-pulse">
+                  Loading profile data...
                 </div>
               ) : (
-                <form onSubmit={handleSaveOrganization} className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-5 text-xs">
+                <form onSubmit={handleSaveOrganization} className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-5">
                   {/* Row 1 */}
                   <div className="space-y-1.5">
-                    <label className="text-text-secondary font-bold tracking-tight block">Organization name</label>
-                    <input 
-                      type="text" 
+                    <label className="text-small text-text-secondary font-semibold block">Organization name</label>
+                    <input
+                      type="text"
                       required
                       placeholder="Organization Name"
                       value={orgName}
                       onChange={(e) => setOrgName(e.target.value)}
-                      className="w-full bg-surface-3 border border-fire-border rounded-lg px-3 py-2.5 text-text-primary placeholder:text-text-muted focus:outline-none focus:border-accent/40 transition-colors"
+                      className="input-field"
                     />
                   </div>
 
                   <div className="space-y-1.5">
-                    <label className="text-text-secondary font-bold tracking-tight block">Organization ID</label>
-                    <input 
-                      type="text" 
+                    <label className="text-small text-text-secondary font-semibold block">Organization ID</label>
+                    <input
+                      type="text"
                       readOnly
                       placeholder="Organization ID"
                       value={orgIdString}
-                      className="w-full bg-surface-3/50 border border-fire-border/80 rounded-lg px-3 py-2.5 text-text-secondary focus:outline-none cursor-not-allowed select-all"
+                      className="input-field bg-surface-2/50 text-text-secondary cursor-not-allowed select-all"
                     />
                   </div>
 
                   {/* Row 2 */}
                   <div className="space-y-1.5">
-                    <label className="text-text-secondary font-bold tracking-tight block">Industry</label>
+                    <label className="text-small text-text-secondary font-semibold block">Industry</label>
                     <div className="relative">
-                      <select 
+                      <select
                         value={orgIndustry}
                         onChange={(e) => setOrgIndustry(e.target.value)}
-                        className="w-full bg-surface-3 border border-fire-border rounded-lg px-3 py-2.5 text-text-primary focus:outline-none focus:border-accent/40 transition-colors cursor-pointer"
+                        className="input-field"
                       >
                         <option value="Managed Security Services">Managed Security Services</option>
                         <option value="Financial Services">Financial Services</option>
@@ -1455,12 +1455,12 @@ export default function SettingsPage() {
                   </div>
 
                   <div className="space-y-1.5">
-                    <label className="text-text-secondary font-bold tracking-tight block">Primary region</label>
+                    <label className="text-small text-text-secondary font-semibold block">Primary region</label>
                     <div className="relative">
-                      <select 
+                      <select
                         value={orgRegion}
                         onChange={(e) => setOrgRegion(e.target.value)}
-                        className="w-full bg-surface-3 border border-fire-border rounded-lg px-3 py-2.5 text-text-primary focus:outline-none focus:border-accent/40 transition-colors cursor-pointer"
+                        className="input-field"
                       >
                         <option value="Asia Pacific (Ghaziabad, IN)">Asia Pacific (Ghaziabad, IN)</option>
                         <option value="US East (N. Virginia)">US East (N. Virginia)</option>
@@ -1474,24 +1474,24 @@ export default function SettingsPage() {
 
                   {/* Row 3 */}
                   <div className="space-y-1.5">
-                    <label className="text-text-secondary font-bold tracking-tight block">Support email</label>
-                    <input 
-                      type="email" 
+                    <label className="text-small text-text-secondary font-semibold block">Support email</label>
+                    <input
+                      type="email"
                       required
                       placeholder="support@organization.com"
                       value={orgEmail}
                       onChange={(e) => setOrgEmail(e.target.value)}
-                      className="w-full bg-surface-3 border border-fire-border rounded-lg px-3 py-2.5 text-text-primary placeholder:text-text-muted focus:outline-none focus:border-accent/40 transition-colors"
+                      className="input-field"
                     />
                   </div>
 
                   <div className="space-y-1.5">
-                    <label className="text-text-secondary font-bold tracking-tight block">Time zone</label>
+                    <label className="text-small text-text-secondary font-semibold block">Time zone</label>
                     <div className="relative">
-                      <select 
+                      <select
                         value={orgTimeZone}
                         onChange={(e) => setOrgTimeZone(e.target.value)}
-                        className="w-full bg-surface-3 border border-fire-border rounded-lg px-3 py-2.5 text-text-primary focus:outline-none focus:border-accent/40 transition-colors cursor-pointer"
+                        className="input-field"
                       >
                         <option value="IST (UTC +5:30)">IST (UTC +5:30)</option>
                         <option value="UTC (Coordinated Universal Time)">UTC (Coordinated Universal Time)</option>
@@ -1507,22 +1507,22 @@ export default function SettingsPage() {
             </div>
 
             {/* Danger Zone Card */}
-            <div className="bg-surface-2 border border-fire-border rounded-xl p-6 shadow-sm space-y-6">
+            <div className="card-mission space-y-6">
               <div className="border-b border-fire-border pb-3">
-                <h3 className="text-sm font-bold text-text-primary tracking-tight">Danger zone</h3>
-                <p className="text-[10px] text-text-muted mt-1">Irreversible and destructive actions</p>
+                <h3 className="text-h3 text-text-primary">Danger zone</h3>
+                <p className="text-small text-text-muted mt-1">Irreversible and destructive actions</p>
               </div>
 
               <div className="space-y-4 divide-y divide-fire-border/60">
                 {/* Transfer Ownership Row */}
                 <div className="flex items-center justify-between py-2">
                   <div className="space-y-0.5 pr-4">
-                    <h4 className="text-xs font-bold text-text-primary">Transfer ownership</h4>
-                    <p className="text-[10px] text-text-muted font-semibold">Move this organization to another administrator</p>
+                    <h4 className="text-small font-semibold text-text-primary">Transfer ownership</h4>
+                    <p className="text-small text-text-muted">Move this organization to another administrator</p>
                   </div>
-                  <button 
+                  <button
                     onClick={handleTransferOwnership}
-                    className="border border-fire-border hover:bg-surface-3 text-text-secondary hover:text-text-primary font-bold px-4 py-2 rounded-xl text-[11px] transition-colors focus:outline-none"
+                    className="btn-mission py-2 px-4 text-small"
                   >
                     Transfer
                   </button>
@@ -1531,12 +1531,12 @@ export default function SettingsPage() {
                 {/* Delete Organization Row */}
                 <div className="flex items-center justify-between pt-4 pb-2">
                   <div className="space-y-0.5 pr-4">
-                    <h4 className="text-xs font-bold text-text-primary">Delete organization</h4>
-                    <p className="text-[10px] text-text-muted font-semibold">Permanently remove all data, agents, and integrations</p>
+                    <h4 className="text-small font-semibold text-text-primary">Delete organization</h4>
+                    <p className="text-small text-text-muted">Permanently remove all data, agents, and integrations</p>
                   </div>
-                  <button 
+                  <button
                     onClick={handleDeleteOrganization}
-                    className="bg-danger/10 hover:bg-danger border border-danger/20 hover:border-transparent text-danger hover:text-text-primary font-bold px-4 py-2 rounded-xl text-[11px] transition-colors focus:outline-none"
+                    className="bg-danger/10 hover:bg-danger border border-danger/20 hover:border-transparent text-danger hover:text-white font-semibold px-4 py-2 rounded-lg text-small transition-colors focus:outline-none"
                   >
                     Delete
                   </button>
@@ -1550,26 +1550,26 @@ export default function SettingsPage() {
         {activeTab === 'License & Billing' && (
           <div className="space-y-6 animate-fade-in">
             {licenseLoading ? (
-              <div className="py-12 text-center text-xs text-text-muted font-bold uppercase tracking-widest animate-pulse">
-                Loading Subscription Details...
+              <div className="py-12 text-center text-small text-text-muted animate-pulse">
+                Loading subscription details...
               </div>
             ) : (
               <>
                 {/* Current Plan Card */}
-                <div className="bg-surface-2 border border-fire-border/80 rounded-xl p-6 shadow-sm flex flex-col md:flex-row justify-between items-start md:items-center gap-6 relative overflow-hidden">
+                <div className="card-mission flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
                   <div className="space-y-2">
-                    <span className="text-[10px] text-accent font-extrabold uppercase tracking-wider block">Current Plan</span>
-                    <h3 className="text-lg font-extrabold text-text-primary tracking-tight">{license?.planName || 'Enterprise Shield'}</h3>
-                    <p className="text-[11px] text-text-muted font-semibold">{license?.planFeatures || 'Unlimited endpoints · 24/7 SOC support · Renews 14 Aug 2026'}</p>
+                    <span className="text-label text-accent uppercase block">Current Plan</span>
+                    <h3 className="text-h2 text-text-primary">{license?.planName || 'Enterprise Shield'}</h3>
+                    <p className="text-small text-text-muted">{license?.planFeatures || 'Unlimited endpoints · 24/7 SOC support · Renews 14 Aug 2026'}</p>
                   </div>
                   <div className="flex flex-col items-end gap-2.5 self-stretch md:self-auto border-t md:border-t-0 border-fire-border pt-4 md:pt-0">
-                    <div className="text-xl md:text-2xl font-extrabold text-text-primary tracking-tight">
-                      {license?.planPrice || '₹1,84,999'}<span className="text-[11px] text-text-muted font-bold lowercase tracking-normal">/mo</span>
+                    <div className="text-h1 text-text-primary">
+                      {license?.planPrice || '₹1,84,999'}<span className="text-small text-text-muted lowercase">/mo</span>
                     </div>
-                    <button 
+                    <button
                       onClick={handleChangePlan}
                       disabled={licenseChanging}
-                      className="bg-surface-3 hover:brightness-110 border border-fire-border hover:border-accent/30 text-text-primary font-bold px-4 py-2 rounded-xl text-xs transition-colors focus:outline-none"
+                      className="btn-mission py-2 px-4 text-small"
                     >
                       {licenseChanging ? 'Changing...' : 'Change plan'}
                     </button>
@@ -1578,44 +1578,44 @@ export default function SettingsPage() {
 
                 {/* Usage Metrics Grid */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  
+
                   {/* Endpoints Monitored */}
-                  <div className="bg-surface-2 border border-fire-border rounded-xl p-5 shadow-sm space-y-4">
-                    <div className="text-[10px] text-text-muted font-bold uppercase tracking-wider">Endpoints monitored</div>
-                    <div className="text-lg font-extrabold text-text-primary">
-                      {license?.endpointsMonitored || 642} <span className="text-text-muted text-xs font-semibold">/ {license?.endpointsLimit || 1000}</span>
+                  <div className="card-mission p-5 space-y-4">
+                    <div className="text-label text-text-muted uppercase">Endpoints monitored</div>
+                    <div className="text-h2 text-text-primary">
+                      {license?.endpointsMonitored || 642} <span className="text-text-muted text-small">/ {license?.endpointsLimit || 1000}</span>
                     </div>
                     <div className="w-full bg-surface-3 h-1.5 rounded-full overflow-hidden">
-                      <div 
-                        className="bg-accent h-full rounded-full transition-all duration-500" 
+                      <div
+                        className="bg-accent h-full rounded-full transition-all duration-500"
                         style={{ width: `${((license?.endpointsMonitored || 642) / (license?.endpointsLimit || 1000)) * 100}%` }}
                       />
                     </div>
                   </div>
 
                   {/* Data Ingestion */}
-                  <div className="bg-surface-2 border border-fire-border rounded-xl p-5 shadow-sm space-y-4">
-                    <div className="text-[10px] text-text-muted font-bold uppercase tracking-wider">Data ingestion</div>
-                    <div className="text-lg font-extrabold text-text-primary">
-                      {license?.dataIngestion || 1.8} <span className="text-text-muted text-xs font-semibold">TB / day of {license?.dataIngestionLimit || 2.5} TB</span>
+                  <div className="card-mission p-5 space-y-4">
+                    <div className="text-label text-text-muted uppercase">Data ingestion</div>
+                    <div className="text-h2 text-text-primary">
+                      {license?.dataIngestion || 1.8} <span className="text-text-muted text-small">TB / day of {license?.dataIngestionLimit || 2.5} TB</span>
                     </div>
                     <div className="w-full bg-surface-3 h-1.5 rounded-full overflow-hidden">
-                      <div 
-                        className="bg-accent h-full rounded-full transition-all duration-500" 
+                      <div
+                        className="bg-accent h-full rounded-full transition-all duration-500"
                         style={{ width: `${((license?.dataIngestion || 1.8) / (license?.dataIngestionLimit || 2.5)) * 100}%` }}
                       />
                     </div>
                   </div>
 
                   {/* API Calls */}
-                  <div className="bg-surface-2 border border-fire-border rounded-xl p-5 shadow-sm space-y-4">
-                    <div className="text-[10px] text-text-muted font-bold uppercase tracking-wider">API calls this month</div>
-                    <div className="text-lg font-extrabold text-text-primary">
-                      {formatNumberWithK(license?.apiCalls || 402000)} <span className="text-text-muted text-xs font-semibold">/ {formatNumberWithK(license?.apiCallsLimit || 1000000)}</span>
+                  <div className="card-mission p-5 space-y-4">
+                    <div className="text-label text-text-muted uppercase">API calls this month</div>
+                    <div className="text-h2 text-text-primary">
+                      {formatNumberWithK(license?.apiCalls || 402000)} <span className="text-text-muted text-small">/ {formatNumberWithK(license?.apiCallsLimit || 1000000)}</span>
                     </div>
                     <div className="w-full bg-surface-3 h-1.5 rounded-full overflow-hidden">
-                      <div 
-                        className="bg-accent h-full rounded-full transition-all duration-500" 
+                      <div
+                        className="bg-accent h-full rounded-full transition-all duration-500"
                         style={{ width: `${((license?.apiCalls || 402000) / (license?.apiCallsLimit || 1000000)) * 100}%` }}
                       />
                     </div>
@@ -1624,47 +1624,47 @@ export default function SettingsPage() {
                 </div>
 
                 {/* Billing History Table */}
-                <div className="bg-surface-2 border border-fire-border rounded-xl p-6 shadow-sm space-y-5">
+                <div className="card-mission space-y-5">
                   <div className="flex items-center justify-between border-b border-fire-border pb-4">
                     <div>
-                      <h3 className="text-sm font-bold text-text-primary tracking-tight">Billing history</h3>
-                      <p className="text-[10px] text-text-muted mt-1 font-semibold">Invoices for the last 6 months</p>
+                      <h3 className="text-h3 text-text-primary">Billing history</h3>
+                      <p className="text-small text-text-muted mt-1">Invoices for the last 6 months</p>
                     </div>
-                    <button 
+                    <button
                       onClick={handleDownloadAllInvoices}
-                      className="bg-surface-3 hover:brightness-110 border border-fire-border hover:border-accent/30 text-text-primary font-bold px-3 py-1.5 rounded-xl text-xs transition-colors focus:outline-none"
+                      className="btn-mission py-1.5 px-3 text-small"
                     >
                       Download all
                     </button>
                   </div>
 
                   <div className="overflow-x-auto">
-                    <table className="w-full text-[11px] text-left border-collapse">
+                    <table className="table-enterprise">
                       <thead>
-                        <tr className="text-text-muted font-bold border-b border-fire-border/60 pb-2">
-                          <th className="py-2.5 font-bold uppercase tracking-wider">Invoice</th>
-                          <th className="py-2.5 font-bold uppercase tracking-wider">Date</th>
-                          <th className="py-2.5 font-bold uppercase tracking-wider">Amount</th>
-                          <th className="py-2.5 font-bold uppercase tracking-wider">Status</th>
-                          <th className="py-2.5 text-right font-bold uppercase tracking-wider">Action</th>
+                        <tr>
+                          <th>Invoice</th>
+                          <th>Date</th>
+                          <th>Amount</th>
+                          <th>Status</th>
+                          <th className="text-right">Action</th>
                         </tr>
                       </thead>
-                      <tbody className="divide-y divide-fire-border/40">
+                      <tbody>
                         {invoices.map((inv) => (
-                          <tr key={inv.id} className="text-text-secondary font-semibold border-b border-fire-border/20">
-                            <td className="py-3.5 font-bold text-text-primary">{inv.invoiceNumber}</td>
-                            <td className="py-3.5 text-text-secondary">{inv.date}</td>
-                            <td className="py-3.5 text-text-primary">{inv.amount}</td>
-                            <td className="py-3.5">
-                              <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-success/10 text-success text-[10px] font-bold">
+                          <tr key={inv.id}>
+                            <td className="font-semibold text-text-primary">{inv.invoiceNumber}</td>
+                            <td>{inv.date}</td>
+                            <td>{inv.amount}</td>
+                            <td>
+                              <span className="badge-mission bg-success/10 text-success border-success/20">
                                 <span className="w-1.5 h-1.5 rounded-full bg-success" />
                                 {inv.status}
                               </span>
                             </td>
-                            <td className="py-3.5 text-right">
-                              <button 
+                            <td className="text-right">
+                              <button
                                 onClick={() => handleDownloadInvoice(inv.id, inv.invoiceNumber)}
-                                className="bg-surface-3 hover:brightness-110 border border-fire-border hover:border-accent/30 text-text-secondary hover:text-text-primary font-bold px-3 py-1 rounded-lg transition-colors focus:outline-none"
+                                className="btn-ghost py-1 px-3 text-small"
                               >
                                 Download
                               </button>
@@ -1677,30 +1677,30 @@ export default function SettingsPage() {
                 </div>
 
                 {/* Payment Method Card */}
-                <div className="bg-surface-2 border border-fire-border rounded-xl p-6 shadow-sm space-y-4">
+                <div className="card-mission space-y-4">
                   <div className="flex items-center justify-between border-b border-fire-border pb-4">
                     <div>
-                      <h3 className="text-sm font-bold text-text-primary tracking-tight">Payment method</h3>
-                      <p className="text-[10px] text-text-muted mt-1 font-semibold">Used for monthly renewal</p>
+                      <h3 className="text-h3 text-text-primary">Payment method</h3>
+                      <p className="text-small text-text-muted mt-1">Used for monthly renewal</p>
                     </div>
-                    <button 
+                    <button
                       onClick={handleUpdatePayment}
-                      className="bg-surface-3 hover:brightness-110 border border-fire-border hover:border-accent/30 text-text-primary font-bold px-4 py-2 rounded-xl text-xs transition-colors focus:outline-none"
+                      className="btn-mission py-2 px-4 text-small"
                     >
                       Update
                     </button>
                   </div>
 
-                  <div className="bg-surface-3 border border-fire-border rounded-xl p-4 flex items-center gap-4">
-                    <div className="bg-surface-3 px-3 py-1.5 rounded-lg border border-fire-border text-[11px] font-extrabold text-accent tracking-widest">
+                  <div className="bg-surface-2 border border-fire-border rounded-xl p-4 flex items-center gap-4">
+                    <div className="bg-surface-3 px-3 py-1.5 rounded-lg border border-fire-border text-small font-bold text-accent">
                       {license?.cardBrand || 'VISA'}
                     </div>
                     <div className="flex-1 space-y-1">
-                      <div className="text-xs text-text-primary font-bold tracking-wider">
+                      <div className="text-small text-text-primary font-semibold">
                         •••• •••• •••• {license?.cardLast4 || '4471'}
                       </div>
-                      <div className="text-[10px] text-text-muted font-semibold">
-                        Expires {license?.cardExpiry || '08/28'} &middot; {license?.billingDetails || 'Billed to CyberHaxs Pvt. Ltd.'}
+                      <div className="text-label text-text-muted">
+                        Expires {license?.cardExpiry || '08/28'} &middot; {license?.billingDetails || (orgName ? `Billed to ${orgName}` : 'Billing details not set')}
                       </div>
                     </div>
                   </div>
@@ -1714,72 +1714,72 @@ export default function SettingsPage() {
         {activeTab === 'Users & Groups' && (
           <div className="space-y-6 animate-fade-in">
             {usersLoading ? (
-              <div className="py-12 text-center text-xs text-text-muted font-bold uppercase tracking-widest animate-pulse">
-                Loading Members & Groups...
+              <div className="py-12 text-center text-small text-text-muted animate-pulse">
+                Loading members & groups...
               </div>
             ) : (
               <>
                 {/* Members Table Card */}
-                <div className="bg-surface-2 border border-fire-border rounded-xl p-6 shadow-sm space-y-5">
+                <div className="card-mission space-y-5">
                   <div className="flex items-center justify-between border-b border-fire-border pb-4">
                     <div>
-                      <h3 className="text-sm font-bold text-text-primary tracking-tight">Members</h3>
-                      <p className="text-[10px] text-text-muted mt-1 font-semibold">
+                      <h3 className="text-h3 text-text-primary">Members</h3>
+                      <p className="text-small text-text-muted mt-1">
                         {users.filter(u => u.status === 'Active').length} active &middot; {users.filter(u => u.status === 'Invited').length} invited
                       </p>
                     </div>
-                    <button 
+                    <button
                       onClick={() => setInviteModalOpen(true)}
-                      className="bg-accent hover:bg-accent-dark text-white font-bold px-4 py-2 rounded-xl text-xs flex items-center gap-1 transition-colors focus:outline-none"
+                      className="btn-fire py-2 px-4 text-small"
                     >
                       <Plus className="w-3.5 h-3.5" /> Invite user
                     </button>
                   </div>
 
                   <div className="overflow-x-auto">
-                    <table className="w-full text-[11px] text-left border-collapse">
+                    <table className="table-enterprise">
                       <thead>
-                        <tr className="text-text-muted font-bold border-b border-fire-border/60 pb-2">
-                          <th className="py-2.5 font-bold uppercase tracking-wider">Name</th>
-                          <th className="py-2.5 font-bold uppercase tracking-wider">Email</th>
-                          <th className="py-2.5 font-bold uppercase tracking-wider">Group</th>
-                          <th className="py-2.5 font-bold uppercase tracking-wider">Status</th>
-                          <th className="py-2.5 font-bold uppercase tracking-wider">Last Login</th>
-                          <th className="py-2.5 text-right font-bold uppercase tracking-wider">Action</th>
+                        <tr>
+                          <th>Name</th>
+                          <th>Email</th>
+                          <th>Group</th>
+                          <th>Status</th>
+                          <th>Last Login</th>
+                          <th className="text-right">Action</th>
                         </tr>
                       </thead>
-                      <tbody className="divide-y divide-fire-border/40">
+                      <tbody>
                         {users.map((user) => (
-                          <tr key={user.id} className="text-text-secondary font-semibold border-b border-fire-border/20">
-                            <td className="py-3.5 font-bold text-text-primary">{user.name}</td>
-                            <td className="py-3.5 text-text-muted">{user.email}</td>
-                            <td className="py-3.5 text-text-secondary">{user.groupName}</td>
-                            <td className="py-3.5">
+                          <tr key={user.id}>
+                            <td className="font-semibold text-text-primary">{user.name}</td>
+                            <td className="text-text-muted">{user.email}</td>
+                            <td>{user.groupName}</td>
+                            <td>
                               {user.status === 'Active' ? (
-                                <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-success/10 text-success text-[10px] font-bold">
+                                <span className="badge-mission bg-success/10 text-success border-success/20">
                                   <span className="w-1.5 h-1.5 rounded-full bg-success" />
                                   Active
                                 </span>
                               ) : (
-                                <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-warning/10 text-warning text-[10px] font-bold">
+                                <span className="badge-mission bg-warning/10 text-warning border-warning/20">
                                   <span className="w-1.5 h-1.5 rounded-full bg-warning" />
                                   Invited
                                 </span>
                               )}
                             </td>
-                            <td className="py-3.5 text-text-muted">{user.lastLogin}</td>
-                            <td className="py-3.5 text-right">
+                            <td className="text-text-muted">{user.lastLogin}</td>
+                            <td className="text-right">
                               {user.status === 'Active' ? (
-                                <button 
+                                <button
                                   onClick={() => handleDeleteUser(user.id, user.name)}
-                                  className="bg-surface-3 hover:bg-danger/10 border border-fire-border hover:border-danger/20 text-text-secondary hover:text-danger font-bold px-3 py-1.5 rounded-lg transition-colors focus:outline-none"
+                                  className="bg-surface-3 hover:bg-danger/10 border border-fire-border hover:border-danger/20 text-text-secondary hover:text-danger font-semibold px-3 py-1.5 rounded-lg text-small transition-colors focus:outline-none"
                                 >
                                   Manage
                                 </button>
                               ) : (
-                                <button 
+                                <button
                                   onClick={() => handleResendInvite(user.id, user.name)}
-                                  className="bg-surface-3 hover:bg-surface-3 border border-fire-border hover:border-accent/30 text-text-secondary hover:text-text-primary font-bold px-3 py-1.5 rounded-lg transition-colors focus:outline-none"
+                                  className="btn-mission py-1.5 px-3 text-small"
                                 >
                                   Resend
                                 </button>
@@ -1793,15 +1793,15 @@ export default function SettingsPage() {
                 </div>
 
                 {/* Groups Card */}
-                <div className="bg-surface-2 border border-fire-border rounded-xl p-6 shadow-sm space-y-5">
+                <div className="card-mission space-y-5">
                   <div className="flex items-center justify-between border-b border-fire-border pb-4">
                     <div>
-                      <h3 className="text-sm font-bold text-text-primary tracking-tight">Groups</h3>
-                      <p className="text-[10px] text-text-muted mt-1 font-semibold">Bundle users to apply permissions in bulk</p>
+                      <h3 className="text-h3 text-text-primary">Groups</h3>
+                      <p className="text-small text-text-muted mt-1">Bundle users to apply permissions in bulk</p>
                     </div>
-                    <button 
+                    <button
                       onClick={() => setGroupModalOpen(true)}
-                      className="bg-surface-3 hover:brightness-110 border border-fire-border hover:border-accent/30 text-text-primary font-bold px-3 py-1.5 rounded-xl text-xs transition-colors focus:outline-none"
+                      className="btn-mission py-1.5 px-3 text-small"
                     >
                       New group
                     </button>
@@ -1810,21 +1810,21 @@ export default function SettingsPage() {
                   {/* Groups Cards Grid */}
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                     {groups.map((group) => (
-                      <div key={group.id} className="bg-surface-3 border border-fire-border rounded-xl p-5 shadow-sm space-y-4 hover:border-accent/30 transition-colors flex flex-col justify-between">
+                      <div key={group.id} className="bg-surface-2 border border-fire-border rounded-xl p-5 shadow-sm space-y-4 hover:border-accent/30 transition-colors flex flex-col justify-between">
                         <div className="space-y-3">
                           {/* Badge Initials Block */}
                           <div className={clsx(
-                            "w-8 h-8 rounded-lg flex items-center justify-center text-xs font-extrabold select-none",
+                            "w-8 h-8 rounded-lg flex items-center justify-center text-small font-bold select-none",
                             group.badgeInitials === 'SA' ? "bg-accent/10 text-accent" :
-                            group.badgeInitials === 'IR' ? "bg-blue-500/10 text-blue-400" :
+                            group.badgeInitials === 'IR' ? "bg-info/10 text-info" :
                             "bg-text-muted/10 text-text-secondary"
                           )}>
                             {group.badgeInitials}
                           </div>
-                          <h4 className="text-xs font-extrabold text-text-primary">{group.name}</h4>
-                          <p className="text-[10px] text-text-muted leading-relaxed font-semibold">{group.description}</p>
+                          <h4 className="text-small font-bold text-text-primary">{group.name}</h4>
+                          <p className="text-small text-text-muted leading-relaxed">{group.description}</p>
                         </div>
-                        <div className="text-[10px] text-text-muted font-bold uppercase tracking-wider pt-2">
+                        <div className="text-label text-text-muted uppercase pt-2">
                           {group.memberCount} members
                         </div>
                       </div>
@@ -1838,43 +1838,43 @@ export default function SettingsPage() {
 
         {/* Invite User Modal Overlay */}
         {inviteModalOpen && (
-          <div className="fixed inset-0 bg-background/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-            <div className="bg-surface-2 border border-fire-border rounded-2xl w-full max-w-sm p-5 space-y-4 shadow-xl animate-fade-in">
-              <div className="flex items-center justify-between border-b border-fire-border pb-2.5">
-                <h3 className="text-xs font-extrabold text-text-primary uppercase tracking-wider">Invite user</h3>
+          <div className="fixed inset-0 bg-background/85 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <div className="bg-surface border border-fire-border rounded-xl w-full max-w-sm overflow-hidden shadow-card animate-scale-in">
+              <div className="flex items-center justify-between p-5 border-b border-fire-border">
+                <h3 className="text-h3 text-text-primary">Invite user</h3>
                 <button onClick={() => setInviteModalOpen(false)} className="text-text-muted hover:text-text-primary transition-colors">
                   <X className="w-4 h-4" />
                 </button>
               </div>
-              <form onSubmit={handleInviteUser} className="space-y-4 text-[11px]">
+              <form onSubmit={handleInviteUser} className="p-5 space-y-4">
                 <div className="space-y-1.5">
-                  <label className="text-text-secondary font-bold block">Full Name</label>
-                  <input 
-                    type="text" 
+                  <label className="text-small text-text-secondary font-semibold block">Full Name</label>
+                  <input
+                    type="text"
                     required
                     placeholder="Enter Name"
                     value={inviteName}
                     onChange={(e) => setInviteName(e.target.value)}
-                    className="w-full bg-surface-3 border border-fire-border rounded-lg px-3 py-2 text-text-primary placeholder:text-text-muted focus:outline-none focus:border-accent/40 transition-colors"
+                    className="input-field"
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-text-secondary font-bold block">Email Address</label>
-                  <input 
-                    type="email" 
+                  <label className="text-small text-text-secondary font-semibold block">Email Address</label>
+                  <input
+                    type="email"
                     required
-                    placeholder="user@cyberhaxs.com"
+                    placeholder="you@company.com"
                     value={inviteEmail}
                     onChange={(e) => setInviteEmail(e.target.value)}
-                    className="w-full bg-surface-3 border border-fire-border rounded-lg px-3 py-2 text-text-primary placeholder:text-text-muted focus:outline-none focus:border-accent/40 transition-colors"
+                    className="input-field"
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-text-secondary font-bold block">Assign Group</label>
-                  <select 
+                  <label className="text-small text-text-secondary font-semibold block">Assign Group</label>
+                  <select
                     value={inviteGroup}
                     onChange={(e) => setInviteGroup(e.target.value)}
-                    className="w-full bg-surface-3 border border-fire-border rounded-lg px-3 py-2 text-text-primary focus:outline-none focus:border-accent/40 cursor-pointer"
+                    className="input-field"
                   >
                     <option value="Admins">Admins</option>
                     <option value="SOC Analysts">SOC Analysts</option>
@@ -1883,16 +1883,16 @@ export default function SettingsPage() {
                   </select>
                 </div>
                 <div className="flex justify-end gap-2 pt-2">
-                  <button 
-                    type="button" 
+                  <button
+                    type="button"
                     onClick={() => setInviteModalOpen(false)}
-                    className="border border-fire-border hover:bg-surface-3 text-text-secondary font-bold px-4 py-2 rounded-xl text-xs transition-colors"
+                    className="btn-mission py-2 px-4 text-small"
                   >
                     Cancel
                   </button>
-                  <button 
+                  <button
                     type="submit"
-                    className="bg-accent hover:bg-accent-dark text-white font-bold px-4 py-2 rounded-xl text-xs transition-colors"
+                    className="btn-fire py-2 px-4 text-small"
                   >
                     Send Invitation
                   </button>
@@ -1904,48 +1904,48 @@ export default function SettingsPage() {
 
         {/* Create Group Modal Overlay */}
         {groupModalOpen && (
-          <div className="fixed inset-0 bg-background/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-            <div className="bg-surface-2 border border-fire-border rounded-2xl w-full max-w-sm p-5 space-y-4 shadow-xl animate-fade-in">
-              <div className="flex items-center justify-between border-b border-fire-border pb-2.5">
-                <h3 className="text-xs font-extrabold text-text-primary uppercase tracking-wider">New group</h3>
+          <div className="fixed inset-0 bg-background/85 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <div className="bg-surface border border-fire-border rounded-xl w-full max-w-sm overflow-hidden shadow-card animate-scale-in">
+              <div className="flex items-center justify-between p-5 border-b border-fire-border">
+                <h3 className="text-h3 text-text-primary">New group</h3>
                 <button onClick={() => setGroupModalOpen(false)} className="text-text-muted hover:text-text-primary transition-colors">
                   <X className="w-4 h-4" />
                 </button>
               </div>
-              <form onSubmit={handleCreateGroup} className="space-y-4 text-[11px]">
+              <form onSubmit={handleCreateGroup} className="p-5 space-y-4">
                 <div className="space-y-1.5">
-                  <label className="text-text-secondary font-bold block">Group Name</label>
-                  <input 
-                    type="text" 
+                  <label className="text-small text-text-secondary font-semibold block">Group Name</label>
+                  <input
+                    type="text"
                     required
                     placeholder="e.g. Incident Responders"
                     value={groupName}
                     onChange={(e) => setGroupName(e.target.value)}
-                    className="w-full bg-surface-3 border border-fire-border rounded-lg px-3 py-2 text-text-primary placeholder:text-text-muted focus:outline-none focus:border-accent/40 transition-colors"
+                    className="input-field"
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-text-secondary font-bold block">Description</label>
-                  <textarea 
+                  <label className="text-small text-text-secondary font-semibold block">Description</label>
+                  <textarea
                     required
                     placeholder="Explain group purpose..."
                     value={groupDesc}
                     onChange={(e) => setGroupDesc(e.target.value)}
                     rows={3}
-                    className="w-full bg-surface-3 border border-fire-border rounded-lg px-3 py-2 text-text-primary placeholder:text-text-muted focus:outline-none focus:border-accent/40 transition-colors resize-none"
+                    className="input-field resize-none"
                   />
                 </div>
                 <div className="flex justify-end gap-2 pt-2">
-                  <button 
-                    type="button" 
+                  <button
+                    type="button"
                     onClick={() => setGroupModalOpen(false)}
-                    className="border border-fire-border hover:bg-surface-3 text-text-secondary font-bold px-4 py-2 rounded-xl text-xs transition-colors"
+                    className="btn-mission py-2 px-4 text-small"
                   >
                     Cancel
                   </button>
-                  <button 
+                  <button
                     type="submit"
-                    className="bg-accent hover:bg-accent-dark text-white font-bold px-4 py-2 rounded-xl text-xs transition-colors"
+                    className="btn-fire py-2 px-4 text-small"
                   >
                     Create Group
                   </button>
@@ -1957,10 +1957,10 @@ export default function SettingsPage() {
 
         {/* Tab 0.7: Roles & Permissions Panel */}
         {activeTab === 'Roles & Permissions' && (
-          <div className="space-y-6 animate-fade-in text-xs font-sans">
+          <div className="space-y-6 animate-fade-in">
             {rolesLoading ? (
-              <div className="py-12 text-center text-xs text-text-muted font-bold uppercase tracking-widest animate-pulse">
-                Loading Roles & Permissions...
+              <div className="py-12 text-center text-small text-text-muted animate-pulse">
+                Loading roles & permissions...
               </div>
             ) : (
               <>
@@ -1974,15 +1974,15 @@ export default function SettingsPage() {
                         type="button"
                         onClick={() => handleSelectRole(role)}
                         className={clsx(
-                          "px-4 py-2.5 rounded-xl text-xs font-bold transition-all focus:outline-none flex items-center gap-1.5",
+                          "px-4 py-2.5 rounded-lg text-small font-semibold transition-all focus:outline-none flex items-center gap-1.5",
                           activeRole?.id === role.id
-                            ? "border border-accent text-accent bg-accent/5 font-extrabold"
+                            ? "border border-accent text-accent bg-accent/5"
                             : "border border-fire-border bg-surface-2 text-text-secondary hover:text-text-primary hover:border-accent/30"
                         )}
                       >
                         <span>{role.name}</span>
                         <span className={clsx(
-                          "text-[10px] ml-1 font-bold",
+                          "text-label ml-1",
                           activeRole?.id === role.id ? "text-accent/70" : "text-text-muted"
                         )}>
                           {role.userCount}
@@ -1994,7 +1994,7 @@ export default function SettingsPage() {
                   {/* Right: New Role Button */}
                   <button
                     onClick={() => setNewRoleModalOpen(true)}
-                    className="border border-fire-border bg-surface-2 hover:bg-surface-3 text-text-primary font-bold px-4 py-2.5 rounded-xl text-xs flex items-center gap-1 transition-all focus:outline-none"
+                    className="btn-mission py-2.5 px-4 text-small"
                   >
                     <Plus className="w-3.5 h-3.5" /> New role
                   </button>
@@ -2002,40 +2002,40 @@ export default function SettingsPage() {
 
                 {/* Permission Matrix Card */}
                 {activeRole && (
-                  <div className="bg-surface-2 border border-fire-border rounded-xl p-6 shadow-sm space-y-6 relative">
+                  <div className="card-mission space-y-6 relative">
                     <div className="border-b border-fire-border pb-4">
-                      <h3 className="text-sm font-bold text-text-primary tracking-tight">
+                      <h3 className="text-h3 text-text-primary">
                         Permission matrix — {activeRole.name}
                       </h3>
-                      <p className="text-[10px] text-text-muted mt-1 font-semibold">Access level per module</p>
+                      <p className="text-small text-text-muted mt-1">Access level per module</p>
                     </div>
 
                     <div className="overflow-x-auto">
-                      <table className="w-full text-left border-collapse">
+                      <table className="table-enterprise">
                         <thead>
-                          <tr className="text-text-muted font-bold border-b border-fire-border/60 text-[9px] uppercase tracking-wider">
-                            <th className="py-3 px-2 w-[40%] text-left">Module</th>
-                            <th className="py-3 px-2 w-[15%] text-center">None</th>
-                            <th className="py-3 px-2 w-[15%] text-center">Read</th>
-                            <th className="py-3 px-2 w-[15%] text-center">Write</th>
-                            <th className="py-3 px-2 w-[15%] text-center">Admin</th>
+                          <tr>
+                            <th className="w-[40%] text-left">Module</th>
+                            <th className="w-[15%] text-center">None</th>
+                            <th className="w-[15%] text-center">Read</th>
+                            <th className="w-[15%] text-center">Write</th>
+                            <th className="w-[15%] text-center">Admin</th>
                           </tr>
                         </thead>
-                        <tbody className="divide-y divide-fire-border/40 text-text-secondary">
+                        <tbody>
                           {activeRole.permissions?.map((perm) => {
                             const level = perm.permissionLevel;
                             return (
-                              <tr key={perm.moduleName} className="border-b border-fire-border/20 hover:bg-surface-3/10 transition-colors">
-                                <td className="py-4 px-2 font-bold text-text-primary text-[12px]">{perm.moduleName}</td>
-                                
+                              <tr key={perm.moduleName}>
+                                <td className="font-semibold text-text-primary">{perm.moduleName}</td>
+
                                 {/* NONE column */}
-                                <td className="py-4 px-2 text-center align-middle">
+                                <td className="text-center align-middle">
                                   {level === 'NONE' && (
                                     <div className="relative inline-block text-left">
                                       <button
                                         type="button"
                                         onClick={() => setActiveDropdownRow(activeDropdownRow === perm.moduleName ? null : perm.moduleName)}
-                                        className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-surface-3 text-text-muted border border-fire-border text-[10px] font-black tracking-tight uppercase hover:bg-surface-3 transition-all select-none"
+                                        className="badge-mission bg-surface-3 text-text-muted border-fire-border hover:bg-surface-3/70 transition-all select-none"
                                       >
                                         None <span className="text-[8px]">▼</span>
                                       </button>
@@ -2045,13 +2045,13 @@ export default function SettingsPage() {
                                 </td>
 
                                 {/* READ column */}
-                                <td className="py-4 px-2 text-center align-middle">
+                                <td className="text-center align-middle">
                                   {level === 'READ' && (
                                     <div className="relative inline-block text-left">
                                       <button
                                         type="button"
                                         onClick={() => setActiveDropdownRow(activeDropdownRow === perm.moduleName ? null : perm.moduleName)}
-                                        className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-[10px] font-black tracking-tight uppercase hover:bg-emerald-500/20 transition-all select-none"
+                                        className="badge-mission bg-success/10 text-success border-success/20 hover:bg-success/20 transition-all select-none"
                                       >
                                         Read <span className="text-[8px]">▼</span>
                                       </button>
@@ -2061,13 +2061,13 @@ export default function SettingsPage() {
                                 </td>
 
                                 {/* WRITE column */}
-                                <td className="py-4 px-2 text-center align-middle">
+                                <td className="text-center align-middle">
                                   {level === 'WRITE' && (
                                     <div className="relative inline-block text-left">
                                       <button
                                         type="button"
                                         onClick={() => setActiveDropdownRow(activeDropdownRow === perm.moduleName ? null : perm.moduleName)}
-                                        className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-500/10 text-blue-400 border border-blue-500/20 text-[10px] font-black tracking-tight uppercase hover:bg-blue-500/20 transition-all select-none"
+                                        className="badge-mission bg-info/10 text-info border-info/20 hover:bg-info/20 transition-all select-none"
                                       >
                                         Write <span className="text-[8px]">▼</span>
                                       </button>
@@ -2077,13 +2077,13 @@ export default function SettingsPage() {
                                 </td>
 
                                 {/* ADMIN column */}
-                                <td className="py-4 px-2 text-center align-middle">
+                                <td className="text-center align-middle">
                                   {level === 'ADMIN' && (
                                     <div className="relative inline-block text-left">
                                       <button
                                         type="button"
                                         onClick={() => setActiveDropdownRow(activeDropdownRow === perm.moduleName ? null : perm.moduleName)}
-                                        className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-accent/10 text-accent border border-accent/20 text-[10px] font-black tracking-tight uppercase hover:bg-accent/20 transition-all select-none"
+                                        className="badge-mission bg-accent/10 text-accent border-accent/20 hover:bg-accent/20 transition-all select-none"
                                       >
                                         Admin <span className="text-[8px]">▼</span>
                                       </button>
@@ -2102,14 +2102,14 @@ export default function SettingsPage() {
                     <div className="flex justify-end gap-3 border-t border-fire-border/60 pt-5 mt-5">
                       <button
                         onClick={handleResetToDefault}
-                        className="border border-fire-border hover:bg-surface-3 text-text-secondary hover:text-text-primary font-bold px-4 py-2 rounded-xl text-xs transition-colors focus:outline-none"
+                        className="btn-mission py-2 px-4 text-small"
                       >
                         Reset to default
                       </button>
                       <button
                         onClick={handleSaveRole}
                         disabled={rolesSaving}
-                        className="bg-accent hover:bg-accent-dark disabled:bg-surface-3 disabled:text-text-muted text-white font-bold px-5 py-2 rounded-xl text-xs transition-colors focus:outline-none"
+                        className="btn-fire py-2 px-5 text-small"
                       >
                         {rolesSaving ? 'Saving...' : 'Save role'}
                       </button>
@@ -2123,37 +2123,37 @@ export default function SettingsPage() {
 
         {/* Create Role Modal Overlay */}
         {newRoleModalOpen && (
-          <div className="fixed inset-0 bg-background/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-            <div className="bg-surface-2 border border-fire-border rounded-2xl w-full max-w-sm p-5 space-y-4 shadow-xl animate-fade-in">
-              <div className="flex items-center justify-between border-b border-fire-border pb-2.5">
-                <h3 className="text-xs font-extrabold text-text-primary uppercase tracking-wider">New role</h3>
+          <div className="fixed inset-0 bg-background/85 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <div className="bg-surface border border-fire-border rounded-xl w-full max-w-sm overflow-hidden shadow-card animate-scale-in">
+              <div className="flex items-center justify-between p-5 border-b border-fire-border">
+                <h3 className="text-h3 text-text-primary">New role</h3>
                 <button onClick={() => setNewRoleModalOpen(false)} className="text-text-muted hover:text-text-primary transition-colors">
                   <X className="w-4 h-4" />
                 </button>
               </div>
-              <form onSubmit={handleCreateRole} className="space-y-4 text-[11px] font-sans">
+              <form onSubmit={handleCreateRole} className="p-5 space-y-4">
                 <div className="space-y-1.5">
-                  <label className="text-text-secondary font-bold block">Role Name</label>
+                  <label className="text-small text-text-secondary font-semibold block">Role Name</label>
                   <input
                     type="text"
                     required
                     placeholder="e.g. Threat Hunter"
                     value={newRoleName}
                     onChange={(e) => setNewRoleName(e.target.value)}
-                    className="w-full bg-surface-3 border border-fire-border rounded-lg px-3 py-2 text-text-primary placeholder:text-text-muted focus:outline-none focus:border-accent/40 transition-colors"
+                    className="input-field"
                   />
                 </div>
                 <div className="flex justify-end gap-2 pt-2">
                   <button
                     type="button"
                     onClick={() => setNewRoleModalOpen(false)}
-                    className="border border-fire-border hover:bg-surface-3 text-text-secondary font-bold px-4 py-2 rounded-xl text-xs transition-colors"
+                    className="btn-mission py-2 px-4 text-small"
                   >
                     Cancel
                   </button>
                   <button
                     type="submit"
-                    className="bg-accent hover:bg-accent-dark text-white font-bold px-4 py-2 rounded-xl text-xs transition-colors"
+                    className="btn-fire py-2 px-4 text-small"
                   >
                     Create Role
                   </button>
@@ -2165,25 +2165,25 @@ export default function SettingsPage() {
 
         {/* Tab 0.8: Data Sources Panel */}
         {activeTab === 'Data Sources' && (
-          <div className="space-y-6 animate-fade-in text-xs font-sans">
+          <div className="space-y-6 animate-fade-in">
             {sourcesLoading ? (
-              <div className="py-12 text-center text-xs text-text-muted font-bold uppercase tracking-widest animate-pulse">
-                Loading Data Sources...
+              <div className="py-12 text-center text-small text-text-muted animate-pulse">
+                Loading data sources...
               </div>
             ) : (
-              <div className="bg-surface-2 border border-fire-border rounded-xl p-6 shadow-sm space-y-6">
-                
+              <div className="card-mission space-y-6">
+
                 {/* Header row */}
                 <div className="flex items-center justify-between border-b border-fire-border pb-4">
                   <div>
-                    <h3 className="text-sm font-bold text-text-primary tracking-tight">Cloud & log sources</h3>
-                    <p className="text-[10px] text-text-muted mt-1 font-semibold">
+                    <h3 className="text-h3 text-text-primary">Cloud & log sources</h3>
+                    <p className="text-small text-text-muted mt-1">
                       {dataSources.length} available &middot; {dataSources.filter(s => s.status === 'Connected').length} connected
                     </p>
                   </div>
-                  <button 
+                  <button
                     onClick={() => setAddSourceModalOpen(true)}
-                    className="bg-accent hover:bg-accent-dark text-white font-bold px-4 py-2 rounded-xl text-xs flex items-center gap-1 transition-colors focus:outline-none"
+                    className="btn-fire py-2 px-4 text-small"
                   >
                     Add data source
                   </button>
@@ -2194,27 +2194,27 @@ export default function SettingsPage() {
                   {dataSources.map((source) => {
                     const isConnected = source.status === 'Connected';
                     return (
-                      <div 
-                        key={source.id} 
-                        className="bg-surface-3/60 border border-fire-border rounded-xl p-5 hover:border-accent/30 transition-all flex flex-col justify-between h-[210px]"
+                      <div
+                        key={source.id}
+                        className="bg-surface-2 border border-fire-border rounded-xl p-5 hover:border-accent/30 transition-all flex flex-col justify-between h-[210px]"
                       >
                         {/* Upper row: provider tag and status badge */}
                         <div className="flex items-center justify-between">
                           <div className={clsx(
-                            "px-2.5 py-1 rounded text-[9px] font-black uppercase tracking-wider select-none",
-                            source.provider === 'AWS' ? "bg-amber-500/10 text-amber-500" :
-                            source.provider === 'AZ' ? "bg-blue-500/10 text-blue-400" :
+                            "px-2.5 py-1 rounded text-label uppercase select-none",
+                            source.provider === 'AWS' ? "bg-severity-medium/10 text-severity-medium" :
+                            source.provider === 'AZ' ? "bg-info/10 text-info" :
                             source.provider === 'SP' ? "bg-surface-3 text-text-muted border border-fire-border" :
                             "bg-surface-3 text-text-secondary"
                           )}>
                             {source.provider}
                           </div>
-                          <div className="flex items-center gap-1.5 text-[10px] font-bold">
+                          <div className="flex items-center gap-1.5 text-label">
                             <span className={clsx(
                               "w-1.5 h-1.5 rounded-full inline-block",
-                              isConnected ? "bg-emerald-400" : "bg-text-muted"
+                              isConnected ? "bg-success" : "bg-text-muted"
                             )} />
-                            <span className={isConnected ? "text-emerald-400" : "text-text-muted"}>
+                            <span className={isConnected ? "text-success" : "text-text-muted"}>
                               {isConnected ? 'Connected' : 'Not connected'}
                             </span>
                           </div>
@@ -2222,12 +2222,12 @@ export default function SettingsPage() {
 
                         {/* Title & description */}
                         <div className="space-y-1.5 my-3">
-                          <h4 className="text-xs font-black text-text-primary">{source.name}</h4>
-                          <p className="text-[10px] text-text-muted leading-relaxed font-semibold line-clamp-2">
+                          <h4 className="text-small font-bold text-text-primary">{source.name}</h4>
+                          <p className="text-small text-text-muted leading-relaxed line-clamp-2">
                             {source.description}
                           </p>
                           {isConnected && (
-                            <p className="text-[9px] text-text-muted font-bold tracking-tight">
+                            <p className="text-label text-text-muted">
                               Last sync: {source.lastSync || 'Never'}
                             </p>
                           )}
@@ -2236,17 +2236,17 @@ export default function SettingsPage() {
                         {/* Footer actions */}
                         <div className="border-t border-fire-border/60 pt-3">
                           {isConnected ? (
-                            <div className="flex items-center justify-between gap-3 text-[10px] font-bold">
-                              <button 
+                            <div className="flex items-center justify-between gap-3">
+                              <button
                                 onClick={() => handleDisconnectSource(source.id)}
-                                className="border border-fire-border hover:bg-danger/10 hover:border-danger/20 text-text-secondary hover:text-red-450 px-3.5 py-1.5 rounded-lg transition-colors focus:outline-none"
+                                className="border border-fire-border hover:bg-danger/10 hover:border-danger/20 text-text-secondary hover:text-danger px-3.5 py-1.5 rounded-lg text-small transition-colors focus:outline-none"
                               >
                                 Disconnect
                               </button>
-                              <button 
+                              <button
                                 onClick={() => handleSyncSource(source.id)}
                                 disabled={syncingSourceId === source.id}
-                                className="bg-surface-3 hover:brightness-110 border border-fire-border text-text-primary px-3.5 py-1.5 rounded-lg transition-colors focus:outline-none flex items-center gap-1 min-w-[75px] justify-center"
+                                className="btn-mission px-3.5 py-1.5 text-small min-w-[75px] justify-center"
                               >
                                 {syncingSourceId === source.id ? (
                                   <span className="w-2.5 h-2.5 border-2 border-fire-border border-t-accent rounded-full animate-spin" />
@@ -2256,12 +2256,12 @@ export default function SettingsPage() {
                               </button>
                             </div>
                           ) : (
-                            <button 
+                            <button
                               onClick={() => {
                                 setActiveSourceToConnect(source);
                                 setConnectModalOpen(true);
                               }}
-                              className="w-full bg-accent hover:bg-accent-dark text-white font-bold py-2 rounded-xl text-center transition-colors focus:outline-none"
+                              className="btn-fire w-full py-2 text-small"
                             >
                               Connect
                             </button>
@@ -2278,32 +2278,32 @@ export default function SettingsPage() {
 
         {/* Add Data Source Modal */}
         {addSourceModalOpen && (
-          <div className="fixed inset-0 bg-background/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-            <div className="bg-surface-2 border border-fire-border rounded-2xl w-full max-w-sm p-5 space-y-4 shadow-xl animate-fade-in text-xs font-sans">
-              <div className="flex items-center justify-between border-b border-fire-border pb-2.5">
-                <h3 className="text-xs font-extrabold text-text-primary uppercase tracking-wider">Add data source</h3>
+          <div className="fixed inset-0 bg-background/85 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <div className="bg-surface border border-fire-border rounded-xl w-full max-w-sm overflow-hidden shadow-card animate-scale-in">
+              <div className="flex items-center justify-between p-5 border-b border-fire-border">
+                <h3 className="text-h3 text-text-primary">Add data source</h3>
                 <button onClick={() => setAddSourceModalOpen(false)} className="text-text-muted hover:text-text-primary transition-colors">
                   <X className="w-4 h-4" />
                 </button>
               </div>
-              <form onSubmit={handleAddDataSource} className="space-y-4">
+              <form onSubmit={handleAddDataSource} className="p-5 space-y-4">
                 <div className="space-y-1.5">
-                  <label className="text-text-secondary font-bold block text-[10px] uppercase">Source Name</label>
+                  <label className="text-label text-text-muted uppercase block">Source Name</label>
                   <input
                     type="text"
                     required
                     placeholder="e.g. AWS VPC Flow Logs"
                     value={newSourceName}
                     onChange={(e) => setNewSourceName(e.target.value)}
-                    className="w-full bg-surface-3 border border-fire-border rounded-lg px-3 py-2 text-text-primary placeholder:text-text-muted focus:outline-none focus:border-accent/40 transition-colors"
+                    className="input-field"
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-text-secondary font-bold block text-[10px] uppercase">Provider Prefix</label>
+                  <label className="text-label text-text-muted uppercase block">Provider Prefix</label>
                   <select
                     value={newSourceProvider}
                     onChange={(e) => setNewSourceProvider(e.target.value)}
-                    className="w-full bg-surface-3 border border-fire-border rounded-lg px-3 py-2 text-text-primary focus:outline-none focus:border-accent/40 cursor-pointer"
+                    className="input-field"
                   >
                     <option value="AWS">AWS</option>
                     <option value="AZ">AZ (Azure)</option>
@@ -2312,27 +2312,27 @@ export default function SettingsPage() {
                   </select>
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-text-secondary font-bold block text-[10px] uppercase">Description</label>
+                  <label className="text-label text-text-muted uppercase block">Description</label>
                   <textarea
                     required
                     placeholder="Describe log source ingestion..."
                     value={newSourceDesc}
                     onChange={(e) => setNewSourceDesc(e.target.value)}
                     rows={3}
-                    className="w-full bg-surface-3 border border-fire-border rounded-lg px-3 py-2 text-text-primary placeholder:text-text-muted focus:outline-none focus:border-accent/40 transition-colors resize-none"
+                    className="input-field resize-none"
                   />
                 </div>
                 <div className="flex justify-end gap-2 pt-2">
                   <button
                     type="button"
                     onClick={() => setAddSourceModalOpen(false)}
-                    className="border border-fire-border hover:bg-surface-3 text-text-secondary font-bold px-4 py-2 rounded-xl text-xs transition-colors"
+                    className="btn-mission py-2 px-4 text-small"
                   >
                     Cancel
                   </button>
                   <button
                     type="submit"
-                    className="bg-accent hover:bg-accent-dark text-white font-bold px-4 py-2 rounded-xl text-xs transition-colors"
+                    className="btn-fire py-2 px-4 text-small"
                   >
                     Add Source
                   </button>
@@ -2344,18 +2344,18 @@ export default function SettingsPage() {
 
         {/* Connect Credentials Modal */}
         {connectModalOpen && activeSourceToConnect && (
-          <div className="fixed inset-0 bg-background/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-            <div className="bg-surface-2 border border-fire-border rounded-2xl w-full max-w-sm p-5 space-y-4 shadow-xl animate-fade-in text-xs font-sans">
-              <div className="flex items-center justify-between border-b border-fire-border pb-2.5">
-                <h3 className="text-xs font-extrabold text-text-primary uppercase tracking-wider">Configure {activeSourceToConnect.name}</h3>
+          <div className="fixed inset-0 bg-background/85 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <div className="bg-surface border border-fire-border rounded-xl w-full max-w-sm overflow-hidden shadow-card animate-scale-in">
+              <div className="flex items-center justify-between p-5 border-b border-fire-border">
+                <h3 className="text-h3 text-text-primary">Configure {activeSourceToConnect.name}</h3>
                 <button onClick={() => setConnectModalOpen(false)} className="text-text-muted hover:text-text-primary transition-colors">
                   <X className="w-4 h-4" />
                 </button>
               </div>
-              <form onSubmit={handleConnectSource} className="space-y-4">
-                <p className="text-[10px] text-text-muted font-medium">Enter connection details to link telemetry ingestion.</p>
+              <form onSubmit={handleConnectSource} className="p-5 space-y-4">
+                <p className="text-small text-text-muted">Enter connection details to link telemetry ingestion.</p>
                 <div className="space-y-1.5">
-                  <label className="text-text-secondary font-bold block text-[10px] uppercase">
+                  <label className="text-label text-text-muted uppercase block">
                     {activeSourceToConnect.provider === 'AWS' ? 'AWS Account ID / Role ARN' :
                      activeSourceToConnect.provider === 'AZ' ? 'Azure Client ID / Tenant ID' :
                      activeSourceToConnect.provider === 'SP' ? 'Splunk API HEC Token' : 'Ingestion Port / Endpoint'}
@@ -2366,31 +2366,31 @@ export default function SettingsPage() {
                     placeholder="Enter configuration credential"
                     value={connectCred1}
                     onChange={(e) => setConnectCred1(e.target.value)}
-                    className="w-full bg-surface-3 border border-fire-border rounded-lg px-3 py-2 text-text-primary placeholder:text-text-muted focus:outline-none focus:border-accent/40 transition-colors"
+                    className="input-field"
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-text-secondary font-bold block text-[10px] uppercase">API Region / Secret Key</label>
+                  <label className="text-label text-text-muted uppercase block">API Region / Secret Key</label>
                   <input
                     type="password"
                     required
                     placeholder="••••••••••••••••"
                     value={connectCred2}
                     onChange={(e) => setConnectCred2(e.target.value)}
-                    className="w-full bg-surface-3 border border-fire-border rounded-lg px-3 py-2 text-text-primary placeholder:text-text-muted focus:outline-none focus:border-accent/40 transition-colors"
+                    className="input-field"
                   />
                 </div>
                 <div className="flex justify-end gap-2 pt-2">
                   <button
                     type="button"
                     onClick={() => setConnectModalOpen(false)}
-                    className="border border-fire-border hover:bg-surface-3 text-text-secondary font-bold px-4 py-2 rounded-xl text-xs transition-colors"
+                    className="btn-mission py-2 px-4 text-small"
                   >
                     Cancel
                   </button>
                   <button
                     type="submit"
-                    className="bg-accent hover:bg-accent-dark text-white font-bold px-4 py-2 rounded-xl text-xs transition-colors"
+                    className="btn-fire py-2 px-4 text-small"
                   >
                     Confirm Connect
                   </button>
@@ -2406,94 +2406,94 @@ export default function SettingsPage() {
 
             {/* Quick Metrics Bar */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              <div className="bg-surface-2 border border-fire-border rounded-xl p-4 space-y-2">
+              <div className="card-mission p-4 space-y-2">
                 <div className="flex items-center justify-between">
-                  <span className="text-[10px] text-text-muted font-bold uppercase tracking-wider">Total Active Fleet</span>
+                  <span className="text-label text-text-muted uppercase">Total Active Fleet</span>
                   <Server className="w-4 h-4 text-accent" />
                 </div>
                 <div className="flex items-baseline justify-between">
-                  <span className="text-2xl font-black text-text-primary font-mono">{agentFleet.length}</span>
-                  <span className="text-[10px] text-emerald-400 font-bold flex items-center gap-1">
-                    <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" /> Live Stream
+                  <span className="text-h1 text-text-primary font-mono">{agentFleet.length}</span>
+                  <span className="text-label text-success flex items-center gap-1">
+                    <span className="w-2 h-2 rounded-full bg-success animate-pulse" /> Live Stream
                   </span>
                 </div>
               </div>
 
-              <div className="bg-surface-2 border border-fire-border rounded-xl p-4 space-y-2">
+              <div className="card-mission p-4 space-y-2">
                 <div className="flex items-center justify-between">
-                  <span className="text-[10px] text-text-muted font-bold uppercase tracking-wider">Online & Healthy</span>
-                  <ShieldCheck className="w-4 h-4 text-emerald-400" />
+                  <span className="text-label text-text-muted uppercase">Online & Healthy</span>
+                  <ShieldCheck className="w-4 h-4 text-success" />
                 </div>
                 <div className="flex items-baseline justify-between">
-                  <span className="text-2xl font-black text-emerald-400 font-mono">
+                  <span className="text-h1 text-success font-mono">
                     {agentFleet.filter(a => a.status === 'ONLINE').length}
                   </span>
-                  <span className="text-[10px] text-text-muted font-bold">
+                  <span className="text-label text-text-muted">
                     {Math.round((agentFleet.filter(a => a.status === 'ONLINE').length / (agentFleet.length || 1)) * 100)}% Fleet Capacity
                   </span>
                 </div>
               </div>
 
-              <div className="bg-surface-2 border border-fire-border rounded-xl p-4 space-y-2">
+              <div className="card-mission p-4 space-y-2">
                 <div className="flex items-center justify-between">
-                  <span className="text-[10px] text-text-muted font-bold uppercase tracking-wider">Quarantined / Isolated</span>
-                  <ShieldAlert className="w-4 h-4 text-rose-500" />
+                  <span className="text-label text-text-muted uppercase">Quarantined / Isolated</span>
+                  <ShieldAlert className="w-4 h-4 text-danger" />
                 </div>
                 <div className="flex items-baseline justify-between">
-                  <span className="text-2xl font-black text-rose-500 font-mono">
+                  <span className="text-h1 text-danger font-mono">
                     {agentFleet.filter(a => a.status === 'ISOLATED').length}
                   </span>
-                  <span className="text-[10px] text-rose-400/80 font-bold">EDR Containment</span>
+                  <span className="text-label text-danger/80">EDR Containment</span>
                 </div>
               </div>
 
-              <div className="bg-surface-2 border border-fire-border rounded-xl p-4 space-y-2">
+              <div className="card-mission p-4 space-y-2">
                 <div className="flex items-center justify-between">
-                  <span className="text-[10px] text-text-muted font-bold uppercase tracking-wider">Ingest Throughput</span>
-                  <Zap className="w-4 h-4 text-amber-400" />
+                  <span className="text-label text-text-muted uppercase">Ingest Throughput</span>
+                  <Zap className="w-4 h-4 text-severity-medium" />
                 </div>
                 <div className="flex items-baseline justify-between">
-                  <span className="text-2xl font-black text-text-primary font-mono">4.2 MB/s</span>
-                  <span className="text-[10px] text-amber-400 font-bold font-mono">~1,840 EPS</span>
+                  <span className="text-h1 text-text-primary font-mono">4.2 MB/s</span>
+                  <span className="text-label text-severity-medium font-mono">~1,840 EPS</span>
                 </div>
               </div>
             </div>
 
             {/* Token & Enrollment Key Card */}
-            <div className="bg-surface-2 border border-fire-border rounded-xl p-6 shadow-sm space-y-6">
+            <div className="card-mission space-y-6">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-fire-border pb-4">
                 <div>
-                  <h3 className="text-sm font-bold text-text-primary tracking-tight flex items-center gap-2">
+                  <h3 className="text-h3 text-text-primary flex items-center gap-2">
                     <Key className="w-4 h-4 text-accent" /> Enterprise Enrollment Key & Endpoint Gateway
                   </h3>
-                  <p className="text-[10px] text-text-muted mt-1">Authenticates newly provisioned security agents with your ACIS SOC Gateway.</p>
+                  <p className="text-small text-text-muted mt-1">Authenticates newly provisioned security agents with your ACIS SOC Gateway.</p>
                 </div>
                 <button
                   onClick={handleRegenerateToken}
-                  className="bg-surface-3 hover:bg-surface-3 border border-fire-border text-text-secondary hover:text-text-primary text-xs font-bold px-4 py-2 rounded-xl flex items-center gap-2 transition-colors self-start sm:self-auto"
+                  className="btn-mission text-small px-4 py-2 self-start sm:self-auto"
                 >
                   <RefreshCw className="w-3.5 h-3.5 text-accent" /> Regenerate Secret Key
                 </button>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="md:col-span-2 space-y-1.5">
-                  <label className="text-text-secondary font-bold tracking-tight block">Live Enrollment Token Secret</label>
-                  <div className="flex items-center gap-2 bg-surface-3 border border-fire-border rounded-lg p-2.5 font-mono text-xs text-text-primary">
-                    <span className="truncate flex-1 tracking-wider text-accent">{enrollmentToken}</span>
+                  <label className="text-small text-text-secondary font-semibold block">Live Enrollment Token Secret</label>
+                  <div className="flex items-center gap-2 bg-surface-2 border border-fire-border rounded-lg p-2.5 font-mono text-small text-text-primary">
+                    <span className="truncate flex-1 text-accent">{enrollmentToken}</span>
                     <button
                       onClick={() => handleCopyCommand('token', enrollmentToken)}
-                      className="bg-surface-3 hover:bg-surface-3 text-text-primary font-bold px-3 py-1.5 rounded-md text-[11px] flex items-center gap-1.5 transition-colors shrink-0"
+                      className="btn-ghost px-3 py-1.5 text-small shrink-0"
                     >
-                      {copiedCmdId === 'token' ? <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                      {copiedCmdId === 'token' ? <CheckCircle2 className="w-3.5 h-3.5 text-success" /> : <Copy className="w-3.5 h-3.5" />}
                       {copiedCmdId === 'token' ? 'Copied' : 'Copy'}
                     </button>
                   </div>
                 </div>
 
                 <div className="space-y-1.5">
-                  <label className="text-text-secondary font-bold tracking-tight block">Target Gateway Endpoint</label>
-                  <div className="bg-surface-3 border border-fire-border rounded-lg px-3 py-2.5 font-mono text-xs text-text-secondary truncate">
+                  <label className="text-small text-text-secondary font-semibold block">Target Gateway Endpoint</label>
+                  <div className="bg-surface-2 border border-fire-border rounded-lg px-3 py-2.5 font-mono text-small text-text-secondary truncate">
                     http://{typeof window !== 'undefined' ? window.location.hostname : 'localhost'}:8080
                   </div>
                 </div>
@@ -2501,17 +2501,17 @@ export default function SettingsPage() {
             </div>
 
             {/* Installation Scripts Generator Card */}
-            <div className="bg-surface-2 border border-fire-border rounded-xl p-6 shadow-sm space-y-6">
+            <div className="card-mission space-y-6">
               <div className="border-b border-fire-border pb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
-                  <h3 className="text-sm font-bold text-text-primary tracking-tight flex items-center gap-2">
+                  <h3 className="text-h3 text-text-primary flex items-center gap-2">
                     <Terminal className="w-4 h-4 text-accent" /> Multi-OS Silent Installation Commands
                   </h3>
-                  <p className="text-[10px] text-text-muted mt-1">One-line terminal deployment scripts pre-configured with active enrollment token</p>
+                  <p className="text-small text-text-muted mt-1">One-line terminal deployment scripts pre-configured with active enrollment token</p>
                 </div>
 
                 {/* OS Selector Tabs */}
-                <div className="flex items-center gap-1 bg-surface-3 p-1 rounded-xl border border-fire-border text-[10px] font-bold">
+                <div className="flex items-center gap-1 bg-surface-2 p-1 rounded-lg border border-fire-border text-label">
                   {[
                     { id: 'WINDOWS', label: 'Windows (PS/MSI)', icon: Laptop },
                     { id: 'LINUX', label: 'Linux (Bash/APT)', icon: Server },
@@ -2540,43 +2540,43 @@ export default function SettingsPage() {
                 {selectedOsTab === 'WINDOWS' && (
                   <div className="space-y-4">
                     <div className="space-y-2">
-                      <div className="flex items-center justify-between text-xs">
-                        <span className="font-bold text-text-primary flex items-center gap-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-small font-semibold text-text-primary flex items-center gap-2">
                           <Terminal className="w-3.5 h-3.5 text-accent" /> Option 1: PowerShell Unattended One-Liner
                         </span>
                         <button
                           onClick={() => handleCopyCommand(
-                            'win-ps', 
+                            'win-ps',
                             `[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; iex ((New-Object System.Net.WebClient).DownloadString('http://${typeof window !== 'undefined' ? window.location.hostname : 'localhost'}:8080/api/agent/install.ps1')) -EnrollmentToken "${enrollmentToken}" -ServerUrl "http://${typeof window !== 'undefined' ? window.location.hostname : 'localhost'}:8080"`
                           )}
-                          className="text-[11px] text-accent hover:text-accent-dark font-bold flex items-center gap-1"
+                          className="text-small text-accent hover:text-accent-dark font-semibold flex items-center gap-1"
                         >
-                          {copiedCmdId === 'win-ps' ? <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                          {copiedCmdId === 'win-ps' ? <CheckCircle2 className="w-3.5 h-3.5 text-success" /> : <Copy className="w-3.5 h-3.5" />}
                           {copiedCmdId === 'win-ps' ? 'Copied to Clipboard' : 'Copy PowerShell Command'}
                         </button>
                       </div>
-                      <pre className="bg-surface-3 border border-fire-border rounded-xl p-4 text-[11px] font-mono text-emerald-400 overflow-x-auto whitespace-pre-wrap leading-relaxed select-all">
+                      <pre className="bg-surface-2 border border-fire-border rounded-lg p-4 text-small font-mono text-success overflow-x-auto whitespace-pre-wrap leading-relaxed select-all">
                         {`[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; iex ((New-Object System.Net.WebClient).DownloadString('http://${typeof window !== 'undefined' ? window.location.hostname : 'localhost'}:8080/api/agent/install.ps1')) -EnrollmentToken "${enrollmentToken}" -ServerUrl "http://${typeof window !== 'undefined' ? window.location.hostname : 'localhost'}:8080"`}
                       </pre>
                     </div>
 
                     <div className="space-y-2">
-                      <div className="flex items-center justify-between text-xs">
-                        <span className="font-bold text-text-primary flex items-center gap-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-small font-semibold text-text-primary flex items-center gap-2">
                           <Download className="w-3.5 h-3.5 text-accent" /> Option 2: MSI Installer Executable (GPO / Active Directory)
                         </span>
                         <button
                           onClick={() => handleCopyCommand(
-                            'win-msi', 
+                            'win-msi',
                             `msiexec.exe /i "ACIS-Agent-v2.4.1-x64.msi" /qn ENROLLMENT_TOKEN="${enrollmentToken}" SERVER_URL="http://${typeof window !== 'undefined' ? window.location.hostname : 'localhost'}:8080" AUTO_START=1`
                           )}
-                          className="text-[11px] text-accent hover:text-accent-dark font-bold flex items-center gap-1"
+                          className="text-small text-accent hover:text-accent-dark font-semibold flex items-center gap-1"
                         >
-                          {copiedCmdId === 'win-msi' ? <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                          {copiedCmdId === 'win-msi' ? <CheckCircle2 className="w-3.5 h-3.5 text-success" /> : <Copy className="w-3.5 h-3.5" />}
                           {copiedCmdId === 'win-msi' ? 'Copied MSI Command' : 'Copy MSI Command'}
                         </button>
                       </div>
-                      <pre className="bg-surface-3 border border-fire-border rounded-xl p-4 text-[11px] font-mono text-text-secondary overflow-x-auto whitespace-pre-wrap select-all">
+                      <pre className="bg-surface-2 border border-fire-border rounded-lg p-4 text-small font-mono text-text-secondary overflow-x-auto whitespace-pre-wrap select-all">
                         {`msiexec.exe /i "ACIS-Agent-v2.4.1-x64.msi" /qn ENROLLMENT_TOKEN="${enrollmentToken}" SERVER_URL="http://${typeof window !== 'undefined' ? window.location.hostname : 'localhost'}:8080" AUTO_START=1`}
                       </pre>
                     </div>
@@ -2586,22 +2586,22 @@ export default function SettingsPage() {
                 {selectedOsTab === 'LINUX' && (
                   <div className="space-y-4">
                     <div className="space-y-2">
-                      <div className="flex items-center justify-between text-xs">
-                        <span className="font-bold text-text-primary flex items-center gap-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-small font-semibold text-text-primary flex items-center gap-2">
                           <Terminal className="w-3.5 h-3.5 text-accent" /> Linux Automated Installer (Ubuntu/Debian/RHEL/CentOS)
                         </span>
                         <button
                           onClick={() => handleCopyCommand(
-                            'linux-cmd', 
+                            'linux-cmd',
                             `curl -sSL http://${typeof window !== 'undefined' ? window.location.hostname : 'localhost'}:8080/api/agent/install.sh | sudo bash -s -- --token="${enrollmentToken}" --server="http://${typeof window !== 'undefined' ? window.location.hostname : 'localhost'}:8080" --enable-service`
                           )}
-                          className="text-[11px] text-accent hover:text-accent-dark font-bold flex items-center gap-1"
+                          className="text-small text-accent hover:text-accent-dark font-semibold flex items-center gap-1"
                         >
-                          {copiedCmdId === 'linux-cmd' ? <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                          {copiedCmdId === 'linux-cmd' ? <CheckCircle2 className="w-3.5 h-3.5 text-success" /> : <Copy className="w-3.5 h-3.5" />}
                           {copiedCmdId === 'linux-cmd' ? 'Copied Bash Command' : 'Copy Bash Command'}
                         </button>
                       </div>
-                      <pre className="bg-surface-3 border border-fire-border rounded-xl p-4 text-[11px] font-mono text-emerald-400 overflow-x-auto whitespace-pre-wrap leading-relaxed select-all">
+                      <pre className="bg-surface-2 border border-fire-border rounded-lg p-4 text-small font-mono text-success overflow-x-auto whitespace-pre-wrap leading-relaxed select-all">
                         {`curl -sSL http://${typeof window !== 'undefined' ? window.location.hostname : 'localhost'}:8080/api/agent/install.sh | sudo bash -s -- --token="${enrollmentToken}" --server="http://${typeof window !== 'undefined' ? window.location.hostname : 'localhost'}:8080" --enable-service`}
                       </pre>
                     </div>
@@ -2611,22 +2611,22 @@ export default function SettingsPage() {
                 {selectedOsTab === 'MACOS' && (
                   <div className="space-y-4">
                     <div className="space-y-2">
-                      <div className="flex items-center justify-between text-xs">
-                        <span className="font-bold text-text-primary flex items-center gap-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-small font-semibold text-text-primary flex items-center gap-2">
                           <Terminal className="w-3.5 h-3.5 text-accent" /> macOS Terminal Silent Deployment (Intel & Apple Silicon)
                         </span>
                         <button
                           onClick={() => handleCopyCommand(
-                            'mac-cmd', 
+                            'mac-cmd',
                             `curl -sSL http://${typeof window !== 'undefined' ? window.location.hostname : 'localhost'}:8080/api/agent/install-mac.sh | sudo bash -s -- --token="${enrollmentToken}" --server="http://${typeof window !== 'undefined' ? window.location.hostname : 'localhost'}:8080"`
                           )}
-                          className="text-[11px] text-accent hover:text-accent-dark font-bold flex items-center gap-1"
+                          className="text-small text-accent hover:text-accent-dark font-semibold flex items-center gap-1"
                         >
-                          {copiedCmdId === 'mac-cmd' ? <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                          {copiedCmdId === 'mac-cmd' ? <CheckCircle2 className="w-3.5 h-3.5 text-success" /> : <Copy className="w-3.5 h-3.5" />}
                           {copiedCmdId === 'mac-cmd' ? 'Copied macOS Script' : 'Copy macOS Script'}
                         </button>
                       </div>
-                      <pre className="bg-surface-3 border border-fire-border rounded-xl p-4 text-[11px] font-mono text-emerald-400 overflow-x-auto whitespace-pre-wrap select-all">
+                      <pre className="bg-surface-2 border border-fire-border rounded-lg p-4 text-small font-mono text-success overflow-x-auto whitespace-pre-wrap select-all">
                         {`curl -sSL http://${typeof window !== 'undefined' ? window.location.hostname : 'localhost'}:8080/api/agent/install-mac.sh | sudo bash -s -- --token="${enrollmentToken}" --server="http://${typeof window !== 'undefined' ? window.location.hostname : 'localhost'}:8080"`}
                       </pre>
                     </div>
@@ -2636,22 +2636,22 @@ export default function SettingsPage() {
                 {selectedOsTab === 'KUBERNETES' && (
                   <div className="space-y-4">
                     <div className="space-y-2">
-                      <div className="flex items-center justify-between text-xs">
-                        <span className="font-bold text-text-primary flex items-center gap-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-small font-semibold text-text-primary flex items-center gap-2">
                           <Layers className="w-3.5 h-3.5 text-accent" /> Kubernetes DaemonSet Installation Manifest
                         </span>
                         <button
                           onClick={() => handleCopyCommand(
-                            'k8s-cmd', 
+                            'k8s-cmd',
                             `kubectl apply -f http://${typeof window !== 'undefined' ? window.location.hostname : 'localhost'}:8080/api/agent/k8s-daemonset.yaml --namespace=acis-security`
                           )}
-                          className="text-[11px] text-accent hover:text-accent-dark font-bold flex items-center gap-1"
+                          className="text-small text-accent hover:text-accent-dark font-semibold flex items-center gap-1"
                         >
-                          {copiedCmdId === 'k8s-cmd' ? <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                          {copiedCmdId === 'k8s-cmd' ? <CheckCircle2 className="w-3.5 h-3.5 text-success" /> : <Copy className="w-3.5 h-3.5" />}
                           {copiedCmdId === 'k8s-cmd' ? 'Copied kubectl Command' : 'Copy kubectl Command'}
                         </button>
                       </div>
-                      <pre className="bg-surface-3 border border-fire-border rounded-xl p-4 text-[11px] font-mono text-emerald-400 overflow-x-auto whitespace-pre-wrap select-all">
+                      <pre className="bg-surface-2 border border-fire-border rounded-lg p-4 text-small font-mono text-success overflow-x-auto whitespace-pre-wrap select-all">
                         {`kubectl apply -f http://${typeof window !== 'undefined' ? window.location.hostname : 'localhost'}:8080/api/agent/k8s-daemonset.yaml --namespace=acis-security`}
                       </pre>
                     </div>
@@ -2661,13 +2661,13 @@ export default function SettingsPage() {
             </div>
 
             {/* Active Fleet & Real-time Heartbeat Monitoring Table */}
-            <div className="bg-surface-2 border border-fire-border rounded-xl p-6 shadow-sm space-y-6">
+            <div className="card-mission space-y-6">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-fire-border pb-4">
                 <div>
-                  <h3 className="text-sm font-bold text-text-primary tracking-tight flex items-center gap-2">
-                    <Radio className="w-4 h-4 text-emerald-400 animate-pulse" /> Live Enrolled Agent Fleet & Telemetry
+                  <h3 className="text-h3 text-text-primary flex items-center gap-2">
+                    <Radio className="w-4 h-4 text-success animate-pulse" /> Live Enrolled Agent Fleet & Telemetry
                   </h3>
-                  <p className="text-[10px] text-text-muted mt-1">Real-time status stream synced with ACIS Assets CMDB and WebSockets</p>
+                  <p className="text-small text-text-muted mt-1">Real-time status stream synced with ACIS Assets CMDB and WebSockets</p>
                 </div>
 
                 <div className="flex items-center gap-3">
@@ -2679,12 +2679,12 @@ export default function SettingsPage() {
                       placeholder="Filter host or IP..."
                       value={agentSearchQuery}
                       onChange={(e) => setAgentSearchQuery(e.target.value)}
-                      className="bg-surface-3 border border-fire-border rounded-lg pl-8 pr-3 py-1.5 text-xs text-text-primary placeholder:text-text-muted focus:outline-none focus:border-accent/50 transition-colors w-44"
+                      className="input-field pl-8 py-1.5 w-44"
                     />
                   </div>
 
                   {/* Filter Status Pills */}
-                  <div className="flex items-center gap-1 bg-surface-3 p-1 rounded-lg border border-fire-border text-[10px] font-bold">
+                  <div className="flex items-center gap-1 bg-surface-2 p-1 rounded-lg border border-fire-border text-label">
                     <button
                       onClick={() => setFleetFilterStatus('ALL')}
                       className={clsx("px-2.5 py-1 rounded transition-colors", fleetFilterStatus === 'ALL' ? "bg-surface-3 text-text-primary" : "text-text-muted hover:text-text-primary")}
@@ -2693,13 +2693,13 @@ export default function SettingsPage() {
                     </button>
                     <button
                       onClick={() => setFleetFilterStatus('ONLINE')}
-                      className={clsx("px-2.5 py-1 rounded transition-colors", fleetFilterStatus === 'ONLINE' ? "bg-emerald-500/20 text-emerald-400" : "text-text-muted hover:text-text-primary")}
+                      className={clsx("px-2.5 py-1 rounded transition-colors", fleetFilterStatus === 'ONLINE' ? "bg-success/20 text-success" : "text-text-muted hover:text-text-primary")}
                     >
                       Online
                     </button>
                     <button
                       onClick={() => setFleetFilterStatus('ISOLATED')}
-                      className={clsx("px-2.5 py-1 rounded transition-colors", fleetFilterStatus === 'ISOLATED' ? "bg-rose-500/20 text-rose-400" : "text-text-muted hover:text-text-primary")}
+                      className={clsx("px-2.5 py-1 rounded transition-colors", fleetFilterStatus === 'ISOLATED' ? "bg-danger/20 text-danger" : "text-text-muted hover:text-text-primary")}
                     >
                       Isolated
                     </button>
@@ -2709,19 +2709,19 @@ export default function SettingsPage() {
 
               {/* Fleet Table */}
               <div className="overflow-x-auto">
-                <table className="w-full text-left text-xs border-collapse">
+                <table className="table-enterprise">
                   <thead>
-                    <tr className="border-b border-fire-border text-[10px] font-black uppercase tracking-wider text-text-muted">
-                      <th className="pb-3 px-3">Hostname & OS</th>
-                      <th className="pb-3 px-3">IP Address</th>
-                      <th className="pb-3 px-3">Agent Version</th>
-                      <th className="pb-3 px-3">Status</th>
-                      <th className="pb-3 px-3">CPU / RAM</th>
-                      <th className="pb-3 px-3">Heartbeat</th>
-                      <th className="pb-3 px-3 text-right">Actions</th>
+                    <tr>
+                      <th>Hostname & OS</th>
+                      <th>IP Address</th>
+                      <th>Agent Version</th>
+                      <th>Status</th>
+                      <th>CPU / RAM</th>
+                      <th>Heartbeat</th>
+                      <th className="text-right">Actions</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-fire-border font-medium">
+                  <tbody>
                     {agentFleet
                       .filter(agent => {
                         const q = agentSearchQuery.toLowerCase()
@@ -2732,45 +2732,45 @@ export default function SettingsPage() {
                         return matchesQuery
                       })
                       .map((agent) => (
-                        <tr key={agent.id} className="hover:bg-surface-3/40 transition-colors group">
-                          <td className="py-3 px-3">
+                        <tr key={agent.id}>
+                          <td>
                             <div>
-                              <p className="font-bold text-text-primary flex items-center gap-1.5">
-                                {agent.os.toLowerCase().includes('windows') ? <Laptop className="w-3.5 h-3.5 text-accent" /> : <Server className="w-3.5 h-3.5 text-sky-400" />}
+                              <p className="font-semibold text-text-primary flex items-center gap-1.5">
+                                {agent.os.toLowerCase().includes('windows') ? <Laptop className="w-3.5 h-3.5 text-accent" /> : <Server className="w-3.5 h-3.5 text-info" />}
                                 {agent.hostname}
                               </p>
-                              <p className="text-[10px] text-text-muted mt-0.5 truncate max-w-[200px]">{agent.os}</p>
+                              <p className="text-label text-text-muted mt-0.5 truncate max-w-[200px]">{agent.os}</p>
                             </div>
                           </td>
-                          <td className="py-3 px-3 font-mono text-text-secondary">{agent.ip}</td>
-                          <td className="py-3 px-3 font-mono text-text-secondary">{agent.version}</td>
-                          <td className="py-3 px-3">
+                          <td className="font-mono text-text-secondary">{agent.ip}</td>
+                          <td className="font-mono text-text-secondary">{agent.version}</td>
+                          <td>
                             <span className={clsx(
-                              "text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded border inline-flex items-center gap-1",
-                              agent.status === 'ONLINE' && "bg-emerald-500/10 text-emerald-400 border-emerald-500/20",
-                              agent.status === 'ISOLATED' && "bg-rose-500/10 text-rose-400 border-rose-500/20",
-                              agent.status === 'OUTDATED' && "bg-amber-500/10 text-amber-400 border-amber-500/20",
+                              "badge-mission inline-flex items-center gap-1",
+                              agent.status === 'ONLINE' && "bg-success/10 text-success border-success/20",
+                              agent.status === 'ISOLATED' && "bg-danger/10 text-danger border-danger/20",
+                              agent.status === 'OUTDATED' && "bg-severity-medium/10 text-severity-medium border-severity-medium/20",
                               agent.status === 'OFFLINE' && "bg-surface-3 text-text-secondary border-fire-border"
                             )}>
-                              {agent.status === 'ONLINE' && <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />}
+                              {agent.status === 'ONLINE' && <span className="w-1.5 h-1.5 rounded-full bg-success animate-pulse" />}
                               {agent.status}
                             </span>
                           </td>
-                          <td className="py-3 px-3 font-mono text-text-secondary">
+                          <td className="font-mono text-text-secondary">
                             {agent.cpu} / {agent.ram}
                           </td>
-                          <td className="py-3 px-3 font-mono text-text-muted text-[11px]">{agent.lastHeartbeat}</td>
-                          <td className="py-3 px-3 text-right">
+                          <td className="font-mono text-text-muted text-small">{agent.lastHeartbeat}</td>
+                          <td className="text-right">
                             <div className="flex items-center justify-end gap-2">
                               <button
                                 onClick={() => {
                                   setAgentFleet(prev => prev.map(a => a.id === agent.id ? { ...a, status: a.status === 'ISOLATED' ? 'ONLINE' : 'ISOLATED' } : a))
                                 }}
                                 className={clsx(
-                                  "px-2.5 py-1 rounded text-[10px] font-bold transition-colors border",
-                                  agent.status === 'ISOLATED' 
-                                    ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/20" 
-                                    : "bg-rose-500/10 text-rose-400 border-rose-500/30 hover:bg-rose-500/20"
+                                  "px-2.5 py-1 rounded-md text-label font-semibold transition-colors border",
+                                  agent.status === 'ISOLATED'
+                                    ? "bg-success/10 text-success border-success/30 hover:bg-success/20"
+                                    : "bg-danger/10 text-danger border-danger/30 hover:bg-danger/20"
                                 )}
                               >
                                 {agent.status === 'ISOLATED' ? 'Unisolate' : 'Isolate'}
@@ -2785,18 +2785,18 @@ export default function SettingsPage() {
             </div>
 
             {/* Global Agent Configuration & Ingestion Policy */}
-            <div className="bg-surface-2 border border-fire-border rounded-xl p-6 shadow-sm space-y-6">
+            <div className="card-mission space-y-6">
               <div className="flex items-center justify-between border-b border-fire-border pb-4">
                 <div>
-                  <h3 className="text-sm font-bold text-text-primary tracking-tight flex items-center gap-2">
+                  <h3 className="text-h3 text-text-primary flex items-center gap-2">
                     <Sliders className="w-4 h-4 text-accent" /> Agent Performance & Ingestion Policy
                   </h3>
-                  <p className="text-[10px] text-text-muted mt-1">Configure global agent CPU caps, telemetry buffering, and EDR self-protection</p>
+                  <p className="text-small text-text-muted mt-1">Configure global agent CPU caps, telemetry buffering, and EDR self-protection</p>
                 </div>
                 <button
                   onClick={handleSaveAgentPolicy}
                   disabled={agentPolicySaving}
-                  className="bg-accent hover:bg-accent-dark disabled:bg-surface-3 text-white font-bold px-5 py-2 rounded-xl text-xs flex items-center gap-1.5 transition-all shadow-md"
+                  className="btn-fire py-2 px-5 text-small"
                 >
                   <Save className="w-3.5 h-3.5" />
                   {agentPolicySaving ? 'Saving...' : 'Save Agent Policy'}
@@ -2804,15 +2804,15 @@ export default function SettingsPage() {
               </div>
 
               {agentPolicySuccess && (
-                <div className="bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 p-3.5 rounded-xl text-xs font-bold flex items-center gap-2 animate-fade-in">
-                  <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                <div className="bg-success/10 border border-success/30 text-success p-3.5 rounded-xl text-small font-semibold flex items-center gap-2 animate-fade-in">
+                  <CheckCircle2 className="w-4 h-4 text-success" />
                   Agent policy updated successfully! Pushed to active agent fleet via WebSocket broadcast.
                 </div>
               )}
 
-              <form onSubmit={handleSaveAgentPolicy} className="grid grid-cols-1 md:grid-cols-2 gap-6 text-xs">
+              <form onSubmit={handleSaveAgentPolicy} className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-2">
-                  <label className="text-text-secondary font-bold tracking-tight block">Telemetry Streaming Frequency</label>
+                  <label className="text-small text-text-secondary font-semibold block">Telemetry Streaming Frequency</label>
                   <div className="grid grid-cols-3 gap-2">
                     {[
                       { id: 'REALTIME', label: 'Real-Time' },
@@ -2824,10 +2824,10 @@ export default function SettingsPage() {
                         type="button"
                         onClick={() => setAgentPolicyRate(rate.id as any)}
                         className={clsx(
-                          "py-2 rounded-lg text-center font-bold border transition-all text-[11px]",
+                          "py-2 rounded-lg text-center font-semibold border transition-all text-small",
                           agentPolicyRate === rate.id
                             ? "bg-accent/10 text-accent border-accent/40"
-                            : "bg-surface-3 text-text-secondary border-fire-border hover:text-text-primary"
+                            : "bg-surface-2 text-text-secondary border-fire-border hover:text-text-primary"
                         )}
                       >
                         {rate.label}
@@ -2837,7 +2837,7 @@ export default function SettingsPage() {
                 </div>
 
                 <div className="space-y-2">
-                  <label className="text-text-secondary font-bold tracking-tight block">Host CPU Limit Cap ({agentCpuCap}%)</label>
+                  <label className="text-small text-text-secondary font-semibold block">Host CPU Limit Cap ({agentCpuCap}%)</label>
                   <input
                     type="range"
                     min="1"
@@ -2846,7 +2846,7 @@ export default function SettingsPage() {
                     onChange={(e) => setAgentCpuCap(Number(e.target.value))}
                     className="w-full accent-accent cursor-pointer"
                   />
-                  <div className="flex justify-between text-[10px] text-text-muted font-mono">
+                  <div className="flex justify-between text-label text-text-muted font-mono">
                     <span>1% (Silent)</span>
                     <span>5% (Default)</span>
                     <span>25% (High Perf)</span>
@@ -2855,8 +2855,8 @@ export default function SettingsPage() {
 
                 <div className="flex items-center justify-between py-2 border-t border-fire-border md:col-span-2">
                   <div>
-                    <p className="font-bold text-text-primary">EDR Tamper Resistance & Anti-Kill Protection</p>
-                    <p className="text-[11px] text-text-muted">Prevents non-system administrators or malware processes from terminating the ACIS agent service.</p>
+                    <p className="font-semibold text-text-primary">EDR Tamper Resistance & Anti-Kill Protection</p>
+                    <p className="text-small text-text-muted">Prevents non-system administrators or malware processes from terminating the ACIS agent service.</p>
                   </div>
                   <button
                     type="button"
@@ -2880,15 +2880,15 @@ export default function SettingsPage() {
           <div className="space-y-6">
             
             {/* API Keys Table Card */}
-            <div className="bg-surface-2 border border-fire-border rounded-xl p-5 shadow-sm space-y-4">
+            <div className="card-mission p-5 space-y-4">
               <div className="flex items-center justify-between border-b border-fire-border pb-3">
                 <div>
-                  <h3 className="text-sm font-bold text-text-primary tracking-tight">API Keys</h3>
-                  <p className="text-[10px] text-text-muted mt-1">Tokens for external API access and automation scripts.</p>
+                  <h3 className="text-h3 text-text-primary">API Keys</h3>
+                  <p className="text-small text-text-muted mt-1">Tokens for external API access and automation scripts.</p>
                 </div>
-                <button 
+                <button
                   onClick={() => setIsKeyModalOpen(true)}
-                  className="bg-accent hover:bg-accent-dark text-white font-bold px-4 py-2 rounded-xl text-xs flex items-center gap-1 transition-colors focus:outline-none"
+                  className="btn-fire py-2 px-4 text-small"
                 >
                   <Plus className="w-3.5 h-3.5" /> Generate Key
                 </button>
@@ -2896,54 +2896,54 @@ export default function SettingsPage() {
 
               {/* API Keys Table */}
               <div className="overflow-x-auto">
-                <table className="w-full text-left border-collapse text-xs">
+                <table className="table-enterprise">
                   <thead>
-                    <tr className="border-b border-fire-border text-text-muted font-bold uppercase tracking-wider text-[9px]">
-                      <th className="py-2.5 px-3 w-[25%]">Key Name</th>
-                      <th className="py-2.5 px-3 w-[25%]">Token</th>
-                      <th className="py-2.5 px-3 w-[15%]">Role</th>
-                      <th className="py-2.5 px-3 w-[12%]">Created</th>
-                      <th className="py-2.5 px-3 w-[11%]">Last Used</th>
-                      <th className="py-2.5 px-3 w-[12%] text-right">Actions</th>
+                    <tr>
+                      <th className="w-[25%]">Key Name</th>
+                      <th className="w-[25%]">Token</th>
+                      <th className="w-[15%]">Role</th>
+                      <th className="w-[12%]">Created</th>
+                      <th className="w-[11%]">Last Used</th>
+                      <th className="w-[12%] text-right">Actions</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-fire-border/60 font-semibold text-text-secondary">
+                  <tbody>
                     {keys.map(k => (
-                      <tr key={k.id} className="hover:bg-surface-3/50 transition-colors">
-                        <td className="py-3.5 px-3 text-text-secondary">
+                      <tr key={k.id}>
+                        <td>
                           {k.keyName}
                           {k.status === 'Revoked' && (
-                            <span className="ml-2 bg-surface-3 text-text-muted text-[8px] font-bold px-1.5 py-0.5 rounded border border-fire-border">REVOKED</span>
+                            <span className="badge-mission ml-2 bg-surface-3 text-text-muted border-fire-border">Revoked</span>
                           )}
                         </td>
-                        <td className="py-3.5 px-3 font-mono text-[10px] text-text-secondary">
+                        <td className="font-mono text-small text-text-secondary">
                           <div className="flex items-center gap-1.5">
                             <span>{k.token}</span>
-                            <button 
+                            <button
                               onClick={() => handleCopyToken(k.id, k.token)}
                               className="text-text-muted hover:text-text-primary transition-colors focus:outline-none"
                             >
-                              {copiedKeyId === k.id ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                              {copiedKeyId === k.id ? <Check className="w-3.5 h-3.5 text-success" /> : <Copy className="w-3.5 h-3.5" />}
                             </button>
                           </div>
                         </td>
-                        <td className="py-3.5 px-3 font-mono text-text-secondary text-[10px]">{k.role}</td>
-                        <td className="py-3.5 px-3 text-text-secondary">{new Date(k.createdAt).toLocaleDateString([], { day: '2-digit', month: 'short', year: 'numeric' })}</td>
-                        <td className="py-3.5 px-3 text-text-secondary">
+                        <td className="font-mono text-text-secondary text-small">{k.role}</td>
+                        <td>{new Date(k.createdAt).toLocaleDateString([], { day: '2-digit', month: 'short', year: 'numeric' })}</td>
+                        <td>
                           {k.lastUsedAt ? `${Math.floor((Date.now() - new Date(k.lastUsedAt).getTime()) / 60000)} mins ago` : 'Never'}
                         </td>
-                        <td className="py-3.5 px-3 text-right">
+                        <td className="text-right">
                           {k.status === 'Active' ? (
-                            <button 
+                            <button
                               onClick={() => handleRevokeKey(k.id)}
-                              className="text-red-500 hover:text-red-400 font-bold text-[10px] uppercase transition-colors focus:outline-none"
+                              className="text-danger hover:text-danger/80 font-semibold text-small transition-colors focus:outline-none"
                             >
                               Revoke
                             </button>
                           ) : (
-                            <button 
+                            <button
                               onClick={() => alert("Key is already revoked")}
-                              className="text-text-muted font-bold text-[10px] uppercase focus:outline-none cursor-not-allowed"
+                              className="text-text-muted font-semibold text-small focus:outline-none cursor-not-allowed"
                             >
                               Revoked
                             </button>
@@ -2953,8 +2953,8 @@ export default function SettingsPage() {
                     ))}
                     {keys.length === 0 && (
                       <tr>
-                        <td colSpan={6} className="py-12 text-center text-text-muted uppercase font-black tracking-widest text-[9px]">
-                          No API Keys Configured
+                        <td colSpan={6} className="py-12 text-center text-text-muted text-small">
+                          No API keys configured
                         </td>
                       </tr>
                     )}
@@ -2964,15 +2964,15 @@ export default function SettingsPage() {
             </div>
 
             {/* Connected Integrations Card */}
-            <div className="bg-surface-2 border border-fire-border rounded-xl p-5 shadow-sm space-y-4">
+            <div className="card-mission p-5 space-y-4">
               <div className="flex items-center justify-between border-b border-fire-border pb-3">
                 <div>
-                  <h3 className="text-sm font-bold text-text-primary tracking-tight">Connected Integrations</h3>
-                  <p className="text-[10px] text-text-muted mt-1">Third-party services connected to Kiro AI for ingestion and SOAR actions.</p>
+                  <h3 className="text-h3 text-text-primary">Connected Integrations</h3>
+                  <p className="text-small text-text-muted mt-1">Third-party services connected to ACIS for ingestion and SOAR actions.</p>
                 </div>
-                <button 
+                <button
                   onClick={() => setIsIntegrationModalOpen(true)}
-                  className="bg-accent hover:bg-accent-dark text-white font-bold px-4 py-2 rounded-xl text-xs flex items-center gap-1 transition-colors focus:outline-none"
+                  className="btn-fire py-2 px-4 text-small"
                 >
                   <Plus className="w-3.5 h-3.5" /> Add Integration
                 </button>
@@ -2981,38 +2981,38 @@ export default function SettingsPage() {
               {/* Integrations Cards Grid */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 {integrations.map(int => (
-                  <div key={int.id} className="bg-surface/40 border border-fire-border rounded-xl p-4 flex flex-col justify-between h-[150px] shadow-sm hover:border-accent/30 transition-all">
+                  <div key={int.id} className="bg-surface-2 border border-fire-border rounded-xl p-4 flex flex-col justify-between h-[150px] shadow-sm hover:border-accent/30 transition-all">
                     <div>
                       <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-lg bg-surface-3 border border-fire-border flex items-center justify-center font-black text-accent text-xs">
+                        <div className="w-8 h-8 rounded-lg bg-surface-3 border border-fire-border flex items-center justify-center font-bold text-accent text-small">
                           {int.logoLetter}
                         </div>
-                        <h4 className="text-xs font-bold text-text-primary tracking-tight">{int.name}</h4>
+                        <h4 className="text-small font-bold text-text-primary">{int.name}</h4>
                       </div>
-                      <p className="text-[10px] text-text-muted leading-normal mt-2.5 font-semibold">
+                      <p className="text-small text-text-muted leading-normal mt-2.5">
                         {int.description}
                       </p>
                     </div>
 
-                    <div className="flex items-center justify-between border-t border-fire-border/60 pt-2.5 mt-2.5 text-[10px] font-bold">
-                      <button 
+                    <div className="flex items-center justify-between border-t border-fire-border/60 pt-2.5 mt-2.5">
+                      <button
                         onClick={() => handleToggleIntegration(int.id)}
                         className="flex items-center gap-1.5 focus:outline-none"
                       >
                         <span className={clsx(
                           "w-1.5 h-1.5 rounded-full inline-block",
-                          int.status === 'Connected' ? "bg-emerald-400" : "bg-text-muted"
+                          int.status === 'Connected' ? "bg-success" : "bg-text-muted"
                         )} />
                         <span className={clsx(
-                          "text-[10px] uppercase font-bold tracking-wider",
-                          int.status === 'Connected' ? "text-emerald-400 hover:text-emerald-500" : "text-text-muted hover:text-text-secondary"
+                          "text-label uppercase",
+                          int.status === 'Connected' ? "text-success hover:text-success" : "text-text-muted hover:text-text-secondary"
                         )}>
                           {int.status}
                         </span>
                       </button>
-                      <button 
+                      <button
                         onClick={() => alert("Configuration settings options")}
-                        className="text-text-muted hover:text-text-primary transition-colors focus:outline-none text-[9px] uppercase"
+                        className="text-text-muted hover:text-text-primary transition-colors focus:outline-none text-label uppercase"
                       >
                         Configure
                       </button>
@@ -3031,70 +3031,70 @@ export default function SettingsPage() {
 
             {/* Header & Quick Overview Metrics */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              <div className="bg-surface-2 border border-fire-border rounded-xl p-4 space-y-2">
+              <div className="card-mission p-4 space-y-2">
                 <div className="flex items-center justify-between">
-                  <span className="text-[10px] text-text-muted font-bold uppercase tracking-wider">Active Ingest Pipeline</span>
+                  <span className="text-label text-text-muted uppercase">Active Ingest Pipeline</span>
                   <Layers className="w-4 h-4 text-accent" />
                 </div>
                 <div className="flex items-baseline justify-between">
-                  <span className="text-2xl font-black text-text-primary font-mono">
+                  <span className="text-h1 text-text-primary font-mono">
                     {integrations.filter(i => i.status === 'Streaming' || i.status === 'Connected').length} Toolkits
                   </span>
-                  <span className="text-[10px] text-emerald-400 font-bold flex items-center gap-1">
-                    <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" /> Live Feed
+                  <span className="text-label text-success flex items-center gap-1">
+                    <span className="w-2 h-2 rounded-full bg-success animate-pulse" /> Live Feed
                   </span>
                 </div>
               </div>
 
-              <div className="bg-surface-2 border border-fire-border rounded-xl p-4 space-y-2">
+              <div className="card-mission p-4 space-y-2">
                 <div className="flex items-center justify-between">
-                  <span className="text-[10px] text-text-muted font-bold uppercase tracking-wider">Aggregate Pipeline EPS</span>
-                  <Zap className="w-4 h-4 text-amber-400" />
+                  <span className="text-label text-text-muted uppercase">Aggregate Pipeline EPS</span>
+                  <Zap className="w-4 h-4 text-severity-medium" />
                 </div>
                 <div className="flex items-baseline justify-between">
-                  <span className="text-2xl font-black text-amber-400 font-mono">
+                  <span className="text-h1 text-severity-medium font-mono">
                     {integrations.reduce((acc, curr) => acc + (curr.eps || 1200), 0).toLocaleString()} EPS
                   </span>
-                  <span className="text-[10px] text-text-muted font-bold">Real-time Stream</span>
+                  <span className="text-label text-text-muted">Real-time Stream</span>
                 </div>
               </div>
 
-              <div className="bg-surface-2 border border-fire-border rounded-xl p-4 space-y-2">
+              <div className="card-mission p-4 space-y-2">
                 <div className="flex items-center justify-between">
-                  <span className="text-[10px] text-text-muted font-bold uppercase tracking-wider">Combined Ingest Rate</span>
-                  <Activity className="w-4 h-4 text-sky-400" />
+                  <span className="text-label text-text-muted uppercase">Combined Ingest Rate</span>
+                  <Activity className="w-4 h-4 text-info" />
                 </div>
                 <div className="flex items-baseline justify-between">
-                  <span className="text-2xl font-black text-text-primary font-mono">18.7 MB/s</span>
-                  <span className="text-[10px] text-sky-400 font-bold font-mono">~260.1 GB / day</span>
+                  <span className="text-h1 text-text-primary font-mono">18.7 MB/s</span>
+                  <span className="text-label text-info font-mono">~260.1 GB / day</span>
                 </div>
               </div>
 
-              <div className="bg-surface-2 border border-fire-border rounded-xl p-4 space-y-2">
+              <div className="card-mission p-4 space-y-2">
                 <div className="flex items-center justify-between">
-                  <span className="text-[10px] text-text-muted font-bold uppercase tracking-wider">Circuit Breakers</span>
-                  <ShieldCheck className="w-4 h-4 text-emerald-400" />
+                  <span className="text-label text-text-muted uppercase">Circuit Breakers</span>
+                  <ShieldCheck className="w-4 h-4 text-success" />
                 </div>
                 <div className="flex items-baseline justify-between">
-                  <span className="text-2xl font-black text-emerald-400 font-mono">0 TRIPPED</span>
-                  <span className="text-[10px] text-emerald-400/80 font-bold">100% Healthy</span>
+                  <span className="text-h1 text-success font-mono">0 Tripped</span>
+                  <span className="text-label text-success/80">100% Healthy</span>
                 </div>
               </div>
             </div>
 
             {/* Ingest Toolkits Controls Header */}
-            <div className="bg-surface-2 border border-fire-border rounded-xl p-6 shadow-sm space-y-6">
+            <div className="card-mission space-y-6">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-fire-border pb-4">
                 <div>
-                  <h3 className="text-sm font-bold text-text-primary tracking-tight flex items-center gap-2">
+                  <h3 className="text-h3 text-text-primary flex items-center gap-2">
                     <Sliders className="w-4 h-4 text-accent" /> Full Ingestion Integrations & Rate Boundaries
                   </h3>
-                  <p className="text-[10px] text-text-muted mt-1">Manage the complete configurations, API rate boundaries, and pipeline ingest metrics of active toolkits.</p>
+                  <p className="text-small text-text-muted mt-1">Manage the complete configurations, API rate boundaries, and pipeline ingest metrics of active toolkits.</p>
                 </div>
 
                 <div className="flex items-center gap-3">
                   {/* Category Filter */}
-                  <div className="flex items-center gap-1 bg-surface-3 p-1 rounded-xl border border-fire-border text-[10px] font-bold">
+                  <div className="flex items-center gap-1 bg-surface-2 p-1 rounded-lg border border-fire-border text-label">
                     {['ALL', 'Cloud Audit', 'Network & Perimeter', 'EDR & Endpoint'].map((cat) => (
                       <button
                         key={cat}
@@ -3111,7 +3111,7 @@ export default function SettingsPage() {
 
                   <button
                     onClick={() => setIsIntegrationModalOpen(true)}
-                    className="bg-accent hover:bg-accent-dark text-white font-bold px-4 py-2 rounded-xl text-xs flex items-center gap-1.5 transition-all shadow-md shrink-0"
+                    className="btn-fire py-2 px-4 text-small shrink-0"
                   >
                     <Plus className="w-3.5 h-3.5" /> Connect Custom Toolkit
                   </button>
@@ -3126,27 +3126,27 @@ export default function SettingsPage() {
                     return (int.category || '').toLowerCase().includes(intFilterCategory.toLowerCase())
                   })
                   .map((intItem) => (
-                    <div key={intItem.id} className="bg-surface-3 border border-fire-border rounded-xl p-5 space-y-4 hover:border-accent/30 transition-all flex flex-col justify-between group">
-                      
+                    <div key={intItem.id} className="bg-surface-2 border border-fire-border rounded-xl p-5 space-y-4 hover:border-accent/30 transition-all flex flex-col justify-between group">
+
                       <div className="space-y-3">
                         {/* Header: Logo, Name & Status Badge */}
                         <div className="flex items-start justify-between gap-3">
                           <div className="flex items-center gap-3">
-                            <div className="w-9 h-9 rounded-lg bg-surface-3 border border-fire-border flex items-center justify-center font-black text-xs text-accent font-mono shrink-0 shadow-inner">
+                            <div className="w-9 h-9 rounded-lg bg-surface-3 border border-fire-border flex items-center justify-center font-bold text-small text-accent font-mono shrink-0">
                               {intItem.logoLetter || intItem.name.substring(0, 2).toUpperCase()}
                             </div>
                             <div>
-                              <h4 className="text-xs font-bold text-text-primary leading-tight group-hover:text-accent transition-colors">{intItem.name}</h4>
-                              <p className="text-[9px] text-text-muted font-semibold mt-0.5">{intItem.category || 'Security Telemetry'}</p>
+                              <h4 className="text-small font-bold text-text-primary leading-tight group-hover:text-accent transition-colors">{intItem.name}</h4>
+                              <p className="text-label text-text-muted mt-0.5">{intItem.category || 'Security Telemetry'}</p>
                             </div>
                           </div>
 
                           <button
                             onClick={() => handleToggleIntegration(intItem.id)}
                             className={clsx(
-                              "text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded border transition-colors shrink-0",
+                              "badge-mission shrink-0",
                               intItem.status === 'Streaming' || intItem.status === 'Connected'
-                                ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20 hover:bg-emerald-500/20"
+                                ? "bg-success/10 text-success border-success/20 hover:bg-success/20"
                                 : "bg-surface-3 text-text-muted border-fire-border hover:text-text-primary"
                             )}
                           >
@@ -3155,49 +3155,49 @@ export default function SettingsPage() {
                         </div>
 
                         {/* Description */}
-                        <p className="text-[10px] text-text-secondary leading-relaxed line-clamp-2">{intItem.description}</p>
+                        <p className="text-small text-text-secondary leading-relaxed line-clamp-2">{intItem.description}</p>
 
                         {/* Ingestion Metrics Box */}
-                        <div className="bg-surface-2 border border-fire-border/80 rounded-lg p-3 grid grid-cols-2 gap-2 text-[10px]">
+                        <div className="bg-surface border border-fire-border/80 rounded-lg p-3 grid grid-cols-2 gap-2 text-small">
                           <div>
-                            <span className="text-text-muted block text-[9px] uppercase font-bold">Throughput EPS</span>
-                            <span className="text-text-primary font-bold font-mono text-xs text-amber-400">{(intItem.eps || 1200).toLocaleString()} EPS</span>
+                            <span className="text-label text-text-muted uppercase block">Throughput EPS</span>
+                            <span className="text-text-primary font-bold font-mono text-small text-severity-medium">{(intItem.eps || 1200).toLocaleString()} EPS</span>
                           </div>
                           <div>
-                            <span className="text-text-muted block text-[9px] uppercase font-bold">Ingest Bandwidth</span>
-                            <span className="text-text-primary font-bold font-mono text-xs">{intItem.bandwidth || '2.4 MB/s'}</span>
+                            <span className="text-label text-text-muted uppercase block">Ingest Bandwidth</span>
+                            <span className="text-text-primary font-bold font-mono text-small">{intItem.bandwidth || '2.4 MB/s'}</span>
                           </div>
                           <div>
-                            <span className="text-text-muted block text-[9px] uppercase font-bold">Pipe Latency</span>
-                            <span className="text-emerald-400 font-bold font-mono">{intItem.latency || '10 ms'}</span>
+                            <span className="text-label text-text-muted uppercase block">Pipe Latency</span>
+                            <span className="text-success font-bold font-mono">{intItem.latency || '10 ms'}</span>
                           </div>
                           <div>
-                            <span className="text-text-muted block text-[9px] uppercase font-bold">24h Log Volume</span>
+                            <span className="text-label text-text-muted uppercase block">24h Log Volume</span>
                             <span className="text-text-primary font-bold font-mono">{intItem.dailyVolume || '32 GB'}</span>
                           </div>
                         </div>
 
                         {/* Rate Boundary Limits Pill */}
-                        <div className="bg-surface-3 rounded-lg px-3 py-2 text-[10px] flex items-center justify-between font-mono text-text-secondary border border-fire-border/60">
+                        <div className="bg-surface-3 rounded-lg px-3 py-2 text-small flex items-center justify-between font-mono text-text-secondary border border-fire-border/60">
                           <span>Boundary: <strong className="text-text-primary">{(intItem.maxEps || 5000).toLocaleString()} EPS Max</strong></span>
                           <span>Concurrency: <strong className="text-text-primary">{intItem.maxConcurrency || 20} reqs</strong></span>
                         </div>
                       </div>
 
                       {/* Card Action Buttons */}
-                      <div className="pt-3 border-t border-fire-border flex items-center justify-between gap-2 text-xs">
+                      <div className="pt-3 border-t border-fire-border flex items-center justify-between gap-2">
                         <button
                           onClick={() => handleOpenRateModal(intItem)}
-                          className="bg-surface-3 hover:bg-surface-3 border border-fire-border text-text-secondary hover:text-text-primary font-bold px-3 py-1.5 rounded-lg text-[10px] flex items-center gap-1 transition-colors flex-1 justify-center"
+                          className="btn-mission px-3 py-1.5 text-small flex-1 justify-center"
                         >
                           <Sliders className="w-3 h-3 text-accent" /> Boundaries
                         </button>
                         <button
                           onClick={() => handleFlushBuffer(intItem.id)}
                           disabled={flushingId === intItem.id}
-                          className="bg-surface-3 hover:bg-surface-3 border border-fire-border text-text-secondary hover:text-text-primary font-bold px-2.5 py-1.5 rounded-lg text-[10px] transition-colors flex items-center gap-1"
+                          className="btn-mission px-2.5 py-1.5 text-small"
                         >
-                          <RefreshCw className={clsx("w-3 h-3 text-sky-400", flushingId === intItem.id && "animate-spin")} />
+                          <RefreshCw className={clsx("w-3 h-3 text-info", flushingId === intItem.id && "animate-spin")} />
                           {flushingId === intItem.id ? 'Flushing...' : 'Flush'}
                         </button>
                       </div>
@@ -3215,15 +3215,15 @@ export default function SettingsPage() {
       {/* Rate Boundaries Configuration Modal */}
       {rateModalOpen && editingIntegration && (
         <div className="fixed inset-0 bg-background/85 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-surface-2 border border-fire-border rounded-xl w-full max-w-lg overflow-hidden shadow-2xl animate-scale-in">
+          <div className="bg-surface border border-fire-border rounded-xl w-full max-w-lg overflow-hidden shadow-card animate-scale-in">
             <div className="flex items-center justify-between p-5 border-b border-fire-border">
               <div>
-                <h3 className="text-sm font-bold text-text-primary tracking-tight flex items-center gap-2">
+                <h3 className="text-h3 text-text-primary flex items-center gap-2">
                   <Sliders className="w-4 h-4 text-accent" /> API Rate Boundaries — {editingIntegration.name}
                 </h3>
-                <p className="text-[10px] text-text-muted mt-0.5">Configure pipeline throughput caps, API concurrency limits, and circuit breakers.</p>
+                <p className="text-small text-text-muted mt-0.5">Configure pipeline throughput caps, API concurrency limits, and circuit breakers.</p>
               </div>
-              <button 
+              <button
                 onClick={() => setRateModalOpen(false)}
                 className="text-text-muted hover:text-text-primary transition-colors focus:outline-none"
               >
@@ -3232,17 +3232,17 @@ export default function SettingsPage() {
             </div>
 
             {rateSavedSuccess && (
-              <div className="bg-emerald-500/10 border-b border-emerald-500/30 text-emerald-400 px-5 py-3 text-xs font-bold flex items-center gap-2">
-                <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+              <div className="bg-success/10 border-b border-success/30 text-success px-5 py-3 text-small font-semibold flex items-center gap-2">
+                <CheckCircle2 className="w-4 h-4 text-success" />
                 Rate boundaries saved successfully! Active ingestion pipeline updated.
               </div>
             )}
 
-            <form onSubmit={handleSaveRateBoundaries} className="p-5 space-y-5 text-xs">
+            <form onSubmit={handleSaveRateBoundaries} className="p-5 space-y-5">
               <div className="space-y-1.5">
                 <div className="flex justify-between">
-                  <label className="text-text-secondary font-bold tracking-tight">Maximum Ingest EPS Cap</label>
-                  <span className="font-mono text-text-primary font-bold">{modalMaxEps.toLocaleString()} EPS</span>
+                  <label className="text-small text-text-secondary font-semibold">Maximum Ingest EPS Cap</label>
+                  <span className="font-mono text-small text-text-primary font-semibold">{modalMaxEps.toLocaleString()} EPS</span>
                 </div>
                 <input
                   type="range"
@@ -3253,7 +3253,7 @@ export default function SettingsPage() {
                   onChange={(e) => setModalMaxEps(Number(e.target.value))}
                   className="w-full accent-accent cursor-pointer"
                 />
-                <div className="flex justify-between text-[10px] text-text-muted font-mono">
+                <div className="flex justify-between text-label text-text-muted font-mono">
                   <span>500 EPS</span>
                   <span>5,000 EPS</span>
                   <span>25,000 EPS</span>
@@ -3262,8 +3262,8 @@ export default function SettingsPage() {
 
               <div className="space-y-1.5">
                 <div className="flex justify-between">
-                  <label className="text-text-secondary font-bold tracking-tight">Max Concurrent API Connections</label>
-                  <span className="font-mono text-text-primary font-bold">{modalMaxConcurrency} Req</span>
+                  <label className="text-small text-text-secondary font-semibold">Max Concurrent API Connections</label>
+                  <span className="font-mono text-small text-text-primary font-semibold">{modalMaxConcurrency} Req</span>
                 </div>
                 <input
                   type="range"
@@ -3278,11 +3278,11 @@ export default function SettingsPage() {
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1">
-                  <label className="text-text-secondary font-bold tracking-tight block">Circuit Breaker Error Threshold</label>
+                  <label className="text-small text-text-secondary font-semibold block">Circuit Breaker Error Threshold</label>
                   <select
                     value={modalCircuitBreaker}
                     onChange={(e) => setModalCircuitBreaker(Number(e.target.value))}
-                    className="w-full bg-surface-3 border border-fire-border rounded-lg px-3 py-2 text-text-primary focus:outline-none font-mono"
+                    className="w-full bg-surface-3 border border-fire-border rounded-lg px-3 py-2 text-small text-text-primary focus:outline-none font-mono cursor-pointer"
                   >
                     <option value={2}>2% Failure (Strict)</option>
                     <option value={5}>5% Failure (Standard)</option>
@@ -3291,11 +3291,11 @@ export default function SettingsPage() {
                 </div>
 
                 <div className="space-y-1">
-                  <label className="text-text-secondary font-bold tracking-tight block">Retry Backoff Delay</label>
+                  <label className="text-small text-text-secondary font-semibold block">Retry Backoff Delay</label>
                   <select
                     value={modalRetryBackoff}
                     onChange={(e) => setModalRetryBackoff(Number(e.target.value))}
-                    className="w-full bg-surface-3 border border-fire-border rounded-lg px-3 py-2 text-text-primary focus:outline-none font-mono"
+                    className="w-full bg-surface-3 border border-fire-border rounded-lg px-3 py-2 text-small text-text-primary focus:outline-none font-mono cursor-pointer"
                   >
                     <option value={500}>500 ms (Fast)</option>
                     <option value={1000}>1,000 ms (Default)</option>
@@ -3308,14 +3308,14 @@ export default function SettingsPage() {
                 <button
                   type="button"
                   onClick={() => setRateModalOpen(false)}
-                  className="border border-fire-border bg-surface-2 hover:bg-surface-3 text-text-secondary hover:text-text-primary font-bold px-4 py-2 rounded-xl focus:outline-none transition-colors"
+                  className="btn-mission py-2 px-4 text-small"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={rateSaving}
-                  className="bg-accent hover:bg-accent-dark disabled:bg-surface-3 text-white font-bold px-5 py-2 rounded-xl focus:outline-none flex items-center gap-1.5 transition-all shadow-md"
+                  className="btn-fire py-2 px-5 text-small"
                 >
                   <Save className="w-3.5 h-3.5" />
                   {rateSaving ? 'Saving...' : 'Apply Rate Boundaries'}
@@ -3329,35 +3329,35 @@ export default function SettingsPage() {
       {/* Generate API Key Modal */}
       {isKeyModalOpen && (
         <div className="fixed inset-0 bg-background/85 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-surface-2 border border-fire-border rounded-xl w-full max-w-md overflow-hidden shadow-2xl animate-scale-in">
+          <div className="bg-surface border border-fire-border rounded-xl w-full max-w-md overflow-hidden shadow-card animate-scale-in">
             <div className="flex items-center justify-between p-5 border-b border-fire-border">
-              <h3 className="text-sm font-bold text-text-primary uppercase tracking-wider">Generate API Access Key</h3>
-              <button 
+              <h3 className="text-h3 text-text-primary">Generate API Access Key</h3>
+              <button
                 onClick={() => setIsKeyModalOpen(false)}
                 className="text-text-muted hover:text-text-primary transition-colors focus:outline-none"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
-            <form onSubmit={handleGenerateKey} className="p-5 space-y-4 text-xs">
+            <form onSubmit={handleGenerateKey} className="p-5 space-y-4">
               <div className="space-y-1">
-                <label className="text-text-muted font-bold uppercase tracking-wider block">Key Name</label>
-                <input 
-                  type="text" 
+                <label className="text-label text-text-muted uppercase block">Key Name</label>
+                <input
+                  type="text"
                   required
                   placeholder="e.g. Jenkins CI/CD Deployer"
                   value={newKeyName}
                   onChange={(e) => setNewKeyName(e.target.value)}
-                  className="w-full bg-surface border border-fire-border rounded-lg px-3 py-2 text-text-primary placeholder:text-text-muted focus:outline-none"
+                  className="input-field"
                 />
               </div>
 
               <div className="space-y-1">
-                <label className="text-text-muted font-bold uppercase tracking-wider block">Access Role</label>
-                <select 
+                <label className="text-label text-text-muted uppercase block">Access Role</label>
+                <select
                   value={newKeyRole}
                   onChange={(e) => setNewKeyRole(e.target.value)}
-                  className="w-full bg-surface border border-fire-border rounded-lg px-3 py-2 text-text-primary focus:outline-none"
+                  className="input-field"
                 >
                   <option value="API Read/Write">API Read/Write</option>
                   <option value="Data Ingest Only">Data Ingest Only</option>
@@ -3366,16 +3366,16 @@ export default function SettingsPage() {
               </div>
 
               <div className="flex items-center justify-end gap-3 pt-3 border-t border-fire-border mt-4">
-                <button 
+                <button
                   type="button"
                   onClick={() => setIsKeyModalOpen(false)}
-                  className="border border-fire-border bg-surface-2 hover:bg-surface-3 text-text-secondary hover:text-text-primary font-bold px-4 py-2 rounded-xl focus:outline-none"
+                  className="btn-mission py-2 px-4 text-small"
                 >
                   Cancel
                 </button>
-                <button 
+                <button
                   type="submit"
-                  className="bg-accent hover:bg-accent-dark text-white font-bold px-4 py-2 rounded-xl focus:outline-none"
+                  className="btn-fire py-2 px-4 text-small"
                 >
                   Generate Key
                 </button>
@@ -3388,64 +3388,64 @@ export default function SettingsPage() {
       {/* Add Integration Modal */}
       {isIntegrationModalOpen && (
         <div className="fixed inset-0 bg-background/85 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-surface-2 border border-fire-border rounded-xl w-full max-w-md overflow-hidden shadow-2xl animate-scale-in">
+          <div className="bg-surface border border-fire-border rounded-xl w-full max-w-md overflow-hidden shadow-card animate-scale-in">
             <div className="flex items-center justify-between p-5 border-b border-fire-border">
-              <h3 className="text-sm font-bold text-text-primary uppercase tracking-wider">Connect Custom Integration</h3>
-              <button 
+              <h3 className="text-h3 text-text-primary">Connect Custom Integration</h3>
+              <button
                 onClick={() => setIsIntegrationModalOpen(false)}
                 className="text-text-muted hover:text-text-primary transition-colors focus:outline-none"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
-            <form onSubmit={handleAddIntegration} className="p-5 space-y-4 text-xs">
+            <form onSubmit={handleAddIntegration} className="p-5 space-y-4">
               <div className="space-y-1">
-                <label className="text-text-muted font-bold uppercase tracking-wider block">Service Name</label>
-                <input 
-                  type="text" 
+                <label className="text-label text-text-muted uppercase block">Service Name</label>
+                <input
+                  type="text"
                   required
                   placeholder="e.g. SentinelOne EDR"
                   value={newIntName}
                   onChange={(e) => setNewIntName(e.target.value)}
-                  className="w-full bg-surface border border-fire-border rounded-lg px-3 py-2 text-text-primary placeholder:text-text-muted focus:outline-none"
+                  className="input-field"
                 />
               </div>
 
               <div className="space-y-1">
-                <label className="text-text-muted font-bold uppercase tracking-wider block">Description</label>
-                <textarea 
+                <label className="text-label text-text-muted uppercase block">Description</label>
+                <textarea
                   required
                   rows={3}
                   placeholder="e.g. Falcon EDR agent telemetry ingestion and quarantined action logs."
                   value={newIntDesc}
                   onChange={(e) => setNewIntDesc(e.target.value)}
-                  className="w-full bg-surface border border-fire-border rounded-lg px-3 py-2 text-text-primary placeholder:text-text-muted focus:outline-none"
+                  className="input-field"
                 />
               </div>
 
               <div className="space-y-1">
-                <label className="text-text-muted font-bold uppercase tracking-wider block">Logo Letter (optional)</label>
-                <input 
-                  type="text" 
+                <label className="text-label text-text-muted uppercase block">Logo Letter (optional)</label>
+                <input
+                  type="text"
                   maxLength={2}
                   placeholder="e.g. S1"
                   value={newIntLogo}
                   onChange={(e) => setNewIntLogo(e.target.value)}
-                  className="w-full bg-surface border border-fire-border rounded-lg px-3 py-2 text-text-primary placeholder:text-text-muted focus:outline-none"
+                  className="input-field"
                 />
               </div>
 
               <div className="flex items-center justify-end gap-3 pt-3 border-t border-fire-border mt-4">
-                <button 
+                <button
                   type="button"
                   onClick={() => setIsIntegrationModalOpen(false)}
-                  className="border border-fire-border bg-surface-2 hover:bg-surface-3 text-text-secondary hover:text-text-primary font-bold px-4 py-2 rounded-xl focus:outline-none"
+                  className="btn-mission py-2 px-4 text-small"
                 >
                   Cancel
                 </button>
-                <button 
+                <button
                   type="submit"
-                  className="bg-accent hover:bg-accent-dark text-white font-bold px-4 py-2 rounded-xl focus:outline-none"
+                  className="btn-fire py-2 px-4 text-small"
                 >
                   Connect Service
                 </button>

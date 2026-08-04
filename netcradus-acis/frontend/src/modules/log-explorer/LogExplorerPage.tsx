@@ -40,7 +40,7 @@ export default function LogExplorerPage() {
       sort: 'desc',
       width: 220,
       cellRenderer: (params: any) => (
-        <span className="font-mono text-[11px] font-bold text-text-muted tracking-tighter">
+        <span className="font-mono text-label text-text-muted">
           {params.value ? new Date(params.value).toISOString().replace('T', ' ').substring(0, 19) : '---'}
         </span>
       )
@@ -51,7 +51,7 @@ export default function LogExplorerPage() {
       flex: 1,
       minWidth: 400,
       cellRenderer: (params: any) => (
-        <span className="font-mono text-[11px] font-black text-text-primary tracking-tight line-clamp-1">{params.value}</span>
+        <span className="font-mono text-small font-medium text-text-primary line-clamp-1">{params.value}</span>
       )
     },
     {
@@ -59,7 +59,7 @@ export default function LogExplorerPage() {
       headerName: 'SERVICE_NODE',
       width: 160,
       cellRenderer: (params: any) => (
-        <span className="font-mono text-[10px] font-bold text-accent uppercase bg-accent/5 px-2 py-0.5 rounded border border-accent/20">{params.value || 'SYSTEM'}</span>
+        <span className="font-mono text-label text-accent uppercase bg-accent/10 px-2 py-0.5 rounded border border-accent/20">{params.value || 'SYSTEM'}</span>
       )
     },
     {
@@ -67,7 +67,7 @@ export default function LogExplorerPage() {
       headerName: 'SOURCE_HOST',
       width: 180,
       cellRenderer: (params: any) => (
-        <span className="font-mono text-[10px] font-bold text-text-secondary uppercase bg-surface-3 px-2 py-0.5 rounded border border-fire-border">{params.value || 'UNKNOWN'}</span>
+        <span className="font-mono text-label text-text-secondary uppercase bg-surface-3 px-2 py-0.5 rounded border border-fire-border">{params.value || 'UNKNOWN'}</span>
       )
     },
     {
@@ -76,7 +76,7 @@ export default function LogExplorerPage() {
       width: 140,
       cellRenderer: (params: any) => (
         <div className={clsx(
-          "px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-widest border border-current",
+          "px-2 py-0.5 rounded text-label uppercase border border-current inline-block",
           ['ERROR', 'CRITICAL', 'FATAL'].includes(params.value?.toUpperCase()) ? "text-danger" : "text-info opacity-60"
         )}>
           {params.value || 'INFO'}
@@ -89,8 +89,8 @@ export default function LogExplorerPage() {
       width: 180,
       cellRenderer: (params: any) => (
         <div className="flex flex-col leading-none">
-          <span className="text-[10px] font-black text-text-primary uppercase">{params.value || 'UNKNOWN'}</span>
-          <span className="text-[8px] text-text-muted font-bold mt-1 uppercase tracking-widest">{params.data.assetType || 'UNMAPPED'}</span>
+          <span className="text-label text-text-primary uppercase">{params.value || 'UNKNOWN'}</span>
+          <span className="text-label text-text-muted mt-1 uppercase">{params.data.assetType || 'UNMAPPED'}</span>
         </div>
       )
     },
@@ -102,7 +102,7 @@ export default function LogExplorerPage() {
         params.value ? (
           <div className="flex items-center gap-2 text-danger animate-pulse">
             <Zap className="w-3 h-3" />
-            <span className="text-[10px] font-black uppercase tracking-tighter">{params.value}</span>
+            <span className="text-label uppercase">{params.value}</span>
           </div>
         ) : (
           <ShieldCheck className="w-3.5 h-3.5 text-success opacity-20" />
@@ -267,22 +267,37 @@ export default function LogExplorerPage() {
   }, [isLive, selectedSource])
 
 
+  const trendData = useMemo(() => {
+    const buckets: Record<string, number> = {}
+    logs.forEach(log => {
+      if (!log.timestamp) return
+      const d = new Date(log.timestamp)
+      if (isNaN(d.getTime())) return
+      const key = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
+      buckets[key] = (buckets[key] || 0) + 1
+    })
+    return Object.entries(buckets)
+      .sort((a, b) => a[0].localeCompare(b[0]))
+      .slice(-30)
+      .map(([time, count]) => ({ time, count }))
+  }, [logs])
+
   return (
-    <div className="space-y-8 animate-fade-in flex flex-col min-h-[calc(100vh-160px)] bg-background">
+    <div className="space-y-6 animate-fade-in flex flex-col min-h-[calc(100vh-160px)]">
       {/* Header */}
       <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div>
-          <h1 className="text-3xl font-black text-text-primary tracking-tighter uppercase leading-none">Log Explorer (SPL)</h1>
-          <p className="text-[10px] text-text-secondary font-bold tracking-[0.4em] uppercase mt-2">Elastic Telemetry & Multi-Source Indexing</p>
+          <h1 className="text-h1 text-text-primary">Log Explorer (SPL)</h1>
+          <p className="text-small text-text-secondary mt-1">Elastic Telemetry & Multi-Source Indexing</p>
         </div>
         <div className="flex items-center gap-3">
           {/* Source Dropdown Filter */}
-          <div className="flex items-center bg-surface-2 px-4 py-2 rounded-full border border-fire-border gap-2 shadow-inner">
+          <div className="flex items-center bg-surface-2 px-4 py-2 rounded-full border border-fire-border gap-2">
             <Filter size={12} className="text-accent" />
             <select
               value={selectedSource}
               onChange={(e) => handleSourceChange(e.target.value)}
-              className="bg-transparent text-[9px] font-black text-text-primary uppercase tracking-widest focus:outline-none cursor-pointer pr-3"
+              className="bg-transparent text-small font-medium text-text-primary focus:outline-none cursor-pointer pr-3"
             >
               <option value="ALL" className="bg-surface text-text-primary">All Sources</option>
               <option value="firewall" className="bg-surface text-text-primary">Firewall</option>
@@ -293,12 +308,12 @@ export default function LogExplorerPage() {
             </select>
           </div>
 
-          <div className="flex bg-surface-2 p-1 rounded-full border border-fire-border shadow-inner">
+          <div className="flex bg-surface-2 p-1 rounded-full border border-fire-border">
             <button
               onClick={() => setIsLive(true)}
               className={clsx(
-                "px-5 py-2 rounded-full text-[9px] font-black uppercase tracking-widest transition-all inline-flex items-center gap-2",
-                isLive ? "bg-accent text-white shadow-lg shadow-accent/20" : "text-text-muted hover:text-text-primary"
+                "px-5 py-2 rounded-full text-small font-semibold transition-all inline-flex items-center gap-2",
+                isLive ? "bg-accent text-white" : "text-text-muted hover:text-text-primary"
               )}
             >
               Live Stream
@@ -306,8 +321,8 @@ export default function LogExplorerPage() {
             <button
               onClick={() => setIsLive(false)}
               className={clsx(
-                "px-5 py-2 rounded-full text-[9px] font-black uppercase tracking-widest transition-all inline-flex items-center gap-2",
-                !isLive ? "bg-accent text-white shadow-lg shadow-accent/20" : "text-text-muted hover:text-text-primary"
+                "px-5 py-2 rounded-full text-small font-semibold transition-all inline-flex items-center gap-2",
+                !isLive ? "bg-accent text-white" : "text-text-muted hover:text-text-primary"
               )}
             >
               Forensic Search
@@ -317,36 +332,36 @@ export default function LogExplorerPage() {
       </div>
 
       {/* SPL Search Processor */}
-      <div className="card-mission bg-surface-2 border-fire-border relative overflow-hidden group">
+      <div className="card-mission relative overflow-hidden group">
         <div className="absolute top-0 left-0 w-1 h-full bg-accent opacity-0 group-focus-within:opacity-100 transition-opacity" />
         <div className="flex items-center justify-between mb-4">
-          <span className="text-[10px] font-black text-text-muted uppercase tracking-[0.3em]">Search Processing — SPL-Like Pipeline</span>
+          <span className="text-label text-text-muted uppercase">Search Processing — SPL-Like Pipeline</span>
           <div className="flex items-center gap-2">
             <button
               onClick={handleTranslate}
               disabled={isTranslating || aiStatus !== 'ready'}
-              className="flex items-center gap-2 bg-accent/20 px-3 py-1 rounded border border-accent/30 text-[9px] font-bold text-accent uppercase tracking-widest hover:bg-accent/40 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex items-center gap-2 bg-accent/10 px-3 py-1 rounded border border-accent/30 text-label text-accent uppercase hover:bg-accent/20 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {isTranslating ? 'TRANSLATING...' : 'TRANSLATE ENGLISH TO SPL'}
+              {isTranslating ? 'Translating...' : 'Translate English to SPL'}
             </button>
             <div className={clsx(
               "w-1.5 h-1.5 rounded-full animate-pulse ml-2",
-              aiStatus === 'checking' ? "bg-warning" : 
+              aiStatus === 'checking' ? "bg-warning" :
               aiStatus === 'ready' ? "bg-success" : "bg-danger"
             )} />
             <span className={clsx(
-              "text-[9px] font-bold uppercase tracking-widest",
-              aiStatus === 'checking' ? "text-warning" : 
+              "text-label uppercase",
+              aiStatus === 'checking' ? "text-warning" :
               aiStatus === 'ready' ? "text-success" : "text-danger"
             )}>
-              {aiStatus === 'checking' ? 'Checking AI Agent...' : 
+              {aiStatus === 'checking' ? 'Checking AI Agent...' :
                aiStatus === 'ready' ? 'AI Agent Ready' : 'AI Agent Offline'}
             </span>
           </div>
         </div>
 
         {demoMode && (
-          <div className="bg-warning/20 border border-warning/50 text-warning px-4 py-2 rounded-xl text-xs font-black uppercase flex items-center justify-center gap-2 animate-pulse mb-4 mx-6 mt-2">
+          <div className="bg-warning/10 border border-warning/30 text-warning px-4 py-2 rounded-lg text-small font-semibold flex items-center justify-center gap-2 mb-4">
             <ShieldCheck size={16} />
             Demo Mode — AI key not configured. Displaying simulated SPL.
           </div>
@@ -355,24 +370,24 @@ export default function LogExplorerPage() {
         <textarea
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          className="w-full h-24 bg-background/60 border border-fire-border rounded-xl p-6 font-mono text-sm text-text-secondary focus:outline-none focus:border-accent/40 placeholder:text-text-muted resize-none leading-relaxed selection:bg-accent selection:text-white transition-all shadow-inner"
+          className="w-full h-24 bg-background border border-fire-border rounded-lg p-4 font-mono text-small text-text-secondary focus:outline-none focus:border-accent focus:ring-4 focus:ring-accent/10 placeholder:text-text-muted resize-none leading-relaxed selection:bg-accent selection:text-white transition-colors"
           spellCheck="false"
         />
 
         <div className="flex items-center gap-3 mt-6">
           <button onClick={fetchLogs} className="btn-fire min-w-[140px]">
-            <Play className="w-4 h-4 fill-white" /> RUN SEARCH
+            <Play className="w-4 h-4 fill-white" /> Run Search
           </button>
           <button onClick={handleExportCSV} className="btn-mission">
-            <Download className="w-4 h-4" /> EXPORT CSV
+            <Download className="w-4 h-4" /> Export CSV
           </button>
           <button onClick={handleSaveSearch} className="btn-mission">
-            <Save className="w-4 h-4" /> SAVE SEARCH
+            <Save className="w-4 h-4" /> Save Search
           </button>
 
           {savedSearches.length > 0 && (
             <div className="flex items-center gap-2 ml-auto">
-              <span className="text-[9px] font-bold text-text-secondary uppercase tracking-widest">Saved:</span>
+              <span className="text-label text-text-secondary uppercase">Saved:</span>
               <select
                 onChange={(e) => {
                   if (e.target.value) {
@@ -380,7 +395,7 @@ export default function LogExplorerPage() {
                     e.target.value = '';
                   }
                 }}
-                className="bg-surface border border-fire-border px-3 py-1.5 rounded-xl text-[10px] font-bold text-text-secondary uppercase tracking-widest focus:outline-none cursor-pointer max-w-[200px]"
+                className="bg-surface border border-fire-border px-3 py-1.5 rounded-lg text-small font-medium text-text-secondary focus:outline-none cursor-pointer max-w-[200px]"
               >
                 <option value="">Load Saved Search...</option>
                 {savedSearches.map((s, idx) => (
@@ -395,14 +410,14 @@ export default function LogExplorerPage() {
       </div>
 
       {/* Event Trend Chart */}
-      <div className="card-mission bg-surface-2 border-fire-border">
+      <div className="card-mission">
         <div className="flex items-center justify-between mb-6">
-          <h3 className="text-[10px] font-black text-text-primary uppercase tracking-[0.2em]">Event Trend — Last 60 Minutes</h3>
-          <span className="text-[10px] font-bold text-success uppercase tracking-widest tabular-nums">Returned {logs.length.toLocaleString()} events in 0.34s</span>
+          <h3 className="text-h3 text-text-primary">Event Trend — By Minute</h3>
+          <span className="text-label text-success uppercase tabular-nums">Returned {logs.length.toLocaleString()} events</span>
         </div>
         <div className="h-40 w-full">
           <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={MOCK_TREND_DATA}>
+            <BarChart data={trendData}>
               <CartesianGrid strokeDasharray="3 3" stroke={chartColors.border} vertical={false} />
               <XAxis dataKey="time" stroke={chartColors.textMuted} fontSize={9} axisLine={false} tickLine={false} tickMargin={10} />
               <YAxis hide />
@@ -417,24 +432,19 @@ export default function LogExplorerPage() {
       </div>
 
       {/* Data Grid Table */}
-      <div className="flex-1 min-h-[500px] bg-surface border border-fire-border rounded-3xl overflow-hidden shadow-2xl relative">
+      <div className="flex-1 min-h-[500px] bg-surface border border-fire-border rounded-xl overflow-hidden shadow-card relative">
         <div className="ag-theme-acis w-full h-full">
           <AgGridReact
             rowData={logs}
             columnDefs={columnDefs}
             animateRows={true}
-            headerHeight={52}
-            rowHeight={48}
+            headerHeight={44}
+            rowHeight={44}
             rowSelection="multiple"
-            overlayNoRowsTemplate="<span class='text-text-muted font-black uppercase tracking-[0.2em] text-[10px]'>Scanning historical indexes...</span>"
+            overlayNoRowsTemplate="<span class='text-text-muted text-label uppercase'>Scanning historical indexes...</span>"
           />
         </div>
       </div>
     </div>
   )
 }
-
-const MOCK_TREND_DATA = Array.from({ length: 30 }, (_, i) => ({
-  time: `${15}:${10 + i}`,
-  count: Math.floor(Math.random() * 500) + 200
-}))

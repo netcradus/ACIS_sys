@@ -158,9 +158,9 @@ export default function SoarPage() {
   }
 
   const getPlaybookCardColor = (name: string) => {
-    if (name.includes('Isolate')) return 'bg-teal-400'
-    if (name.includes('Reset')) return 'bg-red-500'
-    return 'bg-orange-500'
+    if (name.includes('Isolate')) return 'bg-info'
+    if (name.includes('Reset')) return 'bg-danger'
+    return 'bg-severity-high'
   }
 
   const filteredPlaybooks = useMemo(() => {
@@ -170,19 +170,19 @@ export default function SoarPage() {
   const selectedExecution = executions.find(e => e.id === selectedExecutionId)
 
   return (
-    <div className="space-y-6 animate-fade-in flex flex-col h-full bg-background text-text-secondary p-6 min-h-screen">
-      
+    <div className="space-y-6 animate-fade-in flex flex-col h-full text-text-secondary min-h-screen">
+
       {/* Search Header */}
       <div className="flex items-center justify-between border-b border-fire-border pb-4">
-        <h1 className="text-xl font-bold text-text-primary tracking-tight uppercase">SOAR Playbooks</h1>
-        <div className="relative w-80 bg-surface-2 border border-fire-border rounded-xl overflow-hidden">
+        <h1 className="text-h1 text-text-primary">SOAR Playbooks</h1>
+        <div className="relative w-80">
           <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted" />
-          <input 
-            type="text" 
-            placeholder="Search playbooks..." 
+          <input
+            type="text"
+            placeholder="Search playbooks..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full bg-transparent pl-10 pr-4 py-2 text-xs placeholder:text-text-muted text-text-primary focus:outline-none focus:border-fire-border"
+            className="input-field pl-10"
           />
         </div>
       </div>
@@ -190,12 +190,12 @@ export default function SoarPage() {
       {/* Main Orchestrator Title */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-base font-bold text-text-primary tracking-tight leading-none uppercase">Playbooks</h2>
-          <p className="text-[10px] text-text-muted mt-1 uppercase tracking-wider">Orchestrate multi-tool responses</p>
+          <h2 className="text-h3 text-text-primary">Playbooks</h2>
+          <p className="text-label text-text-muted mt-1 uppercase">Orchestrate multi-tool responses</p>
         </div>
-        <button 
+        <button
           onClick={() => setIsModalOpen(true)}
-          className="bg-accent hover:bg-accent-dark text-white font-bold px-4 py-2 rounded-xl text-xs flex items-center gap-1.5 transition-colors focus:outline-none"
+          className="btn-fire text-small py-2 px-4 flex items-center gap-1.5"
         >
           <Plus className="w-3.5 h-3.5" /> New Playbook
         </button>
@@ -212,30 +212,30 @@ export default function SoarPage() {
           return (
             <div key={pb.id} className="bg-surface-2 border border-fire-border rounded-xl p-5 relative overflow-hidden flex flex-col justify-between shadow-sm h-[290px]">
               {/* Colored Top Bar */}
-              <div className={clsx("absolute top-0 left-0 right-0 h-1.5", cardColor)} />
+              <div className={clsx("absolute top-0 left-0 right-0 h-1", cardColor)} />
 
               <div>
-                <h3 className="text-sm font-bold text-text-primary tracking-tight">{pb.name}</h3>
-                <p className="text-[9px] text-text-muted font-semibold tracking-wider uppercase mt-0.5">{pb.description}</p>
+                <h3 className="text-h3 text-text-primary">{pb.name}</h3>
+                <p className="text-label text-text-muted uppercase mt-0.5">{pb.description}</p>
 
                 {/* Metrics */}
                 <div className="grid grid-cols-3 gap-2 mt-4 border-b border-fire-border pb-3">
                   <div className="flex flex-col">
-                    <span className={clsx("text-xs font-black", pb.name.includes('Reset') ? 'text-red-500' : 'text-emerald-400')}>{successRate}%</span>
-                    <span className="text-[8px] text-text-muted font-bold uppercase tracking-wider mt-0.5">Success</span>
+                    <span className={clsx("text-h3", pb.name.includes('Reset') ? 'text-danger' : 'text-success')}>{successRate}%</span>
+                    <span className="text-label text-text-muted uppercase mt-0.5">Success</span>
                   </div>
                   <div className="flex flex-col">
-                    <span className="text-xs font-black text-text-primary">{stepsCount}</span>
-                    <span className="text-[8px] text-text-muted font-bold uppercase tracking-wider mt-0.5">Steps</span>
+                    <span className="text-h3 text-text-primary">{stepsCount}</span>
+                    <span className="text-label text-text-muted uppercase mt-0.5">Steps</span>
                   </div>
                   <div className="flex flex-col">
-                    <span className="text-xs font-black text-text-primary">{playbookDurations[pb.name] || '< 60s'}</span>
-                    <span className="text-[8px] text-text-muted font-bold uppercase tracking-wider mt-0.5">Duration</span>
+                    <span className="text-h3 text-text-primary">{playbookDurations[pb.name] || '< 60s'}</span>
+                    <span className="text-label text-text-muted uppercase mt-0.5">Duration</span>
                   </div>
                 </div>
 
                 {/* Steps List */}
-                <div className="mt-3 space-y-1 text-[11px] text-text-secondary font-semibold">
+                <div className="mt-3 space-y-1 text-small text-text-secondary font-medium">
                   {stepsList.slice(0, 3).map((step, idx) => (
                     <div key={idx} className="flex items-center gap-2">
                       <span className="w-1 h-1 rounded-full bg-text-muted" />
@@ -243,22 +243,22 @@ export default function SoarPage() {
                     </div>
                   ))}
                   {stepsList.length > 3 && (
-                    <span className="text-[10px] text-text-muted italic pl-3">... +{stepsList.length - 3} more steps</span>
+                    <span className="text-label text-text-muted italic pl-3">... +{stepsList.length - 3} more steps</span>
                   )}
                 </div>
               </div>
 
               {/* Action Buttons */}
               <div className="grid grid-cols-2 gap-2 mt-4">
-                <button 
+                <button
                   onClick={() => handleRunPlaybook(pb.id)}
-                  className="bg-accent hover:bg-accent-dark text-white font-bold py-2 rounded-xl text-xs transition-colors flex items-center justify-center gap-1.5 focus:outline-none"
+                  className="btn-fire py-2 text-small"
                 >
                   <Play className="w-3 h-3 fill-white" /> Run
                 </button>
-                <button 
+                <button
                   onClick={() => alert('Editing playbook configurations is in development')}
-                  className="border border-fire-border bg-surface-3/40 hover:bg-surface-3 text-text-secondary font-bold py-2 rounded-xl text-xs transition-colors focus:outline-none flex items-center justify-center gap-1"
+                  className="btn-mission py-2 text-small"
                 >
                   Edit
                 </button>
@@ -269,62 +269,62 @@ export default function SoarPage() {
       </div>
 
       {/* Recent Executions Table */}
-      <div className="bg-surface-2 border border-fire-border rounded-xl p-5 shadow-sm space-y-4">
-        <h3 className="text-xs font-bold text-text-primary tracking-wider uppercase border-b border-fire-border pb-3">Recent Executions</h3>
+      <div className="card-mission space-y-4">
+        <h3 className="text-h3 text-text-primary border-b border-fire-border pb-3">Recent Executions</h3>
         <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse text-xs">
+          <table className="table-enterprise">
             <thead>
-              <tr className="border-b border-fire-border text-text-muted font-bold uppercase tracking-wider text-[10px]">
-                <th className="py-3 px-4 w-[35%]">Playbook</th>
-                <th className="py-3 px-4 w-[25%]">Triggered By</th>
-                <th className="py-3 px-4 w-[15%]">Status</th>
-                <th className="py-3 px-4 w-[12%]">Duration</th>
-                <th className="py-3 px-4 w-[13%]">Completed</th>
+              <tr>
+                <th className="w-[35%]">Playbook</th>
+                <th className="w-[25%]">Triggered By</th>
+                <th className="w-[15%]">Status</th>
+                <th className="w-[12%]">Duration</th>
+                <th className="w-[13%]">Completed</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-fire-border/60">
+            <tbody>
               {executions.map(exec => (
-                <tr 
+                <tr
                   key={exec.id}
                   onClick={() => setSelectedExecutionId(exec.id)}
                   className={clsx(
-                    "hover:bg-surface-3 cursor-pointer transition-colors duration-150",
+                    "cursor-pointer",
                     selectedExecutionId === exec.id ? "bg-surface-3" : ""
                   )}
                 >
-                  <td className="py-4 px-4 font-bold text-text-secondary">
+                  <td className="font-semibold text-text-secondary">
                     {getPlaybookName(exec.playbookId)}
                   </td>
-                  <td className="py-4 px-4 font-semibold text-text-secondary font-mono">
+                  <td className="text-text-secondary font-mono">
                     {exec.triggeredByName || 'auto-trigger'}
                   </td>
-                  <td className="py-4 px-4 font-bold">
+                  <td>
                     <div className="flex items-center gap-2">
                       <span className={clsx(
                         "w-1.5 h-1.5 rounded-full inline-block",
-                        exec.status === 'completed' ? "bg-emerald-400" :
-                        exec.status === 'failed' ? "bg-red-500" : "bg-orange-500 animate-ping"
+                        exec.status === 'completed' ? "bg-success" :
+                        exec.status === 'failed' ? "bg-danger" : "bg-severity-high animate-ping"
                       )} />
                       <span className={clsx(
-                        "uppercase text-[10px] tracking-wider",
-                        exec.status === 'completed' ? "text-emerald-400" :
-                        exec.status === 'failed' ? "text-red-500" : "text-orange-400"
+                        "text-label uppercase",
+                        exec.status === 'completed' ? "text-success" :
+                        exec.status === 'failed' ? "text-danger" : "text-severity-high"
                       )}>
                         {exec.status}
                       </span>
                     </div>
                   </td>
-                  <td className="py-4 px-4 text-text-secondary font-mono">
+                  <td className="text-text-secondary font-mono">
                     {getDuration(exec)}
                   </td>
-                  <td className="py-4 px-4 text-text-secondary font-mono">
+                  <td className="text-text-secondary font-mono">
                     {formatTimeElapsed(exec.startedAt)}
                   </td>
                 </tr>
               ))}
               {executions.length === 0 && (
                 <tr>
-                  <td colSpan={5} className="py-12 text-center text-text-muted uppercase font-black tracking-widest text-[10px]">
+                  <td colSpan={5} className="py-12 text-center text-text-muted text-label uppercase">
                     No SOAR executions logged
                   </td>
                 </tr>
@@ -336,11 +336,11 @@ export default function SoarPage() {
 
       {/* Execution Detail Logs Box (Bottom Panel) */}
       {selectedExecution && (
-        <div className="bg-surface-2 border border-fire-border rounded-xl p-5 shadow-sm space-y-3">
-          <h4 className="text-[10px] text-text-muted font-bold uppercase tracking-wider">
+        <div className="card-mission space-y-3">
+          <h4 className="text-label text-text-muted uppercase">
             Execution Detail — {getPlaybookName(selectedExecution.playbookId)} ({formatTimeElapsed(selectedExecution.startedAt)})
           </h4>
-          <div className="bg-surface border border-fire-border rounded-lg p-4 font-mono text-[11px] text-text-secondary overflow-x-auto whitespace-pre leading-relaxed border-l-2 border-l-accent">
+          <div className="bg-surface border border-fire-border rounded-lg p-4 font-mono text-small text-text-secondary overflow-x-auto whitespace-pre leading-relaxed border-l-2 border-l-accent">
             {(() => {
               try {
                 const logs = JSON.parse(selectedExecution.stepLogs)
@@ -356,64 +356,64 @@ export default function SoarPage() {
       {/* Create Playbook Modal */}
       {isModalOpen && (
         <div className="fixed inset-0 bg-background/85 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-surface-2 border border-fire-border rounded-xl w-full max-w-md overflow-hidden shadow-2xl animate-scale-in">
+          <div className="bg-surface border border-fire-border rounded-xl w-full max-w-md overflow-hidden shadow-card animate-scale-in">
             <div className="flex items-center justify-between p-5 border-b border-fire-border">
-              <h3 className="text-sm font-bold text-text-primary uppercase tracking-wider">Create SOAR Playbook</h3>
-              <button 
+              <h3 className="text-h3 text-text-primary">Create SOAR Playbook</h3>
+              <button
                 onClick={() => setIsModalOpen(false)}
                 className="text-text-muted hover:text-text-primary transition-colors focus:outline-none"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
-            <form onSubmit={handleCreatePlaybook} className="p-5 space-y-4 text-xs">
+            <form onSubmit={handleCreatePlaybook} className="p-5 space-y-4">
               <div className="space-y-1">
-                <label className="text-text-muted font-bold uppercase tracking-wider block">Playbook Name</label>
-                <input 
-                  type="text" 
+                <label className="text-label text-text-muted uppercase block">Playbook Name</label>
+                <input
+                  type="text"
                   required
                   placeholder="e.g. Block Port on Cisco Switch"
                   value={newPbName}
                   onChange={(e) => setNewPbName(e.target.value)}
-                  className="w-full bg-surface border border-fire-border rounded-lg px-3 py-2 text-text-primary placeholder:text-text-muted focus:outline-none focus:border-fire-border"
+                  className="input-field"
                 />
               </div>
 
               <div className="space-y-1">
-                <label className="text-text-muted font-bold uppercase tracking-wider block">Description Header</label>
-                <input 
-                  type="text" 
+                <label className="text-label text-text-muted uppercase block">Description Header</label>
+                <input
+                  type="text"
                   required
                   placeholder="e.g. 3 steps • run on suspicious egress triggers"
                   value={newPbDesc}
                   onChange={(e) => setNewPbDesc(e.target.value)}
-                  className="w-full bg-surface border border-fire-border rounded-lg px-3 py-2 text-text-primary placeholder:text-text-muted focus:outline-none focus:border-fire-border"
+                  className="input-field"
                 />
               </div>
 
               <div className="space-y-1">
-                <label className="text-text-muted font-bold uppercase tracking-wider block">Playbook Steps (comma-separated)</label>
-                <textarea 
+                <label className="text-label text-text-muted uppercase block">Playbook Steps (comma-separated)</label>
+                <textarea
                   required
                   rows={4}
                   placeholder="e.g. Identify target port, Disable port via SSH, Log activity payload"
                   value={newPbSteps}
                   onChange={(e) => setNewPbSteps(e.target.value)}
-                  className="w-full bg-surface border border-fire-border rounded-lg px-3 py-2 text-text-primary placeholder:text-text-muted focus:outline-none focus:border-fire-border"
+                  className="input-field"
                 />
               </div>
 
               <div className="flex items-center justify-end gap-3 pt-3 border-t border-fire-border mt-4">
-                <button 
+                <button
                   type="button"
                   onClick={() => setIsModalOpen(false)}
-                  className="border border-fire-border bg-surface-2 hover:bg-surface-3 text-text-secondary hover:text-text-primary font-bold px-4 py-2 rounded-xl focus:outline-none transition-colors"
+                  className="btn-mission py-2 px-4 text-small"
                 >
                   Cancel
                 </button>
-                <button 
+                <button
                   type="submit"
-                  className="bg-accent hover:bg-accent-dark text-white font-bold px-4 py-2 rounded-xl focus:outline-none transition-colors"
+                  className="btn-fire py-2 px-4 text-small"
                 >
                   Create Playbook
                 </button>

@@ -172,10 +172,10 @@ export default function TenantDetailPage() {
   if (error || !tenant) {
     return (
       <div className="space-y-4">
-        <button onClick={() => navigate('/platform-admin/tenants')} className="flex items-center gap-2 text-xs text-text-secondary hover:text-text-primary">
+        <button onClick={() => navigate('/platform-admin/tenants')} className="flex items-center gap-2 text-small text-text-secondary hover:text-text-primary">
           <ArrowLeft className="w-4 h-4" /> Back to Tenants
         </button>
-        <div className="bg-danger/10 border border-danger/30 rounded-xl p-4 text-xs text-danger font-semibold">
+        <div className="bg-danger/10 border border-danger/30 rounded-lg p-4 text-small text-danger font-semibold">
           {error || 'Tenant not found.'}
         </div>
       </div>
@@ -188,15 +188,15 @@ export default function TenantDetailPage() {
         <div>
           <button
             onClick={() => navigate('/platform-admin/tenants')}
-            className="flex items-center gap-2 text-[11px] text-text-muted hover:text-text-primary mb-2 transition-colors"
+            className="flex items-center gap-2 text-small text-text-muted hover:text-text-primary mb-2 transition-colors"
           >
             <ArrowLeft className="w-3.5 h-3.5" /> Back to Tenants
           </button>
           <div className="flex items-center gap-3">
-            <h1 className="text-xl font-bold text-text-primary tracking-tight uppercase">{tenant.name}</h1>
+            <h1 className="text-h1 text-text-primary">{tenant.name}</h1>
             <span
               className={clsx(
-                'px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider',
+                'px-2 py-0.5 rounded-full text-label uppercase',
                 tenant.status === 'ACTIVE' && 'bg-success/10 text-success',
                 tenant.status === 'SUSPENDED' && 'bg-danger/10 text-danger',
                 tenant.status === 'TRIAL' && 'bg-warning/10 text-warning',
@@ -206,28 +206,28 @@ export default function TenantDetailPage() {
               {tenant.status}
             </span>
           </div>
-          <p className="text-[10px] text-text-muted font-mono mt-1">{tenant.id}</p>
+          <p className="text-label text-text-muted font-mono mt-1">{tenant.id}</p>
         </div>
 
         <div className="flex items-center gap-2">
           {tenant.status === 'SUSPENDED' ? (
             <button
               onClick={() => setConfirmAction('reactivate')}
-              className="flex items-center gap-2 bg-success/10 hover:bg-success/20 border border-success/30 text-success font-bold px-4 py-2 rounded-xl text-xs transition-colors"
+              className="flex items-center gap-2 bg-success/10 hover:bg-success/20 border border-success/30 text-success font-semibold px-4 py-2 rounded-lg text-small transition-colors"
             >
               <ShieldCheck className="w-4 h-4" /> Reactivate
             </button>
           ) : (
             <button
               onClick={() => setConfirmAction('suspend')}
-              className="flex items-center gap-2 bg-danger/10 hover:bg-danger/20 border border-danger/30 text-danger font-bold px-4 py-2 rounded-xl text-xs transition-colors"
+              className="flex items-center gap-2 bg-danger/10 hover:bg-danger/20 border border-danger/30 text-danger font-semibold px-4 py-2 rounded-lg text-small transition-colors"
             >
               <ShieldOff className="w-4 h-4" /> Suspend
             </button>
           )}
           <button
             onClick={() => setConfirmAction('delete')}
-            className="flex items-center gap-2 bg-surface-3 hover:bg-danger/20 border border-fire-border hover:border-danger/30 text-text-secondary hover:text-danger font-bold px-4 py-2 rounded-xl text-xs transition-colors"
+            className="flex items-center gap-2 bg-surface-3 hover:bg-danger/20 border border-fire-border hover:border-danger/30 text-text-secondary hover:text-danger font-semibold px-4 py-2 rounded-lg text-small transition-colors"
           >
             <Trash2 className="w-4 h-4" /> Delete
           </button>
@@ -235,71 +235,71 @@ export default function TenantDetailPage() {
       </div>
 
       {tenant.suspendedReason && (
-        <div className="bg-danger/10 border border-danger/30 rounded-xl p-4 text-xs text-danger">
-          <span className="font-bold uppercase tracking-wider">Suspended:</span> {tenant.suspendedReason}
+        <div className="bg-danger/10 border border-danger/30 rounded-lg p-4 text-small text-danger">
+          <span className="font-semibold uppercase text-label">Suspended:</span> {tenant.suspendedReason}
         </div>
       )}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Details */}
-        <div className="bg-surface-2 border border-fire-border rounded-xl p-5 space-y-4">
-          <h2 className="text-xs font-bold text-text-primary uppercase tracking-widest">Tenant Details</h2>
+        <div className="card-mission space-y-4">
+          <h2 className="text-h3 text-text-primary">Tenant Details</h2>
           {fieldError && (
-            <div className="bg-danger/10 border border-danger/30 rounded-lg p-3 text-xs text-danger font-semibold">{fieldError}</div>
+            <div className="bg-danger/10 border border-danger/30 rounded-lg p-3 text-small text-danger font-semibold">{fieldError}</div>
           )}
           <div className="space-y-1">
-            <label className="text-[11px] text-text-muted font-bold uppercase tracking-wider block">Name</label>
+            <label className="text-label text-text-muted uppercase block">Name</label>
             <input
               value={name}
               onChange={(e) => setName(e.target.value)}
-              className="w-full bg-surface border border-fire-border rounded-lg px-3 py-2 text-xs text-text-primary focus:outline-none focus:border-accent-pa/50"
+              className="w-full bg-surface border border-fire-border rounded-lg px-3.5 py-2.5 text-body text-text-primary transition-colors focus:outline-none focus:border-accent-pa focus:ring-4 focus:ring-accent-pa/10"
             />
           </div>
           <div className="space-y-1">
-            <label className="text-[11px] text-text-muted font-bold uppercase tracking-wider block">Contact Name</label>
+            <label className="text-label text-text-muted uppercase block">Contact Name</label>
             <input
               value={contactName}
               onChange={(e) => setContactName(e.target.value)}
-              className="w-full bg-surface border border-fire-border rounded-lg px-3 py-2 text-xs text-text-primary focus:outline-none focus:border-accent-pa/50"
+              className="w-full bg-surface border border-fire-border rounded-lg px-3.5 py-2.5 text-body text-text-primary transition-colors focus:outline-none focus:border-accent-pa focus:ring-4 focus:ring-accent-pa/10"
             />
           </div>
           <div className="space-y-1">
-            <label className="text-[11px] text-text-muted font-bold uppercase tracking-wider block">Contact Email</label>
+            <label className="text-label text-text-muted uppercase block">Contact Email</label>
             <input
               value={contactEmail}
               onChange={(e) => setContactEmail(e.target.value)}
-              className="w-full bg-surface border border-fire-border rounded-lg px-3 py-2 text-xs text-text-primary focus:outline-none focus:border-accent-pa/50"
+              className="w-full bg-surface border border-fire-border rounded-lg px-3.5 py-2.5 text-body text-text-primary transition-colors focus:outline-none focus:border-accent-pa focus:ring-4 focus:ring-accent-pa/10"
             />
           </div>
           <button
             onClick={handleSaveDetails}
             disabled={savingDetails}
-            className="flex items-center gap-2 bg-accent-pa hover:bg-accent-pa-dark text-white font-bold px-4 py-2 rounded-xl text-xs transition-colors disabled:opacity-50"
+            className="flex items-center gap-2 bg-accent-pa hover:bg-accent-pa-dark text-white font-semibold px-4 py-2 rounded-lg text-small transition-colors disabled:opacity-50"
           >
             <Save className="w-3.5 h-3.5" /> {savingDetails ? 'Saving...' : 'Save Details'}
           </button>
         </div>
 
         {/* Plan */}
-        <div className="bg-surface-2 border border-fire-border rounded-xl p-5 space-y-4">
-          <h2 className="text-xs font-bold text-text-primary uppercase tracking-widest">Subscription Plan</h2>
+        <div className="card-mission space-y-4">
+          <h2 className="text-h3 text-text-primary">Subscription Plan</h2>
           <div className="space-y-1">
-            <label className="text-[11px] text-text-muted font-bold uppercase tracking-wider block">Plan Name</label>
+            <label className="text-label text-text-muted uppercase block">Plan Name</label>
             <input
               value={planName}
               onChange={(e) => setPlanName(e.target.value)}
               placeholder="e.g. Enterprise Shield"
-              className="w-full bg-surface border border-fire-border rounded-lg px-3 py-2 text-xs text-text-primary placeholder:text-text-muted focus:outline-none focus:border-accent-pa/50"
+              className="w-full bg-surface border border-fire-border rounded-lg px-3.5 py-2.5 text-body text-text-primary placeholder:text-text-muted transition-colors focus:outline-none focus:border-accent-pa focus:ring-4 focus:ring-accent-pa/10"
             />
           </div>
-          <p className="text-[10px] text-text-muted leading-relaxed">
+          <p className="text-small text-text-muted leading-relaxed">
             Internal label only — no payment processor is wired up. Use this to reflect a plan the customer has already
             paid for outside the app.
           </p>
           <button
             onClick={handleSavePlan}
             disabled={savingPlan}
-            className="flex items-center gap-2 bg-accent-pa hover:bg-accent-pa-dark text-white font-bold px-4 py-2 rounded-xl text-xs transition-colors disabled:opacity-50"
+            className="flex items-center gap-2 bg-accent-pa hover:bg-accent-pa-dark text-white font-semibold px-4 py-2 rounded-lg text-small transition-colors disabled:opacity-50"
           >
             <Save className="w-3.5 h-3.5" /> {savingPlan ? 'Saving...' : 'Save Plan'}
           </button>
@@ -307,13 +307,13 @@ export default function TenantDetailPage() {
       </div>
 
       {/* Modules */}
-      <div className="bg-surface-2 border border-fire-border rounded-xl p-5 space-y-4">
+      <div className="card-mission space-y-4">
         <div className="flex items-center justify-between">
-          <h2 className="text-xs font-bold text-text-primary uppercase tracking-widest">Module Access</h2>
+          <h2 className="text-h3 text-text-primary">Module Access</h2>
           <button
             onClick={handleSaveModules}
             disabled={savingModules}
-            className="flex items-center gap-2 bg-accent-pa hover:bg-accent-pa-dark text-white font-bold px-4 py-2 rounded-xl text-xs transition-colors disabled:opacity-50"
+            className="flex items-center gap-2 bg-accent-pa hover:bg-accent-pa-dark text-white font-semibold px-4 py-2 rounded-lg text-small transition-colors disabled:opacity-50"
           >
             <Save className="w-3.5 h-3.5" /> {savingModules ? 'Saving...' : 'Save Modules'}
           </button>
@@ -325,7 +325,7 @@ export default function TenantDetailPage() {
               <label
                 key={mod.key}
                 className={clsx(
-                  'flex items-center gap-2 px-3 py-2.5 rounded-lg border cursor-pointer transition-colors text-xs font-semibold',
+                  'flex items-center gap-2 px-3 py-2.5 rounded-lg border cursor-pointer transition-colors text-small font-medium',
                   checked ? 'border-accent-pa/40 bg-accent-pa/10 text-text-primary' : 'border-fire-border text-text-muted hover:border-accent-pa/30'
                 )}
               >
@@ -348,13 +348,13 @@ export default function TenantDetailPage() {
         onConfirm={runConfirmedAction}
       >
         <div className="space-y-1 mt-2">
-          <label className="text-[11px] text-text-muted font-bold uppercase tracking-wider block">Reason (optional)</label>
+          <label className="text-label text-text-muted uppercase block">Reason (optional)</label>
           <textarea
             value={suspendReason}
             onChange={(e) => setSuspendReason(e.target.value)}
             rows={2}
             placeholder="e.g. Non-payment, ToS violation..."
-            className="w-full bg-surface border border-fire-border rounded-lg px-3 py-2 text-xs text-text-primary placeholder:text-text-muted focus:outline-none focus:border-danger/50 resize-none"
+            className="w-full bg-surface border border-fire-border rounded-lg px-3.5 py-2.5 text-body text-text-primary placeholder:text-text-muted transition-colors focus:outline-none focus:border-danger focus:ring-4 focus:ring-danger/10 resize-none"
           />
         </div>
       </ConfirmDialog>

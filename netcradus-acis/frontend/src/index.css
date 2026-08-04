@@ -8,74 +8,120 @@
 
 /* ─── Base Styles ──────────────────────────────────────────── */
 @layer base {
-  /* Dark theme (default / no explicit preference yet) */
+  /* Dark theme (default / no explicit preference yet).
+     Refined near-black rather than pure #000 (Vercel/Linear-style), and
+     status colors desaturated off their old neon values (#00FF99/#00C2FF)
+     into a sophisticated emerald/sky pairing — same semantic role, none of
+     the glow. Every token that's ever used with a Tailwind opacity modifier
+     (bg-accent/10, border-danger/30, etc.) gets a "-rgb" companion in plain
+     "R G B" form; tailwind.config.ts's color entries resolve through
+     rgb(var(--x-rgb) / <alpha-value>) so /NN modifiers actually work —
+     Tailwind cannot decompose a bare var(--x) hex reference into channels
+     at build time, so without this the modifier silently produces
+     `rgba(0,0,0,0)` (fully transparent) instead of a tint. */
   :root,
   :root[data-theme="dark"] {
-    --background: #000000;
-    --surface: #0B0B0B;
-    --surface-2: #141414;
-    --surface-3: #1F1F1F;
+    --background: #09090B;
+    --background-rgb: 9 9 11;
+    --surface: #0E0E11;
+    --surface-rgb: 14 14 17;
+    --surface-2: #17171B;
+    --surface-2-rgb: 23 23 27;
+    --surface-3: #202024;
+    --surface-3-rgb: 32 32 36;
     --accent: #3B82F6;
+    --accent-rgb: 59 130 246;
     --accent-dark: #2563EB;
+    --accent-dark-rgb: 37 99 235;
     --accent-light: #60A5FA;
+    --accent-light-rgb: 96 165 250;
     --accent-pa: #7C3AED;
+    --accent-pa-rgb: 124 58 237;
     --accent-pa-dark: #6D28D9;
-    --text-primary: #FFFFFF;
-    --text-secondary: #888888;
-    --text-muted: #444444;
-    --border: #1A1A1A;
-    --danger: #FF3333;
-    --warning: #FFAB00;
-    --success: #00FF99;
-    --info: #00C2FF;
+    --accent-pa-dark-rgb: 109 40 217;
+    --text-primary: #FAFAFA;
+    --text-primary-rgb: 250 250 250;
+    --text-secondary: #A1A1AA;
+    --text-muted: #71717A;
+    --border: #26262B;
+    --border-rgb: 38 38 43;
+    --danger: #EF4444;
+    --danger-rgb: 239 68 68;
+    --warning: #F59E0B;
+    --warning-rgb: 245 158 11;
+    --success: #34D399;
+    --success-rgb: 52 211 153;
+    --info: #38BDF8;
+    --info-rgb: 56 189 248;
     --row-stripe: rgba(255, 255, 255, 0.02);
-    --row-hover: rgba(255, 255, 255, 0.05);
-    --bg-glow-1: rgba(59, 130, 246, 0.14);
-    --bg-glow-2: rgba(0, 194, 255, 0.1);
-    --shadow-accent-glow: 0 0 20px rgba(59, 130, 246, 0.3);
-    --shadow-success-glow: 0 0 20px rgba(0, 255, 153, 0.3);
-    --shadow-card: 0 10px 40px rgba(0, 0, 0, 0.8);
-    --glow-accent-drop: rgba(59, 130, 246, 0.3);
-    --glow-border-accent: rgba(59, 130, 246, 0.1);
-    --glass-bg: rgba(8, 8, 8, 0.82);
+    --row-hover: rgba(255, 255, 255, 0.04);
+    --bg-glow-1: rgba(59, 130, 246, 0.06);
+    --bg-glow-2: rgba(56, 189, 248, 0.045);
+    --shadow-accent-glow: 0 0 16px rgba(59, 130, 246, 0.22);
+    --shadow-success-glow: 0 0 16px rgba(52, 211, 153, 0.22);
+    --shadow-card: 0 8px 30px rgba(0, 0, 0, 0.45);
+    --glow-accent-drop: rgba(59, 130, 246, 0.22);
+    --glow-border-accent: rgba(59, 130, 246, 0.08);
+    --glass-bg: rgba(14, 14, 17, 0.82);
     --glass-border: rgba(255, 255, 255, 0.06);
-    --severity-high: #FF8800;
-    --severity-medium: #FFD700;
+    --severity-high: #FB923C;
+    --severity-high-rgb: 251 146 60;
+    --severity-medium: #EAB308;
+    --severity-medium-rgb: 234 179 8;
     color-scheme: dark;
   }
 
-  /* Light theme */
+  /* Light theme — clean neutral gray canvas with white cards (Stripe/Linear-
+     style), not a mechanical inversion of dark. See the dark block above
+     for why every opacity-relevant token has an "-rgb" companion. */
   :root[data-theme="light"] {
-    --background: #EEF0F3;
+    --background: #F8F9FB;
+    --background-rgb: 248 249 251;
     --surface: #FFFFFF;
-    --surface-2: #F5F6F8;
-    --surface-3: #E9EAEE;
+    --surface-rgb: 255 255 255;
+    --surface-2: #F4F5F7;
+    --surface-2-rgb: 244 245 247;
+    --surface-3: #E8E9ED;
+    --surface-3-rgb: 232 233 237;
     --accent: #2563EB;
+    --accent-rgb: 37 99 235;
     --accent-dark: #1D4ED8;
+    --accent-dark-rgb: 29 78 216;
     --accent-light: #3B82F6;
+    --accent-light-rgb: 59 130 246;
     --accent-pa: #6D28D9;
+    --accent-pa-rgb: 109 40 217;
     --accent-pa-dark: #5B21B6;
-    --text-primary: #0A0A0B;
+    --accent-pa-dark-rgb: 91 33 182;
+    --text-primary: #18181B;
+    --text-primary-rgb: 24 24 27;
     --text-secondary: #52525B;
     --text-muted: #8A8A93;
-    --border: #E2E3E7;
+    --border: #E4E4E9;
+    --border-rgb: 228 228 233;
     --danger: #DC2626;
-    --warning: #B45309;
+    --danger-rgb: 220 38 38;
+    --warning: #D97706;
+    --warning-rgb: 217 119 6;
     --success: #047857;
+    --success-rgb: 4 120 87;
     --info: #0369A1;
-    --row-stripe: rgba(10, 10, 11, 0.03);
-    --row-hover: rgba(10, 10, 11, 0.05);
-    --bg-glow-1: rgba(37, 99, 235, 0.05);
-    --bg-glow-2: rgba(0, 194, 255, 0.04);
-    --shadow-accent-glow: 0 4px 24px rgba(37, 99, 235, 0.16);
-    --shadow-success-glow: 0 4px 24px rgba(4, 120, 87, 0.16);
-    --shadow-card: 0 4px 20px rgba(20, 22, 28, 0.08);
-    --glow-accent-drop: rgba(37, 99, 235, 0.18);
-    --glow-border-accent: rgba(37, 99, 235, 0.08);
+    --info-rgb: 3 105 161;
+    --row-stripe: rgba(10, 10, 11, 0.025);
+    --row-hover: rgba(10, 10, 11, 0.04);
+    --bg-glow-1: rgba(37, 99, 235, 0.04);
+    --bg-glow-2: rgba(3, 105, 161, 0.03);
+    --shadow-accent-glow: 0 2px 12px rgba(37, 99, 235, 0.12);
+    --shadow-success-glow: 0 2px 12px rgba(4, 120, 87, 0.12);
+    --shadow-card: 0 1px 3px rgba(20, 22, 28, 0.06), 0 4px 16px rgba(20, 22, 28, 0.05);
+    --glow-accent-drop: rgba(37, 99, 235, 0.14);
+    --glow-border-accent: rgba(37, 99, 235, 0.06);
     --glass-bg: rgba(255, 255, 255, 0.72);
     --glass-border: rgba(10, 10, 11, 0.08);
-    --severity-high: #B45309;
-    --severity-medium: #946800;
+    --severity-high: #C2410C;
+    --severity-high-rgb: 194 65 12;
+    --severity-medium: #A16207;
+    --severity-medium-rgb: 161 98 7;
     color-scheme: light;
   }
 
@@ -84,36 +130,53 @@
      above, only applied when no explicit theme has been chosen yet. */
   @media (prefers-color-scheme: light) {
     :root:not([data-theme="dark"]):not([data-theme="light"]) {
-      --background: #EEF0F3;
+      --background: #F8F9FB;
+      --background-rgb: 248 249 251;
       --surface: #FFFFFF;
-      --surface-2: #F5F6F8;
-      --surface-3: #E9EAEE;
+      --surface-rgb: 255 255 255;
+      --surface-2: #F4F5F7;
+      --surface-2-rgb: 244 245 247;
+      --surface-3: #E8E9ED;
+      --surface-3-rgb: 232 233 237;
       --accent: #2563EB;
+      --accent-rgb: 37 99 235;
       --accent-dark: #1D4ED8;
+      --accent-dark-rgb: 29 78 216;
       --accent-light: #3B82F6;
+      --accent-light-rgb: 59 130 246;
       --accent-pa: #6D28D9;
+      --accent-pa-rgb: 109 40 217;
       --accent-pa-dark: #5B21B6;
-      --text-primary: #0A0A0B;
+      --accent-pa-dark-rgb: 91 33 182;
+      --text-primary: #18181B;
+      --text-primary-rgb: 24 24 27;
       --text-secondary: #52525B;
       --text-muted: #8A8A93;
-      --border: #E2E3E7;
+      --border: #E4E4E9;
+      --border-rgb: 228 228 233;
       --danger: #DC2626;
-      --warning: #B45309;
+      --danger-rgb: 220 38 38;
+      --warning: #D97706;
+      --warning-rgb: 217 119 6;
       --success: #047857;
+      --success-rgb: 4 120 87;
       --info: #0369A1;
-      --row-stripe: rgba(10, 10, 11, 0.03);
-      --row-hover: rgba(10, 10, 11, 0.05);
-      --bg-glow-1: rgba(37, 99, 235, 0.05);
-      --bg-glow-2: rgba(0, 194, 255, 0.04);
-      --shadow-accent-glow: 0 4px 24px rgba(37, 99, 235, 0.16);
-      --shadow-success-glow: 0 4px 24px rgba(4, 120, 87, 0.16);
-      --shadow-card: 0 4px 20px rgba(20, 22, 28, 0.08);
-      --glow-accent-drop: rgba(37, 99, 235, 0.18);
-      --glow-border-accent: rgba(37, 99, 235, 0.08);
+      --info-rgb: 3 105 161;
+      --row-stripe: rgba(10, 10, 11, 0.025);
+      --row-hover: rgba(10, 10, 11, 0.04);
+      --bg-glow-1: rgba(37, 99, 235, 0.04);
+      --bg-glow-2: rgba(3, 105, 161, 0.03);
+      --shadow-accent-glow: 0 2px 12px rgba(37, 99, 235, 0.12);
+      --shadow-success-glow: 0 2px 12px rgba(4, 120, 87, 0.12);
+      --shadow-card: 0 1px 3px rgba(20, 22, 28, 0.06), 0 4px 16px rgba(20, 22, 28, 0.05);
+      --glow-accent-drop: rgba(37, 99, 235, 0.14);
+      --glow-border-accent: rgba(37, 99, 235, 0.06);
       --glass-bg: rgba(255, 255, 255, 0.72);
       --glass-border: rgba(10, 10, 11, 0.08);
-      --severity-high: #B45309;
-      --severity-medium: #946800;
+      --severity-high: #C2410C;
+      --severity-high-rgb: 194 65 12;
+      --severity-medium: #A16207;
+      --severity-medium-rgb: 161 98 7;
       color-scheme: light;
     }
   }
@@ -192,7 +255,7 @@
 /* ─── Component Shortcuts ───────────────────────────────────── */
 @layer components {
   .card-mission {
-    @apply bg-surface border border-fire-border p-5 rounded-2xl shadow-lg transition-all duration-300;
+    @apply bg-surface border border-fire-border p-6 rounded-xl shadow-card transition-colors duration-300;
   }
 
   .bg-glass-surface {
@@ -205,16 +268,60 @@
     @apply font-mono font-bold tracking-tighter text-text-primary;
   }
 
+  /* Reserved for genuine small labels — badges, table headers, tags. Never
+     for body copy or button text (those moved to normal case). */
   .badge-mission {
-    @apply inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg text-[10px] font-bold uppercase tracking-widest border;
+    @apply inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-label uppercase border;
   }
 
   .btn-fire {
-    @apply inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl bg-accent hover:bg-accent-dark text-white font-bold text-xs uppercase tracking-widest transition-all duration-200 shadow-lg shadow-accent active:scale-95 disabled:opacity-50;
+    @apply inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-accent hover:bg-accent-dark text-white font-semibold text-sm transition-all duration-200 shadow-sm active:scale-[0.98] disabled:opacity-50 disabled:pointer-events-none;
   }
 
   .btn-mission {
-    @apply inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl bg-surface-2 hover:bg-surface-3 text-text-primary border border-fire-border font-bold text-xs uppercase tracking-widest transition-all duration-200 active:scale-95;
+    @apply inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-surface-2 hover:bg-surface-3 text-text-primary border border-fire-border font-semibold text-sm transition-all duration-200 active:scale-[0.98] disabled:opacity-50 disabled:pointer-events-none;
+  }
+
+  /* Ghost/tertiary button — for low-emphasis actions that shouldn't compete
+     with .btn-fire/.btn-mission (e.g. "Cancel" next to a primary action). */
+  .btn-ghost {
+    @apply inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-text-secondary hover:text-text-primary hover:bg-surface-2 font-semibold text-sm transition-all duration-200 active:scale-[0.98] disabled:opacity-50 disabled:pointer-events-none;
+  }
+
+  /* Shared form control — the one input/select/textarea recipe for the
+     whole app, replacing the ~3 different ad hoc versions that had grown
+     across Settings/Alerts/LogExplorer. */
+  .input-field {
+    @apply w-full bg-surface border border-fire-border rounded-lg px-3.5 py-2.5 text-body text-text-primary placeholder:text-text-muted transition-colors duration-150 focus:outline-none focus:border-accent focus:ring-4 focus:ring-accent/10 disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+
+  select.input-field {
+    @apply cursor-pointer;
+  }
+
+  /* Shared plain-<table> treatment — the dozen hand-rolled tables across
+     the app (Assets, Correlation, SOAR, etc.) share this instead of each
+     re-deriving header/row/hover styling from scratch. Pairs visually with
+     .ag-theme-acis/.ag-theme-platform-admin below so AG Grid and hand-rolled
+     tables read as one system. */
+  .table-enterprise {
+    @apply w-full text-left border-collapse;
+  }
+
+  .table-enterprise thead th {
+    @apply text-label uppercase text-text-muted font-semibold pb-3 px-4 border-b border-fire-border whitespace-nowrap;
+  }
+
+  .table-enterprise tbody tr {
+    @apply border-b border-fire-border/60 transition-colors duration-150;
+  }
+
+  .table-enterprise tbody tr:hover {
+    background-color: var(--row-hover);
+  }
+
+  .table-enterprise tbody td {
+    @apply py-3.5 px-4 text-body text-text-primary align-middle;
   }
 
   /* AG Grid Mission Control Theme — driven entirely by the app's own tokens
@@ -237,11 +344,11 @@
   }
 
   .ag-theme-acis .ag-header-cell-label {
-    @apply uppercase tracking-widest font-bold text-[10px];
+    @apply uppercase tracking-wide font-semibold text-label;
   }
 
   /* Distinct theme for the Platform Super Admin console (violet, not the
-     tenant console's orange) — a deliberate visual cue that this is a
+     tenant console's blue) — a deliberate visual cue that this is a
      different, cross-tenant, higher-privilege surface. Same token-driven
      approach as .ag-theme-acis, swapping in the platform-admin accent. */
   .ag-theme-platform-admin {
@@ -261,7 +368,7 @@
   }
 
   .ag-theme-platform-admin .ag-header-cell-label {
-    @apply uppercase tracking-widest font-bold text-[10px];
+    @apply uppercase tracking-wide font-semibold text-label;
   }
 }
 
@@ -269,10 +376,6 @@
 @layer utilities {
   .shadow-accent-glow {
     filter: drop-shadow(0 0 8px var(--glow-accent-drop));
-  }
-
-  .border-glow-orange {
-    box-shadow: 0 0 15px var(--glow-border-accent);
   }
 
   .animate-fade-in {

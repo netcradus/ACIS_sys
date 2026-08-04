@@ -58,28 +58,28 @@ export default function TopBar() {
   })
 
   return (
-    <header className="h-20 border-b border-fire-border bg-background/80 backdrop-blur-md px-8 flex items-center justify-between z-20 sticky top-0 overflow-visible">
+    <header className="h-16 border-b border-fire-border bg-background/80 backdrop-blur-md px-6 flex items-center justify-between z-20 sticky top-0 overflow-visible">
       <div className="flex items-center gap-6">
-        <h2 className="text-[10px] font-black uppercase tracking-[0.3em] text-text-muted hidden lg:block border-r border-fire-border pr-6">
+        <h2 className="text-label uppercase text-text-muted hidden lg:block border-r border-fire-border pr-6">
           Security Operations Center
         </h2>
 
-        {/* Search Bar - Professional/Technical Look */}
-        <div className="relative group min-w-[320px]">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted group-focus-within:text-accent transition-colors" />
+        {/* Search Bar */}
+        <div className="relative group min-w-[300px]">
+          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted group-focus-within:text-accent transition-colors" />
           <input
             type="text"
-            placeholder="SEARCH ACIS INTEL..."
-            className="w-full bg-surface-2 border border-fire-border rounded-xl py-2.5 pl-11 pr-12 text-[11px] font-bold text-text-primary placeholder:text-text-muted focus:outline-none focus:border-accent/40 focus:ring-1 focus:ring-accent/40 transition-all uppercase tracking-widest"
+            placeholder="Search ACIS Intel..."
+            className="input-field py-2 pl-10 pr-12 text-small"
           />
-          <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-1 px-1.5 py-1 bg-surface-3 border border-fire-border rounded-md">
+          <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-1 px-1.5 py-0.5 bg-surface-3 border border-fire-border rounded">
             <Command className="w-3 h-3 text-text-muted" />
-            <span className="text-[9px] font-bold text-text-muted">K</span>
+            <span className="text-label text-text-muted">K</span>
           </div>
         </div>
       </div>
 
-      <div className="flex items-center gap-6" ref={dropdownRef}>
+      <div className="flex items-center gap-4" ref={dropdownRef}>
         <ThemeToggle accentClass="text-accent" />
 
         {/* Real-Time Notification Bell Button & Popover */}
@@ -91,15 +91,15 @@ export default function TopBar() {
             }}
             aria-label="Security Notifications"
             className={clsx(
-              "relative p-2.5 rounded-xl border transition-all group focus:outline-none",
-              showNotifications 
-                ? "bg-surface-3 border-accent text-text-primary shadow-lg" 
+              "relative p-2.5 rounded-lg border transition-colors group focus:outline-none",
+              showNotifications
+                ? "bg-surface-3 border-accent text-text-primary"
                 : "bg-surface-2 border-fire-border text-text-secondary hover:text-text-primary hover:border-accent/40"
             )}
           >
-            <Bell className={clsx("w-5 h-5 transition-transform", unreadCount > 0 && "animate-bounce-short")} />
+            <Bell className={clsx("w-[18px] h-[18px]", unreadCount > 0 && "animate-bounce-short")} />
             {unreadCount > 0 && (
-              <span className="absolute -top-1.5 -right-1.5 min-w-[20px] h-[20px] px-1 bg-accent text-black font-black text-[10px] rounded-full border-2 border-background flex items-center justify-center shadow-lg animate-pulse">
+              <span className="absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] px-1 bg-accent text-white font-semibold text-[10px] rounded-full border-2 border-background flex items-center justify-center">
                 {unreadCount > 99 ? '99+' : unreadCount}
               </span>
             )}
@@ -107,42 +107,42 @@ export default function TopBar() {
 
           {/* Real-Time Notification Dropdown Popover */}
           {showNotifications && (
-            <div className="absolute right-0 mt-4 w-[420px] max-w-[90vw] bg-surface-2 border border-fire-border rounded-2xl shadow-2xl z-50 animate-fade-in overflow-hidden">
+            <div className="absolute right-0 mt-3 w-[400px] max-w-[90vw] bg-surface border border-fire-border rounded-xl shadow-card z-50 animate-fade-in overflow-hidden">
               {/* Header */}
-              <div className="p-4 border-b border-fire-border bg-background/60 flex items-center justify-between">
+              <div className="p-4 border-b border-fire-border flex items-center justify-between">
                 <div className="flex items-center gap-2.5">
                   <div className="p-1.5 rounded-lg bg-accent/10 border border-accent/20 text-accent">
                     <ShieldAlert className="w-4 h-4" />
                   </div>
                   <div>
                     <div className="flex items-center gap-2">
-                      <h3 className="text-xs font-black uppercase tracking-widest text-text-primary">Security Feed</h3>
+                      <h3 className="text-h3 text-text-primary">Security Feed</h3>
                       <span className={clsx(
-                        "text-[8px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded border flex items-center gap-1",
-                        isWsConnected 
-                          ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" 
+                        "text-label uppercase px-1.5 py-0.5 rounded border flex items-center gap-1",
+                        isWsConnected
+                          ? "bg-success/10 text-success border-success/20"
                           : "bg-accent/10 text-accent border-accent/20"
                       )}>
                         <Radio className="w-2.5 h-2.5 animate-pulse" />
-                        {isWsConnected ? 'LIVE WS' : 'STREAM ACTIVE'}
+                        {isWsConnected ? 'Live' : 'Stream'}
                       </span>
                     </div>
-                    <p className="text-[10px] text-text-muted font-bold tracking-tight">Real-time incident & SIEM alerts stream</p>
+                    <p className="text-small text-text-muted">Real-time incident & SIEM alerts</p>
                   </div>
                 </div>
 
                 <div className="flex items-center gap-1">
                   {unreadCount > 0 && (
-                    <button 
+                    <button
                       onClick={markAllAsRead}
                       title="Mark all as read"
-                      className="p-1.5 text-text-muted hover:text-text-primary hover:bg-surface-3 rounded-lg transition-colors text-[10px] font-bold flex items-center gap-1"
+                      className="p-1.5 text-text-muted hover:text-text-primary hover:bg-surface-3 rounded-lg transition-colors flex items-center gap-1"
                     >
                       <CheckCheck className="w-3.5 h-3.5 text-accent" />
                     </button>
                   )}
                   {notifications.length > 0 && (
-                    <button 
+                    <button
                       onClick={clearAll}
                       title="Clear all notifications"
                       className="p-1.5 text-text-muted hover:text-danger hover:bg-danger/10 rounded-lg transition-colors"
@@ -154,11 +154,11 @@ export default function TopBar() {
               </div>
 
               {/* Filter Tabs */}
-              <div className="flex items-center gap-1 px-4 py-2 bg-background/40 border-b border-fire-border text-[10px] font-black uppercase tracking-widest">
+              <div className="flex items-center gap-1 px-4 py-2 bg-surface-2/60 border-b border-fire-border text-small font-medium">
                 <button
                   onClick={() => setFilter('ALL')}
                   className={clsx(
-                    "px-3 py-1 rounded-lg transition-all",
+                    "px-3 py-1 rounded-md transition-colors",
                     filter === 'ALL' ? "bg-surface-3 text-text-primary border border-fire-border" : "text-text-muted hover:text-text-primary"
                   )}
                 >
@@ -167,8 +167,8 @@ export default function TopBar() {
                 <button
                   onClick={() => setFilter('UNREAD')}
                   className={clsx(
-                    "px-3 py-1 rounded-lg transition-all flex items-center gap-1",
-                    filter === 'UNREAD' ? "bg-accent/20 text-accent border border-accent/30" : "text-text-muted hover:text-text-primary"
+                    "px-3 py-1 rounded-md transition-colors flex items-center gap-1",
+                    filter === 'UNREAD' ? "bg-accent/15 text-accent border border-accent/30" : "text-text-muted hover:text-text-primary"
                   )}
                 >
                   Unread ({unreadCount})
@@ -176,8 +176,8 @@ export default function TopBar() {
                 <button
                   onClick={() => setFilter('CRITICAL')}
                   className={clsx(
-                    "px-3 py-1 rounded-lg transition-all flex items-center gap-1",
-                    filter === 'CRITICAL' ? "bg-danger/20 text-danger border border-danger/30" : "text-text-muted hover:text-text-primary"
+                    "px-3 py-1 rounded-md transition-colors flex items-center gap-1",
+                    filter === 'CRITICAL' ? "bg-danger/15 text-danger border border-danger/30" : "text-text-muted hover:text-text-primary"
                   )}
                 >
                   Critical ({notifications.filter(n => n.severity === 'CRITICAL').length})
@@ -189,8 +189,8 @@ export default function TopBar() {
                 {filteredNotifications.length === 0 ? (
                   <div className="p-8 text-center space-y-2">
                     <ShieldCheck className="w-8 h-8 text-text-muted mx-auto" />
-                    <p className="text-xs font-bold text-text-primary uppercase tracking-wider">No Security Alerts</p>
-                    <p className="text-[10px] text-text-muted font-medium">No real-time incidents matching the current filter.</p>
+                    <p className="text-small font-semibold text-text-primary">No security alerts</p>
+                    <p className="text-small text-text-muted">No real-time incidents matching the current filter.</p>
                   </div>
                 ) : (
                   filteredNotifications.map((notif) => (
@@ -202,25 +202,25 @@ export default function TopBar() {
                         if (notif.actionUrl) navigate(notif.actionUrl)
                       }}
                       className={clsx(
-                        "p-4 transition-all cursor-pointer hover:bg-surface-3 flex items-start gap-3 relative group",
-                        !notif.read && "bg-surface-3/40"
+                        "p-4 transition-colors cursor-pointer hover:bg-surface-2 flex items-start gap-3 relative group",
+                        !notif.read && "bg-surface-2/50"
                       )}
                     >
                       {/* Unread indicator dot */}
                       {!notif.read && (
-                        <span className="absolute left-1.5 top-5 w-1.5 h-1.5 rounded-full bg-accent animate-pulse" />
+                        <span className="absolute left-1.5 top-5 w-1.5 h-1.5 rounded-full bg-accent" />
                       )}
 
                       {/* Severity Icon Badge */}
                       <div className={clsx(
-                        "w-8 h-8 rounded-xl flex items-center justify-center shrink-0 border shadow-sm mt-0.5",
+                        "w-8 h-8 rounded-lg flex items-center justify-center shrink-0 border mt-0.5",
                         notif.severity === 'CRITICAL' && "bg-danger/10 text-danger border-danger/30",
                         notif.severity === 'HIGH' && "bg-warning/10 text-warning border-warning/30",
-                        notif.severity === 'MEDIUM' && "bg-amber-500/10 text-amber-400 border-amber-500/30",
+                        notif.severity === 'MEDIUM' && "bg-severity-medium/10 text-severity-medium border-severity-medium/30",
                         (notif.severity === 'INFO' || notif.severity === 'LOW') && "bg-info/10 text-info border-info/30"
                       )}>
                         {notif.severity === 'CRITICAL' ? (
-                          <Zap className="w-4 h-4 animate-pulse" />
+                          <Zap className="w-4 h-4" />
                         ) : notif.severity === 'HIGH' ? (
                           <AlertTriangle className="w-4 h-4" />
                         ) : (
@@ -232,31 +232,31 @@ export default function TopBar() {
                       <div className="flex-1 min-w-0 space-y-1">
                         <div className="flex items-center justify-between gap-2">
                           <h4 className={clsx(
-                            "text-xs font-bold truncate leading-snug group-hover:text-accent transition-colors",
+                            "text-small font-semibold truncate leading-snug group-hover:text-accent transition-colors",
                             !notif.read ? "text-text-primary" : "text-text-secondary"
                           )}>
                             {notif.title}
                           </h4>
-                          <span className="text-[9px] font-mono font-bold text-text-muted shrink-0">
+                          <span className="text-label text-text-muted shrink-0">
                             {formatTimeAgo(notif.timestamp)}
                           </span>
                         </div>
-                        
-                        <p className="text-[11px] text-text-muted line-clamp-2 leading-relaxed font-normal">
+
+                        <p className="text-small text-text-muted line-clamp-2 leading-relaxed">
                           {notif.message}
                         </p>
 
                         <div className="flex items-center justify-between pt-1">
-                          <span className="text-[8px] font-black uppercase tracking-wider text-text-muted bg-background/60 border border-fire-border px-1.5 py-0.5 rounded">
+                          <span className="text-label uppercase text-text-muted bg-surface-2 border border-fire-border px-1.5 py-0.5 rounded">
                             {notif.source}
                           </span>
 
                           <span className={clsx(
-                            "text-[8px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded border",
-                            notif.severity === 'CRITICAL' && "bg-danger/20 text-danger border-danger/30",
-                            notif.severity === 'HIGH' && "bg-warning/20 text-warning border-warning/30",
-                            notif.severity === 'MEDIUM' && "bg-amber-500/20 text-amber-400 border-amber-500/30",
-                            (notif.severity === 'INFO' || notif.severity === 'LOW') && "bg-info/20 text-info border-info/30"
+                            "text-label uppercase px-1.5 py-0.5 rounded border",
+                            notif.severity === 'CRITICAL' && "bg-danger/15 text-danger border-danger/30",
+                            notif.severity === 'HIGH' && "bg-warning/15 text-warning border-warning/30",
+                            notif.severity === 'MEDIUM' && "bg-severity-medium/15 text-severity-medium border-severity-medium/30",
+                            (notif.severity === 'INFO' || notif.severity === 'LOW') && "bg-info/15 text-info border-info/30"
                           )}>
                             {notif.severity}
                           </span>
@@ -268,68 +268,67 @@ export default function TopBar() {
               </div>
 
               {/* Footer */}
-              <div className="p-3 border-t border-fire-border bg-background/80 flex items-center justify-between">
+              <div className="p-3 border-t border-fire-border flex items-center justify-between">
                 <button
                   onClick={() => {
                     setShowNotifications(false)
                     navigate('/dashboard/alerts')
                   }}
-                  className="w-full text-center py-2 text-[10px] font-black uppercase tracking-widest text-accent hover:text-text-primary hover:bg-surface-3 rounded-xl transition-all flex items-center justify-center gap-2"
+                  className="btn-ghost w-full"
                 >
-                  View All Security Alerts <ArrowRight className="w-3.5 h-3.5" />
+                  View all security alerts <ArrowRight className="w-3.5 h-3.5" />
                 </button>
               </div>
             </div>
           )}
         </div>
 
-        {/* User Identity - Professional Layout */}
+        {/* User Identity */}
         <div className="relative">
           <button
             onClick={() => {
               setShowProfile(!showProfile)
               setShowNotifications(false)
             }}
-            className="flex items-center gap-4 transition-all group"
+            className="flex items-center gap-3 transition-colors group"
           >
             <div className="flex flex-col text-right hidden sm:flex">
-              <p className="text-xs font-black text-text-primary tracking-tight uppercase leading-none mb-1 group-hover:text-accent transition-colors">
-                {user?.name || 'SECURITY OPERATOR'}
+              <p className="text-small font-semibold text-text-primary leading-tight group-hover:text-accent transition-colors">
+                {user?.name || 'Security Operator'}
               </p>
-              <p className="text-[9px] text-text-secondary font-bold uppercase tracking-[0.1em] leading-none">
-                {user?.roles?.[0] || 'SUPER_ADMIN'} • ZONE_01
+              <p className="text-label uppercase text-text-muted leading-tight">
+                {user?.roles?.[0] || 'Admin'} • Zone_01
               </p>
             </div>
-            <div className="w-10 h-10 rounded-xl bg-surface-2 border border-fire-border group-hover:border-accent/40 flex items-center justify-center text-accent font-black text-sm tracking-tighter shadow-lg transition-all overflow-hidden relative">
+            <div className="w-9 h-9 rounded-full bg-surface-2 border border-fire-border group-hover:border-accent/40 flex items-center justify-center text-accent font-semibold text-sm transition-colors overflow-hidden relative">
               <span className="relative z-10">{user?.name?.charAt(0).toUpperCase() || 'S'}</span>
-              <div className="absolute inset-0 bg-accent/5 opacity-0 group-hover:opacity-100 transition-opacity" />
             </div>
             <ChevronDown className={clsx("w-4 h-4 text-text-muted transition-transform group-hover:text-text-primary", showProfile && "rotate-180")} />
           </button>
 
           {showProfile && (
-            <div className="absolute right-0 mt-4 w-56 bg-surface-2 border border-fire-border rounded-2xl shadow-2xl py-2 z-50 animate-fade-in divide-y divide-fire-border overflow-visible">
-              <div className="px-5 py-4">
-                <p className="text-[10px] font-black text-text-muted uppercase tracking-widest mb-1">Session Identity</p>
-                <p className="text-xs font-bold text-text-primary truncate">{user?.email || 'operator@netcradus.local'}</p>
+            <div className="absolute right-0 mt-3 w-56 bg-surface border border-fire-border rounded-xl shadow-card py-2 z-50 animate-fade-in divide-y divide-fire-border overflow-visible">
+              <div className="px-4 py-3">
+                <p className="text-label uppercase text-text-muted mb-1">Session Identity</p>
+                <p className="text-small font-semibold text-text-primary truncate">{user?.email || 'operator@netcradus.local'}</p>
               </div>
-              <div className="py-2">
-                <button 
+              <div className="py-1.5">
+                <button
                   onClick={() => {
                     setShowProfile(false)
                     navigate('/dashboard/settings?tab=Profile')
                   }}
-                  className="w-full text-left px-5 py-3 text-[11px] font-bold uppercase tracking-widest text-text-secondary hover:text-text-primary hover:bg-surface-3 transition-all flex items-center gap-3"
+                  className="w-full text-left px-4 py-2.5 text-small font-medium text-text-secondary hover:text-text-primary hover:bg-surface-2 transition-colors flex items-center gap-3"
                 >
                   <User className="w-4 h-4 text-accent" /> Profile Settings
                 </button>
               </div>
-              <div className="py-2">
+              <div className="py-1.5">
                 <button
                   onClick={() => { clearAuth(); keycloak.logout() }}
-                  className="w-full text-left px-5 py-3 text-[11px] font-bold uppercase tracking-widest text-danger hover:bg-danger/10 transition-all flex items-center gap-3"
+                  className="w-full text-left px-4 py-2.5 text-small font-medium text-danger hover:bg-danger/10 transition-colors flex items-center gap-3"
                 >
-                  <LogOut className="w-4 h-4" /> Terminate Session
+                  <LogOut className="w-4 h-4" /> Sign Out
                 </button>
               </div>
             </div>

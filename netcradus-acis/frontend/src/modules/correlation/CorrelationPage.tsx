@@ -152,8 +152,10 @@ export default function CorrelationPage() {
   const handleCreateRule = async (e: React.FormEvent) => {
     e.preventDefault()
     try {
+      // tenantId is derived server-side from the X-Tenant-ID header (JWT
+      // claim), not the request body — the backend ignores a client-supplied
+      // value here, so it's not sent.
       const payload = {
-        tenantId: 'demo-tenant',
         name: newRuleName,
         description: newRuleDesc,
         splQuery: newRuleSpl,
@@ -189,9 +191,9 @@ export default function CorrelationPage() {
   }
 
   const getRiskColor = (score: number) => {
-    if (score >= 80) return 'border-red-500/40 text-red-500 bg-red-500/10'
-    if (score >= 60) return 'border-orange-500/40 text-orange-500 bg-orange-500/10'
-    return 'border-yellow-500/40 text-yellow-500 bg-yellow-500/10'
+    if (score >= 80) return 'border-danger/40 text-danger bg-danger/10'
+    if (score >= 60) return 'border-severity-high/40 text-severity-high bg-severity-high/10'
+    return 'border-severity-medium/40 text-severity-medium bg-severity-medium/10'
   }
 
   const selectedRule = rules.find(r => r.id === selectedRuleId)
@@ -207,19 +209,19 @@ export default function CorrelationPage() {
   const formatTime = (d: Date) => d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })
 
   return (
-    <div className="space-y-6 animate-fade-in flex flex-col h-full bg-background text-text-secondary p-6 min-h-screen">
-      
+    <div className="space-y-6 animate-fade-in flex flex-col h-full text-text-secondary min-h-screen">
+
       {/* Search Header */}
       <div className="flex items-center justify-between border-b border-fire-border pb-4">
-        <h1 className="text-xl font-bold text-text-primary tracking-tight uppercase">Correlation Searches</h1>
-        <div className="relative w-80 bg-surface-2 border border-fire-border rounded-xl overflow-hidden">
+        <h1 className="text-h1 text-text-primary">Correlation Searches</h1>
+        <div className="relative w-80">
           <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted" />
-          <input 
-            type="text" 
-            placeholder="Search Kiro AI..." 
+          <input
+            type="text"
+            placeholder="Search correlation rules..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full bg-transparent pl-10 pr-4 py-2 text-xs placeholder:text-text-muted text-text-primary focus:outline-none focus:border-accent/40"
+            className="input-field pl-10 text-small"
           />
         </div>
       </div>
@@ -227,67 +229,67 @@ export default function CorrelationPage() {
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         {[
-          { label: 'Active Rules', value: stats?.activeRules ?? 4, borderColor: 'border-l-orange-500' },
-          { label: 'Alerts Fired Today', value: alertsToday, borderColor: 'border-l-teal-400' },
-          { label: 'Rules Disabled', value: stats?.disabledRules ?? 2, borderColor: 'border-l-yellow-500' },
-          { label: 'Avg Risk Score', value: stats?.avgRiskScore ?? 94, borderColor: 'border-l-red-500' }
+          { label: 'Active Rules', value: stats?.activeRules ?? 4, borderColor: 'border-l-severity-high' },
+          { label: 'Alerts Fired Today', value: alertsToday, borderColor: 'border-l-info' },
+          { label: 'Rules Disabled', value: stats?.disabledRules ?? 2, borderColor: 'border-l-severity-medium' },
+          { label: 'Avg Risk Score', value: stats?.avgRiskScore ?? 94, borderColor: 'border-l-danger' }
         ].map((c, i) => (
-          <div key={i} className={clsx("bg-surface-2 border border-fire-border rounded-lg p-5 flex flex-col justify-between h-28 border-l-4 shadow-sm", c.borderColor)}>
-            <span className="text-3xl font-bold text-text-primary tracking-tight leading-none">{c.value}</span>
-            <span className="text-[10px] text-text-muted font-semibold tracking-wider uppercase mt-2">{c.label}</span>
+          <div key={i} className={clsx("card-mission flex flex-col justify-between h-28 border-l-4", c.borderColor)}>
+            <span className="text-h1 text-text-primary leading-none">{c.value}</span>
+            <span className="text-label uppercase text-text-muted mt-2">{c.label}</span>
           </div>
         ))}
       </div>
 
       {/* Table Section */}
-      <div className="bg-surface-2 border border-fire-border rounded-xl p-5 shadow-sm space-y-4">
+      <div className="card-mission space-y-4">
         <div className="flex items-center justify-between">
           <div>
-            <h2 className="text-base font-bold text-text-primary tracking-tight leading-none">Correlation Searches</h2>
-            <p className="text-[11px] text-text-muted mt-1">Risk-based alerting - schedule & throttling</p>
+            <h2 className="text-h3 text-text-primary">Correlation Searches</h2>
+            <p className="text-small text-text-muted mt-1">Risk-based alerting — schedule & throttling</p>
           </div>
-          <button 
+          <button
             onClick={() => setIsModalOpen(true)}
-            className="bg-accent hover:bg-accent-dark text-white font-bold px-4 py-2 rounded-xl text-xs flex items-center gap-1.5 transition-colors focus:outline-none"
+            className="btn-fire"
           >
             <Plus className="w-3.5 h-3.5" /> New Rule
           </button>
         </div>
 
         <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse text-xs">
+          <table className="table-enterprise">
             <thead>
-              <tr className="border-b border-fire-border/80 text-text-muted font-bold uppercase tracking-wider text-[10px]">
-                <th className="py-3 px-4 w-[40%]">Name</th>
-                <th className="py-3 px-4 w-[15%]">Enabled</th>
-                <th className="py-3 px-4 w-[15%]">Last Run</th>
-                <th className="py-3 px-4 w-[15%] text-center">Risk Score</th>
-                <th className="py-3 px-4 w-[15%] text-right">Actions</th>
+              <tr>
+                <th className="w-[40%]">Name</th>
+                <th className="w-[15%]">Enabled</th>
+                <th className="w-[15%]">Last Run</th>
+                <th className="w-[15%] text-center">Risk Score</th>
+                <th className="w-[15%] text-right">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-fire-border/60">
+            <tbody>
               {filteredRules.map((rule) => (
-                <tr 
+                <tr
                   key={rule.id}
                   onClick={() => setSelectedRuleId(rule.id)}
                   className={clsx(
-                    "hover:bg-surface-3 cursor-pointer transition-colors duration-150",
-                    selectedRuleId === rule.id ? "bg-surface-3/80" : ""
+                    "cursor-pointer",
+                    selectedRuleId === rule.id && "bg-surface-3/80"
                   )}
                 >
-                  <td className="py-4 px-4 font-bold text-text-secondary">
+                  <td className="text-small font-semibold text-text-primary">
                     {rule.name}
                   </td>
-                  <td className="py-4 px-4">
-                    <button 
+                  <td>
+                    <button
                       onClick={(e) => handleToggle(rule.id, e)}
                       className="flex items-center focus:outline-none"
                     >
                       <div className={clsx(
-                        "relative w-12 h-6 rounded-full transition-colors duration-200 p-0.5 flex items-center justify-between px-2",
-                        rule.enabled ? "bg-teal-400 text-black font-black" : "bg-surface-3 text-text-muted font-bold"
+                        "relative w-11 h-6 rounded-full transition-colors duration-200 p-0.5 flex items-center justify-between px-1.5",
+                        rule.enabled ? "bg-success" : "bg-surface-3"
                       )}>
-                        <span className="text-[8px] uppercase tracking-wider">{rule.enabled ? 'ON' : 'OFF'}</span>
+                        <span className={clsx("text-[8px] font-bold uppercase", rule.enabled ? "text-white" : "text-text-muted")}>{rule.enabled ? 'On' : 'Off'}</span>
                         <div className={clsx(
                           "absolute w-4 h-4 bg-white rounded-full transition-transform duration-200 shadow-sm",
                           rule.enabled ? "right-1" : "left-1"
@@ -295,18 +297,18 @@ export default function CorrelationPage() {
                       </div>
                     </button>
                   </td>
-                  <td className="py-4 px-4 text-text-secondary">
+                  <td className="text-small text-text-secondary">
                     {formatLastRun(rule.lastRunAt)}
                   </td>
-                  <td className="py-4 px-4 text-center">
-                    <span className={clsx("px-3 py-1.5 rounded-lg font-mono font-bold text-[11px] border inline-block w-12 text-center", getRiskColor(rule.riskScore))}>
+                  <td className="text-center">
+                    <span className={clsx("px-3 py-1.5 rounded-lg font-mono font-semibold text-small border inline-block w-12 text-center", getRiskColor(rule.riskScore))}>
                       {rule.riskScore}
                     </span>
                   </td>
-                  <td className="py-4 px-4 text-right">
-                    <button 
+                  <td className="text-right">
+                    <button
                       onClick={(e) => { e.stopPropagation(); alert(`Editing ${rule.name} is in development`); }}
-                      className="border border-fire-border bg-surface-3/40 hover:bg-surface-3 text-text-secondary font-bold px-3 py-1 rounded-lg text-xs transition-colors focus:outline-none"
+                      className="btn-mission py-1.5 px-3 text-label uppercase"
                     >
                       Edit
                     </button>
@@ -315,7 +317,7 @@ export default function CorrelationPage() {
               ))}
               {filteredRules.length === 0 && (
                 <tr>
-                  <td colSpan={5} className="py-8 text-center text-text-muted uppercase font-black tracking-widest text-[10px]">
+                  <td colSpan={5} className="py-8 text-center text-small font-medium text-text-muted">
                     No correlation searches found
                   </td>
                 </tr>
@@ -329,32 +331,32 @@ export default function CorrelationPage() {
       <div className="grid grid-cols-1 md:grid-cols-12 gap-5">
         
         {/* Selected Rule Details */}
-        <div className="md:col-span-7 bg-surface-2 border border-fire-border rounded-xl p-5 space-y-4 flex flex-col justify-between">
+        <div className="md:col-span-7 card-mission space-y-4 flex flex-col justify-between">
           {selectedRule ? (
             <>
               <div>
                 <div className="flex items-center gap-3">
-                  <h3 className="text-base font-bold text-text-primary">{selectedRule.name}</h3>
+                  <h3 className="text-h3 text-text-primary">{selectedRule.name}</h3>
                   <span className={clsx(
-                    "px-2.5 py-0.5 rounded-full text-[9px] font-black tracking-wider uppercase inline-flex items-center gap-1.5 border",
-                    selectedRule.enabled ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" : "bg-surface-3 text-text-muted border-fire-border/50"
+                    "px-2.5 py-0.5 rounded-full text-label uppercase inline-flex items-center gap-1.5 border",
+                    selectedRule.enabled ? "bg-success/10 text-success border-success/20" : "bg-surface-3 text-text-muted border-fire-border/50"
                   )}>
-                    <span className={clsx("w-1.5 h-1.5 rounded-full", selectedRule.enabled ? "bg-emerald-400 animate-pulse" : "bg-text-muted")} />
+                    <span className={clsx("w-1.5 h-1.5 rounded-full", selectedRule.enabled ? "bg-success animate-pulse" : "bg-text-muted")} />
                     {selectedRule.enabled ? 'Active' : 'Standby'}
                   </span>
                 </div>
-                
+
                 <div className="mt-4 space-y-2">
-                  <span className="text-[10px] text-text-muted font-bold uppercase tracking-wider block">SPL Query</span>
-                  <div className="bg-surface border border-fire-border rounded-lg p-4 font-mono text-[11px] text-accent/90 whitespace-pre-wrap leading-relaxed border-l-2 border-l-accent overflow-x-auto">
+                  <span className="text-label uppercase text-text-muted block">SPL Query</span>
+                  <div className="bg-surface-2 border border-fire-border rounded-lg p-4 font-mono text-small text-accent whitespace-pre-wrap leading-relaxed border-l-2 border-l-accent overflow-x-auto">
                     {selectedRule.splQuery}
                   </div>
                 </div>
               </div>
 
               <div className="mt-6 border-t border-fire-border pt-4 space-y-3">
-                <span className="text-[10px] text-text-muted font-bold uppercase tracking-wider block">Configuration</span>
-                <div className="grid grid-cols-2 gap-y-3 gap-x-6 text-xs">
+                <span className="text-label uppercase text-text-muted block">Configuration</span>
+                <div className="grid grid-cols-2 gap-y-3 gap-x-6 text-small">
                   {[
                     { label: 'Schedule', val: ruleConfigs[selectedRule.name]?.schedule || 'Every 5 minutes' },
                     { label: 'Threshold', val: ruleConfigs[selectedRule.name]?.threshold || 'Matching event occurrence' },
@@ -362,44 +364,44 @@ export default function CorrelationPage() {
                     { label: 'Throttle', val: ruleConfigs[selectedRule.name]?.throttle || 'No throttling' }
                   ].map((cfg, i) => (
                     <div key={i} className="flex justify-between border-b border-fire-border/60 pb-1.5">
-                      <span className="text-text-muted font-semibold">{cfg.label}:</span>
-                      <span className="text-text-secondary font-bold">{cfg.val}</span>
+                      <span className="text-text-muted font-medium">{cfg.label}:</span>
+                      <span className="text-text-primary font-semibold">{cfg.val}</span>
                     </div>
                   ))}
                 </div>
               </div>
             </>
           ) : (
-            <div className="h-full flex items-center justify-center text-text-muted text-xs py-10 uppercase tracking-widest font-black">
+            <div className="h-full flex items-center justify-center text-text-muted text-small font-medium py-10">
               Select a rule to view details
             </div>
           )}
         </div>
 
         {/* Rule activity and event throughput */}
-        <div className="md:col-span-5 bg-surface-2 border border-fire-border rounded-xl p-5 space-y-5 flex flex-col justify-between">
+        <div className="md:col-span-5 card-mission space-y-5 flex flex-col justify-between">
           <div>
             <div className="flex items-center justify-between border-b border-fire-border pb-2.5">
-              <h3 className="text-xs font-bold text-text-primary tracking-wider uppercase">Rule Match Activity</h3>
-              <span className="px-2 py-0.5 rounded-full text-[8px] font-black tracking-wider uppercase bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 inline-flex items-center gap-1.5">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
+              <h3 className="text-h3 text-text-primary">Rule Match Activity</h3>
+              <span className="px-2 py-0.5 rounded-full text-label uppercase bg-success/10 text-success border border-success/20 inline-flex items-center gap-1.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-success animate-ping" />
                 Live
               </span>
             </div>
 
             <div className="divide-y divide-fire-border mt-2">
               {(stats?.ruleActivity || []).filter(r => r.enabled).map((rule) => (
-                <div key={rule.ruleId} className="flex items-center justify-between py-2.5 text-xs">
-                  <span className="font-mono text-text-secondary truncate max-w-[55%]">{rule.name}</span>
+                <div key={rule.ruleId} className="flex items-center justify-between py-2.5 text-small">
+                  <span className="font-medium text-text-secondary truncate max-w-[55%]">{rule.name}</span>
                   <div className="flex items-center gap-3">
-                    <span className="font-mono font-bold text-text-secondary tabular-nums">
+                    <span className="font-mono font-semibold text-text-primary tabular-nums">
                       {rule.matchCount.toLocaleString()} matches
                     </span>
                   </div>
                 </div>
               ))}
               {(!stats?.ruleActivity || stats.ruleActivity.filter(r => r.enabled).length === 0) && (
-                <div className="py-6 text-center text-text-muted text-[10px] uppercase font-bold tracking-wider">
+                <div className="py-6 text-center text-small font-medium text-text-muted">
                   No enabled rules
                 </div>
               )}
@@ -407,8 +409,8 @@ export default function CorrelationPage() {
           </div>
 
           <div className="space-y-3">
-            <h4 className="text-[10px] text-text-muted font-bold uppercase tracking-wider">Events Processed - Last 10 Min</h4>
-            <div className="flex items-end justify-between h-20 px-2 bg-surface rounded-lg border border-fire-border pt-4 gap-1.5">
+            <h4 className="text-label uppercase text-text-muted">Events Processed — last 10 min</h4>
+            <div className="flex items-end justify-between h-20 px-2 bg-surface-2 rounded-lg border border-fire-border pt-4 gap-1.5">
               {(stats?.eventsSeries || []).map((val, idx) => {
                 const max = Math.max(...(stats?.eventsSeries || [100]));
                 const pct = max > 0 ? (val / max) * 100 : 0;
@@ -418,15 +420,15 @@ export default function CorrelationPage() {
                     <div className="absolute bottom-full mb-1 bg-surface-3 text-text-primary text-[8px] font-mono rounded px-1.5 py-0.5 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10 whitespace-nowrap border border-fire-border">
                       {val.toLocaleString()}
                     </div>
-                    <div 
-                      style={{ height: `${Math.max(5, pct)}%` }} 
+                    <div
+                      style={{ height: `${Math.max(5, pct)}%` }}
                       className="w-full bg-accent rounded-t-sm group-hover:bg-accent-light transition-all duration-300"
                     />
                   </div>
                 )
               })}
             </div>
-            <div className="flex items-center justify-between text-[9px] text-text-muted font-mono">
+            <div className="flex items-center justify-between text-small text-text-muted font-mono">
               <span>{formatTime(tenMinAgo)}</span>
               <span>{formatTime(now)}</span>
             </div>
@@ -439,92 +441,92 @@ export default function CorrelationPage() {
       {/* New Rule Modal */}
       {isModalOpen && (
         <div className="fixed inset-0 bg-background/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-surface-2 border border-fire-border rounded-xl w-full max-w-lg overflow-hidden shadow-2xl animate-scale-in">
+          <div className="bg-surface border border-fire-border rounded-xl w-full max-w-lg overflow-hidden shadow-card animate-scale-in">
             <div className="flex items-center justify-between p-5 border-b border-fire-border">
-              <h3 className="text-sm font-bold text-text-primary uppercase tracking-wider">Create Correlation Rule</h3>
-              <button 
+              <h3 className="text-h3 text-text-primary">Create Correlation Rule</h3>
+              <button
                 onClick={() => setIsModalOpen(false)}
                 className="text-text-muted hover:text-text-primary transition-colors focus:outline-none"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
-            <form onSubmit={handleCreateRule} className="p-5 space-y-4 text-xs">
-              <div className="space-y-1">
-                <label className="text-text-muted font-bold uppercase tracking-wider block">Rule Name</label>
-                <input 
-                  type="text" 
+            <form onSubmit={handleCreateRule} className="p-5 space-y-4">
+              <div className="space-y-1.5">
+                <label className="text-label uppercase text-text-muted block">Rule Name</label>
+                <input
+                  type="text"
                   required
                   placeholder="e.g. Impossible Travel Detection"
                   value={newRuleName}
                   onChange={(e) => setNewRuleName(e.target.value)}
-                  className="w-full bg-surface border border-fire-border rounded-lg px-3 py-2 text-text-primary placeholder:text-text-muted focus:outline-none focus:border-accent/40"
+                  className="input-field"
                 />
               </div>
 
-              <div className="space-y-1">
-                <label className="text-text-muted font-bold uppercase tracking-wider block">Description</label>
-                <input 
-                  type="text" 
+              <div className="space-y-1.5">
+                <label className="text-label uppercase text-text-muted block">Description</label>
+                <input
+                  type="text"
                   required
-                  placeholder="e.g. Risk-based alerting - schedule & throttling"
+                  placeholder="e.g. Risk-based alerting — schedule & throttling"
                   value={newRuleDesc}
                   onChange={(e) => setNewRuleDesc(e.target.value)}
-                  className="w-full bg-surface border border-fire-border rounded-lg px-3 py-2 text-text-primary placeholder:text-text-muted focus:outline-none focus:border-accent/40"
+                  className="input-field"
                 />
               </div>
 
-              <div className="space-y-1">
-                <label className="text-text-muted font-bold uppercase tracking-wider block">SPL Query</label>
-                <textarea 
+              <div className="space-y-1.5">
+                <label className="text-label uppercase text-text-muted block">SPL Query</label>
+                <textarea
                   required
                   rows={4}
                   placeholder="index=auth sourcetype=okta:login | stats values(src_ip) as ips by user"
                   value={newRuleSpl}
                   onChange={(e) => setNewRuleSpl(e.target.value)}
-                  className="w-full bg-surface border border-fire-border rounded-lg px-3 py-2 text-text-primary placeholder:text-text-muted font-mono text-[11px] focus:outline-none focus:border-accent/40"
+                  className="input-field font-mono text-small"
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-1">
-                  <label className="text-text-muted font-bold uppercase tracking-wider block">Alert Severity</label>
-                  <select 
+                <div className="space-y-1.5">
+                  <label className="text-label uppercase text-text-muted block">Alert Severity</label>
+                  <select
                     value={newRuleSeverity}
                     onChange={(e) => setNewRuleSeverity(e.target.value)}
-                    className="w-full bg-surface border border-fire-border rounded-lg px-3 py-2 text-text-primary focus:outline-none focus:border-accent/40"
+                    className="input-field"
                   >
-                    <option value="CRITICAL">CRITICAL</option>
-                    <option value="HIGH">HIGH</option>
-                    <option value="MEDIUM">MEDIUM</option>
-                    <option value="LOW">LOW</option>
+                    <option value="CRITICAL">Critical</option>
+                    <option value="HIGH">High</option>
+                    <option value="MEDIUM">Medium</option>
+                    <option value="LOW">Low</option>
                   </select>
                 </div>
 
-                <div className="space-y-1">
-                  <label className="text-text-muted font-bold uppercase tracking-wider block">Risk Score ({newRuleRisk})</label>
-                  <input 
-                    type="range" 
-                    min="1" 
+                <div className="space-y-1.5">
+                  <label className="text-label uppercase text-text-muted block">Risk Score ({newRuleRisk})</label>
+                  <input
+                    type="range"
+                    min="1"
                     max="100"
                     value={newRuleRisk}
                     onChange={(e) => setNewRuleRisk(Number(e.target.value))}
-                    className="w-full accent-accent bg-surface h-2 rounded-lg appearance-none cursor-pointer mt-3"
+                    className="w-full accent-accent bg-surface-2 h-2 rounded-lg appearance-none cursor-pointer mt-3"
                   />
                 </div>
               </div>
 
               <div className="flex items-center justify-end gap-3 pt-3 border-t border-fire-border mt-4">
-                <button 
+                <button
                   type="button"
                   onClick={() => setIsModalOpen(false)}
-                  className="border border-fire-border bg-surface-2 hover:bg-surface-3 text-text-secondary hover:text-text-primary font-bold px-4 py-2 rounded-xl focus:outline-none transition-colors"
+                  className="btn-mission"
                 >
                   Cancel
                 </button>
-                <button 
+                <button
                   type="submit"
-                  className="bg-accent hover:bg-accent-dark text-white font-bold px-4 py-2 rounded-xl focus:outline-none transition-colors"
+                  className="btn-fire"
                 >
                   Create
                 </button>

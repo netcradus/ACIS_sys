@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Building2, User, Mail, Lock, Eye, EyeOff, ArrowRight, CheckCircle2 } from 'lucide-react'
 import keycloak from '../../lib/keycloak'
 import apiClient from '../../lib/apiClient'
+import NetcradusLogo from '@/components/NetcradusLogo'
 
 export default function SignupPage() {
   const [companyName, setCompanyName] = useState('')
@@ -77,22 +78,7 @@ export default function SignupPage() {
         <div className="w-full max-w-[480px] bg-white text-gray-900 rounded-[32px] p-6 lg:p-10 shadow-2xl border border-gray-100">
           {/* Header */}
           <div className="flex flex-col items-center w-full mb-6">
-            <svg className="h-10 w-auto" viewBox="0 0 160 50" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M18 42L33 6H43L28 42H18Z" fill="#000000" />
-              <path d="M29 16L40 42H50L35 6L29 16Z" fill="#F96302" />
-              <text x="56" y="40" fill="#F96302" fontWeight="800" fontSize="36" fontFamily="'Inter', system-ui, sans-serif" letterSpacing="-0.03em">CIS</text>
-              <text x="122" y="18" fill="#000000" fontWeight="700" fontSize="8" fontFamily="'Inter', system-ui, sans-serif">TM</text>
-            </svg>
-            <div className="flex items-center gap-2 w-full max-w-[150px] mx-auto my-3">
-              <div className="h-[1px] bg-gray-200 flex-1" />
-              <span className="text-[9px] text-gray-400 font-semibold uppercase tracking-wider">Powered by</span>
-              <div className="h-[1px] bg-gray-200 flex-1" />
-            </div>
-            <div className="flex items-center justify-center font-sans tracking-[0.08em] text-lg font-black select-none">
-              <span className="text-gray-950">NET</span>
-              <span className="text-[#F96302]">CRADUS</span>
-              <span className="text-[#F96302] text-xs font-bold -mt-2">™</span>
-            </div>
+            <NetcradusLogo size="md" />
           </div>
 
           {done ? (
@@ -126,7 +112,7 @@ export default function SignupPage() {
 
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div>
-                  <label className="text-xs font-bold text-gray-700 block mb-1.5">Company Name</label>
+                  <label className="text-small font-semibold text-gray-700 block mb-1.5">Company Name</label>
                   <div className="relative flex items-center">
                     <Building2 className="absolute left-4 w-4 h-4 text-gray-400 pointer-events-none" />
                     <input
@@ -141,7 +127,7 @@ export default function SignupPage() {
                 </div>
 
                 <div>
-                  <label className="text-xs font-bold text-gray-700 block mb-1.5">Your Name</label>
+                  <label className="text-small font-semibold text-gray-700 block mb-1.5">Your Name</label>
                   <div className="relative flex items-center">
                     <User className="absolute left-4 w-4 h-4 text-gray-400 pointer-events-none" />
                     <input
@@ -156,7 +142,7 @@ export default function SignupPage() {
                 </div>
 
                 <div>
-                  <label className="text-xs font-bold text-gray-700 block mb-1.5">Email Address</label>
+                  <label className="text-small font-semibold text-gray-700 block mb-1.5">Email Address</label>
                   <div className="relative flex items-center">
                     <Mail className="absolute left-4 w-4 h-4 text-gray-400 pointer-events-none" />
                     <input
@@ -171,7 +157,7 @@ export default function SignupPage() {
                 </div>
 
                 <div>
-                  <label className="text-xs font-bold text-gray-700 block mb-1.5">Password</label>
+                  <label className="text-small font-semibold text-gray-700 block mb-1.5">Password</label>
                   <div className="relative flex items-center">
                     <Lock className="absolute left-4 w-4 h-4 text-gray-400 pointer-events-none" />
                     <input
@@ -194,7 +180,7 @@ export default function SignupPage() {
                 </div>
 
                 <div>
-                  <label className="text-xs font-bold text-gray-700 block mb-1.5">Confirm Password</label>
+                  <label className="text-small font-semibold text-gray-700 block mb-1.5">Confirm Password</label>
                   <div className="relative flex items-center">
                     <Lock className="absolute left-4 w-4 h-4 text-gray-400 pointer-events-none" />
                     <input

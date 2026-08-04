@@ -159,14 +159,14 @@ export default function UserSecurityTab({ userId }: Props) {
   }
 
   if (!secInfo) {
-    return <div className="text-xs text-danger">Failed to load security information.</div>
+    return <div className="text-small text-danger">Failed to load security information.</div>
   }
 
   return (
     <div className="space-y-6 animate-fade-in">
       {/* Account Status */}
-      <div className="bg-surface-2 border border-fire-border rounded-xl p-5 space-y-3">
-        <h3 className="text-xs font-bold text-text-primary uppercase tracking-widest">Account Status</h3>
+      <div className="card-mission space-y-3">
+        <h3 className="text-h3 text-text-primary">Account Status</h3>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <StatusCard label="Status" value={secInfo.accountStatus}
             color={secInfo.accountStatus === 'ACTIVE' ? 'green' : 'red'} />
@@ -190,30 +190,30 @@ export default function UserSecurityTab({ userId }: Props) {
       </div>
 
       {/* Password Management */}
-      <div className="bg-surface-2 border border-fire-border rounded-xl p-5 space-y-4">
-        <h3 className="text-xs font-bold text-text-primary uppercase tracking-widest">Password Management</h3>
+      <div className="card-mission space-y-4">
+        <h3 className="text-h3 text-text-primary">Password Management</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="space-y-2">
-            <label className="text-[11px] text-text-muted font-bold uppercase tracking-wider block">Set New Password</label>
+            <label className="text-label text-text-muted uppercase block">Set New Password</label>
             <input
               type="text"
               autoComplete="new-password"
               value={newPassword}
               onChange={(e) => setNewPassword(e.target.value)}
               placeholder="Enter new password..."
-              className="w-full bg-surface border border-fire-border rounded-lg px-3 py-2 text-xs text-text-primary focus:outline-none focus:border-accent-pa/50"
+              className="w-full bg-surface border border-fire-border rounded-lg px-3.5 py-2.5 text-body text-text-primary transition-colors focus:outline-none focus:border-accent-pa focus:ring-4 focus:ring-accent-pa/10"
             />
-            <label className="flex items-center gap-2 text-[11px] text-text-secondary">
+            <label className="flex items-center gap-2 text-small text-text-secondary">
               <input type="checkbox" checked={tempFlag} onChange={(e) => setTempFlag(e.target.checked)} className="accent-accent-pa" />
               Temporary (user must change on next login)
             </label>
             <button onClick={handleResetPassword} disabled={pwBusy}
-              className="flex items-center gap-2 bg-accent-pa hover:bg-accent-pa-dark text-white font-bold px-3 py-1.5 rounded-lg text-[11px] disabled:opacity-50">
+              className="flex items-center gap-2 bg-accent-pa hover:bg-accent-pa-dark text-white font-semibold px-3 py-1.5 rounded-lg text-small disabled:opacity-50">
               <Key className="w-3.5 h-3.5" /> {pwBusy ? 'Working...' : 'Reset Password'}
             </button>
           </div>
           <div className="space-y-2">
-            <label className="text-[11px] text-text-muted font-bold uppercase tracking-wider block">Quick Actions</label>
+            <label className="text-label text-text-muted uppercase block">Quick Actions</label>
             <div className="flex flex-col gap-2">
               <ActionBtn icon={Key} label="Generate Temp Password" onClick={handleGenerateTemp} />
               <ActionBtn icon={Key} label="Force Password Change" onClick={() => setConfirmType('force-pw-change')} />
@@ -221,8 +221,8 @@ export default function UserSecurityTab({ userId }: Props) {
             </div>
             {generatedPw && (
               <div className="bg-surface border border-accent-pa/30 rounded-lg p-3 mt-2">
-                <p className="text-[10px] text-text-secondary mb-1">Generated Temporary Password:</p>
-                <code className="text-xs text-success font-mono select-all">{generatedPw}</code>
+                <p className="text-label text-text-secondary mb-1">Generated Temporary Password:</p>
+                <code className="text-small text-success font-mono select-all">{generatedPw}</code>
               </div>
             )}
           </div>
@@ -230,8 +230,8 @@ export default function UserSecurityTab({ userId }: Props) {
       </div>
 
       {/* MFA Management */}
-      <div className="bg-surface-2 border border-fire-border rounded-xl p-5 space-y-3">
-        <h3 className="text-xs font-bold text-text-primary uppercase tracking-widest">Multi-Factor Authentication</h3>
+      <div className="card-mission space-y-3">
+        <h3 className="text-h3 text-text-primary">Multi-Factor Authentication</h3>
         <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
           <StatusCard label="MFA Status" value={secInfo.mfaEnabled ? 'Enabled' : 'Not Configured'}
             color={secInfo.mfaEnabled ? 'green' : 'neutral'} />
@@ -253,11 +253,11 @@ export default function UserSecurityTab({ userId }: Props) {
       </div>
 
       {/* Sessions */}
-      <div className="bg-surface-2 border border-fire-border rounded-xl p-5 space-y-3">
+      <div className="card-mission space-y-3">
         <div className="flex items-center justify-between">
-          <h3 className="text-xs font-bold text-text-primary uppercase tracking-widest">Active Sessions</h3>
+          <h3 className="text-h3 text-text-primary">Active Sessions</h3>
           <div className="flex gap-2">
-            <button onClick={loadSessions} className="text-[10px] text-text-muted hover:text-text-primary flex items-center gap-1">
+            <button onClick={loadSessions} className="text-label text-text-muted uppercase hover:text-text-primary flex items-center gap-1">
               <RefreshCw className="w-3 h-3" /> Refresh
             </button>
             {sessions.length > 0 && (
@@ -269,23 +269,23 @@ export default function UserSecurityTab({ userId }: Props) {
         {sessionsLoading ? (
           <div className="flex items-center justify-center py-4"><Loader2 className="w-4 h-4 text-accent-pa animate-spin" /></div>
         ) : sessions.length === 0 ? (
-          <p className="text-xs text-text-muted py-4">No active sessions.</p>
+          <p className="text-small text-text-muted py-4">No active sessions.</p>
         ) : (
           <div className="space-y-2">
             {sessions.map((s) => (
-              <div key={s.sessionId} className="flex items-center justify-between bg-surface border border-fire-border/60 rounded-lg p-3">
+              <div key={s.sessionId} className="flex items-center justify-between bg-surface border border-fire-border rounded-lg p-3">
                 <div className="flex items-center gap-3">
                   <Monitor className="w-4 h-4 text-text-muted" />
                   <div>
-                    <p className="text-[11px] text-text-primary font-semibold">{s.clients || 'Unknown Client'}</p>
-                    <p className="text-[10px] text-text-muted">
+                    <p className="text-small text-text-primary font-semibold">{s.clients || 'Unknown Client'}</p>
+                    <p className="text-label text-text-muted normal-case">
                       IP: {s.ipAddress || 'N/A'} | Started: {s.startTimestamp ? new Date(s.startTimestamp).toLocaleString() : 'N/A'}
                     </p>
                   </div>
                 </div>
                 <button
                   onClick={() => { setTargetSessionId(s.sessionId); setConfirmType('terminate-session') }}
-                  className="text-[10px] text-danger hover:text-text-primary bg-danger/10 hover:bg-danger/30 border border-danger/20 px-2 py-1 rounded font-bold"
+                  className="text-label text-danger uppercase hover:text-text-primary bg-danger/10 hover:bg-danger/30 border border-danger/20 px-2 py-1 rounded"
                 >
                   Terminate
                 </button>
@@ -296,10 +296,10 @@ export default function UserSecurityTab({ userId }: Props) {
       </div>
 
       {/* Recent Login Activity */}
-      <div className="bg-surface-2 border border-fire-border rounded-xl p-5 space-y-3">
+      <div className="card-mission space-y-3">
         <div className="flex items-center justify-between">
-          <h3 className="text-xs font-bold text-text-primary uppercase tracking-widest">Recent Login Activity</h3>
-          <button onClick={loadLoginEvents} className="text-[10px] text-text-muted hover:text-text-primary flex items-center gap-1">
+          <h3 className="text-h3 text-text-primary">Recent Login Activity</h3>
+          <button onClick={loadLoginEvents} className="text-label text-text-muted uppercase hover:text-text-primary flex items-center gap-1">
             <RefreshCw className="w-3 h-3" /> Refresh
           </button>
         </div>
@@ -307,35 +307,35 @@ export default function UserSecurityTab({ userId }: Props) {
         {loginEventsLoading ? (
           <div className="flex items-center justify-center py-4"><Loader2 className="w-4 h-4 text-accent-pa animate-spin" /></div>
         ) : loginEventsNotEnabled ? (
-          <div className="flex items-start gap-3 bg-surface border border-fire-border/60 rounded-lg p-3">
+          <div className="flex items-start gap-3 bg-surface border border-fire-border rounded-lg p-3">
             <AlertTriangle className="w-4 h-4 text-warning flex-shrink-0 mt-0.5" />
-            <p className="text-[11px] text-text-secondary">
+            <p className="text-small text-text-secondary">
               Login event history is not enabled on this realm. This is a genuine Keycloak realm-configuration
               limitation, not an application error — an operator must enable events on the realm to populate this view.
             </p>
           </div>
         ) : loginEventsError ? (
-          <p className="text-xs text-danger py-4">{loginEventsError}</p>
+          <p className="text-small text-danger py-4">{loginEventsError}</p>
         ) : loginEvents.length === 0 ? (
-          <p className="text-xs text-text-muted py-4">No login events recorded yet.</p>
+          <p className="text-small text-text-muted py-4">No login events recorded yet.</p>
         ) : (
           <div className="space-y-2">
             {loginEvents.map((e, idx) => (
-              <div key={idx} className="flex items-center justify-between bg-surface border border-fire-border/60 rounded-lg p-3">
+              <div key={idx} className="flex items-center justify-between bg-surface border border-fire-border rounded-lg p-3">
                 <div className="flex items-center gap-3">
                   <History className="w-4 h-4 text-text-muted" />
                   <div>
-                    <p className="text-[11px] text-text-primary font-semibold">
+                    <p className="text-small text-text-primary font-semibold">
                       {(e.type || '').replace(/_/g, ' ')}
                       {e.clientId ? ` — ${e.clientId}` : ''}
                     </p>
-                    <p className="text-[10px] text-text-muted">
+                    <p className="text-label text-text-muted normal-case">
                       IP: {e.ipAddress || 'N/A'} | {e.time ? new Date(e.time).toLocaleString() : 'N/A'}
                     </p>
                   </div>
                 </div>
                 {e.error && (
-                  <span className="text-[10px] text-danger bg-danger/10 border border-danger/20 px-2 py-1 rounded font-bold">
+                  <span className="text-label text-danger uppercase bg-danger/10 border border-danger/20 px-2 py-1 rounded">
                     {e.error}
                   </span>
                 )}
@@ -389,8 +389,8 @@ function StatusCard({ label, value, color }: { label: string; value: string; col
   }
   return (
     <div className={clsx('rounded-lg border p-3', colors[color])}>
-      <p className="text-[10px] uppercase tracking-wider opacity-70 mb-0.5">{label}</p>
-      <p className="text-sm font-bold">{value}</p>
+      <p className="text-label uppercase opacity-70 mb-0.5">{label}</p>
+      <p className="text-h3">{value}</p>
     </div>
   )
 }
@@ -400,7 +400,7 @@ function ActionBtn({ icon: Icon, label, onClick, danger = false }: {
 }) {
   return (
     <button onClick={onClick} className={clsx(
-      'flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-bold transition-colors border',
+      'flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-small font-semibold transition-colors border',
       danger
         ? 'border-danger/30 bg-danger/10 text-danger hover:bg-danger/20'
         : 'border-accent-pa/30 bg-accent-pa/10 text-accent-pa hover:bg-accent-pa/20'

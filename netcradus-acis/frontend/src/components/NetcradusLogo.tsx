@@ -55,7 +55,7 @@ export default function NetcradusLogo({
         />
       </div>
       {showTagline && (
-        <span className="text-[10px] font-black tracking-[0.28em] text-accent uppercase mt-1.5 font-mono drop-shadow-[0_0_8px_color-mix(in_srgb,var(--accent)_30%,transparent)]">
+        <span className="text-label text-accent uppercase mt-1.5">
           Autonomous Cyber Immune System
         </span>
       )}
