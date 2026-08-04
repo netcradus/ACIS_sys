@@ -349,9 +349,21 @@ services:
       KAFKA_BOOTSTRAP_SERVERS: kafka:29092
       KEYCLOAK_URL: http://keycloak:8080
       KEYCLOAK_REALM: ${KEYCLOAK_REALM:-acis}
+      # Added for /api/ingest/external/** — ApiKeyAuthFilter looks up API keys
+      # in Postgres (api_keys table, owned by the soar service). This service
+      # previously had no datasource at all; without these it falls back to
+      # localhost, which inside this container is itself, not the postgres
+      # service, and it would crash-loop on startup.
+      DB_HOST: postgres
+      DB_PORT: "5432"
+      DB_NAME: ${DB_NAME:-acis}
+      DB_USER: acis_app
+      DB_PASSWORD: ${DB_PASSWORD:?Set DB_PASSWORD in .env}
     expose:
       - "8084"
     depends_on:
+      postgres:
+        condition: service_healthy
       kafka:
         condition: service_healthy
       keycloak:
