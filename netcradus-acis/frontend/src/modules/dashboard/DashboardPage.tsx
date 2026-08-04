@@ -241,7 +241,7 @@ export default function DashboardPage() {
         <div>
           <div className="flex items-center gap-2.5">
             <span className="h-2 w-2 rounded-full bg-accent animate-pulse" />
-            <h1 className="text-h1 text-text-primary">Autonomous Cyber Immune System</h1>
+            <h1 className="text-lg font-medium tracking-tight text-text-primary">Autonomous Cyber Immune System</h1>
           </div>
           <p className="text-small text-text-secondary mt-1">
             Real-time closed-loop security automation & validation console
@@ -289,7 +289,7 @@ export default function DashboardPage() {
                   <span className="badge-mission bg-accent/10 border-accent text-accent">Active Sandbox Mode</span>
                   <span className="text-[10px] font-bold text-text-secondary uppercase tracking-widest">Closed-loop simulator</span>
                 </div>
-                <h2 className="text-xl font-extrabold text-text-primary uppercase tracking-tight">Closed-Loop Attack & Remediation Simulator</h2>
+                <h2 className="text-lg font-medium text-text-primary tracking-tight">Closed-Loop Attack & Remediation Simulator</h2>
                 <p className="max-w-2xl text-[11px] uppercase tracking-[0.1em] text-text-secondary">
                   Select a threat vector to trigger a simulated red-team attack campaign. Watch as the system moves automatically through the defense lifecycle.
                 </p>
