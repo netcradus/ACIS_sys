@@ -557,11 +557,17 @@ export default function DashboardPage() {
                       <div
                         key={idx}
                         className={clsx(
-                          "h-5 w-5 rounded-md border transition-all duration-500",
-                          state === 'secure' && "bg-accent-pa/10 border-accent-pa/20 hover:border-accent-pa/40",
-                          state === 'probing' && "bg-warning/20 border-warning animate-pulse shadow-lg shadow-warning/20",
-                          state === 'compromised' && "bg-danger/25 border-danger animate-pulse shadow-lg shadow-danger/20",
-                          state === 'contained' && "bg-accent-pa/30 border-accent-pa shadow-lg shadow-accent-pa/20"
+                          "h-5 w-5 rounded-md border-2 transition-all duration-500",
+                          // Plain Tailwind opacity modifiers (bg-x/NN) silently no-op on
+                          // these CSS-variable-based colors — Tailwind can't decompose a
+                          // var() into RGB channels at build time, so it emits invalid CSS
+                          // that the browser drops, leaving a fully transparent fill. Using
+                          // color-mix() directly (already the working pattern in index.css)
+                          // resolves the variable at runtime instead, so it actually tints.
+                          state === 'secure' && "bg-[color-mix(in_srgb,var(--accent-pa)_14%,var(--surface-3))] border-[color-mix(in_srgb,var(--accent-pa)_70%,transparent)] hover:border-accent-pa",
+                          state === 'probing' && "bg-[color-mix(in_srgb,var(--warning)_25%,transparent)] border-warning animate-pulse shadow-lg shadow-warning/20",
+                          state === 'compromised' && "bg-[color-mix(in_srgb,var(--danger)_30%,transparent)] border-danger animate-pulse shadow-lg shadow-danger/20",
+                          state === 'contained' && "bg-[color-mix(in_srgb,var(--accent-pa)_45%,transparent)] border-accent-pa shadow-lg shadow-accent-pa/20"
                         )}
                         title={`Node ${idx + 1}: ${state.toUpperCase()}`}
                       />
@@ -630,9 +636,15 @@ export default function DashboardPage() {
                 <MapPin className="h-4 w-4 text-text-muted" />
               </div>
 
-              <div className="relative h-40 rounded-xl overflow-hidden border border-fire-border/60 bg-background">
+              {/* Fixed dark backdrop, independent of the app's light/dark theme —
+                  world-network.png is a bright dotted map designed to pop against
+                  black; blended at low opacity onto a light card background it
+                  washed out to a hazy, low-contrast smear. A radar/tactical map
+                  widget reading as its own "screen" is also a common, deliberate
+                  pattern in SOC dashboards, so this isn't just a workaround. */}
+              <div className="relative h-40 rounded-xl overflow-hidden border border-fire-border/60 bg-[#0a0e17]">
                 <div
-                  className="absolute inset-0 bg-cover bg-center opacity-25"
+                  className="absolute inset-0 bg-cover bg-center opacity-70"
                   style={{ backgroundImage: "url('/world-network.png')" }}
                 />
                 <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none">
@@ -643,14 +655,14 @@ export default function DashboardPage() {
                       <line
                         key={i}
                         x1={from.x} y1={from.y} x2={to.x} y2={to.y}
-                        stroke={chartColors.accent}
-                        strokeWidth={0.4}
-                        strokeOpacity={0.5}
+                        stroke="#60A5FA"
+                        strokeWidth={0.5}
+                        strokeOpacity={0.85}
                       />
                     )
                   })}
                   {attackMapNodes.map(n => (
-                    <circle key={n.id} cx={n.x} cy={n.y} r={1.2} fill={chartColors.accent} className="animate-pulse" />
+                    <circle key={n.id} cx={n.x} cy={n.y} r={1.2} fill="#60A5FA" className="animate-pulse" />
                   ))}
                 </svg>
               </div>
