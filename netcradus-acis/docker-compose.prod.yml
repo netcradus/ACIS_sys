@@ -386,6 +386,7 @@ services:
       KEYCLOAK_URL: http://keycloak:8080
       KEYCLOAK_REALM: ${KEYCLOAK_REALM:-acis}
       ASSET_SERVICE_URL: http://asset-service:8086
+      CREDENTIAL_ENCRYPTION_KEY: ${CREDENTIAL_ENCRYPTION_KEY:?Set CREDENTIAL_ENCRYPTION_KEY in .env (generate with: openssl rand -base64 32)}
     expose:
       - "8085"
     depends_on:
