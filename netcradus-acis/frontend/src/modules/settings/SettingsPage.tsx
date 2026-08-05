@@ -3042,6 +3042,13 @@ export default function SettingsPage() {
               </div>
             </div>
 
+          </div>
+        )}
+
+        {/* Full Ingestion Integrations Panel */}
+        {activeTab === 'Integrations' && (
+          <div className="space-y-6 animate-fade-in">
+
             {/* Connected Integrations Card */}
             <div className="card-mission p-5 space-y-4">
               <div className="flex items-center justify-between border-b border-fire-border pb-3">
@@ -3209,13 +3216,6 @@ export default function SettingsPage() {
                 </form>
               )}
             </div>
-
-          </div>
-        )}
-
-        {/* Full Ingestion Integrations Panel */}
-        {activeTab === 'Integrations' && (
-          <div className="space-y-6 animate-fade-in">
 
             {/* Header & Quick Overview Metrics */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
