@@ -386,6 +386,7 @@ services:
       KEYCLOAK_URL: http://keycloak:8080
       KEYCLOAK_REALM: ${KEYCLOAK_REALM:-acis}
       ASSET_SERVICE_URL: http://asset-service:8086
+      INGESTION_SERVICE_URL: http://ingestion:8084
       CREDENTIAL_ENCRYPTION_KEY: ${CREDENTIAL_ENCRYPTION_KEY:?Set CREDENTIAL_ENCRYPTION_KEY in .env, generated via openssl rand -base64 32}
     expose:
       - "8085"
@@ -396,6 +397,8 @@ services:
         condition: service_healthy
       keycloak:
         condition: service_healthy
+      ingestion:
+        condition: service_started
     restart: always
 
   asset-service:

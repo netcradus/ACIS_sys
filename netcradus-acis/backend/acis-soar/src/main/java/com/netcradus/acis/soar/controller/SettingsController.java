@@ -34,10 +34,6 @@ import java.nio.charset.StandardCharsets;
 import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.UUID;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
-import java.security.SecureRandom;
-import java.util.HexFormat;
 import java.util.regex.Pattern;
 
 @RestController
@@ -58,6 +54,7 @@ public class SettingsController {
     private final RolePermissionRepository rolePermissionRepository;
     private final DataSourceRepository dataSourceRepository;
     private final AuditEventPublisher auditEventPublisher;
+    private final com.netcradus.acis.soar.support.ApiKeyIssuer apiKeyIssuer;
 
     /**
      * X-Tenant-ID is always populated by TenantContextFilter from the caller's
@@ -85,17 +82,11 @@ public class SettingsController {
         if (key.getKeyName() == null || key.getKeyName().isBlank()) {
             return ResponseEntity.badRequest().body(ApiResponse.error("Key name is required"));
         }
-        String rawToken = generateRandomToken();
-        key.setTenantId(resolveTenant(tenantId));
-        key.setTokenHash(hashToken(rawToken));
-        key.setTokenPreview(rawToken.substring(rawToken.length() - 4));
-        key.setCreatedAt(OffsetDateTime.now());
-        key.setStatus("Active");
-        ApiKey saved = apiKeyRepository.save(key);
-        auditEventPublisher.publish("API_KEY_CREATE", "api-key/" + saved.getId(), "created");
+        var issued = apiKeyIssuer.issue(resolveTenant(tenantId), key.getKeyName(), key.getRole());
+        auditEventPublisher.publish("API_KEY_CREATE", "api-key/" + issued.key().getId(), "created");
         // rawToken is returned here only — it was never persisted, so this response
         // is the one and only time the caller can see the real secret.
-        return ResponseEntity.ok(ApiResponse.success(new ApiKeyCreatedResponse(saved, rawToken)));
+        return ResponseEntity.ok(ApiResponse.success(new ApiKeyCreatedResponse(issued.key(), issued.rawToken())));
     }
 
     @PutMapping("/keys/{id}/revoke")
@@ -406,34 +397,6 @@ public class SettingsController {
         UserGroup saved = userGroupRepository.save(group);
         auditEventPublisher.publish("GROUP_CREATE", "group/" + saved.getId(), "created");
         return ResponseEntity.ok(ApiResponse.success(saved));
-    }
-
-    private static final SecureRandom SECURE_RANDOM = new SecureRandom();
-
-    /**
-     * 40 characters of real random entropy (240 bits) — no fake "..." gap in
-     * the middle. Older versions of this token format spliced a literal "..."
-     * into the stored/returned value itself, which looked like a masked
-     * secret but wasn't actually hiding anything.
-     */
-    private String generateRandomToken() {
-        String chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
-        StringBuilder sb = new StringBuilder("acis_live_");
-        for (int i = 0; i < 40; i++) {
-            sb.append(chars.charAt(SECURE_RANDOM.nextInt(chars.length())));
-        }
-        return sb.toString();
-    }
-
-    private String hashToken(String rawToken) {
-        try {
-            MessageDigest digest = MessageDigest.getInstance("SHA-256");
-            byte[] hash = digest.digest(rawToken.getBytes(StandardCharsets.UTF_8));
-            return HexFormat.of().formatHex(hash);
-        } catch (NoSuchAlgorithmException e) {
-            // SHA-256 is a JDK-mandated algorithm; this can't actually happen.
-            throw new IllegalStateException(e);
-        }
     }
 
     // ── Roles & Permissions ───────────────────────────────────

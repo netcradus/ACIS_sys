@@ -28,6 +28,7 @@ public class TenantAwareDataSource extends DelegatingDataSource {
 
     private static final String SET_TENANT_SQL = "SELECT set_config('app.current_tenant_id', ?, false)";
     private static final String SET_API_KEY_LOOKUP_SQL = "SELECT set_config('app.allow_api_key_lookup', ?, false)";
+    private static final String SET_SYSTEM_POLLER_SQL = "SELECT set_config('app.system_poller', ?, false)";
 
     public TenantAwareDataSource(DataSource targetDataSource) {
         super(targetDataSource);
@@ -56,6 +57,12 @@ public class TenantAwareDataSource extends DelegatingDataSource {
             ps.setString(1, TenantContext.isApiKeyLookupInProgress() ? "true" : "false");
             ps.execute();
         }
+        // Only the three vendor-integration tables' RLS policies read this GUC
+        // (see RlsConfig in acis-soar) — every other policy ignores it.
+        try (PreparedStatement ps = connection.prepareStatement(SET_SYSTEM_POLLER_SQL)) {
+            ps.setString(1, TenantContext.isSystemPollerInProgress() ? "true" : "false");
+            ps.execute();
+        }
         return connection;
     }
 
@@ -67,6 +74,12 @@ public class TenantAwareDataSource extends DelegatingDataSource {
             // Connection may already be invalid/closing — nothing useful to do.
         }
         try (PreparedStatement ps = connection.prepareStatement(SET_API_KEY_LOOKUP_SQL)) {
+            ps.setString(1, "false");
+            ps.execute();
+        } catch (SQLException ignored) {
+            // Connection may already be invalid/closing — nothing useful to do.
+        }
+        try (PreparedStatement ps = connection.prepareStatement(SET_SYSTEM_POLLER_SQL)) {
             ps.setString(1, "false");
             ps.execute();
         } catch (SQLException ignored) {

@@ -14,6 +14,7 @@ public class TenantContext {
     private static final ThreadLocal<UUID>    USER_ID     = new ThreadLocal<>();
     private static final ThreadLocal<String>  USER_EMAIL  = new ThreadLocal<>();
     private static final ThreadLocal<Boolean> API_KEY_LOOKUP = new ThreadLocal<>();
+    private static final ThreadLocal<Boolean> SYSTEM_POLLER = new ThreadLocal<>();
 
     public static void setTenantId(String tenantId) { TENANT_ID.set(tenantId); }
     public static String getTenantId() { return TENANT_ID.get(); }
@@ -29,6 +30,18 @@ public class TenantContext {
      */
     public static void setApiKeyLookupInProgress(boolean inProgress) { API_KEY_LOOKUP.set(inProgress); }
     public static boolean isApiKeyLookupInProgress() { return Boolean.TRUE.equals(API_KEY_LOOKUP.get()); }
+
+    /**
+     * True only while the scheduled vendor-integration poller (acis-soar's
+     * IntegrationPollerService) is deciding which tenants have a
+     * Palo Alto/Wazuh/SentinelOne integration configured — it runs on a
+     * background thread with no request/JWT, so it must see rows across
+     * every tenant for that one lookup, same rationale as the API key
+     * bypass above. Every tenant-scoped write it subsequently performs
+     * still sets the real tenant id first, so WITH CHECK is never relaxed.
+     */
+    public static void setSystemPollerInProgress(boolean inProgress) { SYSTEM_POLLER.set(inProgress); }
+    public static boolean isSystemPollerInProgress() { return Boolean.TRUE.equals(SYSTEM_POLLER.get()); }
 
     /** Tenant ID as a UUID, for services whose tenant_id columns are typed UUID. */
     public static UUID getTenantIdAsUuid() {
@@ -47,5 +60,6 @@ public class TenantContext {
         USER_ID.remove();
         USER_EMAIL.remove();
         API_KEY_LOOKUP.remove();
+        SYSTEM_POLLER.remove();
     }
 }

@@ -11,6 +11,7 @@ import org.springframework.core.annotation.Order;
 import org.springframework.jdbc.core.JdbcTemplate;
 
 import javax.sql.DataSource;
+import java.util.List;
 
 @Configuration
 public class RlsConfig {
@@ -84,6 +85,34 @@ public class RlsConfig {
                     " USING (tenant_id::text = current_setting('app.current_tenant_id', true)" +
                     "        OR current_setting('app.allow_api_key_lookup', true) = 'true')" +
                     " WITH CHECK (tenant_id::text = current_setting('app.current_tenant_id', true))");
+        };
+    }
+
+    /**
+     * paloalto_integrations, wazuh_integrations and sentinelone_integrations
+     * need the same non-standard policy as api_keys, for the same reason:
+     * IntegrationPollerService runs on a background thread with no tenant
+     * context of its own, and must first ask "which tenants have this
+     * integration enabled?" across every tenant before it can poll any of
+     * them — gated by app.system_poller, a GUC only that poller ever sets
+     * (see TenantContext.setSystemPollerInProgress and TenantAwareDataSource).
+     * Every write (including the poller's own status/lastPolledAt updates)
+     * still goes through WITH CHECK unmodified, since the poller sets the
+     * real tenant id before saving — see IntegrationPollerService.
+     */
+    @Bean
+    @Order(1002)
+    public CommandLineRunner enableVendorPollerRowLevelSecurity(JdbcTemplate jdbcTemplate) {
+        return args -> {
+            for (String table : List.of("paloalto_integrations", "wazuh_integrations", "sentinelone_integrations")) {
+                jdbcTemplate.execute("ALTER TABLE " + table + " ENABLE ROW LEVEL SECURITY");
+                jdbcTemplate.execute("ALTER TABLE " + table + " FORCE ROW LEVEL SECURITY");
+                jdbcTemplate.execute("DROP POLICY IF EXISTS tenant_isolation ON " + table);
+                jdbcTemplate.execute("CREATE POLICY tenant_isolation ON " + table +
+                        " USING (tenant_id::text = current_setting('app.current_tenant_id', true)" +
+                        "        OR current_setting('app.system_poller', true) = 'true')" +
+                        " WITH CHECK (tenant_id::text = current_setting('app.current_tenant_id', true))");
+            }
         };
     }
 }

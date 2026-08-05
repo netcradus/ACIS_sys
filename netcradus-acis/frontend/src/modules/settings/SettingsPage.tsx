@@ -286,6 +286,47 @@ export default function SettingsPage() {
   const [cfTesting, setCfTesting] = useState(false)
   const [cfTestResult, setCfTestResult] = useState<{ ok: boolean; message: string } | null>(null)
 
+  // Palo Alto integration — real PAN-OS API polling (see IntegrationPollerService)
+  const [paConfigured, setPaConfigured] = useState(false)
+  const [paHostname, setPaHostname] = useState('')
+  const [paEnabled, setPaEnabled] = useState(true)
+  const [paApiKey, setPaApiKey] = useState('')
+  const [paEditing, setPaEditing] = useState(false)
+  const [paSaving, setPaSaving] = useState(false)
+  const [paTesting, setPaTesting] = useState(false)
+  const [paTestResult, setPaTestResult] = useState<{ ok: boolean; message: string } | null>(null)
+  const [paLastPolledAt, setPaLastPolledAt] = useState<string | null>(null)
+  const [paLastPollStatus, setPaLastPollStatus] = useState<string | null>(null)
+  const [paLastPollError, setPaLastPollError] = useState<string | null>(null)
+
+  // Wazuh integration — real Wazuh Indexer polling (see IntegrationPollerService)
+  const [wzConfigured, setWzConfigured] = useState(false)
+  const [wzBaseUrl, setWzBaseUrl] = useState('')
+  const [wzUsername, setWzUsername] = useState('')
+  const [wzIndexPattern, setWzIndexPattern] = useState('wazuh-alerts-*')
+  const [wzEnabled, setWzEnabled] = useState(true)
+  const [wzPassword, setWzPassword] = useState('')
+  const [wzEditing, setWzEditing] = useState(false)
+  const [wzSaving, setWzSaving] = useState(false)
+  const [wzTesting, setWzTesting] = useState(false)
+  const [wzTestResult, setWzTestResult] = useState<{ ok: boolean; message: string } | null>(null)
+  const [wzLastPolledAt, setWzLastPolledAt] = useState<string | null>(null)
+  const [wzLastPollStatus, setWzLastPollStatus] = useState<string | null>(null)
+  const [wzLastPollError, setWzLastPollError] = useState<string | null>(null)
+
+  // SentinelOne integration — real Management API polling (see IntegrationPollerService)
+  const [s1Configured, setS1Configured] = useState(false)
+  const [s1ConsoleUrl, setS1ConsoleUrl] = useState('')
+  const [s1Enabled, setS1Enabled] = useState(true)
+  const [s1ApiToken, setS1ApiToken] = useState('')
+  const [s1Editing, setS1Editing] = useState(false)
+  const [s1Saving, setS1Saving] = useState(false)
+  const [s1Testing, setS1Testing] = useState(false)
+  const [s1TestResult, setS1TestResult] = useState<{ ok: boolean; message: string } | null>(null)
+  const [s1LastPolledAt, setS1LastPolledAt] = useState<string | null>(null)
+  const [s1LastPollStatus, setS1LastPollStatus] = useState<string | null>(null)
+  const [s1LastPollError, setS1LastPollError] = useState<string | null>(null)
+
   // Form states
   const [newKeyName, setNewKeyName] = useState('')
   const [newKeyRole, setNewKeyRole] = useState('API Read/Write')
@@ -294,177 +335,6 @@ export default function SettingsPage() {
   const [newIntDesc, setNewIntDesc] = useState('')
   const [newIntLogo, setNewIntLogo] = useState('')
 
-  // Full Ingestion Integrations states
-  const [rateModalOpen, setRateModalOpen] = useState(false)
-  const [editingIntegration, setEditingIntegration] = useState<any | null>(null)
-  const [modalMaxEps, setModalMaxEps] = useState(5000)
-  const [modalMaxConcurrency, setModalMaxConcurrency] = useState(20)
-  const [modalCircuitBreaker, setModalCircuitBreaker] = useState(5)
-  const [modalRetryBackoff, setModalRetryBackoff] = useState(1000)
-  const [rateSaving, setRateSaving] = useState(false)
-  const [rateSavedSuccess, setRateSavedSuccess] = useState(false)
-  const [flushingId, setFlushingId] = useState<string | null>(null)
-  const [intFilterCategory, setIntFilterCategory] = useState<string>('ALL')
-
-  const DEFAULT_SOC_INTEGRATIONS: any[] = [
-    {
-      id: 'int-aws-01',
-      name: 'AWS CloudTrail & VPC Flow',
-      category: 'Cloud Audit & Flow Logs',
-      description: 'Ingests cloud management events, S3 access logs, and VPC flow records in real time.',
-      status: 'Streaming',
-      logoLetter: 'AWS',
-      eps: 1840,
-      bandwidth: '3.4 MB/s',
-      latency: '12 ms',
-      dailyVolume: '48.2 GB',
-      maxEps: 5000,
-      maxConcurrency: 25,
-      circuitBreakerThreshold: 5,
-      retryBackoffMs: 1000
-    },
-    {
-      id: 'int-palo-02',
-      name: 'Palo Alto Next-Gen Firewall',
-      category: 'Network & Perimeter Security',
-      description: 'Syslog ingest stream for perimeter traffic, URL filtering, and threat prevention logs.',
-      status: 'Streaming',
-      logoLetter: 'PA',
-      eps: 2150,
-      bandwidth: '4.8 MB/s',
-      latency: '8 ms',
-      dailyVolume: '64.1 GB',
-      maxEps: 10000,
-      maxConcurrency: 40,
-      circuitBreakerThreshold: 3,
-      retryBackoffMs: 500
-    },
-    {
-      id: 'int-cs-03',
-      name: 'CrowdStrike Falcon EDR',
-      category: 'Endpoint Telemetry',
-      description: 'Falcon Streaming API v2 collector for process executions, network connections, and IOC detections.',
-      status: 'Streaming',
-      logoLetter: 'CS',
-      eps: 890,
-      bandwidth: '1.2 MB/s',
-      latency: '15 ms',
-      dailyVolume: '18.5 GB',
-      maxEps: 3000,
-      maxConcurrency: 15,
-      circuitBreakerThreshold: 5,
-      retryBackoffMs: 2000
-    },
-    {
-      id: 'int-s1-04',
-      name: 'SentinelOne Singularity',
-      category: 'EDR & Automated Isolation',
-      description: 'Real-time agent telemetry stream and threat alert webhook ingestion pipeline.',
-      status: 'Streaming',
-      logoLetter: 'S1',
-      eps: 620,
-      bandwidth: '0.9 MB/s',
-      latency: '18 ms',
-      dailyVolume: '12.4 GB',
-      maxEps: 2500,
-      maxConcurrency: 10,
-      circuitBreakerThreshold: 5,
-      retryBackoffMs: 2000
-    },
-    {
-      id: 'int-okta-05',
-      name: 'Okta Identity Cloud',
-      category: 'IAM & Authentication Audit',
-      description: 'System log API collector monitoring user logins, MFA prompts, and policy changes.',
-      status: 'Streaming',
-      logoLetter: 'OK',
-      eps: 340,
-      bandwidth: '0.4 MB/s',
-      latency: '22 ms',
-      dailyVolume: '5.8 GB',
-      maxEps: 1500,
-      maxConcurrency: 10,
-      circuitBreakerThreshold: 10,
-      retryBackoffMs: 3000
-    },
-    {
-      id: 'int-m365-06',
-      name: 'Microsoft Defender XDR',
-      category: 'Cloud Security & Identity',
-      description: 'Microsoft Graph Security API connector ingesting identity alerts, email threats, and Defender logs.',
-      status: 'Streaming',
-      logoLetter: 'MS',
-      eps: 1120,
-      bandwidth: '1.8 MB/s',
-      latency: '10 ms',
-      dailyVolume: '24.9 GB',
-      maxEps: 4000,
-      maxConcurrency: 20,
-      circuitBreakerThreshold: 5,
-      retryBackoffMs: 1500
-    },
-    {
-      id: 'int-splunk-07',
-      name: 'Splunk HEC Ingest',
-      category: 'SIEM & Big Data Pipeline',
-      description: 'HTTP Event Collector pipeline pushing aggregated security telemetry into ACIS analytical store.',
-      status: 'Streaming',
-      logoLetter: 'SP',
-      eps: 3400,
-      bandwidth: '6.2 MB/s',
-      latency: '6 ms',
-      dailyVolume: '92.3 GB',
-      maxEps: 8000,
-      maxConcurrency: 50,
-      circuitBreakerThreshold: 2,
-      retryBackoffMs: 500
-    }
-  ]
-
-  const handleOpenRateModal = (intItem: any) => {
-    setEditingIntegration(intItem)
-    setModalMaxEps(intItem.maxEps || 5000)
-    setModalMaxConcurrency(intItem.maxConcurrency || 20)
-    setModalCircuitBreaker(intItem.circuitBreakerThreshold || 5)
-    setModalRetryBackoff(intItem.retryBackoffMs || 1000)
-    setRateModalOpen(true)
-  }
-
-  const handleSaveRateBoundaries = (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!editingIntegration) return
-    setRateSaving(true)
-    
-    setIntegrations(prev => prev.map(item => item.id === editingIntegration.id ? {
-      ...item,
-      maxEps: modalMaxEps,
-      maxConcurrency: modalMaxConcurrency,
-      circuitBreakerThreshold: modalCircuitBreaker,
-      retryBackoffMs: modalRetryBackoff
-    } : item))
-
-    apiClient.put(`/api/soar/settings/integrations/${editingIntegration.id}`, {
-      maxEps: modalMaxEps,
-      maxConcurrency: modalMaxConcurrency,
-      circuitBreakerThreshold: modalCircuitBreaker,
-      retryBackoffMs: modalRetryBackoff
-    }).catch(err => console.log("Backend integration update optional:", err?.message))
-
-    setTimeout(() => {
-      setRateSaving(false)
-      setRateSavedSuccess(true)
-      setTimeout(() => {
-        setRateSavedSuccess(false)
-        setRateModalOpen(false)
-      }, 1200)
-    }, 500)
-  }
-
-  const handleFlushBuffer = (id: string) => {
-    setFlushingId(id)
-    setTimeout(() => setFlushingId(null), 1800)
-  }
-
   const fetchData = async () => {
     try {
       const [keysRes, integrationsRes] = await Promise.all([
@@ -472,18 +342,9 @@ export default function SettingsPage() {
         apiClient.get('/api/soar/settings/integrations')
       ])
       setKeys(keysRes.data || [])
-      if (!integrationsRes.data || integrationsRes.data.length === 0) {
-        setIntegrations(DEFAULT_SOC_INTEGRATIONS)
-      } else {
-        const merged = DEFAULT_SOC_INTEGRATIONS.map(defItem => {
-          const found = integrationsRes.data.find((item: any) => item.id === defItem.id || item.name === defItem.name)
-          return found ? { ...defItem, ...found } : defItem
-        })
-        setIntegrations(merged)
-      }
+      setIntegrations(integrationsRes.data || [])
     } catch (e) {
-      console.error("Failed to load settings data, using default SOC suite:", e)
-      setIntegrations(DEFAULT_SOC_INTEGRATIONS)
+      console.error("Failed to load settings data:", e)
     } finally {
       setLoading(false)
     }
@@ -942,6 +803,9 @@ export default function SettingsPage() {
     fetchRoles()
     fetchDataSources()
     fetchCloudflareConfig()
+    fetchPaloAltoConfig()
+    fetchWazuhConfig()
+    fetchSentinelOneConfig()
   }, [])
 
   // Copy the one-time-revealed raw secret to clipboard
@@ -1046,6 +910,221 @@ export default function SettingsPage() {
       setCfTestResult(null)
     } catch (e) {
       console.error('Failed to delete Cloudflare config:', e)
+    }
+  }
+
+  // Palo Alto integration — fetch current status
+  const fetchPaloAltoConfig = async () => {
+    try {
+      const res = await apiClient.get('/api/soar/settings/paloalto')
+      if (res.data.configured) {
+        setPaConfigured(true)
+        setPaHostname(res.data.hostname)
+        setPaEnabled(res.data.enabled)
+        setPaLastPolledAt(res.data.lastPolledAt)
+        setPaLastPollStatus(res.data.lastPollStatus)
+        setPaLastPollError(res.data.lastPollError)
+      } else {
+        setPaConfigured(false)
+        setPaEditing(true)
+      }
+    } catch (e) {
+      console.error('Failed to fetch Palo Alto config:', e)
+    }
+  }
+
+  const handleSavePaloAlto = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setPaSaving(true)
+    setPaTestResult(null)
+    try {
+      await apiClient.put('/api/soar/settings/paloalto', {
+        hostname: paHostname,
+        apiKey: paApiKey,
+        enabled: paEnabled,
+      })
+      setPaApiKey('')
+      setPaEditing(false)
+      await fetchPaloAltoConfig()
+    } catch (e: any) {
+      alert(e?.response?.data?.error?.message || 'Failed to save Palo Alto configuration')
+    } finally {
+      setPaSaving(false)
+    }
+  }
+
+  const handleTestPaloAlto = async () => {
+    setPaTesting(true)
+    setPaTestResult(null)
+    try {
+      const res = await apiClient.post('/api/soar/settings/paloalto/test', {
+        hostname: paHostname || undefined,
+        apiKey: paApiKey || undefined,
+      })
+      setPaTestResult({ ok: true, message: res.data })
+    } catch (e: any) {
+      setPaTestResult({ ok: false, message: e?.response?.data?.error?.message || 'Connection test failed' })
+    } finally {
+      setPaTesting(false)
+    }
+  }
+
+  const handleDeletePaloAlto = async () => {
+    if (!confirm('Remove the Palo Alto integration? ACIS will stop polling this firewall for logs.')) return
+    try {
+      await apiClient.delete('/api/soar/settings/paloalto')
+      setPaConfigured(false)
+      setPaHostname('')
+      setPaApiKey('')
+      setPaEditing(true)
+      setPaTestResult(null)
+    } catch (e) {
+      console.error('Failed to delete Palo Alto config:', e)
+    }
+  }
+
+  // Wazuh integration — fetch current status
+  const fetchWazuhConfig = async () => {
+    try {
+      const res = await apiClient.get('/api/soar/settings/wazuh')
+      if (res.data.configured) {
+        setWzConfigured(true)
+        setWzBaseUrl(res.data.baseUrl)
+        setWzUsername(res.data.username)
+        setWzIndexPattern(res.data.indexPattern)
+        setWzEnabled(res.data.enabled)
+        setWzLastPolledAt(res.data.lastPolledAt)
+        setWzLastPollStatus(res.data.lastPollStatus)
+        setWzLastPollError(res.data.lastPollError)
+      } else {
+        setWzConfigured(false)
+        setWzEditing(true)
+      }
+    } catch (e) {
+      console.error('Failed to fetch Wazuh config:', e)
+    }
+  }
+
+  const handleSaveWazuh = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setWzSaving(true)
+    setWzTestResult(null)
+    try {
+      await apiClient.put('/api/soar/settings/wazuh', {
+        baseUrl: wzBaseUrl,
+        username: wzUsername,
+        password: wzPassword,
+        indexPattern: wzIndexPattern,
+        enabled: wzEnabled,
+      })
+      setWzPassword('')
+      setWzEditing(false)
+      await fetchWazuhConfig()
+    } catch (e: any) {
+      alert(e?.response?.data?.error?.message || 'Failed to save Wazuh configuration')
+    } finally {
+      setWzSaving(false)
+    }
+  }
+
+  const handleTestWazuh = async () => {
+    setWzTesting(true)
+    setWzTestResult(null)
+    try {
+      const res = await apiClient.post('/api/soar/settings/wazuh/test', {
+        baseUrl: wzBaseUrl || undefined,
+        username: wzUsername || undefined,
+        password: wzPassword || undefined,
+      })
+      setWzTestResult({ ok: true, message: res.data })
+    } catch (e: any) {
+      setWzTestResult({ ok: false, message: e?.response?.data?.error?.message || 'Connection test failed' })
+    } finally {
+      setWzTesting(false)
+    }
+  }
+
+  const handleDeleteWazuh = async () => {
+    if (!confirm('Remove the Wazuh integration? ACIS will stop polling this indexer for alerts.')) return
+    try {
+      await apiClient.delete('/api/soar/settings/wazuh')
+      setWzConfigured(false)
+      setWzBaseUrl('')
+      setWzPassword('')
+      setWzEditing(true)
+      setWzTestResult(null)
+    } catch (e) {
+      console.error('Failed to delete Wazuh config:', e)
+    }
+  }
+
+  // SentinelOne integration — fetch current status
+  const fetchSentinelOneConfig = async () => {
+    try {
+      const res = await apiClient.get('/api/soar/settings/sentinelone')
+      if (res.data.configured) {
+        setS1Configured(true)
+        setS1ConsoleUrl(res.data.consoleUrl)
+        setS1Enabled(res.data.enabled)
+        setS1LastPolledAt(res.data.lastPolledAt)
+        setS1LastPollStatus(res.data.lastPollStatus)
+        setS1LastPollError(res.data.lastPollError)
+      } else {
+        setS1Configured(false)
+        setS1Editing(true)
+      }
+    } catch (e) {
+      console.error('Failed to fetch SentinelOne config:', e)
+    }
+  }
+
+  const handleSaveSentinelOne = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setS1Saving(true)
+    setS1TestResult(null)
+    try {
+      await apiClient.put('/api/soar/settings/sentinelone', {
+        consoleUrl: s1ConsoleUrl,
+        apiToken: s1ApiToken,
+        enabled: s1Enabled,
+      })
+      setS1ApiToken('')
+      setS1Editing(false)
+      await fetchSentinelOneConfig()
+    } catch (e: any) {
+      alert(e?.response?.data?.error?.message || 'Failed to save SentinelOne configuration')
+    } finally {
+      setS1Saving(false)
+    }
+  }
+
+  const handleTestSentinelOne = async () => {
+    setS1Testing(true)
+    setS1TestResult(null)
+    try {
+      const res = await apiClient.post('/api/soar/settings/sentinelone/test', {
+        consoleUrl: s1ConsoleUrl || undefined,
+        apiToken: s1ApiToken || undefined,
+      })
+      setS1TestResult({ ok: true, message: res.data })
+    } catch (e: any) {
+      setS1TestResult({ ok: false, message: e?.response?.data?.error?.message || 'Connection test failed' })
+    } finally {
+      setS1Testing(false)
+    }
+  }
+
+  const handleDeleteSentinelOne = async () => {
+    if (!confirm('Remove the SentinelOne integration? ACIS will stop polling for threats.')) return
+    try {
+      await apiClient.delete('/api/soar/settings/sentinelone')
+      setS1Configured(false)
+      setS1ConsoleUrl('')
+      setS1ApiToken('')
+      setS1Editing(true)
+      setS1TestResult(null)
+    } catch (e) {
+      console.error('Failed to delete SentinelOne config:', e)
     }
   }
 
@@ -3217,302 +3296,300 @@ export default function SettingsPage() {
               )}
             </div>
 
-            {/* Header & Quick Overview Metrics */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              <div className="card-mission p-4 space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="text-label text-text-muted uppercase">Active Ingest Pipeline</span>
-                  <Layers className="w-4 h-4 text-accent" />
-                </div>
-                <div className="flex items-baseline justify-between">
-                  <span className="text-h1 text-text-primary font-mono">
-                    {integrations.filter(i => i.status === 'Streaming' || i.status === 'Connected').length} Toolkits
-                  </span>
-                  <span className="text-label text-success flex items-center gap-1">
-                    <span className="w-2 h-2 rounded-full bg-success animate-pulse" /> Live Feed
-                  </span>
-                </div>
-              </div>
-
-              <div className="card-mission p-4 space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="text-label text-text-muted uppercase">Aggregate Pipeline EPS</span>
-                  <Zap className="w-4 h-4 text-severity-medium" />
-                </div>
-                <div className="flex items-baseline justify-between">
-                  <span className="text-h1 text-severity-medium font-mono">
-                    {integrations.reduce((acc, curr) => acc + (curr.eps || 1200), 0).toLocaleString()} EPS
-                  </span>
-                  <span className="text-label text-text-muted">Real-time Stream</span>
-                </div>
-              </div>
-
-              <div className="card-mission p-4 space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="text-label text-text-muted uppercase">Combined Ingest Rate</span>
-                  <Activity className="w-4 h-4 text-info" />
-                </div>
-                <div className="flex items-baseline justify-between">
-                  <span className="text-h1 text-text-primary font-mono">18.7 MB/s</span>
-                  <span className="text-label text-info font-mono">~260.1 GB / day</span>
-                </div>
-              </div>
-
-              <div className="card-mission p-4 space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="text-label text-text-muted uppercase">Circuit Breakers</span>
-                  <ShieldCheck className="w-4 h-4 text-success" />
-                </div>
-                <div className="flex items-baseline justify-between">
-                  <span className="text-h1 text-success font-mono">0 Tripped</span>
-                  <span className="text-label text-success/80">100% Healthy</span>
-                </div>
-              </div>
-            </div>
-
-            {/* Ingest Toolkits Controls Header */}
-            <div className="card-mission space-y-6">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-fire-border pb-4">
+            {/* AWS CloudTrail — push-based, reuses the API key + external ingestion endpoint already built and verified. No stored config needed on ACIS's side. */}
+            <div className="card-mission p-5 space-y-4">
+              <div className="flex items-center justify-between border-b border-fire-border pb-3">
                 <div>
                   <h3 className="text-h3 text-text-primary flex items-center gap-2">
-                    <Sliders className="w-4 h-4 text-accent" /> Full Ingestion Integrations & Rate Boundaries
+                    AWS CloudTrail
+                    <span className="badge-mission bg-surface-3 text-text-muted border-fire-border">Push-based — no config needed here</span>
                   </h3>
-                  <p className="text-small text-text-muted mt-1">Manage the complete configurations, API rate boundaries, and pipeline ingest metrics of active toolkits.</p>
+                  <p className="text-small text-text-muted mt-1">
+                    AWS pushes CloudTrail events to ACIS directly — there's no polling or credential storage on ACIS's side.
+                  </p>
                 </div>
+              </div>
+              <ol className="space-y-2 text-small text-text-secondary list-decimal list-inside">
+                <li>Generate an API key in the <strong className="text-text-primary">API Keys</strong> tab (role: Data Ingest Only).</li>
+                <li>In AWS, create an EventBridge rule (or a small Lambda) that matches CloudTrail events.</li>
+                <li>
+                  Target: an HTTPS POST to <code className="font-mono text-accent">/api/ingest/external/json</code> on your
+                  ACIS instance, with header <code className="font-mono text-accent">X-API-Key: &lt;your key&gt;</code> and the
+                  event(s) as a JSON array in the body.
+                </li>
+              </ol>
+              <button onClick={() => handleTabClick('API Keys')} className="btn-mission py-2 px-4 text-small">
+                <Key className="w-3.5 h-3.5" /> Go generate a key
+              </button>
+            </div>
 
-                <div className="flex items-center gap-3">
-                  {/* Category Filter */}
-                  <div className="flex items-center gap-1 bg-surface-2 p-1 rounded-lg border border-fire-border text-label">
-                    {['ALL', 'Cloud Audit', 'Network & Perimeter', 'EDR & Endpoint'].map((cat) => (
-                      <button
-                        key={cat}
-                        onClick={() => setIntFilterCategory(cat)}
-                        className={clsx(
-                          "px-2.5 py-1 rounded-lg transition-colors",
-                          intFilterCategory === cat ? "bg-accent text-white shadow" : "text-text-muted hover:text-text-primary"
-                        )}
-                      >
-                        {cat}
-                      </button>
-                    ))}
-                  </div>
-
-                  <button
-                    onClick={() => setIsIntegrationModalOpen(true)}
-                    className="btn-fire py-2 px-4 text-small shrink-0"
-                  >
-                    <Plus className="w-3.5 h-3.5" /> Connect Custom Toolkit
-                  </button>
+            {/* Palo Alto — real PAN-OS API polling, see IntegrationPollerService */}
+            <div className="card-mission p-5 space-y-4">
+              <div className="flex items-center justify-between border-b border-fire-border pb-3">
+                <div>
+                  <h3 className="text-h3 text-text-primary flex items-center gap-2">
+                    Palo Alto NGFW
+                    <span className={clsx('badge-mission', paConfigured ? 'bg-success/10 text-success border-success/20' : 'bg-surface-3 text-text-muted border-fire-border')}>
+                      {paConfigured ? 'Configured' : 'Not Configured'}
+                    </span>
+                  </h3>
+                  <p className="text-small text-text-muted mt-1">Polls your firewall's PAN-OS API for traffic logs every couple of minutes.</p>
                 </div>
               </div>
 
-              {/* Toolkits Cards Grid */}
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {integrations
-                  .filter(int => {
-                    if (intFilterCategory === 'ALL') return true
-                    return (int.category || '').toLowerCase().includes(intFilterCategory.toLowerCase())
-                  })
-                  .map((intItem) => (
-                    <div key={intItem.id} className="bg-surface-2 border border-fire-border rounded-xl p-5 space-y-4 hover:border-accent/30 transition-all flex flex-col justify-between group">
-
-                      <div className="space-y-3">
-                        {/* Header: Logo, Name & Status Badge */}
-                        <div className="flex items-start justify-between gap-3">
-                          <div className="flex items-center gap-3">
-                            <div className="w-9 h-9 rounded-lg bg-surface-3 border border-fire-border flex items-center justify-center font-bold text-small text-accent font-mono shrink-0">
-                              {intItem.logoLetter || intItem.name.substring(0, 2).toUpperCase()}
-                            </div>
-                            <div>
-                              <h4 className="text-small font-bold text-text-primary leading-tight group-hover:text-accent transition-colors">{intItem.name}</h4>
-                              <p className="text-label text-text-muted mt-0.5">{intItem.category || 'Security Telemetry'}</p>
-                            </div>
-                          </div>
-
-                          <button
-                            onClick={() => handleToggleIntegration(intItem.id)}
-                            className={clsx(
-                              "badge-mission shrink-0",
-                              intItem.status === 'Streaming' || intItem.status === 'Connected'
-                                ? "bg-success/10 text-success border-success/20 hover:bg-success/20"
-                                : "bg-surface-3 text-text-muted border-fire-border hover:text-text-primary"
-                            )}
-                          >
-                            {intItem.status}
-                          </button>
-                        </div>
-
-                        {/* Description */}
-                        <p className="text-small text-text-secondary leading-relaxed line-clamp-2">{intItem.description}</p>
-
-                        {/* Ingestion Metrics Box */}
-                        <div className="bg-surface border border-fire-border/80 rounded-lg p-3 grid grid-cols-2 gap-2 text-small">
-                          <div>
-                            <span className="text-label text-text-muted uppercase block">Throughput EPS</span>
-                            <span className="text-text-primary font-bold font-mono text-small text-severity-medium">{(intItem.eps || 1200).toLocaleString()} EPS</span>
-                          </div>
-                          <div>
-                            <span className="text-label text-text-muted uppercase block">Ingest Bandwidth</span>
-                            <span className="text-text-primary font-bold font-mono text-small">{intItem.bandwidth || '2.4 MB/s'}</span>
-                          </div>
-                          <div>
-                            <span className="text-label text-text-muted uppercase block">Pipe Latency</span>
-                            <span className="text-success font-bold font-mono">{intItem.latency || '10 ms'}</span>
-                          </div>
-                          <div>
-                            <span className="text-label text-text-muted uppercase block">24h Log Volume</span>
-                            <span className="text-text-primary font-bold font-mono">{intItem.dailyVolume || '32 GB'}</span>
-                          </div>
-                        </div>
-
-                        {/* Rate Boundary Limits Pill */}
-                        <div className="bg-surface-3 rounded-lg px-3 py-2 text-small flex items-center justify-between font-mono text-text-secondary border border-fire-border/60">
-                          <span>Boundary: <strong className="text-text-primary">{(intItem.maxEps || 5000).toLocaleString()} EPS Max</strong></span>
-                          <span>Concurrency: <strong className="text-text-primary">{intItem.maxConcurrency || 20} reqs</strong></span>
-                        </div>
-                      </div>
-
-                      {/* Card Action Buttons */}
-                      <div className="pt-3 border-t border-fire-border flex items-center justify-between gap-2">
-                        <button
-                          onClick={() => handleOpenRateModal(intItem)}
-                          className="btn-mission px-3 py-1.5 text-small flex-1 justify-center"
-                        >
-                          <Sliders className="w-3 h-3 text-accent" /> Boundaries
-                        </button>
-                        <button
-                          onClick={() => handleFlushBuffer(intItem.id)}
-                          disabled={flushingId === intItem.id}
-                          className="btn-mission px-2.5 py-1.5 text-small"
-                        >
-                          <RefreshCw className={clsx("w-3 h-3 text-info", flushingId === intItem.id && "animate-spin")} />
-                          {flushingId === intItem.id ? 'Flushing...' : 'Flush'}
-                        </button>
-                      </div>
-
+              {!paEditing && paConfigured ? (
+                <div className="space-y-3">
+                  <div className="grid grid-cols-2 gap-4 text-small">
+                    <div>
+                      <span className="text-label text-text-muted uppercase block mb-1">Hostname</span>
+                      <span className="font-mono text-text-secondary">{paHostname}</span>
                     </div>
-                  ))}
+                    <div>
+                      <span className="text-label text-text-muted uppercase block mb-1">Last Poll</span>
+                      <span className={clsx('font-semibold', paLastPollStatus === 'Failed' ? 'text-danger' : paLastPollStatus === 'Success' ? 'text-success' : 'text-text-muted')}>
+                        {paLastPolledAt ? `${paLastPollStatus || 'Pending'} — ${new Date(paLastPolledAt).toLocaleString()}` : 'Not polled yet'}
+                      </span>
+                    </div>
+                  </div>
+                  {paLastPollError && (
+                    <div className="text-small px-3 py-2 rounded-lg bg-danger/10 text-danger">{paLastPollError}</div>
+                  )}
+                  {paTestResult && (
+                    <div className={clsx('text-small px-3 py-2 rounded-lg', paTestResult.ok ? 'bg-success/10 text-success' : 'bg-danger/10 text-danger')}>
+                      {paTestResult.message}
+                    </div>
+                  )}
+                  <div className="flex items-center gap-2">
+                    <button onClick={handleTestPaloAlto} disabled={paTesting} className="btn-mission py-2 px-4 text-small">
+                      {paTesting ? 'Testing...' : 'Test Connection'}
+                    </button>
+                    <button onClick={() => { setPaEditing(true); setPaTestResult(null) }} className="btn-mission py-2 px-4 text-small">Edit</button>
+                    <button onClick={handleDeletePaloAlto} className="text-danger hover:text-danger/80 text-small font-semibold ml-auto">Remove</button>
+                  </div>
+                </div>
+              ) : (
+                <form onSubmit={handleSavePaloAlto} className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-1">
+                      <label className="text-label text-text-muted uppercase block">Firewall Hostname / IP</label>
+                      <input type="text" placeholder="fw.example.com" value={paHostname} onChange={(e) => setPaHostname(e.target.value)} className="input-field font-mono" required />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-label text-text-muted uppercase block">API Key</label>
+                      <input
+                        type="password"
+                        placeholder={paConfigured ? 'Leave blank to keep current key' : 'Generated on the firewall via type=keygen'}
+                        value={paApiKey}
+                        onChange={(e) => setPaApiKey(e.target.value)}
+                        className="input-field"
+                        required={!paConfigured}
+                      />
+                    </div>
+                  </div>
+                  <label className="flex items-center gap-2 text-small text-text-secondary font-medium">
+                    <input type="checkbox" checked={paEnabled} onChange={(e) => setPaEnabled(e.target.checked)} className="accent-accent" />
+                    Enable scheduled polling
+                  </label>
+                  {paTestResult && (
+                    <div className={clsx('text-small px-3 py-2 rounded-lg', paTestResult.ok ? 'bg-success/10 text-success' : 'bg-danger/10 text-danger')}>
+                      {paTestResult.message}
+                    </div>
+                  )}
+                  <div className="flex items-center gap-2">
+                    <button type="submit" disabled={paSaving} className="btn-fire py-2 px-4 text-small">{paSaving ? 'Saving...' : 'Save'}</button>
+                    <button type="button" onClick={handleTestPaloAlto} disabled={paTesting || !paHostname} className="btn-mission py-2 px-4 text-small">
+                      {paTesting ? 'Testing...' : 'Test Connection'}
+                    </button>
+                    {paConfigured && (
+                      <button type="button" onClick={() => { setPaEditing(false); setPaApiKey(''); setPaTestResult(null) }} className="text-text-muted hover:text-text-primary text-small font-medium ml-auto">Cancel</button>
+                    )}
+                  </div>
+                </form>
+              )}
+            </div>
+
+            {/* Wazuh — real Indexer API polling, see IntegrationPollerService */}
+            <div className="card-mission p-5 space-y-4">
+              <div className="flex items-center justify-between border-b border-fire-border pb-3">
+                <div>
+                  <h3 className="text-h3 text-text-primary flex items-center gap-2">
+                    Wazuh
+                    <span className={clsx('badge-mission', wzConfigured ? 'bg-success/10 text-success border-success/20' : 'bg-surface-3 text-text-muted border-fire-border')}>
+                      {wzConfigured ? 'Configured' : 'Not Configured'}
+                    </span>
+                  </h3>
+                  <p className="text-small text-text-muted mt-1">Polls your Wazuh Indexer's alert search API every couple of minutes.</p>
+                </div>
               </div>
+
+              {!wzEditing && wzConfigured ? (
+                <div className="space-y-3">
+                  <div className="grid grid-cols-2 gap-4 text-small">
+                    <div>
+                      <span className="text-label text-text-muted uppercase block mb-1">Indexer URL</span>
+                      <span className="font-mono text-text-secondary">{wzBaseUrl}</span>
+                    </div>
+                    <div>
+                      <span className="text-label text-text-muted uppercase block mb-1">Last Poll</span>
+                      <span className={clsx('font-semibold', wzLastPollStatus === 'Failed' ? 'text-danger' : wzLastPollStatus === 'Success' ? 'text-success' : 'text-text-muted')}>
+                        {wzLastPolledAt ? `${wzLastPollStatus || 'Pending'} — ${new Date(wzLastPolledAt).toLocaleString()}` : 'Not polled yet'}
+                      </span>
+                    </div>
+                  </div>
+                  {wzLastPollError && (
+                    <div className="text-small px-3 py-2 rounded-lg bg-danger/10 text-danger">{wzLastPollError}</div>
+                  )}
+                  {wzTestResult && (
+                    <div className={clsx('text-small px-3 py-2 rounded-lg', wzTestResult.ok ? 'bg-success/10 text-success' : 'bg-danger/10 text-danger')}>
+                      {wzTestResult.message}
+                    </div>
+                  )}
+                  <div className="flex items-center gap-2">
+                    <button onClick={handleTestWazuh} disabled={wzTesting} className="btn-mission py-2 px-4 text-small">
+                      {wzTesting ? 'Testing...' : 'Test Connection'}
+                    </button>
+                    <button onClick={() => { setWzEditing(true); setWzTestResult(null) }} className="btn-mission py-2 px-4 text-small">Edit</button>
+                    <button onClick={handleDeleteWazuh} className="text-danger hover:text-danger/80 text-small font-semibold ml-auto">Remove</button>
+                  </div>
+                </div>
+              ) : (
+                <form onSubmit={handleSaveWazuh} className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-1">
+                      <label className="text-label text-text-muted uppercase block">Indexer Base URL</label>
+                      <input type="text" placeholder="https://wazuh-indexer.example.com:9200" value={wzBaseUrl} onChange={(e) => setWzBaseUrl(e.target.value)} className="input-field font-mono" required />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-label text-text-muted uppercase block">Index Pattern</label>
+                      <input type="text" placeholder="wazuh-alerts-*" value={wzIndexPattern} onChange={(e) => setWzIndexPattern(e.target.value)} className="input-field font-mono" />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-label text-text-muted uppercase block">Username</label>
+                      <input type="text" value={wzUsername} onChange={(e) => setWzUsername(e.target.value)} className="input-field" required />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-label text-text-muted uppercase block">Password</label>
+                      <input
+                        type="password"
+                        placeholder={wzConfigured ? 'Leave blank to keep current password' : ''}
+                        value={wzPassword}
+                        onChange={(e) => setWzPassword(e.target.value)}
+                        className="input-field"
+                        required={!wzConfigured}
+                      />
+                    </div>
+                  </div>
+                  <label className="flex items-center gap-2 text-small text-text-secondary font-medium">
+                    <input type="checkbox" checked={wzEnabled} onChange={(e) => setWzEnabled(e.target.checked)} className="accent-accent" />
+                    Enable scheduled polling
+                  </label>
+                  {wzTestResult && (
+                    <div className={clsx('text-small px-3 py-2 rounded-lg', wzTestResult.ok ? 'bg-success/10 text-success' : 'bg-danger/10 text-danger')}>
+                      {wzTestResult.message}
+                    </div>
+                  )}
+                  <div className="flex items-center gap-2">
+                    <button type="submit" disabled={wzSaving} className="btn-fire py-2 px-4 text-small">{wzSaving ? 'Saving...' : 'Save'}</button>
+                    <button type="button" onClick={handleTestWazuh} disabled={wzTesting || !wzBaseUrl} className="btn-mission py-2 px-4 text-small">
+                      {wzTesting ? 'Testing...' : 'Test Connection'}
+                    </button>
+                    {wzConfigured && (
+                      <button type="button" onClick={() => { setWzEditing(false); setWzPassword(''); setWzTestResult(null) }} className="text-text-muted hover:text-text-primary text-small font-medium ml-auto">Cancel</button>
+                    )}
+                  </div>
+                </form>
+              )}
+            </div>
+
+            {/* SentinelOne — real Management API polling, see IntegrationPollerService */}
+            <div className="card-mission p-5 space-y-4">
+              <div className="flex items-center justify-between border-b border-fire-border pb-3">
+                <div>
+                  <h3 className="text-h3 text-text-primary flex items-center gap-2">
+                    SentinelOne
+                    <span className={clsx('badge-mission', s1Configured ? 'bg-success/10 text-success border-success/20' : 'bg-surface-3 text-text-muted border-fire-border')}>
+                      {s1Configured ? 'Configured' : 'Not Configured'}
+                    </span>
+                  </h3>
+                  <p className="text-small text-text-muted mt-1">Polls your SentinelOne console's Threats API every couple of minutes.</p>
+                </div>
+              </div>
+
+              {!s1Editing && s1Configured ? (
+                <div className="space-y-3">
+                  <div className="grid grid-cols-2 gap-4 text-small">
+                    <div>
+                      <span className="text-label text-text-muted uppercase block mb-1">Console URL</span>
+                      <span className="font-mono text-text-secondary">{s1ConsoleUrl}</span>
+                    </div>
+                    <div>
+                      <span className="text-label text-text-muted uppercase block mb-1">Last Poll</span>
+                      <span className={clsx('font-semibold', s1LastPollStatus === 'Failed' ? 'text-danger' : s1LastPollStatus === 'Success' ? 'text-success' : 'text-text-muted')}>
+                        {s1LastPolledAt ? `${s1LastPollStatus || 'Pending'} — ${new Date(s1LastPolledAt).toLocaleString()}` : 'Not polled yet'}
+                      </span>
+                    </div>
+                  </div>
+                  {s1LastPollError && (
+                    <div className="text-small px-3 py-2 rounded-lg bg-danger/10 text-danger">{s1LastPollError}</div>
+                  )}
+                  {s1TestResult && (
+                    <div className={clsx('text-small px-3 py-2 rounded-lg', s1TestResult.ok ? 'bg-success/10 text-success' : 'bg-danger/10 text-danger')}>
+                      {s1TestResult.message}
+                    </div>
+                  )}
+                  <div className="flex items-center gap-2">
+                    <button onClick={handleTestSentinelOne} disabled={s1Testing} className="btn-mission py-2 px-4 text-small">
+                      {s1Testing ? 'Testing...' : 'Test Connection'}
+                    </button>
+                    <button onClick={() => { setS1Editing(true); setS1TestResult(null) }} className="btn-mission py-2 px-4 text-small">Edit</button>
+                    <button onClick={handleDeleteSentinelOne} className="text-danger hover:text-danger/80 text-small font-semibold ml-auto">Remove</button>
+                  </div>
+                </div>
+              ) : (
+                <form onSubmit={handleSaveSentinelOne} className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-1">
+                      <label className="text-label text-text-muted uppercase block">Console URL</label>
+                      <input type="text" placeholder="https://usea1-partners.sentinelone.net" value={s1ConsoleUrl} onChange={(e) => setS1ConsoleUrl(e.target.value)} className="input-field font-mono" required />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-label text-text-muted uppercase block">API Token</label>
+                      <input
+                        type="password"
+                        placeholder={s1Configured ? 'Leave blank to keep current token' : 'Settings > API Tokens in your console'}
+                        value={s1ApiToken}
+                        onChange={(e) => setS1ApiToken(e.target.value)}
+                        className="input-field"
+                        required={!s1Configured}
+                      />
+                    </div>
+                  </div>
+                  <label className="flex items-center gap-2 text-small text-text-secondary font-medium">
+                    <input type="checkbox" checked={s1Enabled} onChange={(e) => setS1Enabled(e.target.checked)} className="accent-accent" />
+                    Enable scheduled polling
+                  </label>
+                  {s1TestResult && (
+                    <div className={clsx('text-small px-3 py-2 rounded-lg', s1TestResult.ok ? 'bg-success/10 text-success' : 'bg-danger/10 text-danger')}>
+                      {s1TestResult.message}
+                    </div>
+                  )}
+                  <div className="flex items-center gap-2">
+                    <button type="submit" disabled={s1Saving} className="btn-fire py-2 px-4 text-small">{s1Saving ? 'Saving...' : 'Save'}</button>
+                    <button type="button" onClick={handleTestSentinelOne} disabled={s1Testing || !s1ConsoleUrl} className="btn-mission py-2 px-4 text-small">
+                      {s1Testing ? 'Testing...' : 'Test Connection'}
+                    </button>
+                    {s1Configured && (
+                      <button type="button" onClick={() => { setS1Editing(false); setS1ApiToken(''); setS1TestResult(null) }} className="text-text-muted hover:text-text-primary text-small font-medium ml-auto">Cancel</button>
+                    )}
+                  </div>
+                </form>
+              )}
             </div>
 
           </div>
         )}
 
       </main>
-
-      {/* Rate Boundaries Configuration Modal */}
-      {rateModalOpen && editingIntegration && (
-        <div className="fixed inset-0 bg-background/85 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-surface border border-fire-border rounded-xl w-full max-w-lg overflow-hidden shadow-card animate-scale-in">
-            <div className="flex items-center justify-between p-5 border-b border-fire-border">
-              <div>
-                <h3 className="text-h3 text-text-primary flex items-center gap-2">
-                  <Sliders className="w-4 h-4 text-accent" /> API Rate Boundaries — {editingIntegration.name}
-                </h3>
-                <p className="text-small text-text-muted mt-0.5">Configure pipeline throughput caps, API concurrency limits, and circuit breakers.</p>
-              </div>
-              <button
-                onClick={() => setRateModalOpen(false)}
-                className="text-text-muted hover:text-text-primary transition-colors focus:outline-none"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            {rateSavedSuccess && (
-              <div className="bg-success/10 border-b border-success/30 text-success px-5 py-3 text-small font-semibold flex items-center gap-2">
-                <CheckCircle2 className="w-4 h-4 text-success" />
-                Rate boundaries saved successfully! Active ingestion pipeline updated.
-              </div>
-            )}
-
-            <form onSubmit={handleSaveRateBoundaries} className="p-5 space-y-5">
-              <div className="space-y-1.5">
-                <div className="flex justify-between">
-                  <label className="text-small text-text-secondary font-semibold">Maximum Ingest EPS Cap</label>
-                  <span className="font-mono text-small text-text-primary font-semibold">{modalMaxEps.toLocaleString()} EPS</span>
-                </div>
-                <input
-                  type="range"
-                  min="500"
-                  max="25000"
-                  step="500"
-                  value={modalMaxEps}
-                  onChange={(e) => setModalMaxEps(Number(e.target.value))}
-                  className="w-full accent-accent cursor-pointer"
-                />
-                <div className="flex justify-between text-label text-text-muted font-mono">
-                  <span>500 EPS</span>
-                  <span>5,000 EPS</span>
-                  <span>25,000 EPS</span>
-                </div>
-              </div>
-
-              <div className="space-y-1.5">
-                <div className="flex justify-between">
-                  <label className="text-small text-text-secondary font-semibold">Max Concurrent API Connections</label>
-                  <span className="font-mono text-small text-text-primary font-semibold">{modalMaxConcurrency} Req</span>
-                </div>
-                <input
-                  type="range"
-                  min="5"
-                  max="100"
-                  step="5"
-                  value={modalMaxConcurrency}
-                  onChange={(e) => setModalMaxConcurrency(Number(e.target.value))}
-                  className="w-full accent-accent cursor-pointer"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-1">
-                  <label className="text-small text-text-secondary font-semibold block">Circuit Breaker Error Threshold</label>
-                  <select
-                    value={modalCircuitBreaker}
-                    onChange={(e) => setModalCircuitBreaker(Number(e.target.value))}
-                    className="w-full bg-surface-3 border border-fire-border rounded-lg px-3 py-2 text-small text-text-primary focus:outline-none font-mono cursor-pointer"
-                  >
-                    <option value={2}>2% Failure (Strict)</option>
-                    <option value={5}>5% Failure (Standard)</option>
-                    <option value={10}>10% Failure (Lenient)</option>
-                  </select>
-                </div>
-
-                <div className="space-y-1">
-                  <label className="text-small text-text-secondary font-semibold block">Retry Backoff Delay</label>
-                  <select
-                    value={modalRetryBackoff}
-                    onChange={(e) => setModalRetryBackoff(Number(e.target.value))}
-                    className="w-full bg-surface-3 border border-fire-border rounded-lg px-3 py-2 text-small text-text-primary focus:outline-none font-mono cursor-pointer"
-                  >
-                    <option value={500}>500 ms (Fast)</option>
-                    <option value={1000}>1,000 ms (Default)</option>
-                    <option value={3000}>3,000 ms (Exponential)</option>
-                  </select>
-                </div>
-              </div>
-
-              <div className="flex items-center justify-end gap-3 pt-4 border-t border-fire-border">
-                <button
-                  type="button"
-                  onClick={() => setRateModalOpen(false)}
-                  className="btn-mission py-2 px-4 text-small"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={rateSaving}
-                  className="btn-fire py-2 px-5 text-small"
-                >
-                  <Save className="w-3.5 h-3.5" />
-                  {rateSaving ? 'Saving...' : 'Apply Rate Boundaries'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
 
       {/* Generate API Key Modal */}
       {isKeyModalOpen && (

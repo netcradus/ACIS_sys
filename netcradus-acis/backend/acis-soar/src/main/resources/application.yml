@@ -42,6 +42,12 @@ spring:
 acis:
   asset-service:
     url: ${ASSET_SERVICE_URL:http://localhost:8086}
+  ingestion-service:
+    url: ${INGESTION_SERVICE_URL:http://localhost:8084}
+  # How often IntegrationPollerService pulls Palo Alto/Wazuh/SentinelOne —
+  # real vendor API/firewall calls, so this is deliberately not sub-minute.
+  integration-poll-interval-ms: ${INTEGRATION_POLL_INTERVAL_MS:120000}
+  integration-poll-initial-delay-ms: ${INTEGRATION_POLL_INITIAL_DELAY_MS:30000}
   # AES-256 key (base64, 32 raw bytes) for encrypting third-party credentials
   # at rest (e.g. a tenant's Cloudflare API token — see CredentialEncryptor).
   # The dev default below is fine for local dev only; production MUST set
