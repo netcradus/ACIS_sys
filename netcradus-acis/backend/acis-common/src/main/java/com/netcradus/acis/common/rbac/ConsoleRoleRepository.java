@@ -1,6 +1,5 @@
-package com.netcradus.acis.soar.repository;
+package com.netcradus.acis.common.rbac;
 
-import com.netcradus.acis.soar.model.ConsoleRole;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.List;

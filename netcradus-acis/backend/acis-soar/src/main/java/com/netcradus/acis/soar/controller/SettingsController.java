@@ -8,19 +8,22 @@ import com.netcradus.acis.soar.model.Integration;
 import com.netcradus.acis.soar.model.Organization;
 import com.netcradus.acis.soar.model.LicenseDetails;
 import com.netcradus.acis.soar.model.Invoice;
-import com.netcradus.acis.soar.model.UserMember;
+import com.netcradus.acis.common.rbac.UserMember;
 import com.netcradus.acis.soar.model.UserGroup;
-import com.netcradus.acis.soar.model.ConsoleRole;
-import com.netcradus.acis.soar.model.RolePermission;
+import com.netcradus.acis.common.rbac.ConsoleRole;
+import com.netcradus.acis.common.rbac.RolePermission;
 import com.netcradus.acis.soar.dto.ApiKeyCreatedResponse;
 import com.netcradus.acis.soar.repository.IntegrationRepository;
 import com.netcradus.acis.soar.repository.OrganizationRepository;
 import com.netcradus.acis.soar.repository.LicenseDetailsRepository;
 import com.netcradus.acis.soar.repository.InvoiceRepository;
-import com.netcradus.acis.soar.repository.UserMemberRepository;
+import com.netcradus.acis.common.rbac.UserMemberRepository;
 import com.netcradus.acis.soar.repository.UserGroupRepository;
-import com.netcradus.acis.soar.repository.ConsoleRoleRepository;
-import com.netcradus.acis.soar.repository.RolePermissionRepository;
+import com.netcradus.acis.common.rbac.ConsoleRoleRepository;
+import com.netcradus.acis.common.rbac.RolePermissionRepository;
+import com.netcradus.acis.common.rbac.DefaultRoleProvisioner;
+import com.netcradus.acis.common.rbac.PermissionResolver;
+import com.netcradus.acis.common.rbac.PermissionLevel;
 import lombok.RequiredArgsConstructor;
 import java.util.ArrayList;
 import org.springframework.http.HttpHeaders;
@@ -31,6 +34,7 @@ import org.springframework.web.bind.annotation.*;
 import java.nio.charset.StandardCharsets;
 import java.time.OffsetDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.regex.Pattern;
 
@@ -52,6 +56,8 @@ public class SettingsController {
     private final RolePermissionRepository rolePermissionRepository;
     private final AuditEventPublisher auditEventPublisher;
     private final com.netcradus.acis.soar.support.ApiKeyIssuer apiKeyIssuer;
+    private final DefaultRoleProvisioner defaultRoleProvisioner;
+    private final PermissionResolver permissionResolver;
 
     /**
      * X-Tenant-ID is always populated by TenantContextFilter from the caller's
@@ -397,14 +403,21 @@ public class SettingsController {
     }
 
     // ── Roles & Permissions ───────────────────────────────────
+    //
+    // This is now genuinely enforced, not just displayed: RbacEnforcementFilter
+    // (acis-common, wired into acis-alerts/correlation/log-service/asset-service/
+    // threat-service/soar) resolves the caller's UserMember -> ConsoleRole ->
+    // RolePermission on every request and rejects with 403 if the level is
+    // insufficient. See PermissionResolver for how a user's role is resolved
+    // and DefaultRoleProvisioner for the standard 4-role starter set.
 
     @GetMapping("/roles")
     public ApiResponse<List<ConsoleRole>> getRoles(@RequestHeader(value = "X-Tenant-ID", required = false) UUID tenantId) {
         UUID tenant = resolveTenant(tenantId);
-        List<ConsoleRole> roles = consoleRoleRepository.findByTenantId(tenant);
-        if (roles.isEmpty()) {
-            roles = createDefaultRoles(tenant);
-        }
+        List<ConsoleRole> roles = defaultRoleProvisioner.ensureDefaultRoles(tenant);
+        roles.forEach(r -> r.setUserCount(userMemberRepository.findByTenantId(tenant).stream()
+                .filter(m -> m.getRole() != null && m.getRole().getId().equals(r.getId()))
+                .toList().size()));
         return ApiResponse.success(roles);
     }
 
@@ -417,18 +430,9 @@ public class SettingsController {
         UUID tenant = resolveTenant(tenantId);
         role.setTenantId(tenant);
         role.setUserCount(0);
-        
-        String[] modules = {
-            "Dashboard",
-            "Alerts & Correlation",
-            "Assets & Threat Intel",
-            "SOAR Playbooks",
-            "Reports & Compliance",
-            "Settings"
-        };
-        
+
         List<RolePermission> permissions = new ArrayList<>();
-        for (String mod : modules) {
+        for (String mod : DefaultRoleProvisioner.MODULES) {
             RolePermission perm = new RolePermission();
             perm.setTenantId(tenant);
             perm.setRole(role);
@@ -483,79 +487,39 @@ public class SettingsController {
                 .orElse(ResponseEntity.status(404).body(ApiResponse.error("Role not found")));
     }
 
-    private List<ConsoleRole> createDefaultRoles(UUID tenant) {
-        List<ConsoleRole> defaultRoles = new ArrayList<>();
+    public record AssignRoleRequest(UUID roleId) {}
 
-        // 1. Super Admin
-        ConsoleRole superAdmin = new ConsoleRole();
-        superAdmin.setTenantId(tenant);
-        superAdmin.setName("Super Admin");
-        superAdmin.setUserCount(2);
-        List<RolePermission> saPerms = new ArrayList<>();
-        saPerms.add(createPermission(tenant, superAdmin, "Dashboard", "ADMIN"));
-        saPerms.add(createPermission(tenant, superAdmin, "Alerts & Correlation", "ADMIN"));
-        saPerms.add(createPermission(tenant, superAdmin, "Assets & Threat Intel", "ADMIN"));
-        saPerms.add(createPermission(tenant, superAdmin, "SOAR Playbooks", "WRITE"));
-        saPerms.add(createPermission(tenant, superAdmin, "Reports & Compliance", "ADMIN"));
-        saPerms.add(createPermission(tenant, superAdmin, "Settings", "ADMIN"));
-        superAdmin.setPermissions(saPerms);
-        defaultRoles.add(consoleRoleRepository.save(superAdmin));
-
-        // 2. SOC Analyst
-        ConsoleRole socAnalyst = new ConsoleRole();
-        socAnalyst.setTenantId(tenant);
-        socAnalyst.setName("SOC Analyst");
-        socAnalyst.setUserCount(6);
-        List<RolePermission> socPerms = new ArrayList<>();
-        socPerms.add(createPermission(tenant, socAnalyst, "Dashboard", "READ"));
-        socPerms.add(createPermission(tenant, socAnalyst, "Alerts & Correlation", "WRITE"));
-        socPerms.add(createPermission(tenant, socAnalyst, "Assets & Threat Intel", "READ"));
-        socPerms.add(createPermission(tenant, socAnalyst, "SOAR Playbooks", "NONE"));
-        socPerms.add(createPermission(tenant, socAnalyst, "Reports & Compliance", "READ"));
-        socPerms.add(createPermission(tenant, socAnalyst, "Settings", "NONE"));
-        socAnalyst.setPermissions(socPerms);
-        defaultRoles.add(consoleRoleRepository.save(socAnalyst));
-
-        // 3. Incident Responder
-        ConsoleRole incidentResponder = new ConsoleRole();
-        incidentResponder.setTenantId(tenant);
-        incidentResponder.setName("Incident Responder");
-        incidentResponder.setUserCount(3);
-        List<RolePermission> irPerms = new ArrayList<>();
-        irPerms.add(createPermission(tenant, incidentResponder, "Dashboard", "READ"));
-        irPerms.add(createPermission(tenant, incidentResponder, "Alerts & Correlation", "WRITE"));
-        irPerms.add(createPermission(tenant, incidentResponder, "Assets & Threat Intel", "WRITE"));
-        irPerms.add(createPermission(tenant, incidentResponder, "SOAR Playbooks", "WRITE"));
-        irPerms.add(createPermission(tenant, incidentResponder, "Reports & Compliance", "READ"));
-        irPerms.add(createPermission(tenant, incidentResponder, "Settings", "NONE"));
-        incidentResponder.setPermissions(irPerms);
-        defaultRoles.add(consoleRoleRepository.save(incidentResponder));
-
-        // 4. Read-Only Auditor
-        ConsoleRole auditor = new ConsoleRole();
-        auditor.setTenantId(tenant);
-        auditor.setName("Read-Only Auditor");
-        auditor.setUserCount(1);
-        List<RolePermission> audPerms = new ArrayList<>();
-        audPerms.add(createPermission(tenant, auditor, "Dashboard", "READ"));
-        audPerms.add(createPermission(tenant, auditor, "Alerts & Correlation", "READ"));
-        audPerms.add(createPermission(tenant, auditor, "Assets & Threat Intel", "READ"));
-        audPerms.add(createPermission(tenant, auditor, "SOAR Playbooks", "READ"));
-        audPerms.add(createPermission(tenant, auditor, "Reports & Compliance", "READ"));
-        audPerms.add(createPermission(tenant, auditor, "Settings", "READ"));
-        auditor.setPermissions(audPerms);
-        defaultRoles.add(consoleRoleRepository.save(auditor));
-
-        return defaultRoles;
+    /** roleId may be null to unassign — the member then falls back to deny-by-default on every module. */
+    @PutMapping("/users/{id}/role")
+    public ResponseEntity<ApiResponse<UserMember>> assignRole(@PathVariable UUID id, @RequestBody AssignRoleRequest req,
+            @RequestHeader(value = "X-Tenant-ID", required = false) UUID tenantId) {
+        UUID tenant = resolveTenant(tenantId);
+        return userMemberRepository.findByIdAndTenantId(id, tenant)
+                .map(member -> {
+                    if (req.roleId() == null) {
+                        member.setRole(null);
+                    } else {
+                        ConsoleRole role = consoleRoleRepository.findByIdAndTenantId(req.roleId(), tenant).orElse(null);
+                        if (role == null) {
+                            return ResponseEntity.badRequest().body(ApiResponse.<UserMember>error("Role not found"));
+                        }
+                        member.setRole(role);
+                    }
+                    UserMember saved = userMemberRepository.save(member);
+                    auditEventPublisher.publish("USER_ROLE_ASSIGN", "user-member/" + id,
+                            req.roleId() != null ? "assigned role " + req.roleId() : "unassigned role");
+                    return ResponseEntity.ok(ApiResponse.success(saved));
+                })
+                .orElse(ResponseEntity.status(404).body(ApiResponse.error("Member not found")));
     }
 
-    private RolePermission createPermission(UUID tenant, ConsoleRole role, String moduleName, String level) {
-        RolePermission perm = new RolePermission();
-        perm.setTenantId(tenant);
-        perm.setRole(role);
-        perm.setModuleName(moduleName);
-        perm.setPermissionLevel(level);
-        return perm;
+    /** The caller's own resolved permission map — what the frontend gates its UI on, so it always matches what the backend will actually allow. */
+    @GetMapping("/my-permissions")
+    public ApiResponse<Map<String, String>> getMyPermissions() {
+        Map<String, PermissionLevel> resolved = permissionResolver.resolveAll();
+        Map<String, String> body = new java.util.LinkedHashMap<>();
+        resolved.forEach((module, level) -> body.put(module, level.name()));
+        return ApiResponse.success(body);
     }
 
 }

@@ -5,6 +5,8 @@ import AppLayout               from './AppLayout'
 import PlatformAdminRoute      from './PlatformAdminRoute'
 import PlatformAdminLayout     from './PlatformAdminLayout'
 import SignupPage              from '@/modules/auth/SignupPage'
+import RequirePermission       from '@/components/RequirePermission'
+import { MODULES }             from '@/store/permissionsStore'
 
 // Dashboard modules
 import DashboardPage           from '@/modules/dashboard/DashboardPage'
@@ -78,19 +80,19 @@ export const router = createBrowserRouter([
         element: <AppLayout />,
         errorElement: <RouteErrorFallback />,
         children: [
-          { index: true,              element: <DashboardPage /> },
-          { path: 'logs',             element: <LogExplorerPage /> },
-          { path: 'correlation',      element: <CorrelationPage /> },
-          { path: 'alerts',           element: <AlertsPage /> },
-          { path: 'assets',           element: <AssetsPage /> },
-          { path: 'threat-intel',     element: <ThreatIntelPage /> },
-          { path: 'soar',             element: <SoarPage /> },
-          { path: 'red-team',         element: <RedTeamPage /> },
-          { path: 'endpoints',        element: <EndpointsPage /> },
-          { path: 'compliance',       element: <CompliancePage /> },
-          { path: 'reports',          element: <ReportsPage /> },
-          { path: 'ai-analyst',       element: <AiAnalystPage /> },
-          { path: 'settings',         element: <SettingsPage /> },
+          { index: true,              element: <RequirePermission module={MODULES.DASHBOARD}><DashboardPage /></RequirePermission> },
+          { path: 'logs',             element: <RequirePermission module={MODULES.ALERTS_CORRELATION}><LogExplorerPage /></RequirePermission> },
+          { path: 'correlation',      element: <RequirePermission module={MODULES.ALERTS_CORRELATION}><CorrelationPage /></RequirePermission> },
+          { path: 'alerts',           element: <RequirePermission module={MODULES.ALERTS_CORRELATION}><AlertsPage /></RequirePermission> },
+          { path: 'assets',           element: <RequirePermission module={MODULES.ASSETS_THREAT_INTEL}><AssetsPage /></RequirePermission> },
+          { path: 'threat-intel',     element: <RequirePermission module={MODULES.ASSETS_THREAT_INTEL}><ThreatIntelPage /></RequirePermission> },
+          { path: 'soar',             element: <RequirePermission module={MODULES.SOAR_PLAYBOOKS}><SoarPage /></RequirePermission> },
+          { path: 'red-team',         element: <RequirePermission module={MODULES.SOAR_PLAYBOOKS}><RedTeamPage /></RequirePermission> },
+          { path: 'endpoints',        element: <RequirePermission module={MODULES.ASSETS_THREAT_INTEL}><EndpointsPage /></RequirePermission> },
+          { path: 'compliance',       element: <RequirePermission module={MODULES.REPORTS_COMPLIANCE}><CompliancePage /></RequirePermission> },
+          { path: 'reports',          element: <RequirePermission module={MODULES.REPORTS_COMPLIANCE}><ReportsPage /></RequirePermission> },
+          { path: 'ai-analyst',       element: <RequirePermission module={MODULES.ALERTS_CORRELATION}><AiAnalystPage /></RequirePermission> },
+          { path: 'settings',         element: <RequirePermission module={MODULES.SETTINGS}><SettingsPage /></RequirePermission> },
         ],
       },
     ],

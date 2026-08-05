@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { Plus, Search, RefreshCw, Layers, ShieldCheck, Zap, AlertCircle, Play, Edit2, X } from 'lucide-react'
 import apiClient from '@/lib/apiClient'
+import { useCanWrite, MODULES } from '@/store/permissionsStore'
 import { clsx } from 'clsx'
 
 interface CorrelationRule {
@@ -71,6 +72,7 @@ const ruleConfigs: Record<string, { schedule: string, threshold: string, severit
 }
 
 export default function CorrelationPage() {
+  const canWrite = useCanWrite(MODULES.ALERTS_CORRELATION)
   const [rules, setRules] = useState<CorrelationRule[]>([])
   const [stats, setStats] = useState<CorrelationStats | null>(null)
   const [selectedRuleId, setSelectedRuleId] = useState<string | null>(null)
@@ -250,7 +252,9 @@ export default function CorrelationPage() {
           </div>
           <button
             onClick={() => setIsModalOpen(true)}
-            className="btn-fire"
+            disabled={!canWrite}
+            title={!canWrite ? "Your role doesn't have write access to Alerts & Correlation" : undefined}
+            className="btn-fire disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <Plus className="w-3.5 h-3.5" /> New Rule
           </button>
@@ -283,7 +287,9 @@ export default function CorrelationPage() {
                   <td>
                     <button
                       onClick={(e) => handleToggle(rule.id, e)}
-                      className="flex items-center focus:outline-none"
+                      disabled={!canWrite}
+                      title={!canWrite ? "Your role doesn't have write access to Alerts & Correlation" : undefined}
+                      className="flex items-center focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       <div className={clsx(
                         "relative w-11 h-6 rounded-full transition-colors duration-200 p-0.5 flex items-center justify-between px-1.5",

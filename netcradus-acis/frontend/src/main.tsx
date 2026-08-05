@@ -9,6 +9,7 @@ import App from './App'
 import './index.css'
 import keycloak from './lib/keycloak'
 import { useAuthStore, AuthUser } from './store/authStore'
+import { usePermissionsStore } from './store/permissionsStore'
 
 async function bootstrap() {
   try {
@@ -34,6 +35,12 @@ async function bootstrap() {
         roles,
       }
       useAuthStore.getState().setUser(user)
+      // Fires GET /api/soar/settings/my-permissions — mirrors what
+      // RbacEnforcementFilter actually enforces server-side, so the sidebar/
+      // pages can hide what a user's role can't do rather than let them hit
+      // a wall of 403s. Harmless no-op for platform-admin JWTs (no tenant_id
+      // claim, so it just resolves to an empty permission map).
+      usePermissionsStore.getState().fetchPermissions()
     }
   } catch (err) {
     // Keycloak init failure (e.g. server down) — show app in unauthenticated state

@@ -83,6 +83,7 @@ public class TenantContextFilter extends OncePerRequestFilter {
         try {
             TenantContext.setTenantId(tenantId);
             TenantContext.setUserEmail(jwt.getClaimAsString("email"));
+            TenantContext.setUserRoles(realmRoles(jwt));
             String subject = jwt.getSubject();
             if (subject != null) {
                 try {
@@ -106,6 +107,19 @@ public class TenantContextFilter extends OncePerRequestFilter {
         }
         Object roles = realmAccess.get("roles");
         return roles instanceof List<?> roleList && roleList.contains("platform-admin");
+    }
+
+    @SuppressWarnings("unchecked")
+    private List<String> realmRoles(Jwt jwt) {
+        Map<String, Object> realmAccess = jwt.getClaimAsMap("realm_access");
+        if (realmAccess == null) {
+            return List.of();
+        }
+        Object roles = realmAccess.get("roles");
+        if (roles instanceof List<?> roleList) {
+            return (List<String>) roleList;
+        }
+        return List.of();
     }
 
     private void respondForbidden(HttpServletResponse response, String code, String message) throws IOException {

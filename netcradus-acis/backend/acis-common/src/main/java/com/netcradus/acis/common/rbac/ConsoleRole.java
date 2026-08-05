@@ -1,10 +1,17 @@
-package com.netcradus.acis.soar.model;
+package com.netcradus.acis.common.rbac;
 
 import jakarta.persistence.*;
 import lombok.Data;
 import java.util.UUID;
 import java.util.List;
 
+/**
+ * A tenant-defined role (e.g. "SOC Analyst") with a per-module permission
+ * matrix (see RolePermission). Moved here from acis-soar (where it's still
+ * managed via Settings > Roles & Permissions) so every service that needs to
+ * enforce it — not just acis-soar — can read it directly; same rationale as
+ * ApiKey's placement here.
+ */
 @Data
 @Entity
 @Table(name = "console_roles")

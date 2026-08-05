@@ -2,6 +2,7 @@ import React, { useEffect, useState, useMemo } from 'react'
 import { Play, Edit2, Clock, CheckCircle2, XCircle, ChevronRight, Zap, Target, Shield, Server, Plus, MoreHorizontal, Activity, Search, X } from 'lucide-react'
 import { clsx } from 'clsx'
 import apiClient from '@/lib/apiClient'
+import { useCanWrite, MODULES } from '@/store/permissionsStore'
 
 interface Playbook {
   id: string
@@ -50,6 +51,7 @@ const playbookDurations: Record<string, string> = {
 }
 
 export default function SoarPage() {
+  const canWrite = useCanWrite(MODULES.SOAR_PLAYBOOKS)
   const [playbooks, setPlaybooks] = useState<Playbook[]>([])
   const [executions, setExecutions] = useState<Execution[]>([])
   const [selectedExecutionId, setSelectedExecutionId] = useState<string | null>(null)
@@ -195,7 +197,9 @@ export default function SoarPage() {
         </div>
         <button
           onClick={() => setIsModalOpen(true)}
-          className="btn-fire text-small py-2 px-4 flex items-center gap-1.5"
+          disabled={!canWrite}
+          title={!canWrite ? "Your role doesn't have write access to SOAR Playbooks" : undefined}
+          className="btn-fire text-small py-2 px-4 flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
         >
           <Plus className="w-3.5 h-3.5" /> New Playbook
         </button>
@@ -252,7 +256,9 @@ export default function SoarPage() {
               <div className="grid grid-cols-2 gap-2 mt-4">
                 <button
                   onClick={() => handleRunPlaybook(pb.id)}
-                  className="btn-fire py-2 text-small"
+                  disabled={!canWrite}
+                  title={!canWrite ? "Your role doesn't have write access to SOAR Playbooks" : undefined}
+                  className="btn-fire py-2 text-small disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <Play className="w-3 h-3 fill-white" /> Run
                 </button>

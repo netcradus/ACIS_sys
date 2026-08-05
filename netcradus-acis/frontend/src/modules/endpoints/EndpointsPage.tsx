@@ -2,6 +2,7 @@ import React, { useEffect, useState, useMemo } from 'react'
 import { Server, Cpu, Shield, ShieldAlert, ShieldCheck, Activity, RefreshCw, Search } from 'lucide-react'
 import { clsx } from 'clsx'
 import apiClient from '@/lib/apiClient'
+import { useCanWrite, MODULES } from '@/store/permissionsStore'
 
 interface Asset {
   id: string
@@ -19,6 +20,7 @@ interface Asset {
 }
 
 export default function EndpointsPage() {
+  const canWrite = useCanWrite(MODULES.ASSETS_THREAT_INTEL)
   const [endpoints, setEndpoints] = useState<Asset[]>([])
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
@@ -269,31 +271,36 @@ export default function EndpointsPage() {
                         {isIsolated ? (
                           <button
                             onClick={() => handleRelease(ep.id)}
-                            disabled={processingId === ep.id}
-                            className="border border-success/30 bg-success/10 hover:bg-success/20 text-success font-semibold px-3 py-1.5 rounded-lg text-label uppercase transition-colors focus:outline-none"
+                            disabled={processingId === ep.id || !canWrite}
+                            title={!canWrite ? "Your role doesn't have write access to Assets & Threat Intel" : undefined}
+                            className="border border-success/30 bg-success/10 hover:bg-success/20 text-success font-semibold px-3 py-1.5 rounded-lg text-label uppercase transition-colors focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
                           >
                             Release
                           </button>
                         ) : ep.health === 'DEGRADED' ? (
                           <button
                             onClick={() => handleRollback(ep.id)}
-                            disabled={processingId === ep.id}
-                            className="border border-severity-high/30 bg-severity-high/10 hover:bg-severity-high/20 text-severity-high font-semibold px-3 py-1.5 rounded-lg text-label uppercase transition-colors focus:outline-none"
+                            disabled={processingId === ep.id || !canWrite}
+                            title={!canWrite ? "Your role doesn't have write access to Assets & Threat Intel" : undefined}
+                            className="border border-severity-high/30 bg-severity-high/10 hover:bg-severity-high/20 text-severity-high font-semibold px-3 py-1.5 rounded-lg text-label uppercase transition-colors focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
                           >
                             Rollback
                           </button>
                         ) : version === '1.8.2' ? (
                           <button
                             onClick={() => alert("Agent update initiated...")}
-                            className="btn-mission py-1.5 px-3 text-label uppercase"
+                            disabled={!canWrite}
+                            title={!canWrite ? "Your role doesn't have write access to Assets & Threat Intel" : undefined}
+                            className="btn-mission py-1.5 px-3 text-label uppercase disabled:opacity-50 disabled:cursor-not-allowed"
                           >
                             Update
                           </button>
                         ) : (
                           <button
                             onClick={() => handleIsolate(ep.id)}
-                            disabled={processingId === ep.id}
-                            className="border border-danger/30 bg-danger/10 hover:bg-danger/20 text-danger font-semibold px-3 py-1.5 rounded-lg text-label uppercase transition-colors focus:outline-none"
+                            disabled={processingId === ep.id || !canWrite}
+                            title={!canWrite ? "Your role doesn't have write access to Assets & Threat Intel" : undefined}
+                            className="border border-danger/30 bg-danger/10 hover:bg-danger/20 text-danger font-semibold px-3 py-1.5 rounded-lg text-label uppercase transition-colors focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
                           >
                             Isolate
                           </button>

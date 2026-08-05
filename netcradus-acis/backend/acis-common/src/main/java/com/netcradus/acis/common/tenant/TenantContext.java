@@ -1,5 +1,6 @@
 package com.netcradus.acis.common.tenant;
 
+import java.util.List;
 import java.util.UUID;
 
 /**
@@ -13,6 +14,7 @@ public class TenantContext {
     private static final ThreadLocal<String>  TENANT_ID   = new ThreadLocal<>();
     private static final ThreadLocal<UUID>    USER_ID     = new ThreadLocal<>();
     private static final ThreadLocal<String>  USER_EMAIL  = new ThreadLocal<>();
+    private static final ThreadLocal<List<String>> USER_ROLES = new ThreadLocal<>();
     private static final ThreadLocal<Boolean> API_KEY_LOOKUP = new ThreadLocal<>();
     private static final ThreadLocal<Boolean> SYSTEM_POLLER = new ThreadLocal<>();
 
@@ -55,10 +57,15 @@ public class TenantContext {
     public static void setUserEmail(String email) { USER_EMAIL.set(email); }
     public static String getUserEmail() { return USER_EMAIL.get(); }
 
+    /** The JWT's realm_access.roles — e.g. ["ADMIN"], ["COMPANY_ADMIN"] — used by RBAC's auto-provisioning to decide a sensible starting Console Role for a first-time login rather than guessing. */
+    public static void setUserRoles(List<String> roles) { USER_ROLES.set(roles); }
+    public static List<String> getUserRoles() { return USER_ROLES.get() != null ? USER_ROLES.get() : List.of(); }
+
     public static void clear() {
         TENANT_ID.remove();
         USER_ID.remove();
         USER_EMAIL.remove();
+        USER_ROLES.remove();
         API_KEY_LOOKUP.remove();
         SYSTEM_POLLER.remove();
     }

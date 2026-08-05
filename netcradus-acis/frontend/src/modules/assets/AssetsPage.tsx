@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react'
 import { Monitor, UserCircle2, Server, Laptop, Network, Cloud, Cpu, Plus, RefreshCw, Search, ShieldCheck, Database, HardDrive, Smartphone, X, AlertTriangle, ShieldAlert } from 'lucide-react'
 import apiClient from '@/lib/apiClient'
+import { useCanWrite, MODULES } from '@/store/permissionsStore'
 import { clsx } from 'clsx'
 
 interface Asset {
@@ -63,6 +64,7 @@ const assetAlerts: Record<string, { title: string, severity: string, time: strin
 }
 
 export default function AssetsPage() {
+  const canWrite = useCanWrite(MODULES.ASSETS_THREAT_INTEL)
   const [assets, setAssets] = useState<Asset[]>([])
   const [selectedAssetId, setSelectedAssetId] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
@@ -235,7 +237,9 @@ export default function AssetsPage() {
             </div>
             <button
               onClick={() => setIsModalOpen(true)}
-              className="btn-fire text-small py-2 px-4 flex items-center gap-1.5"
+              disabled={!canWrite}
+              title={!canWrite ? "Your role doesn't have write access to Assets & Threat Intel" : undefined}
+              className="btn-fire text-small py-2 px-4 flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <Plus className="w-3.5 h-3.5" /> Add Asset
             </button>
@@ -414,8 +418,10 @@ export default function AssetsPage() {
               <span className="text-label text-text-muted uppercase block">CMDB Node Actions</span>
               <button
                 onClick={() => handleIsolateToggle(selectedAsset)}
+                disabled={!canWrite}
+                title={!canWrite ? "Your role doesn't have write access to Assets & Threat Intel" : undefined}
                 className={clsx(
-                  "w-full py-2.5 text-small flex items-center justify-center gap-1.5",
+                  "w-full py-2.5 text-small flex items-center justify-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed",
                   selectedAsset.isolationStatus ? "btn-fire" : "btn-mission"
                 )}
               >

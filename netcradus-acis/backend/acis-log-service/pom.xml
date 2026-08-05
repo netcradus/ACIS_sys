@@ -39,6 +39,20 @@
       <artifactId>spring-kafka</artifactId>
     </dependency>
 
+    <!-- Postgres + JPA — needed only to read the shared RBAC tables
+         (UserMember/ConsoleRole/RolePermission, see RbacEnforcementFilter).
+         This service's own log data stays in Elasticsearch; this is not a
+         second store for logs. -->
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-data-jpa</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.postgresql</groupId>
+      <artifactId>postgresql</artifactId>
+      <scope>runtime</scope>
+    </dependency>
+
     <!-- Security -->
     <dependency>
       <groupId>org.springframework.boot</groupId>

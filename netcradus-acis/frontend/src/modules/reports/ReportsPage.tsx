@@ -2,6 +2,7 @@ import React, { useEffect, useState, useMemo } from 'react'
 import { FileText, Printer, Download, Settings, Search, Plus, X, CheckCircle2, Clock, Activity } from 'lucide-react'
 import { clsx } from 'clsx'
 import apiClient from '@/lib/apiClient'
+import { useCanWrite, useCanAdmin, MODULES } from '@/store/permissionsStore'
 
 interface ReportSchedule {
   id: string
@@ -22,6 +23,8 @@ interface Alert {
 }
 
 export default function ReportsPage() {
+  const canWrite = useCanWrite(MODULES.REPORTS_COMPLIANCE)
+  const canAdmin = useCanAdmin(MODULES.REPORTS_COMPLIANCE)
   const [schedules, setSchedules] = useState<ReportSchedule[]>([])
   const [alerts, setAlerts] = useState<Alert[]>([])
   const [loading, setLoading] = useState(true)
@@ -165,7 +168,9 @@ export default function ReportsPage() {
           </div>
           <button
             onClick={() => setIsModalOpen(true)}
-            className="btn-mission text-small py-2 px-3 flex items-center gap-1"
+            disabled={!canWrite}
+            title={!canWrite ? "Your role doesn't have write access to Reports & Compliance" : undefined}
+            className="btn-mission text-small py-2 px-3 flex items-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             ↑ Schedule
           </button>
@@ -318,7 +323,9 @@ export default function ReportsPage() {
           <h3 className="text-h3 text-text-primary">Scheduled Exports</h3>
           <button
             onClick={() => setIsModalOpen(true)}
-            className="btn-mission py-1.5 px-3 text-small"
+            disabled={!canWrite}
+            title={!canWrite ? "Your role doesn't have write access to Reports & Compliance" : undefined}
+            className="btn-mission py-1.5 px-3 text-small disabled:opacity-50 disabled:cursor-not-allowed"
           >
             + Add Schedule
           </button>
@@ -341,12 +348,14 @@ export default function ReportsPage() {
                 <tr key={sched.id} className="group">
                   <td className="font-semibold text-text-secondary flex items-center justify-between">
                     <span>{sched.reportName}</span>
-                    <button
-                      onClick={() => handleDeleteSchedule(sched.id)}
-                      className="opacity-0 group-hover:opacity-100 text-danger hover:text-danger/80 text-label uppercase ml-2 transition-opacity focus:outline-none"
-                    >
-                      Delete
-                    </button>
+                    {canAdmin && (
+                      <button
+                        onClick={() => handleDeleteSchedule(sched.id)}
+                        className="opacity-0 group-hover:opacity-100 text-danger hover:text-danger/80 text-label uppercase ml-2 transition-opacity focus:outline-none"
+                      >
+                        Delete
+                      </button>
+                    )}
                   </td>
                   <td className="font-mono font-semibold text-text-secondary">
                     {sched.format}
@@ -363,7 +372,9 @@ export default function ReportsPage() {
                   <td className="text-right">
                     <button
                       onClick={() => handleToggleStatus(sched.id, sched.status)}
-                      className="focus:outline-none flex items-center justify-end gap-1.5 w-full"
+                      disabled={!canWrite}
+                      title={!canWrite ? "Your role doesn't have write access to Reports & Compliance" : undefined}
+                      className="focus:outline-none flex items-center justify-end gap-1.5 w-full disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       <span className={clsx(
                         "w-1.5 h-1.5 rounded-full inline-block",

@@ -11,6 +11,7 @@ import { clsx } from 'clsx'
 import apiClient from '@/lib/apiClient'
 import InDevelopment from '@/components/InDevelopment'
 import { useAuthStore } from '@/store/authStore'
+import { useCanWrite, useCanAdmin, MODULES } from '@/store/permissionsStore'
 import keycloak from '@/lib/keycloak'
 
 interface ApiKey {
@@ -34,6 +35,8 @@ interface Integration {
 }
 
 export default function SettingsPage() {
+  const canWriteSettings = useCanWrite(MODULES.SETTINGS)
+  const canAdminSettings = useCanAdmin(MODULES.SETTINGS)
   const [searchParams, setSearchParams] = useSearchParams()
   const tabParam = searchParams.get('tab')
   const [keys, setKeys] = useState<ApiKey[]>([])
@@ -565,6 +568,18 @@ export default function SettingsPage() {
       console.error("Failed to load users & groups details:", e)
     } finally {
       setUsersLoading(false)
+    }
+  }
+
+  // Assigns a Console Role to a member — this is the real link RBAC was
+  // previously missing entirely (see PermissionResolver): without it, a
+  // role's permission matrix has no way to know who it actually applies to.
+  const handleAssignRole = async (userId: string, roleId: string) => {
+    try {
+      await apiClient.put(`/api/soar/settings/users/${userId}/role`, { roleId: roleId || null })
+      await fetchUsersAndGroups()
+    } catch (e: any) {
+      alert(e?.response?.data?.error?.message || 'Failed to assign role')
     }
   }
 
@@ -2117,7 +2132,9 @@ export default function SettingsPage() {
                     </div>
                     <button
                       onClick={() => setInviteModalOpen(true)}
-                      className="btn-fire py-2 px-4 text-small"
+                      disabled={!canWriteSettings}
+                      title={!canWriteSettings ? "Your role doesn't have write access to Settings" : undefined}
+                      className="btn-fire py-2 px-4 text-small disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       <Plus className="w-3.5 h-3.5" /> Invite user
                     </button>
@@ -2130,6 +2147,7 @@ export default function SettingsPage() {
                           <th>Name</th>
                           <th>Email</th>
                           <th>Group</th>
+                          <th>Console Role</th>
                           <th>Status</th>
                           <th>Last Login</th>
                           <th className="text-right">Action</th>
@@ -2141,6 +2159,20 @@ export default function SettingsPage() {
                             <td className="font-semibold text-text-primary">{user.name}</td>
                             <td className="text-text-muted">{user.email}</td>
                             <td>{user.groupName}</td>
+                            <td>
+                              <select
+                                value={user.role?.id || ''}
+                                onChange={(e) => handleAssignRole(user.id, e.target.value)}
+                                disabled={!canWriteSettings}
+                                title={!canWriteSettings ? "Your role doesn't have write access to Settings" : undefined}
+                                className="bg-surface-2 border border-fire-border rounded-lg px-2 py-1 text-small text-text-primary focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
+                              >
+                                <option value="">No role (denied everywhere)</option>
+                                {roles.map((r) => (
+                                  <option key={r.id} value={r.id}>{r.name}</option>
+                                ))}
+                              </select>
+                            </td>
                             <td>
                               {user.status === 'Active' ? (
                                 <span className="badge-mission bg-success/10 text-success border-success/20">
@@ -2159,14 +2191,18 @@ export default function SettingsPage() {
                               {user.status === 'Active' ? (
                                 <button
                                   onClick={() => handleDeleteUser(user.id, user.name)}
-                                  className="bg-surface-3 hover:bg-danger/10 border border-fire-border hover:border-danger/20 text-text-secondary hover:text-danger font-semibold px-3 py-1.5 rounded-lg text-small transition-colors focus:outline-none"
+                                  disabled={!canAdminSettings}
+                                  title={!canAdminSettings ? "Your role doesn't have admin access to Settings" : undefined}
+                                  className="bg-surface-3 hover:bg-danger/10 border border-fire-border hover:border-danger/20 text-text-secondary hover:text-danger font-semibold px-3 py-1.5 rounded-lg text-small transition-colors focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
                                 >
                                   Manage
                                 </button>
                               ) : (
                                 <button
                                   onClick={() => handleResendInvite(user.id, user.name)}
-                                  className="btn-mission py-1.5 px-3 text-small"
+                                  disabled={!canWriteSettings}
+                                  title={!canWriteSettings ? "Your role doesn't have write access to Settings" : undefined}
+                                  className="btn-mission py-1.5 px-3 text-small disabled:opacity-50 disabled:cursor-not-allowed"
                                 >
                                   Resend
                                 </button>
@@ -2188,7 +2224,9 @@ export default function SettingsPage() {
                     </div>
                     <button
                       onClick={() => setGroupModalOpen(true)}
-                      className="btn-mission py-1.5 px-3 text-small"
+                      disabled={!canWriteSettings}
+                      title={!canWriteSettings ? "Your role doesn't have write access to Settings" : undefined}
+                      className="btn-mission py-1.5 px-3 text-small disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       New group
                     </button>
@@ -2381,7 +2419,9 @@ export default function SettingsPage() {
                   {/* Right: New Role Button */}
                   <button
                     onClick={() => setNewRoleModalOpen(true)}
-                    className="btn-mission py-2.5 px-4 text-small"
+                    disabled={!canWriteSettings}
+                    title={!canWriteSettings ? "Your role doesn't have write access to Settings" : undefined}
+                    className="btn-mission py-2.5 px-4 text-small disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     <Plus className="w-3.5 h-3.5" /> New role
                   </button>
@@ -2495,8 +2535,9 @@ export default function SettingsPage() {
                       </button>
                       <button
                         onClick={handleSaveRole}
-                        disabled={rolesSaving}
-                        className="btn-fire py-2 px-5 text-small"
+                        disabled={rolesSaving || !canWriteSettings}
+                        title={!canWriteSettings ? "Your role doesn't have write access to Settings" : undefined}
+                        className="btn-fire py-2 px-5 text-small disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         {rolesSaving ? 'Saving...' : 'Save role'}
                       </button>
@@ -2595,7 +2636,7 @@ export default function SettingsPage() {
                       {gdTesting ? 'Testing...' : 'Test Connection'}
                     </button>
                     <button onClick={() => { setGdEditing(true); setGdTestResult(null) }} className="btn-mission py-2 px-4 text-small">Edit</button>
-                    <button onClick={handleDeleteGuardDuty} className="text-danger hover:text-danger/80 text-small font-semibold ml-auto">Remove</button>
+                    <button onClick={handleDeleteGuardDuty} disabled={!canAdminSettings} title={!canAdminSettings ? "Your role doesn't have admin access to Settings" : undefined} className="text-danger hover:text-danger/80 text-small font-semibold ml-auto disabled:opacity-50 disabled:cursor-not-allowed">Remove</button>
                   </div>
                 </div>
               ) : (
@@ -2631,7 +2672,7 @@ export default function SettingsPage() {
                     </div>
                   )}
                   <div className="flex items-center gap-2">
-                    <button type="submit" disabled={gdSaving} className="btn-fire py-2 px-4 text-small">{gdSaving ? 'Saving...' : 'Save'}</button>
+                    <button type="submit" disabled={gdSaving || !canWriteSettings} title={!canWriteSettings ? "Your role doesn't have write access to Settings" : undefined} className="btn-fire py-2 px-4 text-small disabled:opacity-50 disabled:cursor-not-allowed">{gdSaving ? 'Saving...' : 'Save'}</button>
                     <button type="button" onClick={handleTestGuardDuty} disabled={gdTesting || !gdRegion} className="btn-mission py-2 px-4 text-small">
                       {gdTesting ? 'Testing...' : 'Test Connection'}
                     </button>
@@ -2684,7 +2725,7 @@ export default function SettingsPage() {
                       {asTesting ? 'Testing...' : 'Test Connection'}
                     </button>
                     <button onClick={() => { setAsEditing(true); setAsTestResult(null) }} className="btn-mission py-2 px-4 text-small">Edit</button>
-                    <button onClick={handleDeleteAzureSentinel} className="text-danger hover:text-danger/80 text-small font-semibold ml-auto">Remove</button>
+                    <button onClick={handleDeleteAzureSentinel} disabled={!canAdminSettings} title={!canAdminSettings ? "Your role doesn't have admin access to Settings" : undefined} className="text-danger hover:text-danger/80 text-small font-semibold ml-auto disabled:opacity-50 disabled:cursor-not-allowed">Remove</button>
                   </div>
                 </div>
               ) : (
@@ -2732,7 +2773,7 @@ export default function SettingsPage() {
                     </div>
                   )}
                   <div className="flex items-center gap-2">
-                    <button type="submit" disabled={asSaving} className="btn-fire py-2 px-4 text-small">{asSaving ? 'Saving...' : 'Save'}</button>
+                    <button type="submit" disabled={asSaving || !canWriteSettings} title={!canWriteSettings ? "Your role doesn't have write access to Settings" : undefined} className="btn-fire py-2 px-4 text-small disabled:opacity-50 disabled:cursor-not-allowed">{asSaving ? 'Saving...' : 'Save'}</button>
                     <button type="button" onClick={handleTestAzureSentinel} disabled={asTesting || !asWorkspaceName} className="btn-mission py-2 px-4 text-small">
                       {asTesting ? 'Testing...' : 'Test Connection'}
                     </button>
@@ -2785,7 +2826,7 @@ export default function SettingsPage() {
                       {adTesting ? 'Testing...' : 'Test Connection'}
                     </button>
                     <button onClick={() => { setAdEditing(true); setAdTestResult(null) }} className="btn-mission py-2 px-4 text-small">Edit</button>
-                    <button onClick={handleDeleteAzureAd} className="text-danger hover:text-danger/80 text-small font-semibold ml-auto">Remove</button>
+                    <button onClick={handleDeleteAzureAd} disabled={!canAdminSettings} title={!canAdminSettings ? "Your role doesn't have admin access to Settings" : undefined} className="text-danger hover:text-danger/80 text-small font-semibold ml-auto disabled:opacity-50 disabled:cursor-not-allowed">Remove</button>
                   </div>
                 </div>
               ) : (
@@ -2821,7 +2862,7 @@ export default function SettingsPage() {
                     </div>
                   )}
                   <div className="flex items-center gap-2">
-                    <button type="submit" disabled={adSaving} className="btn-fire py-2 px-4 text-small">{adSaving ? 'Saving...' : 'Save'}</button>
+                    <button type="submit" disabled={adSaving || !canWriteSettings} title={!canWriteSettings ? "Your role doesn't have write access to Settings" : undefined} className="btn-fire py-2 px-4 text-small disabled:opacity-50 disabled:cursor-not-allowed">{adSaving ? 'Saving...' : 'Save'}</button>
                     <button type="button" onClick={handleTestAzureAd} disabled={adTesting || !adAzureTenantId} className="btn-mission py-2 px-4 text-small">
                       {adTesting ? 'Testing...' : 'Test Connection'}
                     </button>
@@ -2893,11 +2934,11 @@ export default function SettingsPage() {
                     Point your device's syslog/CEF output at this ACIS host on port <strong className="text-text-primary font-mono">{syPort}</strong>, over UDP or TCP.
                   </p>
                   <div className="flex items-center gap-2">
-                    <button onClick={handleDeleteSyslogSource} className="text-danger hover:text-danger/80 text-small font-semibold">Remove</button>
+                    <button onClick={handleDeleteSyslogSource} disabled={!canAdminSettings} title={!canAdminSettings ? "Your role doesn't have admin access to Settings" : undefined} className="text-danger hover:text-danger/80 text-small font-semibold disabled:opacity-50 disabled:cursor-not-allowed">Remove</button>
                   </div>
                 </div>
               ) : (
-                <button onClick={handleCreateSyslogSource} disabled={syCreating} className="btn-fire py-2 px-4 text-small">
+                <button onClick={handleCreateSyslogSource} disabled={syCreating || !canWriteSettings} title={!canWriteSettings ? "Your role doesn't have write access to Settings" : undefined} className="btn-fire py-2 px-4 text-small disabled:opacity-50 disabled:cursor-not-allowed">
                   {syCreating ? 'Allocating port...' : 'Allocate a syslog port'}
                 </button>
               )}
@@ -3394,7 +3435,9 @@ export default function SettingsPage() {
                 </div>
                 <button
                   onClick={() => setIsKeyModalOpen(true)}
-                  className="btn-fire py-2 px-4 text-small"
+                  disabled={!canWriteSettings}
+                  title={!canWriteSettings ? "Your role doesn't have write access to Settings" : undefined}
+                  className="btn-fire py-2 px-4 text-small disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <Plus className="w-3.5 h-3.5" /> Generate Key
                 </button>
@@ -3434,7 +3477,9 @@ export default function SettingsPage() {
                           {k.status === 'Active' ? (
                             <button
                               onClick={() => handleRevokeKey(k.id)}
-                              className="text-danger hover:text-danger/80 font-semibold text-small transition-colors focus:outline-none"
+                              disabled={!canWriteSettings}
+                              title={!canWriteSettings ? "Your role doesn't have write access to Settings" : undefined}
+                              className="text-danger hover:text-danger/80 font-semibold text-small transition-colors focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
                             >
                               Revoke
                             </button>
@@ -3477,7 +3522,9 @@ export default function SettingsPage() {
                 </div>
                 <button
                   onClick={() => setIsIntegrationModalOpen(true)}
-                  className="btn-fire py-2 px-4 text-small"
+                  disabled={!canWriteSettings}
+                  title={!canWriteSettings ? "Your role doesn't have write access to Settings" : undefined}
+                  className="btn-fire py-2 px-4 text-small disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <Plus className="w-3.5 h-3.5" /> Add Integration
                 </button>
@@ -3576,7 +3623,7 @@ export default function SettingsPage() {
                     <button onClick={() => { setCfEditing(true); setCfTestResult(null) }} className="btn-mission py-2 px-4 text-small">
                       Edit
                     </button>
-                    <button onClick={handleDeleteCloudflare} className="text-danger hover:text-danger/80 text-small font-semibold ml-auto">
+                    <button onClick={handleDeleteCloudflare} disabled={!canAdminSettings} title={!canAdminSettings ? "Your role doesn't have admin access to Settings" : undefined} className="text-danger hover:text-danger/80 text-small font-semibold ml-auto disabled:opacity-50 disabled:cursor-not-allowed">
                       Remove
                     </button>
                   </div>
@@ -3620,7 +3667,7 @@ export default function SettingsPage() {
                     </div>
                   )}
                   <div className="flex items-center gap-2">
-                    <button type="submit" disabled={cfSaving} className="btn-fire py-2 px-4 text-small">
+                    <button type="submit" disabled={cfSaving || !canWriteSettings} title={!canWriteSettings ? "Your role doesn't have write access to Settings" : undefined} className="btn-fire py-2 px-4 text-small disabled:opacity-50 disabled:cursor-not-allowed">
                       {cfSaving ? 'Saving...' : 'Save'}
                     </button>
                     <button type="button" onClick={handleTestCloudflare} disabled={cfTesting || !cfZoneId} className="btn-mission py-2 px-4 text-small">
@@ -3704,7 +3751,7 @@ export default function SettingsPage() {
                       {paTesting ? 'Testing...' : 'Test Connection'}
                     </button>
                     <button onClick={() => { setPaEditing(true); setPaTestResult(null) }} className="btn-mission py-2 px-4 text-small">Edit</button>
-                    <button onClick={handleDeletePaloAlto} className="text-danger hover:text-danger/80 text-small font-semibold ml-auto">Remove</button>
+                    <button onClick={handleDeletePaloAlto} disabled={!canAdminSettings} title={!canAdminSettings ? "Your role doesn't have admin access to Settings" : undefined} className="text-danger hover:text-danger/80 text-small font-semibold ml-auto disabled:opacity-50 disabled:cursor-not-allowed">Remove</button>
                   </div>
                 </div>
               ) : (
@@ -3736,7 +3783,7 @@ export default function SettingsPage() {
                     </div>
                   )}
                   <div className="flex items-center gap-2">
-                    <button type="submit" disabled={paSaving} className="btn-fire py-2 px-4 text-small">{paSaving ? 'Saving...' : 'Save'}</button>
+                    <button type="submit" disabled={paSaving || !canWriteSettings} title={!canWriteSettings ? "Your role doesn't have write access to Settings" : undefined} className="btn-fire py-2 px-4 text-small disabled:opacity-50 disabled:cursor-not-allowed">{paSaving ? 'Saving...' : 'Save'}</button>
                     <button type="button" onClick={handleTestPaloAlto} disabled={paTesting || !paHostname} className="btn-mission py-2 px-4 text-small">
                       {paTesting ? 'Testing...' : 'Test Connection'}
                     </button>
@@ -3789,7 +3836,7 @@ export default function SettingsPage() {
                       {wzTesting ? 'Testing...' : 'Test Connection'}
                     </button>
                     <button onClick={() => { setWzEditing(true); setWzTestResult(null) }} className="btn-mission py-2 px-4 text-small">Edit</button>
-                    <button onClick={handleDeleteWazuh} className="text-danger hover:text-danger/80 text-small font-semibold ml-auto">Remove</button>
+                    <button onClick={handleDeleteWazuh} disabled={!canAdminSettings} title={!canAdminSettings ? "Your role doesn't have admin access to Settings" : undefined} className="text-danger hover:text-danger/80 text-small font-semibold ml-auto disabled:opacity-50 disabled:cursor-not-allowed">Remove</button>
                   </div>
                 </div>
               ) : (
@@ -3829,7 +3876,7 @@ export default function SettingsPage() {
                     </div>
                   )}
                   <div className="flex items-center gap-2">
-                    <button type="submit" disabled={wzSaving} className="btn-fire py-2 px-4 text-small">{wzSaving ? 'Saving...' : 'Save'}</button>
+                    <button type="submit" disabled={wzSaving || !canWriteSettings} title={!canWriteSettings ? "Your role doesn't have write access to Settings" : undefined} className="btn-fire py-2 px-4 text-small disabled:opacity-50 disabled:cursor-not-allowed">{wzSaving ? 'Saving...' : 'Save'}</button>
                     <button type="button" onClick={handleTestWazuh} disabled={wzTesting || !wzBaseUrl} className="btn-mission py-2 px-4 text-small">
                       {wzTesting ? 'Testing...' : 'Test Connection'}
                     </button>
@@ -3882,7 +3929,7 @@ export default function SettingsPage() {
                       {s1Testing ? 'Testing...' : 'Test Connection'}
                     </button>
                     <button onClick={() => { setS1Editing(true); setS1TestResult(null) }} className="btn-mission py-2 px-4 text-small">Edit</button>
-                    <button onClick={handleDeleteSentinelOne} className="text-danger hover:text-danger/80 text-small font-semibold ml-auto">Remove</button>
+                    <button onClick={handleDeleteSentinelOne} disabled={!canAdminSettings} title={!canAdminSettings ? "Your role doesn't have admin access to Settings" : undefined} className="text-danger hover:text-danger/80 text-small font-semibold ml-auto disabled:opacity-50 disabled:cursor-not-allowed">Remove</button>
                   </div>
                 </div>
               ) : (
@@ -3914,7 +3961,7 @@ export default function SettingsPage() {
                     </div>
                   )}
                   <div className="flex items-center gap-2">
-                    <button type="submit" disabled={s1Saving} className="btn-fire py-2 px-4 text-small">{s1Saving ? 'Saving...' : 'Save'}</button>
+                    <button type="submit" disabled={s1Saving || !canWriteSettings} title={!canWriteSettings ? "Your role doesn't have write access to Settings" : undefined} className="btn-fire py-2 px-4 text-small disabled:opacity-50 disabled:cursor-not-allowed">{s1Saving ? 'Saving...' : 'Save'}</button>
                     <button type="button" onClick={handleTestSentinelOne} disabled={s1Testing || !s1ConsoleUrl} className="btn-mission py-2 px-4 text-small">
                       {s1Testing ? 'Testing...' : 'Test Connection'}
                     </button>

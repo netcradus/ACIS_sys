@@ -3,6 +3,7 @@ import { Sparkles, Play, Terminal, AlertTriangle, ShieldCheck } from 'lucide-rea
 import { clsx } from 'clsx'
 import apiClient from '@/lib/apiClient'
 import { LogEntry } from '@/types/log'
+import { useCanWrite, MODULES } from '@/store/permissionsStore'
 
 interface Playbook {
   id: string
@@ -47,6 +48,7 @@ function topCounts(logs: LogEntry[], field: keyof LogEntry, limit = 6) {
 }
 
 export default function AiAnalystPage() {
+  const canTriggerPlaybook = useCanWrite(MODULES.SOAR_PLAYBOOKS)
   const [query, setQuery] = useState('')
   const [isGenerating, setIsGenerating] = useState(false)
   const [splResult, setSplResult] = useState('')
@@ -301,7 +303,8 @@ export default function AiAnalystPage() {
                     <button
                       key={pb.id}
                       onClick={() => handleTriggerPlaybook(pb.id, pb.name)}
-                      disabled={triggering === pb.id}
+                      disabled={triggering === pb.id || !canTriggerPlaybook}
+                      title={!canTriggerPlaybook ? "Your role doesn't have write access to SOAR Playbooks" : undefined}
                       className="w-full text-left text-success hover:text-success/80 disabled:opacity-40 font-semibold flex items-center gap-1.5 focus:outline-none text-small bg-surface border border-fire-border rounded-lg px-3 py-2"
                     >
                       <Play className="w-3 h-3 fill-success flex-shrink-0" />

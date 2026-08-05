@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react'
 import { Shield, CheckCircle2, AlertTriangle, Download, ChevronRight, Activity } from 'lucide-react'
 import { clsx } from 'clsx'
 import apiClient from '@/lib/apiClient'
+import { useCanWrite, MODULES } from '@/store/permissionsStore'
 
 interface ComplianceControl {
   name: string
@@ -29,6 +30,7 @@ interface AuditTrailEntry {
 }
 
 export default function CompliancePage() {
+  const canWrite = useCanWrite(MODULES.REPORTS_COMPLIANCE)
   const [frameworks, setFrameworks] = useState<ComplianceFramework[]>([])
   const [auditTrail, setAuditTrail] = useState<AuditTrailEntry[]>([])
   const [isLoading, setIsLoading] = useState(true)
@@ -80,7 +82,8 @@ export default function CompliancePage() {
         <div className="flex flex-wrap gap-3">
           <button
             onClick={handleGenerateReport}
-            disabled={isReportLoading}
+            disabled={isReportLoading || !canWrite}
+            title={!canWrite ? "Your role doesn't have write access to Reports & Compliance" : undefined}
             className="btn-fire min-w-[160px] disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {isReportLoading ? 'Queuing Report...' : 'Generate Report'}

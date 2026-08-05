@@ -302,9 +302,19 @@ services:
       # it exists only to populate the log explorer before real log sources
       # (syslog/agents/cloud log forwarders) are wired into acis-ingestion.
       MOCK_LOG_GENERATOR_ENABLED: ${MOCK_LOG_GENERATOR_ENABLED:-false}
+      # Added for real RBAC enforcement (RbacEnforcementFilter reads the
+      # shared user_members/console_roles/role_permissions tables). This
+      # service's actual log data still lives entirely in Elasticsearch.
+      DB_HOST: postgres
+      DB_PORT: "5432"
+      DB_NAME: ${DB_NAME:-acis}
+      DB_USER: acis_app
+      DB_PASSWORD: ${DB_PASSWORD:?Set DB_PASSWORD in .env}
     expose:
       - "8082"
     depends_on:
+      postgres:
+        condition: service_healthy
       kafka:
         condition: service_healthy
       elasticsearch:

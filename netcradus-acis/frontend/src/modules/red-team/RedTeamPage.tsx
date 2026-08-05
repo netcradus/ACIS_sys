@@ -20,6 +20,7 @@ import {
   Zap,
 } from 'lucide-react'
 import { clsx } from 'clsx'
+import { useCanWrite, MODULES } from '@/store/permissionsStore'
 import apiClient from '@/lib/apiClient'
 import { useNavigate } from 'react-router-dom'
 
@@ -101,6 +102,7 @@ function buildCoverage(simulation: Simulation, index: number) {
 }
 
 export default function RedTeamPage() {
+  const canWrite = useCanWrite(MODULES.SOAR_PLAYBOOKS)
   const [simulations, setSimulations] = useState<Simulation[]>([])
   const [loading, setLoading] = useState(true)
   const [query, setQuery] = useState('')
@@ -391,8 +393,9 @@ export default function RedTeamPage() {
                     <div className="grid grid-cols-2 gap-3 pt-1">
                       <button
                         onClick={() => startSimulation(simulation.id)}
-                        disabled={startingId === simulation.id}
-                        className="btn-fire justify-center py-3 text-small disabled:cursor-wait"
+                        disabled={startingId === simulation.id || !canWrite}
+                        title={!canWrite ? "Your role doesn't have write access to SOAR Playbooks" : undefined}
+                        className="btn-fire justify-center py-3 text-small disabled:cursor-wait disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         <Crosshair className="h-4 w-4" />
                         {startingId === simulation.id ? 'Starting...' : 'Start'}

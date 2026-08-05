@@ -1,4 +1,4 @@
-package com.netcradus.acis.soar.model;
+package com.netcradus.acis.common.rbac;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
@@ -28,6 +28,7 @@ public class RolePermission {
     @Column(name = "module_name")
     private String moduleName;
 
+    /** NONE, READ, WRITE, ADMIN — see PermissionLevel for the real ordering used to enforce this. */
     @Column(name = "permission_level")
-    private String permissionLevel; // NONE, READ, WRITE, ADMIN
+    private String permissionLevel;
 }

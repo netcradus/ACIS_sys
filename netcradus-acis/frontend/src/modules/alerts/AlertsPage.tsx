@@ -3,6 +3,7 @@ import { AlertTriangle, ShieldAlert, Bell, Clock, User, Filter, RefreshCw, X, Ch
 import apiClient from '@/lib/apiClient'
 import wsClient from '@/lib/wsClient'
 import { useAuthStore } from '@/store/authStore'
+import { useCanWrite, MODULES } from '@/store/permissionsStore'
 import { clsx } from 'clsx'
 
 interface Alert {
@@ -29,6 +30,7 @@ interface Incident {
 export default function AlertsPage() {
   const { user } = useAuthStore()
   const currentUsername = user?.preferredUsername || user?.email || 'me'
+  const canWrite = useCanWrite(MODULES.ALERTS_CORRELATION)
   const [alerts, setAlerts] = useState<Alert[]>([])
   const [selectedAlert, setSelectedAlert] = useState<Alert | null>(null)
   const [selectedIncident, setSelectedIncident] = useState<Incident | null>(null)
@@ -547,10 +549,11 @@ export default function AlertsPage() {
               <div className="grid grid-cols-2 gap-2">
                 <button
                   onClick={() => handleAssignToMe(selectedAlert.id)}
-                  disabled={selectedAlert.ownerId === currentUsername}
+                  disabled={selectedAlert.ownerId === currentUsername || !canWrite}
+                  title={!canWrite ? "Your role doesn't have write access to Alerts & Correlation" : undefined}
                   className={clsx(
                     "py-2.5 text-center font-semibold rounded-lg text-small transition-colors focus:outline-none border",
-                    selectedAlert.ownerId === currentUsername
+                    selectedAlert.ownerId === currentUsername || !canWrite
                       ? "bg-surface-3 border-fire-border text-text-muted cursor-not-allowed"
                       : "bg-accent hover:bg-accent-dark text-white border-transparent"
                   )}
@@ -559,13 +562,17 @@ export default function AlertsPage() {
                 </button>
                 <button
                   onClick={() => handleCreateIncident(selectedAlert)}
-                  className="btn-mission"
+                  disabled={!canWrite}
+                  title={!canWrite ? "Your role doesn't have write access to Alerts & Correlation" : undefined}
+                  className="btn-mission disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   Create Incident
                 </button>
                 <button
                   onClick={() => handleRunPlaybook(selectedAlert.id)}
-                  className="btn-mission col-span-2"
+                  disabled={!canWrite}
+                  title={!canWrite ? "Your role doesn't have write access to Alerts & Correlation" : undefined}
+                  className="btn-mission col-span-2 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <Zap className="w-3.5 h-3.5 text-accent" /> Run Playbook
                 </button>
