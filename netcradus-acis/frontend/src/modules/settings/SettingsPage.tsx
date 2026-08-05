@@ -276,6 +276,16 @@ export default function SettingsPage() {
   const [isKeyModalOpen, setIsKeyModalOpen] = useState(false)
   const [isIntegrationModalOpen, setIsIntegrationModalOpen] = useState(false)
 
+  // Cloudflare integration — the one real SOAR blocking action (see PlaybookService)
+  const [cfConfigured, setCfConfigured] = useState(false)
+  const [cfZoneId, setCfZoneId] = useState('')
+  const [cfEnabled, setCfEnabled] = useState(true)
+  const [cfApiToken, setCfApiToken] = useState('')
+  const [cfEditing, setCfEditing] = useState(false)
+  const [cfSaving, setCfSaving] = useState(false)
+  const [cfTesting, setCfTesting] = useState(false)
+  const [cfTestResult, setCfTestResult] = useState<{ ok: boolean; message: string } | null>(null)
+
   // Form states
   const [newKeyName, setNewKeyName] = useState('')
   const [newKeyRole, setNewKeyRole] = useState('API Read/Write')
@@ -931,6 +941,7 @@ export default function SettingsPage() {
     fetchUsersAndGroups()
     fetchRoles()
     fetchDataSources()
+    fetchCloudflareConfig()
   }, [])
 
   // Copy the one-time-revealed raw secret to clipboard
@@ -968,6 +979,73 @@ export default function SettingsPage() {
       fetchData()
     } catch (e) {
       console.error(e)
+    }
+  }
+
+  // Cloudflare integration — fetch current status
+  const fetchCloudflareConfig = async () => {
+    try {
+      const res = await apiClient.get('/api/soar/settings/cloudflare')
+      if (res.data.configured) {
+        setCfConfigured(true)
+        setCfZoneId(res.data.zoneId)
+        setCfEnabled(res.data.enabled)
+      } else {
+        setCfConfigured(false)
+        setCfEditing(true)
+      }
+    } catch (e) {
+      console.error('Failed to fetch Cloudflare config:', e)
+    }
+  }
+
+  const handleSaveCloudflare = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setCfSaving(true)
+    setCfTestResult(null)
+    try {
+      await apiClient.put('/api/soar/settings/cloudflare', {
+        apiToken: cfApiToken,
+        zoneId: cfZoneId,
+        enabled: cfEnabled,
+      })
+      setCfApiToken('')
+      setCfEditing(false)
+      await fetchCloudflareConfig()
+    } catch (e: any) {
+      alert(e?.response?.data?.error?.message || 'Failed to save Cloudflare configuration')
+    } finally {
+      setCfSaving(false)
+    }
+  }
+
+  const handleTestCloudflare = async () => {
+    setCfTesting(true)
+    setCfTestResult(null)
+    try {
+      const res = await apiClient.post('/api/soar/settings/cloudflare/test', {
+        apiToken: cfApiToken || undefined,
+        zoneId: cfZoneId || undefined,
+      })
+      setCfTestResult({ ok: true, message: res.data })
+    } catch (e: any) {
+      setCfTestResult({ ok: false, message: e?.response?.data?.error?.message || 'Connection test failed' })
+    } finally {
+      setCfTesting(false)
+    }
+  }
+
+  const handleDeleteCloudflare = async () => {
+    if (!confirm('Remove the Cloudflare integration? SOAR "block" playbook steps will stop applying real blocks until it is reconfigured.')) return
+    try {
+      await apiClient.delete('/api/soar/settings/cloudflare')
+      setCfConfigured(false)
+      setCfZoneId('')
+      setCfApiToken('')
+      setCfEditing(true)
+      setCfTestResult(null)
+    } catch (e) {
+      console.error('Failed to delete Cloudflare config:', e)
     }
   }
 
@@ -3021,6 +3099,115 @@ export default function SettingsPage() {
                   </div>
                 ))}
               </div>
+            </div>
+
+            {/* Cloudflare — the one real, working SOAR blocking integration */}
+            <div className="card-mission p-5 space-y-4">
+              <div className="flex items-center justify-between border-b border-fire-border pb-3">
+                <div>
+                  <h3 className="text-h3 text-text-primary flex items-center gap-2">
+                    Cloudflare
+                    <span className={clsx(
+                      'badge-mission',
+                      cfConfigured ? 'bg-success/10 text-success border-success/20' : 'bg-surface-3 text-text-muted border-fire-border'
+                    )}>
+                      {cfConfigured ? 'Configured' : 'Not Configured'}
+                    </span>
+                  </h3>
+                  <p className="text-small text-text-muted mt-1">
+                    Powers real IP blocking in SOAR playbooks — a "block" step calls Cloudflare's edge firewall
+                    for any site behind it, regardless of where it's actually hosted (Vercel, AWS, Azure, etc.).
+                  </p>
+                </div>
+              </div>
+
+              {!cfEditing && cfConfigured ? (
+                <div className="space-y-3">
+                  <div className="grid grid-cols-2 gap-4 text-small">
+                    <div>
+                      <span className="text-label text-text-muted uppercase block mb-1">Zone ID</span>
+                      <span className="font-mono text-text-secondary">{cfZoneId}</span>
+                    </div>
+                    <div>
+                      <span className="text-label text-text-muted uppercase block mb-1">Blocking</span>
+                      <span className={cfEnabled ? 'text-success font-semibold' : 'text-text-muted font-semibold'}>
+                        {cfEnabled ? 'Enabled' : 'Disabled'}
+                      </span>
+                    </div>
+                  </div>
+                  {cfTestResult && (
+                    <div className={clsx(
+                      'text-small px-3 py-2 rounded-lg',
+                      cfTestResult.ok ? 'bg-success/10 text-success' : 'bg-danger/10 text-danger'
+                    )}>
+                      {cfTestResult.message}
+                    </div>
+                  )}
+                  <div className="flex items-center gap-2">
+                    <button onClick={handleTestCloudflare} disabled={cfTesting} className="btn-mission py-2 px-4 text-small">
+                      {cfTesting ? 'Testing...' : 'Test Connection'}
+                    </button>
+                    <button onClick={() => { setCfEditing(true); setCfTestResult(null) }} className="btn-mission py-2 px-4 text-small">
+                      Edit
+                    </button>
+                    <button onClick={handleDeleteCloudflare} className="text-danger hover:text-danger/80 text-small font-semibold ml-auto">
+                      Remove
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <form onSubmit={handleSaveCloudflare} className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-1">
+                      <label className="text-label text-text-muted uppercase block">API Token</label>
+                      <input
+                        type="password"
+                        placeholder={cfConfigured ? 'Leave blank to keep current token' : 'Cloudflare API token (Zone:Firewall Services:Edit)'}
+                        value={cfApiToken}
+                        onChange={(e) => setCfApiToken(e.target.value)}
+                        className="input-field"
+                        required={!cfConfigured}
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-label text-text-muted uppercase block">Zone ID</label>
+                      <input
+                        type="text"
+                        placeholder="e.g. 023e105f4ecef8ad9ca31a8372d0c353"
+                        value={cfZoneId}
+                        onChange={(e) => setCfZoneId(e.target.value)}
+                        className="input-field font-mono"
+                        required
+                      />
+                    </div>
+                  </div>
+                  <label className="flex items-center gap-2 text-small text-text-secondary font-medium">
+                    <input type="checkbox" checked={cfEnabled} onChange={(e) => setCfEnabled(e.target.checked)} className="accent-accent" />
+                    Enable real blocking for "block" playbook steps
+                  </label>
+                  {cfTestResult && (
+                    <div className={clsx(
+                      'text-small px-3 py-2 rounded-lg',
+                      cfTestResult.ok ? 'bg-success/10 text-success' : 'bg-danger/10 text-danger'
+                    )}>
+                      {cfTestResult.message}
+                    </div>
+                  )}
+                  <div className="flex items-center gap-2">
+                    <button type="submit" disabled={cfSaving} className="btn-fire py-2 px-4 text-small">
+                      {cfSaving ? 'Saving...' : 'Save'}
+                    </button>
+                    <button type="button" onClick={handleTestCloudflare} disabled={cfTesting || !cfZoneId} className="btn-mission py-2 px-4 text-small">
+                      {cfTesting ? 'Testing...' : 'Test Connection'}
+                    </button>
+                    {cfConfigured && (
+                      <button type="button" onClick={() => { setCfEditing(false); setCfApiToken(''); setCfTestResult(null) }} className="text-text-muted hover:text-text-primary text-small font-medium ml-auto">
+                        Cancel
+                      </button>
+                    )}
+                  </div>
+                </form>
+              )}
             </div>
 
           </div>

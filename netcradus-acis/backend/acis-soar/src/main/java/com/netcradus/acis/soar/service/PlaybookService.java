@@ -1,7 +1,11 @@
 package com.netcradus.acis.soar.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.netcradus.acis.common.crypto.CredentialEncryptor;
 import com.netcradus.acis.common.tenant.TenantContext;
+import com.netcradus.acis.soar.integrations.cloudflare.CloudflareClient;
+import com.netcradus.acis.soar.integrations.cloudflare.CloudflareIntegration;
+import com.netcradus.acis.soar.integrations.cloudflare.CloudflareIntegrationRepository;
 import com.netcradus.acis.soar.model.Playbook;
 import com.netcradus.acis.soar.model.PlaybookExecution;
 import com.netcradus.acis.soar.repository.PlaybookExecutionRepository;
@@ -26,9 +30,14 @@ public class PlaybookService {
     private final PlaybookRepository playbookRepository;
     private final PlaybookExecutionRepository executionRepository;
     private final ObjectMapper objectMapper;
+    private final CloudflareIntegrationRepository cloudflareIntegrationRepository;
+    private final CloudflareClient cloudflareClient;
 
     @Value("${acis.asset-service.url}")
     private String assetServiceUrl;
+
+    @Value("${acis.credential-encryption-key}")
+    private String credentialEncryptionKey;
 
     public List<Playbook> getPlaybooks(UUID tenantId) {
         return playbookRepository.findByTenantId(tenantId);
@@ -161,11 +170,37 @@ public class PlaybookService {
                         failed = true;
                     }
                 } else if (stepName.toLowerCase().contains("disable") || stepName.toLowerCase().contains("reset") || stepName.toLowerCase().contains("revoke")) {
-                    // Identity reset actions
-                    outputMessage = "Okta API request success: User credentials disabled";
+                    // No identity provider (Okta/Entra/etc.) integration exists yet — say so
+                    // honestly instead of claiming an API call that never happened.
+                    status = "Skipped";
+                    outputMessage = "No identity provider integration configured — this step did not change any credentials.";
                 } else if (stepName.toLowerCase().contains("block") || stepName.toLowerCase().contains("policy")) {
-                    // Network blocking actions
-                    outputMessage = "Firewall / Proxy policy rule updated successfully";
+                    // Real Cloudflare edge block if the tenant has one configured
+                    // (Settings > Integrations > Cloudflare); otherwise say so honestly
+                    // rather than claiming a firewall rule that was never applied.
+                    Optional<CloudflareIntegration> cf = cloudflareIntegrationRepository.findByTenantId(tenantId);
+                    if (cf.isEmpty() || !cf.get().isEnabled()) {
+                        status = "Skipped";
+                        outputMessage = "No Cloudflare integration configured — this step did not block anything. Configure one in Settings > Integrations to enable real blocking.";
+                    } else {
+                        String targetIp = params.get("targetIp");
+                        if (targetIp == null || targetIp.isBlank()) {
+                            status = "Failed";
+                            outputMessage = "No target IP provided for block action";
+                            failed = true;
+                        } else {
+                            try {
+                                String rawToken = CredentialEncryptor.decrypt(cf.get().getApiTokenEncrypted(), credentialEncryptionKey);
+                                cloudflareClient.blockIp(rawToken, cf.get().getZoneId(), targetIp,
+                                    "Blocked by ACIS playbook \"" + playbook.getName() + "\" (execution " + executionId + ")");
+                                outputMessage = "Cloudflare: blocked " + targetIp + " at the edge (zone " + cf.get().getZoneId() + ")";
+                            } catch (CloudflareClient.CloudflareApiException ex) {
+                                status = "Failed";
+                                outputMessage = "Cloudflare block failed: " + ex.getMessage();
+                                failed = true;
+                            }
+                        }
+                    }
                 }
 
                 java.util.Map<String, Object> stepLog = new java.util.HashMap<>();

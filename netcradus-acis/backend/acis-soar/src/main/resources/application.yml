@@ -42,6 +42,14 @@ spring:
 acis:
   asset-service:
     url: ${ASSET_SERVICE_URL:http://localhost:8086}
+  # AES-256 key (base64, 32 raw bytes) for encrypting third-party credentials
+  # at rest (e.g. a tenant's Cloudflare API token — see CredentialEncryptor).
+  # The dev default below is fine for local dev only; production MUST set
+  # CREDENTIAL_ENCRYPTION_KEY in .env to a real random key (e.g.
+  # `openssl rand -base64 32`) — losing/rotating it makes every credential
+  # stored under the old key permanently undecryptable, so this is
+  # deliberately not auto-generated at startup.
+  credential-encryption-key: ${CREDENTIAL_ENCRYPTION_KEY:VWSEY4S3eOYE3D49h4f4iM+Sh8vLeD8M8QWPJwcHToA=}
 
 logging:
   level:

@@ -51,6 +51,7 @@ public class RlsConfig {
                 "data_sources",
                 "audit_entries",
                 "integrations",
+                "cloudflare_integrations",
                 "organizations",
                 "license_details",
                 "invoices",
