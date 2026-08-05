@@ -219,27 +219,6 @@ export default function SettingsPage() {
   const [newRoleName, setNewRoleName] = useState('')
   const [activeDropdownRow, setActiveDropdownRow] = useState<string | null>(null)
 
-  // Data Sources states
-  interface DataSource {
-    id: string
-    name: string
-    provider: string
-    description: string
-    status: string
-    lastSync: string | null
-  }
-  const [dataSources, setDataSources] = useState<DataSource[]>([])
-  const [sourcesLoading, setSourcesLoading] = useState(false)
-  const [addSourceModalOpen, setAddSourceModalOpen] = useState(false)
-  const [connectModalOpen, setConnectModalOpen] = useState(false)
-  const [activeSourceToConnect, setActiveSourceToConnect] = useState<DataSource | null>(null)
-  const [newSourceName, setNewSourceName] = useState('')
-  const [newSourceProvider, setNewSourceProvider] = useState('AWS')
-  const [newSourceDesc, setNewSourceDesc] = useState('')
-  const [connectCred1, setConnectCred1] = useState('')
-  const [connectCred2, setConnectCred2] = useState('')
-  const [syncingSourceId, setSyncingSourceId] = useState<string | null>(null)
-
   // Organization states
   const [orgName, setOrgName] = useState('')
   const [orgIdString, setOrgIdString] = useState('')
@@ -326,6 +305,58 @@ export default function SettingsPage() {
   const [s1LastPolledAt, setS1LastPolledAt] = useState<string | null>(null)
   const [s1LastPollStatus, setS1LastPollStatus] = useState<string | null>(null)
   const [s1LastPollError, setS1LastPollError] = useState<string | null>(null)
+
+  // AWS GuardDuty — real SigV4-signed polling (see IntegrationPollerService)
+  const [gdConfigured, setGdConfigured] = useState(false)
+  const [gdRegion, setGdRegion] = useState('')
+  const [gdEnabled, setGdEnabled] = useState(true)
+  const [gdAccessKeyId, setGdAccessKeyId] = useState('')
+  const [gdSecretAccessKey, setGdSecretAccessKey] = useState('')
+  const [gdEditing, setGdEditing] = useState(false)
+  const [gdSaving, setGdSaving] = useState(false)
+  const [gdTesting, setGdTesting] = useState(false)
+  const [gdTestResult, setGdTestResult] = useState<{ ok: boolean; message: string } | null>(null)
+  const [gdLastPolledAt, setGdLastPolledAt] = useState<string | null>(null)
+  const [gdLastPollStatus, setGdLastPollStatus] = useState<string | null>(null)
+  const [gdLastPollError, setGdLastPollError] = useState<string | null>(null)
+
+  // Azure Sentinel — real OAuth2 + Incidents API polling
+  const [asConfigured, setAsConfigured] = useState(false)
+  const [asAzureTenantId, setAsAzureTenantId] = useState('')
+  const [asClientId, setAsClientId] = useState('')
+  const [asClientSecret, setAsClientSecret] = useState('')
+  const [asSubscriptionId, setAsSubscriptionId] = useState('')
+  const [asResourceGroup, setAsResourceGroup] = useState('')
+  const [asWorkspaceName, setAsWorkspaceName] = useState('')
+  const [asEnabled, setAsEnabled] = useState(true)
+  const [asEditing, setAsEditing] = useState(false)
+  const [asSaving, setAsSaving] = useState(false)
+  const [asTesting, setAsTesting] = useState(false)
+  const [asTestResult, setAsTestResult] = useState<{ ok: boolean; message: string } | null>(null)
+  const [asLastPolledAt, setAsLastPolledAt] = useState<string | null>(null)
+  const [asLastPollStatus, setAsLastPollStatus] = useState<string | null>(null)
+  const [asLastPollError, setAsLastPollError] = useState<string | null>(null)
+
+  // Azure AD Sign-in Logs — real Microsoft Graph polling
+  const [adConfigured, setAdConfigured] = useState(false)
+  const [adAzureTenantId, setAdAzureTenantId] = useState('')
+  const [adClientId, setAdClientId] = useState('')
+  const [adClientSecret, setAdClientSecret] = useState('')
+  const [adEnabled, setAdEnabled] = useState(true)
+  const [adEditing, setAdEditing] = useState(false)
+  const [adSaving, setAdSaving] = useState(false)
+  const [adTesting, setAdTesting] = useState(false)
+  const [adTestResult, setAdTestResult] = useState<{ ok: boolean; message: string } | null>(null)
+  const [adLastPolledAt, setAdLastPolledAt] = useState<string | null>(null)
+  const [adLastPollStatus, setAdLastPollStatus] = useState<string | null>(null)
+  const [adLastPollError, setAdLastPollError] = useState<string | null>(null)
+
+  // Syslog/CEF — real UDP+TCP listener with an allocated port (see SyslogListenerService)
+  const [syConfigured, setSyConfigured] = useState(false)
+  const [syPort, setSyPort] = useState<number | null>(null)
+  const [syEnabled, setSyEnabled] = useState(true)
+  const [syLastReceivedAt, setSyLastReceivedAt] = useState<string | null>(null)
+  const [syCreating, setSyCreating] = useState(false)
 
   // Form states
   const [newKeyName, setNewKeyName] = useState('')
@@ -714,84 +745,271 @@ export default function SettingsPage() {
     )
   }
 
-  const fetchDataSources = async () => {
+  // AWS GuardDuty — fetch current status
+  const fetchGuardDutyConfig = async () => {
     try {
-      setSourcesLoading(true)
-      const res = await apiClient.get('/api/soar/settings/datasources')
-      if (res.data) {
-        setDataSources(res.data)
+      const res = await apiClient.get('/api/soar/settings/guardduty')
+      if (res.data.configured) {
+        setGdConfigured(true)
+        setGdRegion(res.data.region)
+        setGdEnabled(res.data.enabled)
+        setGdLastPolledAt(res.data.lastPolledAt)
+        setGdLastPollStatus(res.data.lastPollStatus)
+        setGdLastPollError(res.data.lastPollError)
+      } else {
+        setGdConfigured(false)
+        setGdEditing(true)
       }
     } catch (e) {
-      console.error("Failed to load data sources:", e)
-    } finally {
-      setSourcesLoading(false)
+      console.error('Failed to fetch AWS GuardDuty config:', e)
     }
   }
 
-  const handleConnectSource = async (e: React.FormEvent) => {
+  const handleSaveGuardDuty = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!activeSourceToConnect) return
+    setGdSaving(true)
+    setGdTestResult(null)
     try {
-      const res = await apiClient.put(`/api/soar/settings/datasources/${activeSourceToConnect.id}/connect`)
-      if (res.data) {
-        setConnectModalOpen(false)
-        setActiveSourceToConnect(null)
-        setConnectCred1('')
-        setConnectCred2('')
-        await fetchDataSources()
-      }
-    } catch (e) {
-      console.error("Failed to connect data source:", e)
-      alert("Failed to connect data source.")
-    }
-  }
-
-  const handleDisconnectSource = async (sourceId: string) => {
-    if (!confirm("Are you sure you want to disconnect this data source? Ingestion will stop immediately.")) return
-    try {
-      const res = await apiClient.put(`/api/soar/settings/datasources/${sourceId}/disconnect`)
-      if (res.data) {
-        await fetchDataSources()
-      }
-    } catch (e) {
-      console.error("Failed to disconnect data source:", e)
-    }
-  }
-
-  const handleSyncSource = async (sourceId: string) => {
-    try {
-      setSyncingSourceId(sourceId)
-      const res = await apiClient.post(`/api/soar/settings/datasources/${sourceId}/sync`)
-      if (res.data) {
-        await new Promise(resolve => setTimeout(resolve, 1500))
-        await fetchDataSources()
-      }
-    } catch (e) {
-      console.error("Failed to sync data source:", e)
-    } finally {
-      setSyncingSourceId(null)
-    }
-  }
-
-  const handleAddDataSource = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!newSourceName.trim()) return
-    try {
-      const res = await apiClient.post('/api/soar/settings/datasources', {
-        name: newSourceName,
-        provider: newSourceProvider,
-        description: newSourceDesc
+      await apiClient.put('/api/soar/settings/guardduty', {
+        accessKeyId: gdAccessKeyId,
+        secretAccessKey: gdSecretAccessKey,
+        region: gdRegion,
+        enabled: gdEnabled,
       })
-      if (res.data) {
-        setNewSourceName('')
-        setNewSourceDesc('')
-        setNewSourceProvider('AWS')
-        setAddSourceModalOpen(false)
-        await fetchDataSources()
+      setGdSecretAccessKey('')
+      setGdEditing(false)
+      await fetchGuardDutyConfig()
+    } catch (e: any) {
+      alert(e?.response?.data?.error?.message || 'Failed to save AWS GuardDuty configuration')
+    } finally {
+      setGdSaving(false)
+    }
+  }
+
+  const handleTestGuardDuty = async () => {
+    setGdTesting(true)
+    setGdTestResult(null)
+    try {
+      const res = await apiClient.post('/api/soar/settings/guardduty/test', {
+        accessKeyId: gdAccessKeyId || undefined,
+        secretAccessKey: gdSecretAccessKey || undefined,
+        region: gdRegion || undefined,
+      })
+      setGdTestResult({ ok: true, message: res.data })
+    } catch (e: any) {
+      setGdTestResult({ ok: false, message: e?.response?.data?.error?.message || 'Connection test failed' })
+    } finally {
+      setGdTesting(false)
+    }
+  }
+
+  const handleDeleteGuardDuty = async () => {
+    if (!confirm('Remove the AWS GuardDuty integration? ACIS will stop polling for findings.')) return
+    try {
+      await apiClient.delete('/api/soar/settings/guardduty')
+      setGdConfigured(false)
+      setGdRegion('')
+      setGdAccessKeyId('')
+      setGdSecretAccessKey('')
+      setGdEditing(true)
+      setGdTestResult(null)
+    } catch (e) {
+      console.error('Failed to delete AWS GuardDuty config:', e)
+    }
+  }
+
+  // Azure Sentinel — fetch current status
+  const fetchAzureSentinelConfig = async () => {
+    try {
+      const res = await apiClient.get('/api/soar/settings/azuresentinel')
+      if (res.data.configured) {
+        setAsConfigured(true)
+        setAsAzureTenantId(res.data.azureTenantId)
+        setAsClientId(res.data.clientId)
+        setAsSubscriptionId(res.data.subscriptionId)
+        setAsResourceGroup(res.data.resourceGroup)
+        setAsWorkspaceName(res.data.workspaceName)
+        setAsEnabled(res.data.enabled)
+        setAsLastPolledAt(res.data.lastPolledAt)
+        setAsLastPollStatus(res.data.lastPollStatus)
+        setAsLastPollError(res.data.lastPollError)
+      } else {
+        setAsConfigured(false)
+        setAsEditing(true)
       }
     } catch (e) {
-      console.error("Failed to add data source:", e)
-      alert("Failed to add data source.")
+      console.error('Failed to fetch Azure Sentinel config:', e)
+    }
+  }
+
+  const handleSaveAzureSentinel = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setAsSaving(true)
+    setAsTestResult(null)
+    try {
+      await apiClient.put('/api/soar/settings/azuresentinel', {
+        azureTenantId: asAzureTenantId,
+        clientId: asClientId,
+        clientSecret: asClientSecret,
+        subscriptionId: asSubscriptionId,
+        resourceGroup: asResourceGroup,
+        workspaceName: asWorkspaceName,
+        enabled: asEnabled,
+      })
+      setAsClientSecret('')
+      setAsEditing(false)
+      await fetchAzureSentinelConfig()
+    } catch (e: any) {
+      alert(e?.response?.data?.error?.message || 'Failed to save Azure Sentinel configuration')
+    } finally {
+      setAsSaving(false)
+    }
+  }
+
+  const handleTestAzureSentinel = async () => {
+    setAsTesting(true)
+    setAsTestResult(null)
+    try {
+      const res = await apiClient.post('/api/soar/settings/azuresentinel/test', {
+        azureTenantId: asAzureTenantId || undefined,
+        clientId: asClientId || undefined,
+        clientSecret: asClientSecret || undefined,
+        subscriptionId: asSubscriptionId || undefined,
+        resourceGroup: asResourceGroup || undefined,
+        workspaceName: asWorkspaceName || undefined,
+      })
+      setAsTestResult({ ok: true, message: res.data })
+    } catch (e: any) {
+      setAsTestResult({ ok: false, message: e?.response?.data?.error?.message || 'Connection test failed' })
+    } finally {
+      setAsTesting(false)
+    }
+  }
+
+  const handleDeleteAzureSentinel = async () => {
+    if (!confirm('Remove the Azure Sentinel integration? ACIS will stop polling for incidents.')) return
+    try {
+      await apiClient.delete('/api/soar/settings/azuresentinel')
+      setAsConfigured(false)
+      setAsClientSecret('')
+      setAsEditing(true)
+      setAsTestResult(null)
+    } catch (e) {
+      console.error('Failed to delete Azure Sentinel config:', e)
+    }
+  }
+
+  // Azure AD Sign-in Logs — fetch current status
+  const fetchAzureAdConfig = async () => {
+    try {
+      const res = await apiClient.get('/api/soar/settings/azuread')
+      if (res.data.configured) {
+        setAdConfigured(true)
+        setAdAzureTenantId(res.data.azureTenantId)
+        setAdClientId(res.data.clientId)
+        setAdEnabled(res.data.enabled)
+        setAdLastPolledAt(res.data.lastPolledAt)
+        setAdLastPollStatus(res.data.lastPollStatus)
+        setAdLastPollError(res.data.lastPollError)
+      } else {
+        setAdConfigured(false)
+        setAdEditing(true)
+      }
+    } catch (e) {
+      console.error('Failed to fetch Azure AD config:', e)
+    }
+  }
+
+  const handleSaveAzureAd = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setAdSaving(true)
+    setAdTestResult(null)
+    try {
+      await apiClient.put('/api/soar/settings/azuread', {
+        azureTenantId: adAzureTenantId,
+        clientId: adClientId,
+        clientSecret: adClientSecret,
+        enabled: adEnabled,
+      })
+      setAdClientSecret('')
+      setAdEditing(false)
+      await fetchAzureAdConfig()
+    } catch (e: any) {
+      alert(e?.response?.data?.error?.message || 'Failed to save Azure AD configuration')
+    } finally {
+      setAdSaving(false)
+    }
+  }
+
+  const handleTestAzureAd = async () => {
+    setAdTesting(true)
+    setAdTestResult(null)
+    try {
+      const res = await apiClient.post('/api/soar/settings/azuread/test', {
+        azureTenantId: adAzureTenantId || undefined,
+        clientId: adClientId || undefined,
+        clientSecret: adClientSecret || undefined,
+      })
+      setAdTestResult({ ok: true, message: res.data })
+    } catch (e: any) {
+      setAdTestResult({ ok: false, message: e?.response?.data?.error?.message || 'Connection test failed' })
+    } finally {
+      setAdTesting(false)
+    }
+  }
+
+  const handleDeleteAzureAd = async () => {
+    if (!confirm('Remove the Azure AD integration? ACIS will stop polling for sign-in logs.')) return
+    try {
+      await apiClient.delete('/api/soar/settings/azuread')
+      setAdConfigured(false)
+      setAdClientSecret('')
+      setAdEditing(true)
+      setAdTestResult(null)
+    } catch (e) {
+      console.error('Failed to delete Azure AD config:', e)
+    }
+  }
+
+  // Syslog/CEF — fetch current status
+  const fetchSyslogConfig = async () => {
+    try {
+      const res = await apiClient.get('/api/soar/settings/syslog')
+      if (res.data.configured) {
+        setSyConfigured(true)
+        setSyPort(res.data.port)
+        setSyEnabled(res.data.enabled)
+        setSyLastReceivedAt(res.data.lastReceivedAt)
+      } else {
+        setSyConfigured(false)
+      }
+    } catch (e) {
+      console.error('Failed to fetch syslog config:', e)
+    }
+  }
+
+  const handleCreateSyslogSource = async () => {
+    setSyCreating(true)
+    try {
+      const res = await apiClient.post('/api/soar/settings/syslog')
+      setSyConfigured(true)
+      setSyPort(res.data.port)
+      setSyEnabled(true)
+    } catch (e: any) {
+      alert(e?.response?.data?.error?.message || 'Failed to allocate a syslog port')
+    } finally {
+      setSyCreating(false)
+    }
+  }
+
+  const handleDeleteSyslogSource = async () => {
+    if (!confirm('Remove the syslog source? The assigned port will stop accepting traffic and be released.')) return
+    try {
+      await apiClient.delete('/api/soar/settings/syslog')
+      setSyConfigured(false)
+      setSyPort(null)
+    } catch (e) {
+      console.error('Failed to delete syslog source:', e)
     }
   }
 
@@ -801,11 +1019,14 @@ export default function SettingsPage() {
     fetchLicense()
     fetchUsersAndGroups()
     fetchRoles()
-    fetchDataSources()
     fetchCloudflareConfig()
     fetchPaloAltoConfig()
     fetchWazuhConfig()
     fetchSentinelOneConfig()
+    fetchGuardDutyConfig()
+    fetchAzureSentinelConfig()
+    fetchAzureAdConfig()
+    fetchSyslogConfig()
   }, [])
 
   // Copy the one-time-revealed raw secret to clipboard
@@ -2332,237 +2553,356 @@ export default function SettingsPage() {
         {/* Tab 0.8: Data Sources Panel */}
         {activeTab === 'Data Sources' && (
           <div className="space-y-6 animate-fade-in">
-            {sourcesLoading ? (
-              <div className="py-12 text-center text-small text-text-muted animate-pulse">
-                Loading data sources...
-              </div>
-            ) : (
-              <div className="card-mission space-y-6">
 
-                {/* Header row */}
-                <div className="flex items-center justify-between border-b border-fire-border pb-4">
-                  <div>
-                    <h3 className="text-h3 text-text-primary">Cloud & log sources</h3>
-                    <p className="text-small text-text-muted mt-1">
-                      {dataSources.length} available &middot; {dataSources.filter(s => s.status === 'Connected').length} connected
-                    </p>
+            {/* AWS GuardDuty — real SigV4-signed polling */}
+            <div className="card-mission p-5 space-y-4">
+              <div className="flex items-center justify-between border-b border-fire-border pb-3">
+                <div>
+                  <h3 className="text-h3 text-text-primary flex items-center gap-2">
+                    AWS GuardDuty
+                    <span className={clsx('badge-mission', gdConfigured ? 'bg-success/10 text-success border-success/20' : 'bg-surface-3 text-text-muted border-fire-border')}>
+                      {gdConfigured ? 'Configured' : 'Not Configured'}
+                    </span>
+                  </h3>
+                  <p className="text-small text-text-muted mt-1">Polls GuardDuty findings for your account every couple of minutes.</p>
+                </div>
+              </div>
+
+              {!gdEditing && gdConfigured ? (
+                <div className="space-y-3">
+                  <div className="grid grid-cols-2 gap-4 text-small">
+                    <div>
+                      <span className="text-label text-text-muted uppercase block mb-1">Region</span>
+                      <span className="font-mono text-text-secondary">{gdRegion}</span>
+                    </div>
+                    <div>
+                      <span className="text-label text-text-muted uppercase block mb-1">Last Poll</span>
+                      <span className={clsx('font-semibold', gdLastPollStatus === 'Failed' ? 'text-danger' : gdLastPollStatus === 'Success' ? 'text-success' : 'text-text-muted')}>
+                        {gdLastPolledAt ? `${gdLastPollStatus || 'Pending'} — ${new Date(gdLastPolledAt).toLocaleString()}` : 'Not polled yet'}
+                      </span>
+                    </div>
                   </div>
-                  <button
-                    onClick={() => setAddSourceModalOpen(true)}
-                    className="btn-fire py-2 px-4 text-small"
-                  >
-                    Add data source
-                  </button>
+                  {gdLastPollError && (
+                    <div className="text-small px-3 py-2 rounded-lg bg-danger/10 text-danger">{gdLastPollError}</div>
+                  )}
+                  {gdTestResult && (
+                    <div className={clsx('text-small px-3 py-2 rounded-lg', gdTestResult.ok ? 'bg-success/10 text-success' : 'bg-danger/10 text-danger')}>
+                      {gdTestResult.message}
+                    </div>
+                  )}
+                  <div className="flex items-center gap-2">
+                    <button onClick={handleTestGuardDuty} disabled={gdTesting} className="btn-mission py-2 px-4 text-small">
+                      {gdTesting ? 'Testing...' : 'Test Connection'}
+                    </button>
+                    <button onClick={() => { setGdEditing(true); setGdTestResult(null) }} className="btn-mission py-2 px-4 text-small">Edit</button>
+                    <button onClick={handleDeleteGuardDuty} className="text-danger hover:text-danger/80 text-small font-semibold ml-auto">Remove</button>
+                  </div>
                 </div>
-
-                {/* Cards Grid */}
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {dataSources.map((source) => {
-                    const isConnected = source.status === 'Connected';
-                    return (
-                      <div
-                        key={source.id}
-                        className="bg-surface-2 border border-fire-border rounded-xl p-5 hover:border-accent/30 transition-all flex flex-col justify-between h-[210px]"
-                      >
-                        {/* Upper row: provider tag and status badge */}
-                        <div className="flex items-center justify-between">
-                          <div className={clsx(
-                            "px-2.5 py-1 rounded text-label uppercase select-none",
-                            source.provider === 'AWS' ? "bg-severity-medium/10 text-severity-medium" :
-                            source.provider === 'AZ' ? "bg-info/10 text-info" :
-                            source.provider === 'SP' ? "bg-surface-3 text-text-muted border border-fire-border" :
-                            "bg-surface-3 text-text-secondary"
-                          )}>
-                            {source.provider}
-                          </div>
-                          <div className="flex items-center gap-1.5 text-label">
-                            <span className={clsx(
-                              "w-1.5 h-1.5 rounded-full inline-block",
-                              isConnected ? "bg-success" : "bg-text-muted"
-                            )} />
-                            <span className={isConnected ? "text-success" : "text-text-muted"}>
-                              {isConnected ? 'Connected' : 'Not connected'}
-                            </span>
-                          </div>
-                        </div>
-
-                        {/* Title & description */}
-                        <div className="space-y-1.5 my-3">
-                          <h4 className="text-small font-bold text-text-primary">{source.name}</h4>
-                          <p className="text-small text-text-muted leading-relaxed line-clamp-2">
-                            {source.description}
-                          </p>
-                          {isConnected && (
-                            <p className="text-label text-text-muted">
-                              Last sync: {source.lastSync || 'Never'}
-                            </p>
-                          )}
-                        </div>
-
-                        {/* Footer actions */}
-                        <div className="border-t border-fire-border/60 pt-3">
-                          {isConnected ? (
-                            <div className="flex items-center justify-between gap-3">
-                              <button
-                                onClick={() => handleDisconnectSource(source.id)}
-                                className="border border-fire-border hover:bg-danger/10 hover:border-danger/20 text-text-secondary hover:text-danger px-3.5 py-1.5 rounded-lg text-small transition-colors focus:outline-none"
-                              >
-                                Disconnect
-                              </button>
-                              <button
-                                onClick={() => handleSyncSource(source.id)}
-                                disabled={syncingSourceId === source.id}
-                                className="btn-mission px-3.5 py-1.5 text-small min-w-[75px] justify-center"
-                              >
-                                {syncingSourceId === source.id ? (
-                                  <span className="w-2.5 h-2.5 border-2 border-fire-border border-t-accent rounded-full animate-spin" />
-                                ) : (
-                                  'Sync now'
-                                )}
-                              </button>
-                            </div>
-                          ) : (
-                            <button
-                              onClick={() => {
-                                setActiveSourceToConnect(source);
-                                setConnectModalOpen(true);
-                              }}
-                              className="btn-fire w-full py-2 text-small"
-                            >
-                              Connect
-                            </button>
-                          )}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Add Data Source Modal */}
-        {addSourceModalOpen && (
-          <div className="fixed inset-0 bg-background/85 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-            <div className="bg-surface border border-fire-border rounded-xl w-full max-w-sm overflow-hidden shadow-card animate-scale-in">
-              <div className="flex items-center justify-between p-5 border-b border-fire-border">
-                <h3 className="text-h3 text-text-primary">Add data source</h3>
-                <button onClick={() => setAddSourceModalOpen(false)} className="text-text-muted hover:text-text-primary transition-colors">
-                  <X className="w-4 h-4" />
-                </button>
-              </div>
-              <form onSubmit={handleAddDataSource} className="p-5 space-y-4">
-                <div className="space-y-1.5">
-                  <label className="text-label text-text-muted uppercase block">Source Name</label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="e.g. AWS VPC Flow Logs"
-                    value={newSourceName}
-                    onChange={(e) => setNewSourceName(e.target.value)}
-                    className="input-field"
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <label className="text-label text-text-muted uppercase block">Provider Prefix</label>
-                  <select
-                    value={newSourceProvider}
-                    onChange={(e) => setNewSourceProvider(e.target.value)}
-                    className="input-field"
-                  >
-                    <option value="AWS">AWS</option>
-                    <option value="AZ">AZ (Azure)</option>
-                    <option value="SP">SP (Splunk)</option>
-                    <option value="SYS">SYS (System/Network)</option>
-                  </select>
-                </div>
-                <div className="space-y-1.5">
-                  <label className="text-label text-text-muted uppercase block">Description</label>
-                  <textarea
-                    required
-                    placeholder="Describe log source ingestion..."
-                    value={newSourceDesc}
-                    onChange={(e) => setNewSourceDesc(e.target.value)}
-                    rows={3}
-                    className="input-field resize-none"
-                  />
-                </div>
-                <div className="flex justify-end gap-2 pt-2">
-                  <button
-                    type="button"
-                    onClick={() => setAddSourceModalOpen(false)}
-                    className="btn-mission py-2 px-4 text-small"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    className="btn-fire py-2 px-4 text-small"
-                  >
-                    Add Source
-                  </button>
-                </div>
-              </form>
-            </div>
-          </div>
-        )}
-
-        {/* Connect Credentials Modal */}
-        {connectModalOpen && activeSourceToConnect && (
-          <div className="fixed inset-0 bg-background/85 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-            <div className="bg-surface border border-fire-border rounded-xl w-full max-w-sm overflow-hidden shadow-card animate-scale-in">
-              <div className="flex items-center justify-between p-5 border-b border-fire-border">
-                <h3 className="text-h3 text-text-primary">Configure {activeSourceToConnect.name}</h3>
-                <button onClick={() => setConnectModalOpen(false)} className="text-text-muted hover:text-text-primary transition-colors">
-                  <X className="w-4 h-4" />
-                </button>
-              </div>
-              <form onSubmit={handleConnectSource} className="p-5 space-y-4">
-                <p className="text-small text-text-muted">Enter connection details to link telemetry ingestion.</p>
-                <div className="space-y-1.5">
-                  <label className="text-label text-text-muted uppercase block">
-                    {activeSourceToConnect.provider === 'AWS' ? 'AWS Account ID / Role ARN' :
-                     activeSourceToConnect.provider === 'AZ' ? 'Azure Client ID / Tenant ID' :
-                     activeSourceToConnect.provider === 'SP' ? 'Splunk API HEC Token' : 'Ingestion Port / Endpoint'}
+              ) : (
+                <form onSubmit={handleSaveGuardDuty} className="space-y-4">
+                  <div className="grid grid-cols-3 gap-4">
+                    <div className="space-y-1">
+                      <label className="text-label text-text-muted uppercase block">Access Key ID</label>
+                      <input type="text" value={gdAccessKeyId} onChange={(e) => setGdAccessKeyId(e.target.value)} className="input-field font-mono" required />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-label text-text-muted uppercase block">Secret Access Key</label>
+                      <input
+                        type="password"
+                        placeholder={gdConfigured ? 'Leave blank to keep current key' : ''}
+                        value={gdSecretAccessKey}
+                        onChange={(e) => setGdSecretAccessKey(e.target.value)}
+                        className="input-field"
+                        required={!gdConfigured}
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-label text-text-muted uppercase block">Region</label>
+                      <input type="text" placeholder="us-east-1" value={gdRegion} onChange={(e) => setGdRegion(e.target.value)} className="input-field font-mono" required />
+                    </div>
+                  </div>
+                  <label className="flex items-center gap-2 text-small text-text-secondary font-medium">
+                    <input type="checkbox" checked={gdEnabled} onChange={(e) => setGdEnabled(e.target.checked)} className="accent-accent" />
+                    Enable scheduled polling
                   </label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="Enter configuration credential"
-                    value={connectCred1}
-                    onChange={(e) => setConnectCred1(e.target.value)}
-                    className="input-field"
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <label className="text-label text-text-muted uppercase block">API Region / Secret Key</label>
-                  <input
-                    type="password"
-                    required
-                    placeholder="••••••••••••••••"
-                    value={connectCred2}
-                    onChange={(e) => setConnectCred2(e.target.value)}
-                    className="input-field"
-                  />
-                </div>
-                <div className="flex justify-end gap-2 pt-2">
-                  <button
-                    type="button"
-                    onClick={() => setConnectModalOpen(false)}
-                    className="btn-mission py-2 px-4 text-small"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    className="btn-fire py-2 px-4 text-small"
-                  >
-                    Confirm Connect
-                  </button>
-                </div>
-              </form>
+                  {gdTestResult && (
+                    <div className={clsx('text-small px-3 py-2 rounded-lg', gdTestResult.ok ? 'bg-success/10 text-success' : 'bg-danger/10 text-danger')}>
+                      {gdTestResult.message}
+                    </div>
+                  )}
+                  <div className="flex items-center gap-2">
+                    <button type="submit" disabled={gdSaving} className="btn-fire py-2 px-4 text-small">{gdSaving ? 'Saving...' : 'Save'}</button>
+                    <button type="button" onClick={handleTestGuardDuty} disabled={gdTesting || !gdRegion} className="btn-mission py-2 px-4 text-small">
+                      {gdTesting ? 'Testing...' : 'Test Connection'}
+                    </button>
+                    {gdConfigured && (
+                      <button type="button" onClick={() => { setGdEditing(false); setGdSecretAccessKey(''); setGdTestResult(null) }} className="text-text-muted hover:text-text-primary text-small font-medium ml-auto">Cancel</button>
+                    )}
+                  </div>
+                </form>
+              )}
             </div>
+
+            {/* Azure Sentinel — real OAuth2 + Incidents API polling */}
+            <div className="card-mission p-5 space-y-4">
+              <div className="flex items-center justify-between border-b border-fire-border pb-3">
+                <div>
+                  <h3 className="text-h3 text-text-primary flex items-center gap-2">
+                    Azure Sentinel
+                    <span className={clsx('badge-mission', asConfigured ? 'bg-success/10 text-success border-success/20' : 'bg-surface-3 text-text-muted border-fire-border')}>
+                      {asConfigured ? 'Configured' : 'Not Configured'}
+                    </span>
+                  </h3>
+                  <p className="text-small text-text-muted mt-1">Polls Sentinel incidents for your Log Analytics workspace.</p>
+                </div>
+              </div>
+
+              {!asEditing && asConfigured ? (
+                <div className="space-y-3">
+                  <div className="grid grid-cols-2 gap-4 text-small">
+                    <div>
+                      <span className="text-label text-text-muted uppercase block mb-1">Workspace</span>
+                      <span className="font-mono text-text-secondary">{asWorkspaceName}</span>
+                    </div>
+                    <div>
+                      <span className="text-label text-text-muted uppercase block mb-1">Last Poll</span>
+                      <span className={clsx('font-semibold', asLastPollStatus === 'Failed' ? 'text-danger' : asLastPollStatus === 'Success' ? 'text-success' : 'text-text-muted')}>
+                        {asLastPolledAt ? `${asLastPollStatus || 'Pending'} — ${new Date(asLastPolledAt).toLocaleString()}` : 'Not polled yet'}
+                      </span>
+                    </div>
+                  </div>
+                  {asLastPollError && (
+                    <div className="text-small px-3 py-2 rounded-lg bg-danger/10 text-danger">{asLastPollError}</div>
+                  )}
+                  {asTestResult && (
+                    <div className={clsx('text-small px-3 py-2 rounded-lg', asTestResult.ok ? 'bg-success/10 text-success' : 'bg-danger/10 text-danger')}>
+                      {asTestResult.message}
+                    </div>
+                  )}
+                  <div className="flex items-center gap-2">
+                    <button onClick={handleTestAzureSentinel} disabled={asTesting} className="btn-mission py-2 px-4 text-small">
+                      {asTesting ? 'Testing...' : 'Test Connection'}
+                    </button>
+                    <button onClick={() => { setAsEditing(true); setAsTestResult(null) }} className="btn-mission py-2 px-4 text-small">Edit</button>
+                    <button onClick={handleDeleteAzureSentinel} className="text-danger hover:text-danger/80 text-small font-semibold ml-auto">Remove</button>
+                  </div>
+                </div>
+              ) : (
+                <form onSubmit={handleSaveAzureSentinel} className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-1">
+                      <label className="text-label text-text-muted uppercase block">Azure Tenant ID</label>
+                      <input type="text" value={asAzureTenantId} onChange={(e) => setAsAzureTenantId(e.target.value)} className="input-field font-mono" required />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-label text-text-muted uppercase block">Client ID</label>
+                      <input type="text" value={asClientId} onChange={(e) => setAsClientId(e.target.value)} className="input-field font-mono" required />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-label text-text-muted uppercase block">Client Secret</label>
+                      <input
+                        type="password"
+                        placeholder={asConfigured ? 'Leave blank to keep current secret' : ''}
+                        value={asClientSecret}
+                        onChange={(e) => setAsClientSecret(e.target.value)}
+                        className="input-field"
+                        required={!asConfigured}
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-label text-text-muted uppercase block">Subscription ID</label>
+                      <input type="text" value={asSubscriptionId} onChange={(e) => setAsSubscriptionId(e.target.value)} className="input-field font-mono" required />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-label text-text-muted uppercase block">Resource Group</label>
+                      <input type="text" value={asResourceGroup} onChange={(e) => setAsResourceGroup(e.target.value)} className="input-field" required />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-label text-text-muted uppercase block">Workspace Name</label>
+                      <input type="text" value={asWorkspaceName} onChange={(e) => setAsWorkspaceName(e.target.value)} className="input-field" required />
+                    </div>
+                  </div>
+                  <label className="flex items-center gap-2 text-small text-text-secondary font-medium">
+                    <input type="checkbox" checked={asEnabled} onChange={(e) => setAsEnabled(e.target.checked)} className="accent-accent" />
+                    Enable scheduled polling
+                  </label>
+                  {asTestResult && (
+                    <div className={clsx('text-small px-3 py-2 rounded-lg', asTestResult.ok ? 'bg-success/10 text-success' : 'bg-danger/10 text-danger')}>
+                      {asTestResult.message}
+                    </div>
+                  )}
+                  <div className="flex items-center gap-2">
+                    <button type="submit" disabled={asSaving} className="btn-fire py-2 px-4 text-small">{asSaving ? 'Saving...' : 'Save'}</button>
+                    <button type="button" onClick={handleTestAzureSentinel} disabled={asTesting || !asWorkspaceName} className="btn-mission py-2 px-4 text-small">
+                      {asTesting ? 'Testing...' : 'Test Connection'}
+                    </button>
+                    {asConfigured && (
+                      <button type="button" onClick={() => { setAsEditing(false); setAsClientSecret(''); setAsTestResult(null) }} className="text-text-muted hover:text-text-primary text-small font-medium ml-auto">Cancel</button>
+                    )}
+                  </div>
+                </form>
+              )}
+            </div>
+
+            {/* Azure AD Sign-in Logs — real Microsoft Graph polling */}
+            <div className="card-mission p-5 space-y-4">
+              <div className="flex items-center justify-between border-b border-fire-border pb-3">
+                <div>
+                  <h3 className="text-h3 text-text-primary flex items-center gap-2">
+                    Azure AD Sign-in Logs
+                    <span className={clsx('badge-mission', adConfigured ? 'bg-success/10 text-success border-success/20' : 'bg-surface-3 text-text-muted border-fire-border')}>
+                      {adConfigured ? 'Configured' : 'Not Configured'}
+                    </span>
+                  </h3>
+                  <p className="text-small text-text-muted mt-1">Polls Microsoft Graph's /auditLogs/signIns. App Registration needs AuditLog.Read.All (admin-consented).</p>
+                </div>
+              </div>
+
+              {!adEditing && adConfigured ? (
+                <div className="space-y-3">
+                  <div className="grid grid-cols-2 gap-4 text-small">
+                    <div>
+                      <span className="text-label text-text-muted uppercase block mb-1">Azure Tenant ID</span>
+                      <span className="font-mono text-text-secondary">{adAzureTenantId}</span>
+                    </div>
+                    <div>
+                      <span className="text-label text-text-muted uppercase block mb-1">Last Poll</span>
+                      <span className={clsx('font-semibold', adLastPollStatus === 'Failed' ? 'text-danger' : adLastPollStatus === 'Success' ? 'text-success' : 'text-text-muted')}>
+                        {adLastPolledAt ? `${adLastPollStatus || 'Pending'} — ${new Date(adLastPolledAt).toLocaleString()}` : 'Not polled yet'}
+                      </span>
+                    </div>
+                  </div>
+                  {adLastPollError && (
+                    <div className="text-small px-3 py-2 rounded-lg bg-danger/10 text-danger">{adLastPollError}</div>
+                  )}
+                  {adTestResult && (
+                    <div className={clsx('text-small px-3 py-2 rounded-lg', adTestResult.ok ? 'bg-success/10 text-success' : 'bg-danger/10 text-danger')}>
+                      {adTestResult.message}
+                    </div>
+                  )}
+                  <div className="flex items-center gap-2">
+                    <button onClick={handleTestAzureAd} disabled={adTesting} className="btn-mission py-2 px-4 text-small">
+                      {adTesting ? 'Testing...' : 'Test Connection'}
+                    </button>
+                    <button onClick={() => { setAdEditing(true); setAdTestResult(null) }} className="btn-mission py-2 px-4 text-small">Edit</button>
+                    <button onClick={handleDeleteAzureAd} className="text-danger hover:text-danger/80 text-small font-semibold ml-auto">Remove</button>
+                  </div>
+                </div>
+              ) : (
+                <form onSubmit={handleSaveAzureAd} className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-1">
+                      <label className="text-label text-text-muted uppercase block">Azure Tenant ID</label>
+                      <input type="text" value={adAzureTenantId} onChange={(e) => setAdAzureTenantId(e.target.value)} className="input-field font-mono" required />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-label text-text-muted uppercase block">Client ID</label>
+                      <input type="text" value={adClientId} onChange={(e) => setAdClientId(e.target.value)} className="input-field font-mono" required />
+                    </div>
+                    <div className="space-y-1 col-span-2">
+                      <label className="text-label text-text-muted uppercase block">Client Secret</label>
+                      <input
+                        type="password"
+                        placeholder={adConfigured ? 'Leave blank to keep current secret' : ''}
+                        value={adClientSecret}
+                        onChange={(e) => setAdClientSecret(e.target.value)}
+                        className="input-field"
+                        required={!adConfigured}
+                      />
+                    </div>
+                  </div>
+                  <label className="flex items-center gap-2 text-small text-text-secondary font-medium">
+                    <input type="checkbox" checked={adEnabled} onChange={(e) => setAdEnabled(e.target.checked)} className="accent-accent" />
+                    Enable scheduled polling
+                  </label>
+                  {adTestResult && (
+                    <div className={clsx('text-small px-3 py-2 rounded-lg', adTestResult.ok ? 'bg-success/10 text-success' : 'bg-danger/10 text-danger')}>
+                      {adTestResult.message}
+                    </div>
+                  )}
+                  <div className="flex items-center gap-2">
+                    <button type="submit" disabled={adSaving} className="btn-fire py-2 px-4 text-small">{adSaving ? 'Saving...' : 'Save'}</button>
+                    <button type="button" onClick={handleTestAzureAd} disabled={adTesting || !adAzureTenantId} className="btn-mission py-2 px-4 text-small">
+                      {adTesting ? 'Testing...' : 'Test Connection'}
+                    </button>
+                    {adConfigured && (
+                      <button type="button" onClick={() => { setAdEditing(false); setAdClientSecret(''); setAdTestResult(null) }} className="text-text-muted hover:text-text-primary text-small font-medium ml-auto">Cancel</button>
+                    )}
+                  </div>
+                </form>
+              )}
+            </div>
+
+            {/* Splunk — real HEC-compatible receiver, no config needed here */}
+            <div className="card-mission p-5 space-y-4">
+              <div className="flex items-center justify-between border-b border-fire-border pb-3">
+                <div>
+                  <h3 className="text-h3 text-text-primary flex items-center gap-2">
+                    Splunk Forwarder
+                    <span className="badge-mission bg-surface-3 text-text-muted border-fire-border">Push-based — no config needed here</span>
+                  </h3>
+                  <p className="text-small text-text-muted mt-1">
+                    A real Splunk HTTP Event Collector (HEC)-compatible endpoint — point an actual Splunk forwarder at it with zero changes on the Splunk side.
+                  </p>
+                </div>
+              </div>
+              <ol className="space-y-2 text-small text-text-secondary list-decimal list-inside">
+                <li>Generate an API key in the <strong className="text-text-primary">API Keys</strong> tab (role: Data Ingest Only) — this is your HEC token.</li>
+                <li>In Splunk, configure an HTTP Event Collector output pointing at your ACIS instance's <code className="font-mono text-accent">/services/collector/event</code> (or <code className="font-mono text-accent">/raw</code>).</li>
+                <li>
+                  Set the forwarder's HEC token to the API key from step 1 — it's sent as <code className="font-mono text-accent">Authorization: Splunk &lt;token&gt;</code>, exactly as real Splunk expects.
+                </li>
+              </ol>
+              <button onClick={() => handleTabClick('API Keys')} className="btn-mission py-2 px-4 text-small">
+                <Key className="w-3.5 h-3.5" /> Go generate a key
+              </button>
+            </div>
+
+            {/* Syslog/CEF — real UDP+TCP listener with an allocated port */}
+            <div className="card-mission p-5 space-y-4">
+              <div className="flex items-center justify-between border-b border-fire-border pb-3">
+                <div>
+                  <h3 className="text-h3 text-text-primary flex items-center gap-2">
+                    Syslog / CEF
+                    <span className={clsx('badge-mission', syConfigured ? 'bg-success/10 text-success border-success/20' : 'bg-surface-3 text-text-muted border-fire-border')}>
+                      {syConfigured ? 'Configured' : 'Not Configured'}
+                    </span>
+                  </h3>
+                  <p className="text-small text-text-muted mt-1">
+                    A real, dedicated UDP/TCP port firewalls, routers, and switches can send raw syslog/CEF directly to. Raw syslog carries no
+                    authentication, so a unique port — not a token — is what identifies your traffic.
+                  </p>
+                </div>
+              </div>
+
+              {syConfigured ? (
+                <div className="space-y-3">
+                  <div className="grid grid-cols-2 gap-4 text-small">
+                    <div>
+                      <span className="text-label text-text-muted uppercase block mb-1">Assigned Port (UDP + TCP)</span>
+                      <span className="font-mono text-text-primary text-h3">{syPort}</span>
+                    </div>
+                    <div>
+                      <span className="text-label text-text-muted uppercase block mb-1">Last Received</span>
+                      <span className="text-text-secondary font-semibold">
+                        {syLastReceivedAt ? new Date(syLastReceivedAt).toLocaleString() : 'Nothing received yet'}
+                      </span>
+                    </div>
+                  </div>
+                  <p className="text-small text-text-muted">
+                    Point your device's syslog/CEF output at this ACIS host on port <strong className="text-text-primary font-mono">{syPort}</strong>, over UDP or TCP.
+                  </p>
+                  <div className="flex items-center gap-2">
+                    <button onClick={handleDeleteSyslogSource} className="text-danger hover:text-danger/80 text-small font-semibold">Remove</button>
+                  </div>
+                </div>
+              ) : (
+                <button onClick={handleCreateSyslogSource} disabled={syCreating} className="btn-fire py-2 px-4 text-small">
+                  {syCreating ? 'Allocating port...' : 'Allocate a syslog port'}
+                </button>
+              )}
+            </div>
+
           </div>
         )}
 

@@ -48,6 +48,13 @@ acis:
   # real vendor API/firewall calls, so this is deliberately not sub-minute.
   integration-poll-interval-ms: ${INTEGRATION_POLL_INTERVAL_MS:120000}
   integration-poll-initial-delay-ms: ${INTEGRATION_POLL_INITIAL_DELAY_MS:30000}
+  # Real UDP/TCP ports handed out one-per-tenant for raw syslog/CEF ingestion
+  # (see SyslogSourceController + acis-ingestion's SyslogListenerService).
+  # This whole range must be published on the ingestion container in
+  # docker-compose (both /udp and /tcp) for external devices to reach it.
+  syslog:
+    port-range-start: ${SYSLOG_PORT_RANGE_START:20514}
+    port-range-end: ${SYSLOG_PORT_RANGE_END:20563}
   # AES-256 key (base64, 32 raw bytes) for encrypting third-party credentials
   # at rest (e.g. a tenant's Cloudflare API token — see CredentialEncryptor).
   # The dev default below is fine for local dev only; production MUST set

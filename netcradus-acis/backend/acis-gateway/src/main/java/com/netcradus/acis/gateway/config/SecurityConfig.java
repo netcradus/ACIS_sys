@@ -30,6 +30,12 @@ public class SecurityConfig {
                 // same reasoning as signup above: the gateway must not reject these
                 // for lacking a JWT before ApiKeyAuthFilter ever gets a chance to run.
                 .pathMatchers(HttpMethod.POST, "/api/ingest/external/**").permitAll()
+                // Real Splunk HTTP Event Collector wire path (see SplunkHecController)
+                // — forwarders authenticate via "Authorization: Splunk <token>", which
+                // Spring's bearer-token resolver ignores (it only recognizes "Bearer "),
+                // so this would otherwise fall through to anyExchange().authenticated()
+                // and be rejected before ever reaching ApiKeyAuthFilter.
+                .pathMatchers(HttpMethod.POST, "/services/collector/**").permitAll()
                 // Everything else requires a valid JWT
                 .anyExchange().authenticated()
             )

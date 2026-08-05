@@ -31,6 +31,9 @@ public class SecurityConfig {
                 // Authenticated by ApiKeyAuthFilter below instead of a JWT — external
                 // systems (e.g. a customer's own server) can't hold a Keycloak token.
                 .requestMatchers("/api/ingest/external/**").permitAll()
+                // Real Splunk HEC wire path (see SplunkHecController) — forwarders
+                // authenticate via "Authorization: Splunk <token>", not a JWT.
+                .requestMatchers("/services/collector/**").permitAll()
                 .anyRequest().authenticated()
             )
             .oauth2ResourceServer(oauth -> oauth.jwt(withDefaults()))

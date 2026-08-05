@@ -12,7 +12,6 @@ import com.netcradus.acis.soar.model.UserMember;
 import com.netcradus.acis.soar.model.UserGroup;
 import com.netcradus.acis.soar.model.ConsoleRole;
 import com.netcradus.acis.soar.model.RolePermission;
-import com.netcradus.acis.soar.model.DataSource;
 import com.netcradus.acis.soar.dto.ApiKeyCreatedResponse;
 import com.netcradus.acis.soar.repository.IntegrationRepository;
 import com.netcradus.acis.soar.repository.OrganizationRepository;
@@ -22,7 +21,6 @@ import com.netcradus.acis.soar.repository.UserMemberRepository;
 import com.netcradus.acis.soar.repository.UserGroupRepository;
 import com.netcradus.acis.soar.repository.ConsoleRoleRepository;
 import com.netcradus.acis.soar.repository.RolePermissionRepository;
-import com.netcradus.acis.soar.repository.DataSourceRepository;
 import lombok.RequiredArgsConstructor;
 import java.util.ArrayList;
 import org.springframework.http.HttpHeaders;
@@ -52,7 +50,6 @@ public class SettingsController {
     private final UserGroupRepository userGroupRepository;
     private final ConsoleRoleRepository consoleRoleRepository;
     private final RolePermissionRepository rolePermissionRepository;
-    private final DataSourceRepository dataSourceRepository;
     private final AuditEventPublisher auditEventPublisher;
     private final com.netcradus.acis.soar.support.ApiKeyIssuer apiKeyIssuer;
 
@@ -561,105 +558,4 @@ public class SettingsController {
         return perm;
     }
 
-    // ── Data Sources ──────────────────────────────────────────
-
-    @GetMapping("/datasources")
-    public ApiResponse<List<DataSource>> getDataSources(@RequestHeader(value = "X-Tenant-ID", required = false) UUID tenantId) {
-        UUID tenant = resolveTenant(tenantId);
-        List<DataSource> sources = dataSourceRepository.findByTenantId(tenant);
-        if (sources.isEmpty()) {
-            sources = createDefaultDataSources(tenant);
-        }
-        return ApiResponse.success(sources);
-    }
-
-    @PostMapping("/datasources")
-    public ResponseEntity<ApiResponse<DataSource>> addDataSource(@RequestBody DataSource source,
-            @RequestHeader(value = "X-Tenant-ID", required = false) UUID tenantId) {
-        if (source.getName() == null || source.getName().isBlank()) {
-            return ResponseEntity.badRequest().body(ApiResponse.error("Data source name is required"));
-        }
-        UUID tenant = resolveTenant(tenantId);
-        source.setTenantId(tenant);
-        source.setStatus("Not connected");
-        source.setLastSync(null);
-        if (source.getProvider() == null || source.getProvider().isBlank()) {
-            source.setProvider("SYS");
-        }
-        DataSource saved = dataSourceRepository.save(source);
-        auditEventPublisher.publish("DATASOURCE_CREATE", "datasource/" + saved.getId(), "created");
-        return ResponseEntity.ok(ApiResponse.success(saved));
-    }
-
-    @PutMapping("/datasources/{id}/connect")
-    public ResponseEntity<ApiResponse<DataSource>> connectDataSource(@PathVariable UUID id,
-            @RequestHeader(value = "X-Tenant-ID", required = false) UUID tenantId) {
-        UUID tenant = resolveTenant(tenantId);
-        return dataSourceRepository.findByIdAndTenantId(id, tenant)
-                .map(source -> {
-                    source.setStatus("Connected");
-                    source.setLastSync("Never");
-                    DataSource saved = dataSourceRepository.save(source);
-                    auditEventPublisher.publish("DATASOURCE_CONNECT", "datasource/" + id, "connected");
-                    return ResponseEntity.ok(ApiResponse.success(saved));
-                })
-                .orElse(ResponseEntity.status(404).body(ApiResponse.error("Data source not found")));
-    }
-
-    @PutMapping("/datasources/{id}/disconnect")
-    public ResponseEntity<ApiResponse<DataSource>> disconnectDataSource(@PathVariable UUID id,
-            @RequestHeader(value = "X-Tenant-ID", required = false) UUID tenantId) {
-        UUID tenant = resolveTenant(tenantId);
-        return dataSourceRepository.findByIdAndTenantId(id, tenant)
-                .map(source -> {
-                    source.setStatus("Not connected");
-                    source.setLastSync(null);
-                    DataSource saved = dataSourceRepository.save(source);
-                    auditEventPublisher.publish("DATASOURCE_DISCONNECT", "datasource/" + id, "disconnected");
-                    return ResponseEntity.ok(ApiResponse.success(saved));
-                })
-                .orElse(ResponseEntity.status(404).body(ApiResponse.error("Data source not found")));
-    }
-
-    @PostMapping("/datasources/{id}/sync")
-    public ResponseEntity<ApiResponse<DataSource>> syncDataSource(@PathVariable UUID id,
-            @RequestHeader(value = "X-Tenant-ID", required = false) UUID tenantId) {
-        UUID tenant = resolveTenant(tenantId);
-        return dataSourceRepository.findByIdAndTenantId(id, tenant)
-                .map(source -> {
-                    if ("Connected".equals(source.getStatus())) {
-                        source.setLastSync("Just now");
-                        DataSource saved = dataSourceRepository.save(source);
-                        auditEventPublisher.publish("DATASOURCE_SYNC", "datasource/" + id, "synced");
-                        return ResponseEntity.ok(ApiResponse.success(saved));
-                    } else {
-                        return ResponseEntity.badRequest().body(ApiResponse.<DataSource>error("Data source is not connected"));
-                    }
-                })
-                .orElse(ResponseEntity.status(404).body(ApiResponse.error("Data source not found")));
-    }
-
-    private List<DataSource> createDefaultDataSources(UUID tenant) {
-        List<DataSource> defaultSources = new ArrayList<>();
-
-        defaultSources.add(createDataSource(tenant, "AWS CloudTrail", "AWS", "Ingests API and account activity logs from connected AWS accounts.", "Connected", "3 mins ago"));
-        defaultSources.add(createDataSource(tenant, "AWS GuardDuty", "AWS", "Streams threat detection findings for EC2, IAM, and S3 workloads.", "Connected", "8 mins ago"));
-        defaultSources.add(createDataSource(tenant, "Azure Sentinel", "AZ", "Bi-directional sync of incidents and hunting queries.", "Connected", "12 mins ago"));
-        defaultSources.add(createDataSource(tenant, "Azure AD Sign-in Logs", "AZ", "Identity and access sign-in events for anomaly detection.", "Not connected", null));
-        defaultSources.add(createDataSource(tenant, "Splunk Forwarder", "SP", "Receives forwarded events from an on-prem Splunk deployment.", "Not connected", null));
-        defaultSources.add(createDataSource(tenant, "Syslog / CEF", "SYS", "Generic ingestion endpoint for firewalls, routers, and switches.", "Not connected", null));
-
-        return defaultSources;
-    }
-
-    private DataSource createDataSource(UUID tenant, String name, String provider, String desc, String status, String lastSync) {
-        DataSource ds = new DataSource();
-        ds.setTenantId(tenant);
-        ds.setName(name);
-        ds.setProvider(provider);
-        ds.setDescription(desc);
-        ds.setStatus(status);
-        ds.setLastSync(lastSync);
-        return dataSourceRepository.save(ds);
-    }
 }

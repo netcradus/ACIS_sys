@@ -42,6 +42,14 @@ import java.util.Optional;
  * it instead. Everything else this service exposes (/api/ingest/syslog,
  * /api/ingest/json) is untouched and still JWT-only.
  *
+ * Also gates /services/collector/** — the real Splunk HTTP Event Collector
+ * (HEC) wire path (see SplunkHecController) — which authenticates via
+ * "Authorization: Splunk <token>" instead of X-API-Key, since that's the
+ * fixed header format every real Splunk forwarder sends and can't be
+ * reconfigured. Both paths validate against the exact same api_keys table;
+ * a token generated in Settings works on either path, just under whichever
+ * header convention that caller's protocol dictates.
+ *
  * Runs before TenantContextFilter, which is a harmless no-op here since there
  * is no JwtAuthenticationToken on this path — it just passes the request
  * through once this filter has already set TenantContext from the API key.
@@ -51,6 +59,8 @@ import java.util.Optional;
 public class ApiKeyAuthFilter extends OncePerRequestFilter {
 
     private static final String EXTERNAL_PATH_PREFIX = "/api/ingest/external/";
+    private static final String HEC_PATH_PREFIX = "/services/collector";
+    private static final String SPLUNK_AUTH_PREFIX = "Splunk ";
 
     private final ApiKeyRepository apiKeyRepository;
     private final ObjectMapper objectMapper = new ObjectMapper();
@@ -59,14 +69,31 @@ public class ApiKeyAuthFilter extends OncePerRequestFilter {
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
             throws ServletException, IOException {
 
-        if (!request.getRequestURI().startsWith(EXTERNAL_PATH_PREFIX)) {
+        String uri = request.getRequestURI();
+        boolean isExternalIngest = uri.startsWith(EXTERNAL_PATH_PREFIX);
+        boolean isHec = uri.startsWith(HEC_PATH_PREFIX);
+        if (!isExternalIngest && !isHec) {
             filterChain.doFilter(request, response);
             return;
         }
 
-        String rawToken = request.getHeader("X-API-Key");
+        String rawToken;
+        if (isHec) {
+            String authHeader = request.getHeader("Authorization");
+            if (authHeader == null || !authHeader.startsWith(SPLUNK_AUTH_PREFIX)) {
+                respondHecUnauthorized(response, "Missing or malformed Authorization header — expected \"Splunk <token>\".");
+                return;
+            }
+            rawToken = authHeader.substring(SPLUNK_AUTH_PREFIX.length()).trim();
+        } else {
+            rawToken = request.getHeader("X-API-Key");
+        }
         if (rawToken == null || rawToken.isBlank()) {
-            respondUnauthorized(response, "Missing X-API-Key header.");
+            if (isHec) {
+                respondHecUnauthorized(response, "Missing token.");
+            } else {
+                respondUnauthorized(response, "Missing X-API-Key header.");
+            }
             return;
         }
 
@@ -84,13 +111,21 @@ public class ApiKeyAuthFilter extends OncePerRequestFilter {
             TenantContext.setApiKeyLookupInProgress(false);
         }
         if (found.isEmpty()) {
-            respondUnauthorized(response, "Invalid API key.");
+            if (isHec) {
+                respondHecUnauthorized(response, "Invalid token.");
+            } else {
+                respondUnauthorized(response, "Invalid API key.");
+            }
             return;
         }
 
         ApiKey key = found.get();
         if (!"Active".equals(key.getStatus())) {
-            respondUnauthorized(response, "This API key has been revoked.");
+            if (isHec) {
+                respondHecUnauthorized(response, "This token has been revoked.");
+            } else {
+                respondUnauthorized(response, "This API key has been revoked.");
+            }
             return;
         }
 
@@ -120,5 +155,12 @@ public class ApiKeyAuthFilter extends OncePerRequestFilter {
         response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
         response.setContentType("application/json");
         response.getWriter().write(objectMapper.writeValueAsString(ApiResponse.error(message)));
+    }
+
+    /** Splunk HEC clients expect {"text": ..., "code": N} on auth failure, not ACIS's own ApiResponse envelope. */
+    private void respondHecUnauthorized(HttpServletResponse response, String message) throws IOException {
+        response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+        response.setContentType("application/json");
+        response.getWriter().write(objectMapper.writeValueAsString(java.util.Map.of("text", message, "code", 4)));
     }
 }

@@ -49,7 +49,6 @@ public class RlsConfig {
                 "red_team_simulations",
                 "console_roles",
                 "role_permissions",
-                "data_sources",
                 "audit_entries",
                 "integrations",
                 "cloudflare_integrations",
@@ -104,7 +103,8 @@ public class RlsConfig {
     @Order(1002)
     public CommandLineRunner enableVendorPollerRowLevelSecurity(JdbcTemplate jdbcTemplate) {
         return args -> {
-            for (String table : List.of("paloalto_integrations", "wazuh_integrations", "sentinelone_integrations")) {
+            for (String table : List.of("paloalto_integrations", "wazuh_integrations", "sentinelone_integrations",
+                    "guardduty_integrations", "azuresentinel_integrations", "azuread_integrations", "syslog_sources")) {
                 jdbcTemplate.execute("ALTER TABLE " + table + " ENABLE ROW LEVEL SECURITY");
                 jdbcTemplate.execute("ALTER TABLE " + table + " FORCE ROW LEVEL SECURITY");
                 jdbcTemplate.execute("DROP POLICY IF EXISTS tenant_isolation ON " + table);

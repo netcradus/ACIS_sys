@@ -11,11 +11,12 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 @SpringBootApplication
 @EnableAsync
 @EnableScheduling
-// ApiKey/ApiKeyRepository live in acis-common (shared with acis-ingestion's
-// external-ingestion auth filter), outside this app's default @SpringBootApplication
-// scan root — extend entity/repository scanning to pick them up.
-@EntityScan(basePackages = { "com.netcradus.acis.soar", "com.netcradus.acis.common.apikey" })
-@EnableJpaRepositories(basePackages = { "com.netcradus.acis.soar", "com.netcradus.acis.common.apikey" })
+// ApiKey/ApiKeyRepository and SyslogSource/SyslogSourceRepository live in
+// acis-common (shared with acis-ingestion — the API key auth filter and the
+// syslog listener, respectively), outside this app's default
+// @SpringBootApplication scan root — extend entity/repository scanning to pick them up.
+@EntityScan(basePackages = { "com.netcradus.acis.soar", "com.netcradus.acis.common.apikey", "com.netcradus.acis.common.syslog" })
+@EnableJpaRepositories(basePackages = { "com.netcradus.acis.soar", "com.netcradus.acis.common.apikey", "com.netcradus.acis.common.syslog" })
 public class SoarApplication {
     public static void main(String[] args) {
         // Fix for PostgreSQL 16 timezone alias handling on some OS locales

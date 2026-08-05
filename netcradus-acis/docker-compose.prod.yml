@@ -361,6 +361,13 @@ services:
       DB_PASSWORD: ${DB_PASSWORD:?Set DB_PASSWORD in .env}
     expose:
       - "8084"
+    # Real per-tenant syslog/CEF listener ports (see SyslogListenerService) —
+    # must be actually published (not just exposed) for external firewalls/
+    # routers to reach them. Range must match acis-soar's syslog.port-range-*
+    # config (SYSLOG_PORT_RANGE_START/END), since that's what allocates them.
+    ports:
+      - "20514-20563:20514-20563/udp"
+      - "20514-20563:20514-20563/tcp"
     depends_on:
       postgres:
         condition: service_healthy

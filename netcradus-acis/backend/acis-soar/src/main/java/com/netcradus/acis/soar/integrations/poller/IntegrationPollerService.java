@@ -2,6 +2,15 @@ package com.netcradus.acis.soar.integrations.poller;
 
 import com.netcradus.acis.common.crypto.CredentialEncryptor;
 import com.netcradus.acis.common.tenant.TenantContext;
+import com.netcradus.acis.soar.integrations.azuread.AzureAdClient;
+import com.netcradus.acis.soar.integrations.azuread.AzureAdIntegration;
+import com.netcradus.acis.soar.integrations.azuread.AzureAdIntegrationRepository;
+import com.netcradus.acis.soar.integrations.azuresentinel.AzureSentinelClient;
+import com.netcradus.acis.soar.integrations.azuresentinel.AzureSentinelIntegration;
+import com.netcradus.acis.soar.integrations.azuresentinel.AzureSentinelIntegrationRepository;
+import com.netcradus.acis.soar.integrations.guardduty.GuardDutyClient;
+import com.netcradus.acis.soar.integrations.guardduty.GuardDutyIntegration;
+import com.netcradus.acis.soar.integrations.guardduty.GuardDutyIntegrationRepository;
 import com.netcradus.acis.soar.integrations.paloalto.PaloAltoClient;
 import com.netcradus.acis.soar.integrations.paloalto.PaloAltoIntegration;
 import com.netcradus.acis.soar.integrations.paloalto.PaloAltoIntegrationRepository;
@@ -52,6 +61,12 @@ public class IntegrationPollerService {
     private final WazuhClient wazuhClient;
     private final SentinelOneIntegrationRepository sentinelOneRepository;
     private final SentinelOneClient sentinelOneClient;
+    private final GuardDutyIntegrationRepository guardDutyRepository;
+    private final GuardDutyClient guardDutyClient;
+    private final AzureSentinelIntegrationRepository azureSentinelRepository;
+    private final AzureSentinelClient azureSentinelClient;
+    private final AzureAdIntegrationRepository azureAdRepository;
+    private final AzureAdClient azureAdClient;
 
     private final RestTemplate restTemplate = new RestTemplate();
 
@@ -66,6 +81,9 @@ public class IntegrationPollerService {
         pollPaloAlto();
         pollWazuh();
         pollSentinelOne();
+        pollGuardDuty();
+        pollAzureSentinel();
+        pollAzureAd();
     }
 
     private void pollPaloAlto() {
@@ -134,6 +152,78 @@ public class IntegrationPollerService {
             } finally {
                 integ.setLastPolledAt(OffsetDateTime.now());
                 sentinelOneRepository.save(integ);
+                TenantContext.clear();
+            }
+        }
+    }
+
+    private void pollGuardDuty() {
+        List<GuardDutyIntegration> integrations = findEnabled(guardDutyRepository::findByEnabledTrue);
+        for (GuardDutyIntegration integ : integrations) {
+            TenantContext.setTenantId(integ.getTenantId().toString());
+            try {
+                OffsetDateTime since = integ.getLastPolledAt() != null ? integ.getLastPolledAt() : OffsetDateTime.now().minusHours(1);
+                String accessKeyId = CredentialEncryptor.decrypt(integ.getAccessKeyIdEncrypted(), encryptionKey);
+                String secretAccessKey = CredentialEncryptor.decrypt(integ.getSecretAccessKeyEncrypted(), encryptionKey);
+                List<Map<String, Object>> events = guardDutyClient.fetchFindings(accessKeyId, secretAccessKey, integ.getRegion(), since);
+                forwardAndRecord(events, integ.getSystemApiKeyEncrypted(), integ.getTenantId());
+                integ.setLastPollStatus("Success");
+                integ.setLastPollError(null);
+            } catch (Exception e) {
+                log.warn("AWS GuardDuty poll failed for tenant {}: {}", integ.getTenantId(), e.getMessage());
+                integ.setLastPollStatus("Failed");
+                integ.setLastPollError(e.getMessage());
+            } finally {
+                integ.setLastPolledAt(OffsetDateTime.now());
+                guardDutyRepository.save(integ);
+                TenantContext.clear();
+            }
+        }
+    }
+
+    private void pollAzureSentinel() {
+        List<AzureSentinelIntegration> integrations = findEnabled(azureSentinelRepository::findByEnabledTrue);
+        for (AzureSentinelIntegration integ : integrations) {
+            TenantContext.setTenantId(integ.getTenantId().toString());
+            try {
+                OffsetDateTime since = integ.getLastPolledAt() != null ? integ.getLastPolledAt() : OffsetDateTime.now().minusHours(1);
+                String clientSecret = CredentialEncryptor.decrypt(integ.getClientSecretEncrypted(), encryptionKey);
+                List<Map<String, Object>> events = azureSentinelClient.fetchIncidents(
+                        integ.getAzureTenantId(), integ.getClientId(), clientSecret,
+                        integ.getSubscriptionId(), integ.getResourceGroup(), integ.getWorkspaceName(), since);
+                forwardAndRecord(events, integ.getSystemApiKeyEncrypted(), integ.getTenantId());
+                integ.setLastPollStatus("Success");
+                integ.setLastPollError(null);
+            } catch (Exception e) {
+                log.warn("Azure Sentinel poll failed for tenant {}: {}", integ.getTenantId(), e.getMessage());
+                integ.setLastPollStatus("Failed");
+                integ.setLastPollError(e.getMessage());
+            } finally {
+                integ.setLastPolledAt(OffsetDateTime.now());
+                azureSentinelRepository.save(integ);
+                TenantContext.clear();
+            }
+        }
+    }
+
+    private void pollAzureAd() {
+        List<AzureAdIntegration> integrations = findEnabled(azureAdRepository::findByEnabledTrue);
+        for (AzureAdIntegration integ : integrations) {
+            TenantContext.setTenantId(integ.getTenantId().toString());
+            try {
+                OffsetDateTime since = integ.getLastPolledAt() != null ? integ.getLastPolledAt() : OffsetDateTime.now().minusHours(1);
+                String clientSecret = CredentialEncryptor.decrypt(integ.getClientSecretEncrypted(), encryptionKey);
+                List<Map<String, Object>> events = azureAdClient.fetchSignIns(integ.getAzureTenantId(), integ.getClientId(), clientSecret, since);
+                forwardAndRecord(events, integ.getSystemApiKeyEncrypted(), integ.getTenantId());
+                integ.setLastPollStatus("Success");
+                integ.setLastPollError(null);
+            } catch (Exception e) {
+                log.warn("Azure AD poll failed for tenant {}: {}", integ.getTenantId(), e.getMessage());
+                integ.setLastPollStatus("Failed");
+                integ.setLastPollError(e.getMessage());
+            } finally {
+                integ.setLastPolledAt(OffsetDateTime.now());
+                azureAdRepository.save(integ);
                 TenantContext.clear();
             }
         }
