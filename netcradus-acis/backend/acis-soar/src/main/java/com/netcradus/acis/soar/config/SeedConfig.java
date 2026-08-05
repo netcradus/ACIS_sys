@@ -17,13 +17,11 @@ import com.netcradus.acis.soar.model.RedTeamSimulation;
 import com.netcradus.acis.soar.model.ReportSchedule;
 import com.netcradus.acis.common.apikey.ApiKey;
 import com.netcradus.acis.common.apikey.ApiKeyRepository;
-import com.netcradus.acis.soar.model.Integration;
 import com.netcradus.acis.soar.repository.AuditEntryRepository;
 import com.netcradus.acis.soar.repository.PlaybookExecutionRepository;
 import com.netcradus.acis.soar.repository.PlaybookRepository;
 import com.netcradus.acis.soar.repository.RedTeamSimulationRepository;
 import com.netcradus.acis.soar.repository.ReportScheduleRepository;
-import com.netcradus.acis.soar.repository.IntegrationRepository;
 import com.netcradus.acis.common.tenant.TenantContext;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -51,7 +49,6 @@ public class SeedConfig {
     private final PlaybookExecutionRepository executionRepository;
     private final ReportScheduleRepository reportScheduleRepository;
     private final ApiKeyRepository apiKeyRepository;
-    private final IntegrationRepository integrationRepository;
     private final OrganizationRepository organizationRepository;
     private final LicenseDetailsRepository licenseDetailsRepository;
     private final InvoiceRepository invoiceRepository;
@@ -273,51 +270,6 @@ public class SeedConfig {
                 k3.setStatus("Active");
                 apiKeyRepository.save(k3);
             }
-
-            if (integrationRepository.count() == 0) {
-                log.info("Seeding Settings Integrations...");
-
-                Integration i1 = new Integration();
-                i1.setTenantId(defaultTenantId);
-                i1.setName("Palo Alto Networks");
-                i1.setDescription("Firewall logs ingestion and automated blocklist updates (SOAR).");
-                i1.setLogoLetter("PA");
-                i1.setStatus("Connected");
-                integrationRepository.save(i1);
-
-                Integration i2 = new Integration();
-                i2.setTenantId(defaultTenantId);
-                i2.setName("Okta");
-                i2.setDescription("Identity context sync and automated credential revocation.");
-                i2.setLogoLetter("O");
-                i2.setStatus("Connected");
-                integrationRepository.save(i2);
-
-                Integration i3 = new Integration();
-                i3.setTenantId(defaultTenantId);
-                i3.setName("CrowdStrike");
-                i3.setDescription("Falcon EDR alert ingestion and endpoint isolation capability.");
-                i3.setLogoLetter("C");
-                i3.setStatus("Connected");
-                integrationRepository.save(i3);
-
-                Integration i4 = new Integration();
-                i4.setTenantId(defaultTenantId);
-                i4.setName("Jira Service Desk");
-                i4.setDescription("Bi-directional ticket creation and status synchronization for incidents.");
-                i4.setLogoLetter("J");
-                i4.setStatus("Connected");
-                integrationRepository.save(i4);
-
-                Integration i5 = new Integration();
-                i5.setTenantId(defaultTenantId);
-                i5.setName("AWS CloudTrail");
-                i5.setDescription("Ingest IAM and API activity logs from connected AWS accounts.");
-                i5.setLogoLetter("A");
-                i5.setStatus("Connected");
-                integrationRepository.save(i5);
-            }
-
 
             if (simulationRepository.count() == 0) {
                 log.info("Seeding Red Team Simulations...");
