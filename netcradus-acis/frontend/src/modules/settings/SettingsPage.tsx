@@ -165,6 +165,15 @@ export default function SettingsPage() {
   // Agent Deployment States — real per-tenant install key + real fleet,
   // driven by actual heartbeat check-ins (see AgentController/
   // AgentEnrollmentService). No mock rows, no client-side-only "regenerate".
+  // The gateway's own port (8080) is never reachable from outside the
+  // Docker network in production — only Caddy (443) is, which reverse-
+  // proxies /api/** through the frontend container's nginx to the internal
+  // gateway (see infra/caddy/Caddyfile + infra/docker/nginx.conf.template).
+  // window.location.origin is what the browser actually used to reach this
+  // page in the first place, so it's the one URL guaranteed to route
+  // correctly in both production (https://your-domain, no port) and local
+  // dev (http://localhost:3000, proxied by Vite's own /api rule to :8080).
+  const serverBaseUrl = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:8080'
   const [enrollmentToken, setEnrollmentToken] = useState('')
   const [tokenLoading, setTokenLoading] = useState(true)
   const [tokenRegenerating, setTokenRegenerating] = useState(false)
@@ -3191,7 +3200,7 @@ export default function SettingsPage() {
                 <div className="space-y-1.5">
                   <label className="text-small text-text-secondary font-semibold block">Target Gateway Endpoint</label>
                   <div className="bg-surface-2 border border-fire-border rounded-lg px-3 py-2.5 font-mono text-small text-text-secondary truncate">
-                    http://{typeof window !== 'undefined' ? window.location.hostname : 'localhost'}:8080
+                    {serverBaseUrl}
                   </div>
                 </div>
               </div>
@@ -3244,7 +3253,7 @@ export default function SettingsPage() {
                         <button
                           onClick={() => handleCopyCommand(
                             'win-ps',
-                            `[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; iex ((New-Object System.Net.WebClient).DownloadString('http://${typeof window !== 'undefined' ? window.location.hostname : 'localhost'}:8080/api/agent/install.ps1')) -EnrollmentToken "${enrollmentToken}" -ServerUrl "http://${typeof window !== 'undefined' ? window.location.hostname : 'localhost'}:8080"`
+                            `[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; iex ((New-Object System.Net.WebClient).DownloadString('${serverBaseUrl}/api/agent/install.ps1')) -EnrollmentToken "${enrollmentToken}" -ServerUrl "${serverBaseUrl}"`
                           )}
                           className="text-small text-accent hover:text-accent-dark font-semibold flex items-center gap-1"
                         >
@@ -3253,7 +3262,7 @@ export default function SettingsPage() {
                         </button>
                       </div>
                       <pre className="bg-surface-2 border border-fire-border rounded-lg p-4 text-small font-mono text-success overflow-x-auto whitespace-pre-wrap leading-relaxed select-all">
-                        {`[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; iex ((New-Object System.Net.WebClient).DownloadString('http://${typeof window !== 'undefined' ? window.location.hostname : 'localhost'}:8080/api/agent/install.ps1')) -EnrollmentToken "${enrollmentToken}" -ServerUrl "http://${typeof window !== 'undefined' ? window.location.hostname : 'localhost'}:8080"`}
+                        {`[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; iex ((New-Object System.Net.WebClient).DownloadString('${serverBaseUrl}/api/agent/install.ps1')) -EnrollmentToken "${enrollmentToken}" -ServerUrl "${serverBaseUrl}"`}
                       </pre>
                     </div>
                     <p className="text-label text-text-muted">
@@ -3272,7 +3281,7 @@ export default function SettingsPage() {
                         <button
                           onClick={() => handleCopyCommand(
                             'linux-cmd',
-                            `curl -sSL http://${typeof window !== 'undefined' ? window.location.hostname : 'localhost'}:8080/api/agent/install.sh | sudo bash -s -- --token="${enrollmentToken}" --server="http://${typeof window !== 'undefined' ? window.location.hostname : 'localhost'}:8080" --enable-service`
+                            `curl -sSL ${serverBaseUrl}/api/agent/install.sh | sudo bash -s -- --token="${enrollmentToken}" --server="${serverBaseUrl}"`
                           )}
                           className="text-small text-accent hover:text-accent-dark font-semibold flex items-center gap-1"
                         >
@@ -3281,7 +3290,7 @@ export default function SettingsPage() {
                         </button>
                       </div>
                       <pre className="bg-surface-2 border border-fire-border rounded-lg p-4 text-small font-mono text-success overflow-x-auto whitespace-pre-wrap leading-relaxed select-all">
-                        {`curl -sSL http://${typeof window !== 'undefined' ? window.location.hostname : 'localhost'}:8080/api/agent/install.sh | sudo bash -s -- --token="${enrollmentToken}" --server="http://${typeof window !== 'undefined' ? window.location.hostname : 'localhost'}:8080"`}
+                        {`curl -sSL ${serverBaseUrl}/api/agent/install.sh | sudo bash -s -- --token="${enrollmentToken}" --server="${serverBaseUrl}"`}
                       </pre>
                     </div>
                     <p className="text-label text-text-muted">
@@ -3300,7 +3309,7 @@ export default function SettingsPage() {
                         <button
                           onClick={() => handleCopyCommand(
                             'mac-cmd',
-                            `curl -sSL http://${typeof window !== 'undefined' ? window.location.hostname : 'localhost'}:8080/api/agent/install-mac.sh | sudo bash -s -- --token="${enrollmentToken}" --server="http://${typeof window !== 'undefined' ? window.location.hostname : 'localhost'}:8080"`
+                            `curl -sSL ${serverBaseUrl}/api/agent/install-mac.sh | sudo bash -s -- --token="${enrollmentToken}" --server="${serverBaseUrl}"`
                           )}
                           className="text-small text-accent hover:text-accent-dark font-semibold flex items-center gap-1"
                         >
@@ -3309,7 +3318,7 @@ export default function SettingsPage() {
                         </button>
                       </div>
                       <pre className="bg-surface-2 border border-fire-border rounded-lg p-4 text-small font-mono text-success overflow-x-auto whitespace-pre-wrap select-all">
-                        {`curl -sSL http://${typeof window !== 'undefined' ? window.location.hostname : 'localhost'}:8080/api/agent/install-mac.sh | sudo bash -s -- --token="${enrollmentToken}" --server="http://${typeof window !== 'undefined' ? window.location.hostname : 'localhost'}:8080"`}
+                        {`curl -sSL ${serverBaseUrl}/api/agent/install-mac.sh | sudo bash -s -- --token="${enrollmentToken}" --server="${serverBaseUrl}"`}
                       </pre>
                     </div>
                     <p className="text-label text-text-muted">
@@ -3328,7 +3337,7 @@ export default function SettingsPage() {
                         <button
                           onClick={() => handleCopyCommand(
                             'k8s-cmd',
-                            `kubectl create namespace acis-security --dry-run=client -o yaml | kubectl apply -f - && kubectl apply -f "http://${typeof window !== 'undefined' ? window.location.hostname : 'localhost'}:8080/api/agent/k8s-daemonset.yaml?token=${encodeURIComponent(enrollmentToken)}&server=${encodeURIComponent('http://' + (typeof window !== 'undefined' ? window.location.hostname : 'localhost') + ':8080')}"`
+                            `kubectl create namespace acis-security --dry-run=client -o yaml | kubectl apply -f - && kubectl apply -f "${serverBaseUrl}/api/agent/k8s-daemonset.yaml?token=${encodeURIComponent(enrollmentToken)}&server=${encodeURIComponent(serverBaseUrl)}"`
                           )}
                           className="text-small text-accent hover:text-accent-dark font-semibold flex items-center gap-1"
                         >
@@ -3337,7 +3346,7 @@ export default function SettingsPage() {
                         </button>
                       </div>
                       <pre className="bg-surface-2 border border-fire-border rounded-lg p-4 text-small font-mono text-success overflow-x-auto whitespace-pre-wrap select-all">
-                        {`kubectl create namespace acis-security --dry-run=client -o yaml | kubectl apply -f - && kubectl apply -f "http://${typeof window !== 'undefined' ? window.location.hostname : 'localhost'}:8080/api/agent/k8s-daemonset.yaml?token=${encodeURIComponent(enrollmentToken)}&server=${encodeURIComponent('http://' + (typeof window !== 'undefined' ? window.location.hostname : 'localhost') + ':8080')}"`}
+                        {`kubectl create namespace acis-security --dry-run=client -o yaml | kubectl apply -f - && kubectl apply -f "${serverBaseUrl}/api/agent/k8s-daemonset.yaml?token=${encodeURIComponent(enrollmentToken)}&server=${encodeURIComponent(serverBaseUrl)}"`}
                       </pre>
                     </div>
                     <p className="text-label text-text-muted">
