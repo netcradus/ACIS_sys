@@ -65,8 +65,24 @@ Set-Content -Path $HeartbeatScript -Value $HeartbeatBody
 & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $HeartbeatScript
 
 $Action = New-ScheduledTaskAction -Execute 'powershell.exe' -Argument "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File `"$HeartbeatScript`""
-$Trigger = New-ScheduledTaskTrigger -Once -At (Get-Date) -RepetitionInterval (New-TimeSpan -Minutes 1) -RepetitionDuration ([TimeSpan]::MaxValue)
+# [TimeSpan]::MaxValue is NOT a valid RepetitionDuration — confirmed live,
+# Register-ScheduledTask rejects it ("task XML contains a value which is
+# incorrectly formatted or out of range") since Task Scheduler's ISO8601
+# duration field can't represent ~10,000+ years. 10 years is comfortably
+# "indefinite" for a real machine and well within the valid range.
+$Trigger = New-ScheduledTaskTrigger -Once -At (Get-Date) -RepetitionInterval (New-TimeSpan -Minutes 1) -RepetitionDuration (New-TimeSpan -Days 3650)
 $Settings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -StartWhenAvailable
-Register-ScheduledTask -TaskName 'ACIS-Agent-Heartbeat' -Action $Action -Trigger $Trigger -Settings $Settings -RunLevel Highest -User 'SYSTEM' -Force | Out-Null
+try {
+    Register-ScheduledTask -TaskName 'ACIS-Agent-Heartbeat' -Action $Action -Trigger $Trigger -Settings $Settings -RunLevel Highest -User 'SYSTEM' -Force -ErrorAction Stop | Out-Null
+} catch {
+    # Confirmed live: Register-ScheduledTask's CIM-layer errors don't
+    # always respect $ErrorActionPreference = 'Stop' on their own — without
+    # this explicit catch-and-rethrow, a real registration failure printed
+    # an error but the script carried on to the "enrolled" success message
+    # below anyway. Fail loudly instead: the one-off heartbeat above still
+    # ran, but nothing will check in again until this is fixed and re-run.
+    Write-Error "Failed to register the scheduled heartbeat task: $_"
+    exit 1
+}
 
 Write-Host "ACIS agent enrolled. Agent ID: $AgentId. Heartbeat scheduled every 60s."

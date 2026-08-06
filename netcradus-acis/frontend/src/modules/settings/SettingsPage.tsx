@@ -3253,7 +3253,7 @@ export default function SettingsPage() {
                         <button
                           onClick={() => handleCopyCommand(
                             'win-ps',
-                            `[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; iex ((New-Object System.Net.WebClient).DownloadString('${serverBaseUrl}/api/agent/install.ps1')) -EnrollmentToken "${enrollmentToken}" -ServerUrl "${serverBaseUrl}"`
+                            `[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; & ([scriptblock]::Create((New-Object System.Net.WebClient).DownloadString('${serverBaseUrl}/api/agent/install.ps1'))) -EnrollmentToken "${enrollmentToken}" -ServerUrl "${serverBaseUrl}"`
                           )}
                           className="text-small text-accent hover:text-accent-dark font-semibold flex items-center gap-1"
                         >
@@ -3262,7 +3262,7 @@ export default function SettingsPage() {
                         </button>
                       </div>
                       <pre className="bg-surface-2 border border-fire-border rounded-lg p-4 text-small font-mono text-success overflow-x-auto whitespace-pre-wrap leading-relaxed select-all">
-                        {`[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; iex ((New-Object System.Net.WebClient).DownloadString('${serverBaseUrl}/api/agent/install.ps1')) -EnrollmentToken "${enrollmentToken}" -ServerUrl "${serverBaseUrl}"`}
+                        {`[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; & ([scriptblock]::Create((New-Object System.Net.WebClient).DownloadString('${serverBaseUrl}/api/agent/install.ps1'))) -EnrollmentToken "${enrollmentToken}" -ServerUrl "${serverBaseUrl}"`}
                       </pre>
                     </div>
                     <p className="text-label text-text-muted">
