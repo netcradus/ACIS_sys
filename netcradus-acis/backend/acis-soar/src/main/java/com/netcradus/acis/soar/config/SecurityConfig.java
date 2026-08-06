@@ -54,6 +54,11 @@ public class SecurityConfig {
                 // red-team/compliance prefixes RbacEnforcementFilter maps
                 // below, so it needs no explicit exemption there either.
                 .requestMatchers("/api/invitations/**").permitAll()
+                // Real heartbeat/install-script surface (AgentController) — an
+                // unattended script on a brand-new machine has no JWT either,
+                // authenticated instead by the per-tenant enrollment token
+                // inside the handler itself (see AgentEnrollmentService).
+                .requestMatchers("/api/agent/**").permitAll()
                 // Every authenticated tenant user — not just admins — needs to
                 // read their own resolved permission map for frontend gating
                 // (see PermissionResolver.resolveAll / SettingsController.

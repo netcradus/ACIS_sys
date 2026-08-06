@@ -25,6 +25,12 @@ import com.netcradus.acis.common.rbac.DefaultRoleProvisioner;
 import com.netcradus.acis.common.rbac.PermissionResolver;
 import com.netcradus.acis.common.rbac.PermissionLevel;
 import com.netcradus.acis.soar.service.InvitationService;
+import com.netcradus.acis.soar.service.AgentEnrollmentService;
+import com.netcradus.acis.soar.model.AgentEndpoint;
+import com.netcradus.acis.soar.model.AgentEnrollmentToken;
+import com.netcradus.acis.soar.repository.AgentEndpointRepository;
+import com.netcradus.acis.soar.repository.AgentPolicyRepository;
+import com.netcradus.acis.soar.model.AgentPolicy;
 import lombok.RequiredArgsConstructor;
 import java.util.ArrayList;
 import org.springframework.http.HttpHeaders;
@@ -61,6 +67,9 @@ public class SettingsController {
     private final DefaultRoleProvisioner defaultRoleProvisioner;
     private final PermissionResolver permissionResolver;
     private final InvitationService invitationService;
+    private final AgentEnrollmentService agentEnrollmentService;
+    private final AgentEndpointRepository agentEndpointRepository;
+    private final AgentPolicyRepository agentPolicyRepository;
 
     /**
      * X-Tenant-ID is always populated by TenantContextFilter from the caller's
@@ -467,6 +476,84 @@ public class SettingsController {
                     return ResponseEntity.ok(ApiResponse.success(saved));
                 })
                 .orElse(ResponseEntity.status(404).body(ApiResponse.error("Member not found")));
+    }
+
+    // ── Agent Deployment ──────────────────────────────────────
+    //
+    // Real per-tenant install key + real fleet, driven entirely by actual
+    // heartbeat check-ins from install.ps1/install.sh/install-mac.sh/the k8s
+    // DaemonSet (see AgentController, the public endpoint these scripts
+    // actually call). No mock rows, no client-side-only "regenerate".
+
+    public record AgentTokenResponse(String token) {}
+
+    @GetMapping("/agent-token")
+    public ApiResponse<AgentTokenResponse> getAgentToken(@RequestHeader(value = "X-Tenant-ID", required = false) UUID tenantId) {
+        AgentEnrollmentToken token = agentEnrollmentService.getOrCreate(resolveTenant(tenantId));
+        return ApiResponse.success(new AgentTokenResponse(token.getRawToken()));
+    }
+
+    @PostMapping("/agent-token/regenerate")
+    public ApiResponse<AgentTokenResponse> regenerateAgentToken(@RequestHeader(value = "X-Tenant-ID", required = false) UUID tenantId) {
+        UUID tenant = resolveTenant(tenantId);
+        AgentEnrollmentToken token = agentEnrollmentService.regenerate(tenant);
+        auditEventPublisher.publish("AGENT_TOKEN_REGENERATE", "tenant/" + tenant, "regenerated");
+        return ApiResponse.success(new AgentTokenResponse(token.getRawToken()));
+    }
+
+    public record AgentEndpointView(UUID id, String agentId, String hostname, String os, String ipAddress,
+                                     String agentVersion, String status, OffsetDateTime lastHeartbeatAt, OffsetDateTime firstSeenAt) {}
+
+    @GetMapping("/agents")
+    public ApiResponse<List<AgentEndpointView>> getAgents(@RequestHeader(value = "X-Tenant-ID", required = false) UUID tenantId) {
+        List<AgentEndpointView> views = agentEndpointRepository.findByTenantId(resolveTenant(tenantId)).stream()
+                .map(a -> new AgentEndpointView(a.getId(), a.getAgentId(), a.getHostname(), a.getOs(), a.getIpAddress(),
+                        a.getAgentVersion(), agentEnrollmentService.isOnline(a.getLastHeartbeatAt()) ? "ONLINE" : "OFFLINE",
+                        a.getLastHeartbeatAt(), a.getFirstSeenAt()))
+                .toList();
+        return ApiResponse.success(views);
+    }
+
+    @DeleteMapping("/agents/{id}")
+    public ResponseEntity<ApiResponse<String>> deleteAgent(@PathVariable UUID id,
+            @RequestHeader(value = "X-Tenant-ID", required = false) UUID tenantId) {
+        return agentEndpointRepository.findByIdAndTenantId(id, resolveTenant(tenantId))
+                .map(a -> {
+                    agentEndpointRepository.delete(a);
+                    auditEventPublisher.publish("AGENT_REMOVE", "agent/" + id, "removed");
+                    return ResponseEntity.ok(ApiResponse.success("Agent removed from fleet"));
+                })
+                .orElse(ResponseEntity.status(404).body(ApiResponse.error("Agent not found")));
+    }
+
+    @GetMapping("/agent-policy")
+    public ApiResponse<AgentPolicy> getAgentPolicy(@RequestHeader(value = "X-Tenant-ID", required = false) UUID tenantId) {
+        UUID tenant = resolveTenant(tenantId);
+        AgentPolicy policy = agentPolicyRepository.findByTenantId(tenant).orElseGet(() -> {
+            AgentPolicy fresh = new AgentPolicy();
+            fresh.setTenantId(tenant);
+            return agentPolicyRepository.save(fresh);
+        });
+        return ApiResponse.success(policy);
+    }
+
+    @PutMapping("/agent-policy")
+    public ApiResponse<AgentPolicy> updateAgentPolicy(@RequestBody AgentPolicy updated,
+            @RequestHeader(value = "X-Tenant-ID", required = false) UUID tenantId) {
+        UUID tenant = resolveTenant(tenantId);
+        AgentPolicy policy = agentPolicyRepository.findByTenantId(tenant).orElseGet(() -> {
+            AgentPolicy fresh = new AgentPolicy();
+            fresh.setTenantId(tenant);
+            return fresh;
+        });
+        policy.setPollRate(updated.getPollRate());
+        policy.setCpuCapPercent(updated.getCpuCapPercent());
+        policy.setRamCapMb(updated.getRamCapMb());
+        policy.setAutoUpdate(updated.getAutoUpdate());
+        policy.setTamperProtect(updated.getTamperProtect());
+        AgentPolicy saved = agentPolicyRepository.save(policy);
+        auditEventPublisher.publish("AGENT_POLICY_UPDATE", "tenant/" + tenant, "updated");
+        return ApiResponse.success(saved);
     }
 
     // ── Roles & Permissions ───────────────────────────────────

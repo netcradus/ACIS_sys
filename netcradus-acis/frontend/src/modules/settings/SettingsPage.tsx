@@ -4,8 +4,8 @@ import {
   Key, Copy, Plus, X, Check, Settings, Activity, FileText, Database, Shield, 
   Users, CreditCard, Layers, Building2, User, Lock, Bell, ShieldCheck, 
   Smartphone, ExternalLink, Save, CheckCircle2, Mail, Phone, Globe, ShieldAlert,
-  Terminal, Download, Cpu, Server, Radio, RefreshCw, Zap, Laptop, ArrowRight, Power,
-  CopyCheck, Sliders, ShieldOff, HardDrive, Search
+  Terminal, Download, Server, Radio, RefreshCw, Laptop, ArrowRight, Power,
+  CopyCheck, Sliders, ShieldOff, HardDrive, Search, Info
 } from 'lucide-react'
 import { clsx } from 'clsx'
 import apiClient from '@/lib/apiClient'
@@ -32,6 +32,20 @@ interface Integration {
   description: string
   status: string // Connected, Disconnected
   logoLetter: string
+}
+
+/** Used by the Agent Deployment fleet table for real lastHeartbeatAt values. */
+function formatRelativeTime(isoString: string | null | undefined): string {
+  if (!isoString) return 'Never'
+  try {
+    const diffSec = Math.floor((Date.now() - new Date(isoString).getTime()) / 1000)
+    if (diffSec < 45) return 'Just now'
+    if (diffSec < 3600) return `${Math.floor(diffSec / 60)}m ago`
+    if (diffSec < 86400) return `${Math.floor(diffSec / 3600)}h ago`
+    return `${Math.floor(diffSec / 86400)}d ago`
+  } catch {
+    return 'Unknown'
+  }
 }
 
 export default function SettingsPage() {
@@ -130,59 +144,91 @@ export default function SettingsPage() {
     setTimeout(() => setProfileSavedSuccess(false), 3500)
   }
 
-  // Agent Deployment States
-  const [enrollmentToken, setEnrollmentToken] = useState('acis_tok_live_8f92a10b47e923c9a01')
+  // Agent Deployment States — real per-tenant install key + real fleet,
+  // driven by actual heartbeat check-ins (see AgentController/
+  // AgentEnrollmentService). No mock rows, no client-side-only "regenerate".
+  const [enrollmentToken, setEnrollmentToken] = useState('')
+  const [tokenLoading, setTokenLoading] = useState(true)
+  const [tokenRegenerating, setTokenRegenerating] = useState(false)
   const [selectedOsTab, setSelectedOsTab] = useState<'WINDOWS' | 'LINUX' | 'MACOS' | 'KUBERNETES'>('WINDOWS')
   const [copiedCmdId, setCopiedCmdId] = useState<string | null>(null)
 
   // Fleet monitoring state
-  const [agentFleet, setAgentFleet] = useState<any[]>([
-    { id: 'agent-101', hostname: 'WORKSTATION-SEC-01', os: 'Windows 11 Enterprise (64-bit)', ip: '192.168.1.104', version: 'v2.4.1-stable', status: 'ONLINE', cpu: '2.1%', ram: '48 MB', lastHeartbeat: 'Just now' },
-    { id: 'agent-102', hostname: 'PROD-DB-PRIMARY-01', os: 'Ubuntu 22.04 LTS (Kernel 5.15)', ip: '10.0.4.12', version: 'v2.4.1-stable', status: 'ONLINE', cpu: '4.8%', ram: '84 MB', lastHeartbeat: '3s ago' },
-    { id: 'agent-103', hostname: 'GATEWAY-PROXY-EU', os: 'Debian 12 Bookworm', ip: '172.16.0.5', version: 'v2.3.9-patch', status: 'OUTDATED', cpu: '1.4%', ram: '38 MB', lastHeartbeat: '12s ago' },
-    { id: 'agent-104', hostname: 'MACBOOK-CISO-M2', os: 'macOS Sonoma 14.5 (Apple Silicon)', ip: '192.168.1.188', version: 'v2.4.1-stable', status: 'ONLINE', cpu: '0.9%', ram: '52 MB', lastHeartbeat: 'Just now' },
-    { id: 'agent-105', hostname: 'K8S-WORKER-NODE-04', os: 'Container Optimized OS / Linux', ip: '10.244.0.14', version: 'v2.4.1-stable', status: 'ONLINE', cpu: '6.2%', ram: '110 MB', lastHeartbeat: '1s ago' },
-    { id: 'agent-106', hostname: 'FINANCE-PC-QUARANTINE', os: 'Windows 10 Pro (64-bit)', ip: '10.0.12.89', version: 'v2.4.0', status: 'ISOLATED', cpu: '0.0%', ram: '0 MB', lastHeartbeat: '15m ago' }
-  ])
+  const [agentFleet, setAgentFleet] = useState<any[]>([])
+  const [agentFleetLoading, setAgentFleetLoading] = useState(true)
   const [agentSearchQuery, setAgentSearchQuery] = useState('')
-  const [fleetFilterStatus, setFleetFilterStatus] = useState<'ALL' | 'ONLINE' | 'ISOLATED' | 'OUTDATED'>('ALL')
+  const [fleetFilterStatus, setFleetFilterStatus] = useState<'ALL' | 'ONLINE' | 'OFFLINE'>('ALL')
 
-  // Policy Settings state
+  // Policy Settings state — persisted for real (see GET/PUT /agent-policy),
+  // but honestly not yet enforced by the lightweight heartbeat scripts
+  // themselves (see the note in the Agent Policy card).
   const [agentPolicyRate, setAgentPolicyRate] = useState<'REALTIME' | 'BATCH_5S' | 'LOW_BANDWIDTH'>('REALTIME')
   const [agentCpuCap, setAgentCpuCap] = useState(5)
   const [agentRamCap, setAgentRamCap] = useState(128)
   const [agentAutoUpdate, setAgentAutoUpdate] = useState(true)
   const [agentTamperProtect, setAgentTamperProtect] = useState(true)
+  const [agentPolicyLoading, setAgentPolicyLoading] = useState(true)
   const [agentPolicySaving, setAgentPolicySaving] = useState(false)
   const [agentPolicySuccess, setAgentPolicySuccess] = useState(false)
 
-  // Sync real-time assets from API if available
+  const fetchAgentToken = async () => {
+    try {
+      setTokenLoading(true)
+      const res = await apiClient.get('/api/soar/settings/agent-token')
+      setEnrollmentToken(res.data?.token || '')
+    } catch (e) {
+      console.error('Failed to load agent enrollment token:', e)
+    } finally {
+      setTokenLoading(false)
+    }
+  }
+
+  const fetchAgentFleet = async () => {
+    try {
+      setAgentFleetLoading(true)
+      const res = await apiClient.get('/api/soar/settings/agents')
+      setAgentFleet(Array.isArray(res.data) ? res.data : [])
+    } catch (e) {
+      console.error('Failed to load agent fleet:', e)
+    } finally {
+      setAgentFleetLoading(false)
+    }
+  }
+
+  const fetchAgentPolicy = async () => {
+    try {
+      setAgentPolicyLoading(true)
+      const res = await apiClient.get('/api/soar/settings/agent-policy')
+      if (res.data) {
+        setAgentPolicyRate(res.data.pollRate || 'REALTIME')
+        setAgentCpuCap(res.data.cpuCapPercent ?? 5)
+        setAgentRamCap(res.data.ramCapMb ?? 128)
+        setAgentAutoUpdate(res.data.autoUpdate ?? true)
+        setAgentTamperProtect(res.data.tamperProtect ?? true)
+      }
+    } catch (e) {
+      console.error('Failed to load agent policy:', e)
+    } finally {
+      setAgentPolicyLoading(false)
+    }
+  }
+
   useEffect(() => {
-    apiClient.get('/api/assets')
-      .then((res) => {
-        if (Array.isArray(res.data) && res.data.length > 0) {
-          const apiAgents = res.data.map((a: any, idx: number) => ({
-            id: a.id || `api-agent-${idx}`,
-            hostname: a.name || `HOST-${a.type || 'NODE'}`,
-            os: a.os || 'Linux x86_64',
-            ip: a.ipAddress || '192.168.1.' + (100 + idx),
-            version: 'v2.4.1-stable',
-            status: a.health === 'CRITICAL' ? 'ISOLATED' : a.status === 'ACTIVE' ? 'ONLINE' : 'OFFLINE',
-            cpu: (1.5 + (idx % 4)).toFixed(1) + '%',
-            ram: (42 + idx * 8) + ' MB',
-            lastHeartbeat: idx === 0 ? 'Just now' : `${idx * 4}s ago`
-          }))
-          setAgentFleet(apiAgents)
-        }
-      })
-      .catch((err) => {
-        console.log('Using live local agent fleet stream:', err?.message)
-      })
+    fetchAgentToken()
+    fetchAgentFleet()
+    fetchAgentPolicy()
   }, [])
 
-  const handleRegenerateToken = () => {
-    const newToken = 'acis_tok_live_' + Math.random().toString(36).substring(2, 10) + Math.random().toString(36).substring(2, 10)
-    setEnrollmentToken(newToken)
+  const handleRegenerateToken = async () => {
+    try {
+      setTokenRegenerating(true)
+      const res = await apiClient.post('/api/soar/settings/agent-token/regenerate')
+      setEnrollmentToken(res.data?.token || '')
+    } catch (e: any) {
+      alert(e?.message || 'Failed to regenerate enrollment token')
+    } finally {
+      setTokenRegenerating(false)
+    }
   }
 
   const handleCopyCommand = (id: string, text: string) => {
@@ -191,14 +237,34 @@ export default function SettingsPage() {
     setTimeout(() => setCopiedCmdId(null), 2500)
   }
 
-  const handleSaveAgentPolicy = (e?: React.FormEvent) => {
+  const handleRemoveAgent = async (id: string) => {
+    if (!confirm('Remove this agent from the fleet? It will reappear on its next heartbeat if the machine is still running the installer.')) return
+    try {
+      await apiClient.delete(`/api/soar/settings/agents/${id}`)
+      await fetchAgentFleet()
+    } catch (e: any) {
+      alert(e?.message || 'Failed to remove agent')
+    }
+  }
+
+  const handleSaveAgentPolicy = async (e?: React.FormEvent) => {
     if (e) e.preventDefault()
-    setAgentPolicySaving(true)
-    setTimeout(() => {
-      setAgentPolicySaving(false)
+    try {
+      setAgentPolicySaving(true)
+      await apiClient.put('/api/soar/settings/agent-policy', {
+        pollRate: agentPolicyRate,
+        cpuCapPercent: agentCpuCap,
+        ramCapMb: agentRamCap,
+        autoUpdate: agentAutoUpdate,
+        tamperProtect: agentTamperProtect,
+      })
       setAgentPolicySuccess(true)
       setTimeout(() => setAgentPolicySuccess(false), 3500)
-    }, 600)
+    } catch (e: any) {
+      alert(e?.message || 'Failed to save agent policy')
+    } finally {
+      setAgentPolicySaving(false)
+    }
   }
 
   // Roles & Permissions states
@@ -3009,24 +3075,21 @@ export default function SettingsPage() {
         {activeTab === 'Agent Deployment' && (
           <div className="space-y-6 animate-fade-in">
 
-            {/* Quick Metrics Bar */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            {/* Quick Metrics Bar — real counts from actual heartbeat check-ins */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div className="card-mission p-4 space-y-2">
                 <div className="flex items-center justify-between">
-                  <span className="text-label text-text-muted uppercase">Total Active Fleet</span>
+                  <span className="text-label text-text-muted uppercase">Total Enrolled Fleet</span>
                   <Server className="w-4 h-4 text-accent" />
                 </div>
                 <div className="flex items-baseline justify-between">
                   <span className="text-h1 text-text-primary font-mono">{agentFleet.length}</span>
-                  <span className="text-label text-success flex items-center gap-1">
-                    <span className="w-2 h-2 rounded-full bg-success animate-pulse" /> Live Stream
-                  </span>
                 </div>
               </div>
 
               <div className="card-mission p-4 space-y-2">
                 <div className="flex items-center justify-between">
-                  <span className="text-label text-text-muted uppercase">Online & Healthy</span>
+                  <span className="text-label text-text-muted uppercase">Online</span>
                   <ShieldCheck className="w-4 h-4 text-success" />
                 </div>
                 <div className="flex items-baseline justify-between">
@@ -3034,32 +3097,21 @@ export default function SettingsPage() {
                     {agentFleet.filter(a => a.status === 'ONLINE').length}
                   </span>
                   <span className="text-label text-text-muted">
-                    {Math.round((agentFleet.filter(a => a.status === 'ONLINE').length / (agentFleet.length || 1)) * 100)}% Fleet Capacity
+                    heartbeat within 150s
                   </span>
                 </div>
               </div>
 
               <div className="card-mission p-4 space-y-2">
                 <div className="flex items-center justify-between">
-                  <span className="text-label text-text-muted uppercase">Quarantined / Isolated</span>
-                  <ShieldAlert className="w-4 h-4 text-danger" />
+                  <span className="text-label text-text-muted uppercase">Offline</span>
+                  <ShieldAlert className="w-4 h-4 text-text-muted" />
                 </div>
                 <div className="flex items-baseline justify-between">
-                  <span className="text-h1 text-danger font-mono">
-                    {agentFleet.filter(a => a.status === 'ISOLATED').length}
+                  <span className="text-h1 text-text-secondary font-mono">
+                    {agentFleet.filter(a => a.status === 'OFFLINE').length}
                   </span>
-                  <span className="text-label text-danger/80">EDR Containment</span>
-                </div>
-              </div>
-
-              <div className="card-mission p-4 space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="text-label text-text-muted uppercase">Ingest Throughput</span>
-                  <Zap className="w-4 h-4 text-severity-medium" />
-                </div>
-                <div className="flex items-baseline justify-between">
-                  <span className="text-h1 text-text-primary font-mono">4.2 MB/s</span>
-                  <span className="text-label text-severity-medium font-mono">~1,840 EPS</span>
+                  <span className="text-label text-text-muted">missed heartbeat</span>
                 </div>
               </div>
             </div>
@@ -3069,15 +3121,17 @@ export default function SettingsPage() {
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-fire-border pb-4">
                 <div>
                   <h3 className="text-h3 text-text-primary flex items-center gap-2">
-                    <Key className="w-4 h-4 text-accent" /> Enterprise Enrollment Key & Endpoint Gateway
+                    <Key className="w-4 h-4 text-accent" /> Enrollment Key & Endpoint Gateway
                   </h3>
-                  <p className="text-small text-text-muted mt-1">Authenticates newly provisioned security agents with your ACIS SOC Gateway.</p>
+                  <p className="text-small text-text-muted mt-1">Authenticates the lightweight heartbeat installer with your ACIS SOC Gateway.</p>
                 </div>
                 <button
                   onClick={handleRegenerateToken}
-                  className="btn-mission text-small px-4 py-2 self-start sm:self-auto"
+                  disabled={tokenRegenerating || tokenLoading}
+                  className="btn-mission text-small px-4 py-2 self-start sm:self-auto disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  <RefreshCw className="w-3.5 h-3.5 text-accent" /> Regenerate Secret Key
+                  <RefreshCw className={clsx("w-3.5 h-3.5 text-accent", tokenRegenerating && "animate-spin")} />
+                  {tokenRegenerating ? 'Regenerating...' : 'Regenerate Secret Key'}
                 </button>
               </div>
 
@@ -3085,10 +3139,11 @@ export default function SettingsPage() {
                 <div className="md:col-span-2 space-y-1.5">
                   <label className="text-small text-text-secondary font-semibold block">Live Enrollment Token Secret</label>
                   <div className="flex items-center gap-2 bg-surface-2 border border-fire-border rounded-lg p-2.5 font-mono text-small text-text-primary">
-                    <span className="truncate flex-1 text-accent">{enrollmentToken}</span>
+                    <span className="truncate flex-1 text-accent">{tokenLoading ? 'Loading...' : enrollmentToken}</span>
                     <button
                       onClick={() => handleCopyCommand('token', enrollmentToken)}
-                      className="btn-ghost px-3 py-1.5 text-small shrink-0"
+                      disabled={tokenLoading || !enrollmentToken}
+                      className="btn-ghost px-3 py-1.5 text-small shrink-0 disabled:opacity-50"
                     >
                       {copiedCmdId === 'token' ? <CheckCircle2 className="w-3.5 h-3.5 text-success" /> : <Copy className="w-3.5 h-3.5" />}
                       {copiedCmdId === 'token' ? 'Copied' : 'Copy'}
@@ -3118,9 +3173,9 @@ export default function SettingsPage() {
                 {/* OS Selector Tabs */}
                 <div className="flex items-center gap-1 bg-surface-2 p-1 rounded-lg border border-fire-border text-label">
                   {[
-                    { id: 'WINDOWS', label: 'Windows (PS/MSI)', icon: Laptop },
-                    { id: 'LINUX', label: 'Linux (Bash/APT)', icon: Server },
-                    { id: 'MACOS', label: 'macOS (PKG)', icon: HardDrive },
+                    { id: 'WINDOWS', label: 'Windows (PowerShell)', icon: Laptop },
+                    { id: 'LINUX', label: 'Linux (Bash + cron)', icon: Server },
+                    { id: 'MACOS', label: 'macOS (Bash + launchd)', icon: HardDrive },
                     { id: 'KUBERNETES', label: 'Kubernetes (K8s)', icon: Layers }
                   ].map((os) => (
                     <button
@@ -3147,7 +3202,7 @@ export default function SettingsPage() {
                     <div className="space-y-2">
                       <div className="flex items-center justify-between">
                         <span className="text-small font-semibold text-text-primary flex items-center gap-2">
-                          <Terminal className="w-3.5 h-3.5 text-accent" /> Option 1: PowerShell Unattended One-Liner
+                          <Terminal className="w-3.5 h-3.5 text-accent" /> PowerShell Unattended One-Liner (run as Administrator)
                         </span>
                         <button
                           onClick={() => handleCopyCommand(
@@ -3164,27 +3219,9 @@ export default function SettingsPage() {
                         {`[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; iex ((New-Object System.Net.WebClient).DownloadString('http://${typeof window !== 'undefined' ? window.location.hostname : 'localhost'}:8080/api/agent/install.ps1')) -EnrollmentToken "${enrollmentToken}" -ServerUrl "http://${typeof window !== 'undefined' ? window.location.hostname : 'localhost'}:8080"`}
                       </pre>
                     </div>
-
-                    <div className="space-y-2">
-                      <div className="flex items-center justify-between">
-                        <span className="text-small font-semibold text-text-primary flex items-center gap-2">
-                          <Download className="w-3.5 h-3.5 text-accent" /> Option 2: MSI Installer Executable (GPO / Active Directory)
-                        </span>
-                        <button
-                          onClick={() => handleCopyCommand(
-                            'win-msi',
-                            `msiexec.exe /i "ACIS-Agent-v2.4.1-x64.msi" /qn ENROLLMENT_TOKEN="${enrollmentToken}" SERVER_URL="http://${typeof window !== 'undefined' ? window.location.hostname : 'localhost'}:8080" AUTO_START=1`
-                          )}
-                          className="text-small text-accent hover:text-accent-dark font-semibold flex items-center gap-1"
-                        >
-                          {copiedCmdId === 'win-msi' ? <CheckCircle2 className="w-3.5 h-3.5 text-success" /> : <Copy className="w-3.5 h-3.5" />}
-                          {copiedCmdId === 'win-msi' ? 'Copied MSI Command' : 'Copy MSI Command'}
-                        </button>
-                      </div>
-                      <pre className="bg-surface-2 border border-fire-border rounded-lg p-4 text-small font-mono text-text-secondary overflow-x-auto whitespace-pre-wrap select-all">
-                        {`msiexec.exe /i "ACIS-Agent-v2.4.1-x64.msi" /qn ENROLLMENT_TOKEN="${enrollmentToken}" SERVER_URL="http://${typeof window !== 'undefined' ? window.location.hostname : 'localhost'}:8080" AUTO_START=1`}
-                      </pre>
-                    </div>
+                    <p className="text-label text-text-muted">
+                      Registers a Scheduled Task ("ACIS-Agent-Heartbeat") that checks in every 60s. Real presence/inventory only — not a full EDR.
+                    </p>
                   </div>
                 )}
 
@@ -3207,9 +3244,12 @@ export default function SettingsPage() {
                         </button>
                       </div>
                       <pre className="bg-surface-2 border border-fire-border rounded-lg p-4 text-small font-mono text-success overflow-x-auto whitespace-pre-wrap leading-relaxed select-all">
-                        {`curl -sSL http://${typeof window !== 'undefined' ? window.location.hostname : 'localhost'}:8080/api/agent/install.sh | sudo bash -s -- --token="${enrollmentToken}" --server="http://${typeof window !== 'undefined' ? window.location.hostname : 'localhost'}:8080" --enable-service`}
+                        {`curl -sSL http://${typeof window !== 'undefined' ? window.location.hostname : 'localhost'}:8080/api/agent/install.sh | sudo bash -s -- --token="${enrollmentToken}" --server="http://${typeof window !== 'undefined' ? window.location.hostname : 'localhost'}:8080"`}
                       </pre>
                     </div>
+                    <p className="text-label text-text-muted">
+                      Installs a cron entry that checks in every 60s. Real presence/inventory only — not a full EDR.
+                    </p>
                   </div>
                 )}
 
@@ -3235,6 +3275,9 @@ export default function SettingsPage() {
                         {`curl -sSL http://${typeof window !== 'undefined' ? window.location.hostname : 'localhost'}:8080/api/agent/install-mac.sh | sudo bash -s -- --token="${enrollmentToken}" --server="http://${typeof window !== 'undefined' ? window.location.hostname : 'localhost'}:8080"`}
                       </pre>
                     </div>
+                    <p className="text-label text-text-muted">
+                      Installs a launchd LaunchDaemon that checks in every 60s. Real presence/inventory only — not a full EDR.
+                    </p>
                   </div>
                 )}
 
@@ -3248,7 +3291,7 @@ export default function SettingsPage() {
                         <button
                           onClick={() => handleCopyCommand(
                             'k8s-cmd',
-                            `kubectl apply -f http://${typeof window !== 'undefined' ? window.location.hostname : 'localhost'}:8080/api/agent/k8s-daemonset.yaml --namespace=acis-security`
+                            `kubectl create namespace acis-security --dry-run=client -o yaml | kubectl apply -f - && kubectl apply -f "http://${typeof window !== 'undefined' ? window.location.hostname : 'localhost'}:8080/api/agent/k8s-daemonset.yaml?token=${encodeURIComponent(enrollmentToken)}&server=${encodeURIComponent('http://' + (typeof window !== 'undefined' ? window.location.hostname : 'localhost') + ':8080')}"`
                           )}
                           className="text-small text-accent hover:text-accent-dark font-semibold flex items-center gap-1"
                         >
@@ -3257,22 +3300,25 @@ export default function SettingsPage() {
                         </button>
                       </div>
                       <pre className="bg-surface-2 border border-fire-border rounded-lg p-4 text-small font-mono text-success overflow-x-auto whitespace-pre-wrap select-all">
-                        {`kubectl apply -f http://${typeof window !== 'undefined' ? window.location.hostname : 'localhost'}:8080/api/agent/k8s-daemonset.yaml --namespace=acis-security`}
+                        {`kubectl create namespace acis-security --dry-run=client -o yaml | kubectl apply -f - && kubectl apply -f "http://${typeof window !== 'undefined' ? window.location.hostname : 'localhost'}:8080/api/agent/k8s-daemonset.yaml?token=${encodeURIComponent(enrollmentToken)}&server=${encodeURIComponent('http://' + (typeof window !== 'undefined' ? window.location.hostname : 'localhost') + ':8080')}"`}
                       </pre>
                     </div>
+                    <p className="text-label text-text-muted">
+                      Deploys a DaemonSet that checks in from every node every 60s (creates the acis-security namespace's token Secret inline). Real presence/inventory only — not a full EDR.
+                    </p>
                   </div>
                 )}
               </div>
             </div>
 
-            {/* Active Fleet & Real-time Heartbeat Monitoring Table */}
+            {/* Active Fleet & Real Heartbeat Monitoring Table */}
             <div className="card-mission space-y-6">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-fire-border pb-4">
                 <div>
                   <h3 className="text-h3 text-text-primary flex items-center gap-2">
-                    <Radio className="w-4 h-4 text-success animate-pulse" /> Live Enrolled Agent Fleet & Telemetry
+                    <Radio className="w-4 h-4 text-success animate-pulse" /> Enrolled Agent Fleet
                   </h3>
-                  <p className="text-small text-text-muted mt-1">Real-time status stream synced with ACIS Assets CMDB and WebSockets</p>
+                  <p className="text-small text-text-muted mt-1">Driven by real check-ins from the heartbeat installer above — no simulated rows.</p>
                 </div>
 
                 <div className="flex items-center gap-3">
@@ -3303,10 +3349,10 @@ export default function SettingsPage() {
                       Online
                     </button>
                     <button
-                      onClick={() => setFleetFilterStatus('ISOLATED')}
-                      className={clsx("px-2.5 py-1 rounded transition-colors", fleetFilterStatus === 'ISOLATED' ? "bg-danger/20 text-danger" : "text-text-muted hover:text-text-primary")}
+                      onClick={() => setFleetFilterStatus('OFFLINE')}
+                      className={clsx("px-2.5 py-1 rounded transition-colors", fleetFilterStatus === 'OFFLINE' ? "bg-surface-3 text-text-primary" : "text-text-muted hover:text-text-primary")}
                     >
-                      Isolated
+                      Offline
                     </button>
                   </div>
                 </div>
@@ -3321,19 +3367,25 @@ export default function SettingsPage() {
                       <th>IP Address</th>
                       <th>Agent Version</th>
                       <th>Status</th>
-                      <th>CPU / RAM</th>
-                      <th>Heartbeat</th>
+                      <th>Last Heartbeat</th>
                       <th className="text-right">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {agentFleet
+                    {agentFleetLoading && (
+                      <tr><td colSpan={6} className="text-center text-text-muted py-8">Loading fleet...</td></tr>
+                    )}
+                    {!agentFleetLoading && agentFleet.length === 0 && (
+                      <tr><td colSpan={6} className="text-center text-text-muted py-8">
+                        No agents enrolled yet — run one of the installer commands above on a real machine to see it show up here.
+                      </td></tr>
+                    )}
+                    {!agentFleetLoading && agentFleet
                       .filter(agent => {
                         const q = agentSearchQuery.toLowerCase()
-                        const matchesQuery = agent.hostname.toLowerCase().includes(q) || agent.ip.toLowerCase().includes(q)
+                        const matchesQuery = (agent.hostname || '').toLowerCase().includes(q) || (agent.ipAddress || '').toLowerCase().includes(q)
                         if (fleetFilterStatus === 'ONLINE') return matchesQuery && agent.status === 'ONLINE'
-                        if (fleetFilterStatus === 'ISOLATED') return matchesQuery && agent.status === 'ISOLATED'
-                        if (fleetFilterStatus === 'OUTDATED') return matchesQuery && agent.status === 'OUTDATED'
+                        if (fleetFilterStatus === 'OFFLINE') return matchesQuery && agent.status === 'OFFLINE'
                         return matchesQuery
                       })
                       .map((agent) => (
@@ -3341,44 +3393,32 @@ export default function SettingsPage() {
                           <td>
                             <div>
                               <p className="font-semibold text-text-primary flex items-center gap-1.5">
-                                {agent.os.toLowerCase().includes('windows') ? <Laptop className="w-3.5 h-3.5 text-accent" /> : <Server className="w-3.5 h-3.5 text-info" />}
+                                {(agent.os || '').toLowerCase().includes('windows') ? <Laptop className="w-3.5 h-3.5 text-accent" /> : <Server className="w-3.5 h-3.5 text-info" />}
                                 {agent.hostname}
                               </p>
                               <p className="text-label text-text-muted mt-0.5 truncate max-w-[200px]">{agent.os}</p>
                             </div>
                           </td>
-                          <td className="font-mono text-text-secondary">{agent.ip}</td>
-                          <td className="font-mono text-text-secondary">{agent.version}</td>
+                          <td className="font-mono text-text-secondary">{agent.ipAddress || '—'}</td>
+                          <td className="font-mono text-text-secondary">{agent.agentVersion || '—'}</td>
                           <td>
                             <span className={clsx(
                               "badge-mission inline-flex items-center gap-1",
                               agent.status === 'ONLINE' && "bg-success/10 text-success border-success/20",
-                              agent.status === 'ISOLATED' && "bg-danger/10 text-danger border-danger/20",
-                              agent.status === 'OUTDATED' && "bg-severity-medium/10 text-severity-medium border-severity-medium/20",
                               agent.status === 'OFFLINE' && "bg-surface-3 text-text-secondary border-fire-border"
                             )}>
                               {agent.status === 'ONLINE' && <span className="w-1.5 h-1.5 rounded-full bg-success animate-pulse" />}
                               {agent.status}
                             </span>
                           </td>
-                          <td className="font-mono text-text-secondary">
-                            {agent.cpu} / {agent.ram}
-                          </td>
-                          <td className="font-mono text-text-muted text-small">{agent.lastHeartbeat}</td>
+                          <td className="font-mono text-text-muted text-small">{formatRelativeTime(agent.lastHeartbeatAt)}</td>
                           <td className="text-right">
                             <div className="flex items-center justify-end gap-2">
                               <button
-                                onClick={() => {
-                                  setAgentFleet(prev => prev.map(a => a.id === agent.id ? { ...a, status: a.status === 'ISOLATED' ? 'ONLINE' : 'ISOLATED' } : a))
-                                }}
-                                className={clsx(
-                                  "px-2.5 py-1 rounded-md text-label font-semibold transition-colors border",
-                                  agent.status === 'ISOLATED'
-                                    ? "bg-success/10 text-success border-success/30 hover:bg-success/20"
-                                    : "bg-danger/10 text-danger border-danger/30 hover:bg-danger/20"
-                                )}
+                                onClick={() => handleRemoveAgent(agent.id)}
+                                className="px-2.5 py-1 rounded-md text-label font-semibold transition-colors border bg-danger/10 text-danger border-danger/30 hover:bg-danger/20"
                               >
-                                {agent.status === 'ISOLATED' ? 'Unisolate' : 'Isolate'}
+                                Remove
                               </button>
                             </div>
                           </td>
@@ -3394,24 +3434,29 @@ export default function SettingsPage() {
               <div className="flex items-center justify-between border-b border-fire-border pb-4">
                 <div>
                   <h3 className="text-h3 text-text-primary flex items-center gap-2">
-                    <Sliders className="w-4 h-4 text-accent" /> Agent Performance & Ingestion Policy
+                    <Sliders className="w-4 h-4 text-accent" /> Agent Policy Preferences
                   </h3>
-                  <p className="text-small text-text-muted mt-1">Configure global agent CPU caps, telemetry buffering, and EDR self-protection</p>
+                  <p className="text-small text-text-muted mt-1">Saved for real per tenant — see the note below on current enforcement.</p>
                 </div>
                 <button
                   onClick={handleSaveAgentPolicy}
-                  disabled={agentPolicySaving}
-                  className="btn-fire py-2 px-5 text-small"
+                  disabled={agentPolicySaving || agentPolicyLoading}
+                  className="btn-fire py-2 px-5 text-small disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <Save className="w-3.5 h-3.5" />
                   {agentPolicySaving ? 'Saving...' : 'Save Agent Policy'}
                 </button>
               </div>
 
+              <div className="bg-surface-2 border border-fire-border text-text-secondary p-3.5 rounded-xl text-small flex items-start gap-2">
+                <Info className="w-4 h-4 text-text-muted shrink-0 mt-0.5" />
+                These preferences are saved for real, but the current lightweight heartbeat agent (install.ps1/install.sh/install-mac.sh) only reports presence — it doesn't yet read or enforce CPU/RAM caps, auto-update, or tamper protection.
+              </div>
+
               {agentPolicySuccess && (
                 <div className="bg-success/10 border border-success/30 text-success p-3.5 rounded-xl text-small font-semibold flex items-center gap-2 animate-fade-in">
                   <CheckCircle2 className="w-4 h-4 text-success" />
-                  Agent policy updated successfully! Pushed to active agent fleet via WebSocket broadcast.
+                  Agent policy saved.
                 </div>
               )}
 
@@ -3427,9 +3472,10 @@ export default function SettingsPage() {
                       <button
                         key={rate.id}
                         type="button"
+                        disabled={agentPolicyLoading}
                         onClick={() => setAgentPolicyRate(rate.id as any)}
                         className={clsx(
-                          "py-2 rounded-lg text-center font-semibold border transition-all text-small",
+                          "py-2 rounded-lg text-center font-semibold border transition-all text-small disabled:opacity-50",
                           agentPolicyRate === rate.id
                             ? "bg-accent/10 text-accent border-accent/40"
                             : "bg-surface-2 text-text-secondary border-fire-border hover:text-text-primary"
@@ -3448,6 +3494,7 @@ export default function SettingsPage() {
                     min="1"
                     max="25"
                     value={agentCpuCap}
+                    disabled={agentPolicyLoading}
                     onChange={(e) => setAgentCpuCap(Number(e.target.value))}
                     className="w-full accent-accent cursor-pointer"
                   />
@@ -3458,16 +3505,54 @@ export default function SettingsPage() {
                   </div>
                 </div>
 
-                <div className="flex items-center justify-between py-2 border-t border-fire-border md:col-span-2">
+                <div className="space-y-2">
+                  <label className="text-small text-text-secondary font-semibold block">Host RAM Limit Cap ({agentRamCap} MB)</label>
+                  <input
+                    type="range"
+                    min="32"
+                    max="512"
+                    step="32"
+                    value={agentRamCap}
+                    disabled={agentPolicyLoading}
+                    onChange={(e) => setAgentRamCap(Number(e.target.value))}
+                    className="w-full accent-accent cursor-pointer"
+                  />
+                  <div className="flex justify-between text-label text-text-muted font-mono">
+                    <span>32 MB</span>
+                    <span>128 MB (Default)</span>
+                    <span>512 MB</span>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between py-2 border-t border-fire-border">
                   <div>
-                    <p className="font-semibold text-text-primary">EDR Tamper Resistance & Anti-Kill Protection</p>
-                    <p className="text-small text-text-muted">Prevents non-system administrators or malware processes from terminating the ACIS agent service.</p>
+                    <p className="font-semibold text-text-primary">Automatic Agent Updates</p>
+                    <p className="text-small text-text-muted">Preference only — see note above.</p>
                   </div>
                   <button
                     type="button"
+                    disabled={agentPolicyLoading}
+                    onClick={() => setAgentAutoUpdate(!agentAutoUpdate)}
+                    className={clsx(
+                      "w-11 h-6 rounded-full transition-colors relative p-0.5 focus:outline-none disabled:opacity-50",
+                      agentAutoUpdate ? "bg-accent" : "bg-surface-3"
+                    )}
+                  >
+                    <div className={clsx("w-5 h-5 rounded-full bg-white transition-transform", agentAutoUpdate && "translate-x-5")} />
+                  </button>
+                </div>
+
+                <div className="flex items-center justify-between py-2 border-t border-fire-border md:col-span-2">
+                  <div>
+                    <p className="font-semibold text-text-primary">Tamper Resistance & Anti-Kill Protection</p>
+                    <p className="text-small text-text-muted">Preference only — see note above.</p>
+                  </div>
+                  <button
+                    type="button"
+                    disabled={agentPolicyLoading}
                     onClick={() => setAgentTamperProtect(!agentTamperProtect)}
                     className={clsx(
-                      "w-11 h-6 rounded-full transition-colors relative p-0.5 focus:outline-none",
+                      "w-11 h-6 rounded-full transition-colors relative p-0.5 focus:outline-none disabled:opacity-50",
                       agentTamperProtect ? "bg-accent" : "bg-surface-3"
                     )}
                   >

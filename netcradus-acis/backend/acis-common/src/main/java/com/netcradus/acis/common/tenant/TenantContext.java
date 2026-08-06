@@ -18,6 +18,7 @@ public class TenantContext {
     private static final ThreadLocal<Boolean> API_KEY_LOOKUP = new ThreadLocal<>();
     private static final ThreadLocal<Boolean> SYSTEM_POLLER = new ThreadLocal<>();
     private static final ThreadLocal<Boolean> INVITATION_LOOKUP = new ThreadLocal<>();
+    private static final ThreadLocal<Boolean> AGENT_TOKEN_LOOKUP = new ThreadLocal<>();
 
     public static void setTenantId(String tenantId) { TENANT_ID.set(tenantId); }
     public static String getTenantId() { return TENANT_ID.get(); }
@@ -57,6 +58,16 @@ public class TenantContext {
     public static void setInvitationLookupInProgress(boolean inProgress) { INVITATION_LOOKUP.set(inProgress); }
     public static boolean isInvitationLookupInProgress() { return Boolean.TRUE.equals(INVITATION_LOOKUP.get()); }
 
+    /**
+     * True only for the brief window a heartbeat/install script's inbound
+     * call is resolving its raw enrollment token -> tenant (see
+     * AgentController) — same bypass-then-immediately-scope shape as the
+     * invitation lookup above, since the caller (an unattended script on a
+     * customer machine) has no JWT and no other way to identify its tenant.
+     */
+    public static void setAgentTokenLookupInProgress(boolean inProgress) { AGENT_TOKEN_LOOKUP.set(inProgress); }
+    public static boolean isAgentTokenLookupInProgress() { return Boolean.TRUE.equals(AGENT_TOKEN_LOOKUP.get()); }
+
     /** Tenant ID as a UUID, for services whose tenant_id columns are typed UUID. */
     public static UUID getTenantIdAsUuid() {
         String id = TENANT_ID.get();
@@ -81,5 +92,6 @@ public class TenantContext {
         API_KEY_LOOKUP.remove();
         SYSTEM_POLLER.remove();
         INVITATION_LOOKUP.remove();
+        AGENT_TOKEN_LOOKUP.remove();
     }
 }

@@ -30,6 +30,9 @@ public class SecurityConfig {
                 // until acceptance succeeds and the invitee logs in for the first
                 // time, so both methods must be reachable without one.
                 .pathMatchers("/api/invitations/**").permitAll()
+                // Real heartbeat/install-script surface (acis-soar's AgentController)
+                // — an unattended script on a brand-new machine has no JWT either.
+                .pathMatchers("/api/agent/**").permitAll()
                 // External log ingestion, authenticated by a tenant-scoped API key
                 // instead of a Keycloak JWT (see acis-ingestion's ApiKeyAuthFilter) —
                 // same reasoning as signup above: the gateway must not reject these

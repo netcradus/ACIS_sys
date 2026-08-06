@@ -49,9 +49,10 @@ spring:
           uri: ${SOAR_SERVICE_URL:http://localhost:8085}
           predicates:
             # /api/invitations/** is the public accept-invite flow
-            # (InvitationController, same service) — see SecurityConfig's
-            # permitAll for why this is reachable without a JWT.
-            - Path=/api/soar/**,/api/red-team/**,/api/compliance/**,/api/invitations/**
+            # (InvitationController, same service) and /api/agent/** is the
+            # public heartbeat/install-script surface (AgentController) — see
+            # SecurityConfig's permitAll for why both are reachable without a JWT.
+            - Path=/api/soar/**,/api/red-team/**,/api/compliance/**,/api/invitations/**,/api/agent/**
 
         - id: ingestion
           uri: ${INGESTION_SERVICE_URL:http://localhost:8084}

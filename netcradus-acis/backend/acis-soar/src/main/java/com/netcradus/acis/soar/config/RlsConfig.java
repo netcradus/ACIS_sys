@@ -56,7 +56,9 @@ public class RlsConfig {
                 "license_details",
                 "invoices",
                 "user_members",
-                "user_groups");
+                "user_groups",
+                "agent_endpoints",
+                "agent_policies");
     }
 
     /**
@@ -136,6 +138,29 @@ public class RlsConfig {
             jdbcTemplate.execute("CREATE POLICY tenant_isolation ON invitations" +
                     " USING (tenant_id::text = current_setting('app.current_tenant_id', true)" +
                     "        OR current_setting('app.allow_invitation_lookup', true) = 'true')" +
+                    " WITH CHECK (tenant_id::text = current_setting('app.current_tenant_id', true))");
+        };
+    }
+
+    /**
+     * agent_enrollment_tokens needs the same non-standard policy as api_keys,
+     * for the same reason: an unattended heartbeat/install script (see
+     * AgentController) must look its enrollment token up by hash *before*
+     * it knows which tenant it belongs to — it never has a JWT at all. Gated
+     * by app.allow_agent_token_lookup, a GUC only that lookup ever sets (see
+     * TenantContext.setAgentTokenLookupInProgress). Every write (admin
+     * regenerating their token) still goes through WITH CHECK unmodified.
+     */
+    @Bean
+    @Order(1004)
+    public CommandLineRunner enableAgentTokenRowLevelSecurity(JdbcTemplate jdbcTemplate) {
+        return args -> {
+            jdbcTemplate.execute("ALTER TABLE agent_enrollment_tokens ENABLE ROW LEVEL SECURITY");
+            jdbcTemplate.execute("ALTER TABLE agent_enrollment_tokens FORCE ROW LEVEL SECURITY");
+            jdbcTemplate.execute("DROP POLICY IF EXISTS tenant_isolation ON agent_enrollment_tokens");
+            jdbcTemplate.execute("CREATE POLICY tenant_isolation ON agent_enrollment_tokens" +
+                    " USING (tenant_id::text = current_setting('app.current_tenant_id', true)" +
+                    "        OR current_setting('app.allow_agent_token_lookup', true) = 'true')" +
                     " WITH CHECK (tenant_id::text = current_setting('app.current_tenant_id', true))");
         };
     }
