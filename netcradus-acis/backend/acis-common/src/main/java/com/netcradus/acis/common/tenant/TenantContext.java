@@ -17,6 +17,7 @@ public class TenantContext {
     private static final ThreadLocal<List<String>> USER_ROLES = new ThreadLocal<>();
     private static final ThreadLocal<Boolean> API_KEY_LOOKUP = new ThreadLocal<>();
     private static final ThreadLocal<Boolean> SYSTEM_POLLER = new ThreadLocal<>();
+    private static final ThreadLocal<Boolean> INVITATION_LOOKUP = new ThreadLocal<>();
 
     public static void setTenantId(String tenantId) { TENANT_ID.set(tenantId); }
     public static String getTenantId() { return TENANT_ID.get(); }
@@ -45,6 +46,17 @@ public class TenantContext {
     public static void setSystemPollerInProgress(boolean inProgress) { SYSTEM_POLLER.set(inProgress); }
     public static boolean isSystemPollerInProgress() { return Boolean.TRUE.equals(SYSTEM_POLLER.get()); }
 
+    /**
+     * True only for the brief window the public accept-invite flow is
+     * looking up which tenant/member an invite token belongs to (see
+     * SettingsController's invitation endpoints) — the caller has no JWT at
+     * all at this point (they're not a user yet), so there's no tenant to
+     * scope the lookup by until the token itself resolves one. Same
+     * bypass-then-immediately-scope pattern as the API key lookup above.
+     */
+    public static void setInvitationLookupInProgress(boolean inProgress) { INVITATION_LOOKUP.set(inProgress); }
+    public static boolean isInvitationLookupInProgress() { return Boolean.TRUE.equals(INVITATION_LOOKUP.get()); }
+
     /** Tenant ID as a UUID, for services whose tenant_id columns are typed UUID. */
     public static UUID getTenantIdAsUuid() {
         String id = TENANT_ID.get();
@@ -68,5 +80,6 @@ public class TenantContext {
         USER_ROLES.remove();
         API_KEY_LOOKUP.remove();
         SYSTEM_POLLER.remove();
+        INVITATION_LOOKUP.remove();
     }
 }

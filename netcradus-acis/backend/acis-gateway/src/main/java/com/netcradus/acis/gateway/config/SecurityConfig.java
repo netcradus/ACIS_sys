@@ -25,6 +25,11 @@ public class SecurityConfig {
                 // its own; a JWT-requiring gateway would reject it before the
                 // downstream service is ever called.
                 .pathMatchers(HttpMethod.POST, "/api/platform/signup").permitAll()
+                // Real public accept-invite flow (acis-soar's InvitationController)
+                // — GET to preview the invite, POST to accept it. No JWT exists
+                // until acceptance succeeds and the invitee logs in for the first
+                // time, so both methods must be reachable without one.
+                .pathMatchers("/api/invitations/**").permitAll()
                 // External log ingestion, authenticated by a tenant-scoped API key
                 // instead of a Keycloak JWT (see acis-ingestion's ApiKeyAuthFilter) —
                 // same reasoning as signup above: the gateway must not reject these

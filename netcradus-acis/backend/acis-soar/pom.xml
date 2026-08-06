@@ -93,6 +93,21 @@
       <groupId>software.amazon.awssdk</groupId>
       <artifactId>guardduty</artifactId>
     </dependency>
+
+    <!-- Keycloak Admin REST — provisions a real login for an invited member
+         once they accept (see KeycloakAdminConfig / InvitationService).
+         Reuses the same acis-backend service account acis-platform-admin
+         already authenticates as. -->
+    <dependency>
+      <groupId>org.keycloak</groupId>
+      <artifactId>keycloak-admin-client</artifactId>
+    </dependency>
+
+    <!-- Real SMTP — invitation emails (see EmailService). -->
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-mail</artifactId>
+    </dependency>
   </dependencies>
 
   <build>

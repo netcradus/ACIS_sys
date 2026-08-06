@@ -405,6 +405,26 @@ services:
       ASSET_SERVICE_URL: http://asset-service:8086
       INGESTION_SERVICE_URL: http://ingestion:8084
       CREDENTIAL_ENCRYPTION_KEY: ${CREDENTIAL_ENCRYPTION_KEY:?Set CREDENTIAL_ENCRYPTION_KEY in .env, generated via openssl rand -base64 32}
+      # Real Keycloak account provisioning on invite-accept (see
+      # KeycloakAdminConfig / InvitationService) — same acis-backend service
+      # account platform-admin already uses, reused here rather than
+      # provisioning a second Keycloak client.
+      KEYCLOAK_BACKEND_CLIENT_SECRET: ${KEYCLOAK_BACKEND_CLIENT_SECRET:?Set KEYCLOAK_BACKEND_CLIENT_SECRET in .env}
+      # Real SMTP for invitation emails (see EmailService) — Zoho Mail in
+      # production. No default: an unset SMTP_PASSWORD means invites still
+      # get created (and their real accept link still works if handed over
+      # manually) but the email genuinely won't send — EmailService logs
+      # that honestly rather than pretending it worked.
+      SMTP_HOST: ${SMTP_HOST:?Set SMTP_HOST in .env}
+      SMTP_PORT: ${SMTP_PORT:-465}
+      SMTP_USERNAME: ${SMTP_USERNAME:?Set SMTP_USERNAME in .env}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:?Set SMTP_PASSWORD in .env}
+      SMTP_SSL: ${SMTP_SSL:-true}
+      MAIL_FROM_EMAIL: ${MAIL_FROM_EMAIL:-info@netcradus.com}
+      MAIL_FROM_NAME: ${MAIL_FROM_NAME:-ACIS Security}
+      # Where the invitation email's accept link points — the tenant
+      # console's real public origin, not the API gateway.
+      FRONTEND_URL: https://${PUBLIC_APP_DOMAIN:-localhost}
     expose:
       - "8085"
     depends_on:

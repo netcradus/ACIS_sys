@@ -38,8 +38,41 @@ spring:
       resourceserver:
         jwt:
           jwk-set-uri: ${KEYCLOAK_URL:http://localhost:8180}/realms/${KEYCLOAK_REALM:acis}/protocol/openid-connect/certs
+  # Real SMTP for invitation emails (see EmailService). Deliberately no
+  # default username/password — this is a real mailbox, not a locally-safe
+  # dev default like DB_PASSWORD. Left unset, EmailService logs a clear
+  # warning and skips sending rather than pretending it worked; the invite
+  # itself (and its real accept link) still gets created either way, so an
+  # admin can hand the link over manually if SMTP isn't configured yet.
+  mail:
+    host: ${SMTP_HOST:}
+    port: ${SMTP_PORT:465}
+    username: ${SMTP_USERNAME:}
+    password: ${SMTP_PASSWORD:}
+    properties:
+      mail:
+        smtp:
+          auth: true
+          ssl:
+            enable: ${SMTP_SSL:true}
+          connectiontimeout: 8000
+          timeout: 8000
 
+# Keycloak Admin REST — see KeycloakAdminConfig / InvitationService. Reuses
+# the same acis-backend service account acis-platform-admin already
+# authenticates as (already granted manage-users/view-users).
 acis:
+  keycloak:
+    server-url: ${KEYCLOAK_URL:http://localhost:8180}
+    realm: ${KEYCLOAK_REALM:acis}
+    admin-client-id: acis-backend
+    admin-client-secret: ${KEYCLOAK_BACKEND_CLIENT_SECRET:acis-backend-secret}
+  mail:
+    from-email: ${MAIL_FROM_EMAIL:info@netcradus.com}
+    from-name: ${MAIL_FROM_NAME:ACIS Security}
+  # Where the invitation email's accept link points — must be the real
+  # tenant-console frontend origin, not the API gateway.
+  frontend-url: ${FRONTEND_URL:http://localhost:3000}
   asset-service:
     url: ${ASSET_SERVICE_URL:http://localhost:8086}
   ingestion-service:

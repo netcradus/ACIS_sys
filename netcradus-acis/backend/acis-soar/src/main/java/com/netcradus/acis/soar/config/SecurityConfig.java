@@ -45,6 +45,15 @@ public class SecurityConfig {
             .csrf(csrf -> csrf.disable())
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/actuator/**").permitAll()
+                // Real public accept-invite flow (InvitationController) — the
+                // caller has no JWT at all until AFTER they accept, since no
+                // Keycloak account exists before then (see InvitationService).
+                // acis-gateway has a matching permitAll for this same prefix;
+                // both are required, since the gateway is the first thing a
+                // request reaches. Outside the /api/soar/settings/reports/
+                // red-team/compliance prefixes RbacEnforcementFilter maps
+                // below, so it needs no explicit exemption there either.
+                .requestMatchers("/api/invitations/**").permitAll()
                 // Every authenticated tenant user — not just admins — needs to
                 // read their own resolved permission map for frontend gating
                 // (see PermissionResolver.resolveAll / SettingsController.

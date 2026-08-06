@@ -248,7 +248,7 @@ export default function SettingsPage() {
   // Invite user form fields
   const [inviteName, setInviteName] = useState('')
   const [inviteEmail, setInviteEmail] = useState('')
-  const [inviteGroup, setInviteGroup] = useState('Admins')
+  const [inviteGroup, setInviteGroup] = useState('')
 
   // Create group form fields
   const [groupName, setGroupName] = useState('')
@@ -583,21 +583,31 @@ export default function SettingsPage() {
     }
   }
 
+  // A real invite now sends a real email (see InvitationService) — the
+  // response says honestly whether it actually sent, since a persisted
+  // invite record with a failed send is still real progress the admin
+  // needs to know about (e.g. to hand the link over another way).
   const handleInviteUser = async (e: React.FormEvent) => {
     e.preventDefault()
     try {
       const res = await apiClient.post('/api/soar/settings/users/invite', {
         name: inviteName,
         email: inviteEmail,
-        groupName: inviteGroup
       })
-      if (res.data) {
-        alert(`Successfully invited ${inviteName}!`)
-        setInviteName('')
-        setInviteEmail('')
-        setInviteModalOpen(false)
-        fetchUsersAndGroups()
+      const memberId = res.data?.member?.id
+      if (memberId && inviteGroup) {
+        await apiClient.put(`/api/soar/settings/users/${memberId}/group`, { groupId: inviteGroup })
       }
+      if (res.data?.emailSent) {
+        alert(`Invited ${inviteName} — invitation email sent to ${inviteEmail}.`)
+      } else {
+        alert(`${inviteName} was invited, but the invitation email failed to send (${res.data?.emailError || 'unknown error'}). You'll need to share the accept link another way.`)
+      }
+      setInviteName('')
+      setInviteEmail('')
+      setInviteGroup('')
+      setInviteModalOpen(false)
+      fetchUsersAndGroups()
     } catch (e) {
       console.error("Failed to invite user:", e)
       alert("Failed to invite user.")
@@ -607,12 +617,26 @@ export default function SettingsPage() {
   const handleResendInvite = async (userId: string, userName: string) => {
     try {
       const res = await apiClient.post(`/api/soar/settings/users/${userId}/resend`)
-      if (res.data) {
-        alert(`Invitation email resent to ${userName}!`)
-        fetchUsersAndGroups()
+      if (res.data?.emailSent) {
+        alert(`Invitation email resent to ${userName}.`)
+      } else {
+        alert(`Resent, but the invitation email failed to send (${res.data?.emailError || 'unknown error'}).`)
       }
+      fetchUsersAndGroups()
     } catch (e) {
       console.error("Failed to resend invitation:", e)
+    }
+  }
+
+  // Real FK reassignment (see UserMember.group) — purely organizational,
+  // grants no permissions on its own; Console Role (handleAssignRole above)
+  // is what governs access.
+  const handleAssignGroup = async (userId: string, groupId: string) => {
+    try {
+      await apiClient.put(`/api/soar/settings/users/${userId}/group`, { groupId: groupId || null })
+      await fetchUsersAndGroups()
+    } catch (e: any) {
+      alert(e?.response?.data?.error?.message || 'Failed to assign group')
     }
   }
 
@@ -646,6 +670,17 @@ export default function SettingsPage() {
     } catch (e) {
       console.error("Failed to create group:", e)
       alert("Failed to create group.")
+    }
+  }
+
+  const handleDeleteGroup = async (groupId: string, groupName: string) => {
+    if (!confirm(`Delete "${groupName}"? Members in this group will become ungrouped — they are not removed.`)) return
+    try {
+      await apiClient.delete(`/api/soar/settings/groups/${groupId}`)
+      fetchUsersAndGroups()
+    } catch (e) {
+      console.error("Failed to delete group:", e)
+      alert("Failed to delete group.")
     }
   }
 
@@ -2158,7 +2193,20 @@ export default function SettingsPage() {
                           <tr key={user.id}>
                             <td className="font-semibold text-text-primary">{user.name}</td>
                             <td className="text-text-muted">{user.email}</td>
-                            <td>{user.groupName}</td>
+                            <td>
+                              <select
+                                value={user.group?.id || ''}
+                                onChange={(e) => handleAssignGroup(user.id, e.target.value)}
+                                disabled={!canWriteSettings}
+                                title={!canWriteSettings ? "Your role doesn't have write access to Settings" : undefined}
+                                className="bg-surface-2 border border-fire-border rounded-lg px-2 py-1 text-small text-text-primary focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
+                              >
+                                <option value="">Ungrouped</option>
+                                {groups.map((g) => (
+                                  <option key={g.id} value={g.id}>{g.name}</option>
+                                ))}
+                              </select>
+                            </td>
                             <td>
                               <select
                                 value={user.role?.id || ''}
@@ -2220,7 +2268,7 @@ export default function SettingsPage() {
                   <div className="flex items-center justify-between border-b border-fire-border pb-4">
                     <div>
                       <h3 className="text-h3 text-text-primary">Groups</h3>
-                      <p className="text-small text-text-muted mt-1">Bundle users to apply permissions in bulk</p>
+                      <p className="text-small text-text-muted mt-1">Organize members for reference — permissions are governed by Console Role, not group</p>
                     </div>
                     <button
                       onClick={() => setGroupModalOpen(true)}
@@ -2237,14 +2285,24 @@ export default function SettingsPage() {
                     {groups.map((group) => (
                       <div key={group.id} className="bg-surface-2 border border-fire-border rounded-xl p-5 shadow-sm space-y-4 hover:border-accent/30 transition-colors flex flex-col justify-between">
                         <div className="space-y-3">
-                          {/* Badge Initials Block */}
-                          <div className={clsx(
-                            "w-8 h-8 rounded-lg flex items-center justify-center text-small font-bold select-none",
-                            group.badgeInitials === 'SA' ? "bg-accent/10 text-accent" :
-                            group.badgeInitials === 'IR' ? "bg-info/10 text-info" :
-                            "bg-text-muted/10 text-text-secondary"
-                          )}>
-                            {group.badgeInitials}
+                          <div className="flex items-start justify-between">
+                            {/* Badge Initials Block */}
+                            <div className={clsx(
+                              "w-8 h-8 rounded-lg flex items-center justify-center text-small font-bold select-none",
+                              group.badgeInitials === 'SA' ? "bg-accent/10 text-accent" :
+                              group.badgeInitials === 'IR' ? "bg-info/10 text-info" :
+                              "bg-text-muted/10 text-text-secondary"
+                            )}>
+                              {group.badgeInitials}
+                            </div>
+                            <button
+                              onClick={() => handleDeleteGroup(group.id, group.name)}
+                              disabled={!canAdminSettings}
+                              title={!canAdminSettings ? "Your role doesn't have admin access to Settings" : "Delete group"}
+                              className="text-text-muted hover:text-danger transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                            >
+                              <X className="w-3.5 h-3.5" />
+                            </button>
                           </div>
                           <h4 className="text-small font-bold text-text-primary">{group.name}</h4>
                           <p className="text-small text-text-muted leading-relaxed">{group.description}</p>
@@ -2295,16 +2353,16 @@ export default function SettingsPage() {
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-small text-text-secondary font-semibold block">Assign Group</label>
+                  <label className="text-small text-text-secondary font-semibold block">Assign Group (optional)</label>
                   <select
                     value={inviteGroup}
                     onChange={(e) => setInviteGroup(e.target.value)}
                     className="input-field"
                   >
-                    <option value="Admins">Admins</option>
-                    <option value="SOC Analysts">SOC Analysts</option>
-                    <option value="Incident Responders">Incident Responders</option>
-                    <option value="Auditors">Auditors</option>
+                    <option value="">Ungrouped</option>
+                    {groups.map((g) => (
+                      <option key={g.id} value={g.id}>{g.name}</option>
+                    ))}
                   </select>
                 </div>
                 <div className="flex justify-end gap-2 pt-2">

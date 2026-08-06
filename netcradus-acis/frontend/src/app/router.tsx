@@ -5,6 +5,7 @@ import AppLayout               from './AppLayout'
 import PlatformAdminRoute      from './PlatformAdminRoute'
 import PlatformAdminLayout     from './PlatformAdminLayout'
 import SignupPage              from '@/modules/auth/SignupPage'
+import AcceptInvitePage        from '@/modules/auth/AcceptInvitePage'
 import RequirePermission       from '@/components/RequirePermission'
 import { MODULES }             from '@/store/permissionsStore'
 
@@ -123,6 +124,14 @@ export const router = createBrowserRouter([
   {
     path: '/signup',
     element: <SignupPage />,
+    errorElement: <RouteErrorFallback />,
+  },
+  // Also deliberately outside ProtectedRoute — an invitee has no Keycloak
+  // account (and therefore no way to authenticate) until this page's own
+  // accept flow creates one. See InvitationService/InvitationController.
+  {
+    path: '/accept-invite',
+    element: <AcceptInvitePage />,
     errorElement: <RouteErrorFallback />,
   },
   // Catch-all: redirect unknown paths to /dashboard, which itself sends

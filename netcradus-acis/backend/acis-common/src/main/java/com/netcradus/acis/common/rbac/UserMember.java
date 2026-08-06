@@ -29,8 +29,10 @@ public class UserMember {
 
     private String email;
 
-    @Column(name = "group_name")
-    private String groupName;
+    /** Real FK, not a free-text label — see UserGroup. Nullable: an unassigned member just shows as "Ungrouped". */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "group_id")
+    private UserGroup group;
 
     private String status;
 

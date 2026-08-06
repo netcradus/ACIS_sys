@@ -115,4 +115,28 @@ public class RlsConfig {
             }
         };
     }
+
+    /**
+     * invitations needs the same non-standard policy as api_keys, for the
+     * same reason: the public accept-invite flow (SettingsController) must
+     * look a token up by its hash *before* it knows which tenant it belongs
+     * to — the caller has no JWT at all yet, since they're not a user until
+     * they accept. Gated by app.allow_invitation_lookup, a GUC only that
+     * lookup ever sets (see TenantContext.setInvitationLookupInProgress).
+     * Every write (marking consumed, the invite's own creation) still goes
+     * through WITH CHECK unmodified.
+     */
+    @Bean
+    @Order(1003)
+    public CommandLineRunner enableInvitationsRowLevelSecurity(JdbcTemplate jdbcTemplate) {
+        return args -> {
+            jdbcTemplate.execute("ALTER TABLE invitations ENABLE ROW LEVEL SECURITY");
+            jdbcTemplate.execute("ALTER TABLE invitations FORCE ROW LEVEL SECURITY");
+            jdbcTemplate.execute("DROP POLICY IF EXISTS tenant_isolation ON invitations");
+            jdbcTemplate.execute("CREATE POLICY tenant_isolation ON invitations" +
+                    " USING (tenant_id::text = current_setting('app.current_tenant_id', true)" +
+                    "        OR current_setting('app.allow_invitation_lookup', true) = 'true')" +
+                    " WITH CHECK (tenant_id::text = current_setting('app.current_tenant_id', true))");
+        };
+    }
 }

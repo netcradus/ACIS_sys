@@ -9,7 +9,7 @@ import com.netcradus.acis.soar.model.Organization;
 import com.netcradus.acis.soar.model.LicenseDetails;
 import com.netcradus.acis.soar.model.Invoice;
 import com.netcradus.acis.common.rbac.UserMember;
-import com.netcradus.acis.soar.model.UserGroup;
+import com.netcradus.acis.common.rbac.UserGroup;
 import com.netcradus.acis.common.rbac.ConsoleRole;
 import com.netcradus.acis.common.rbac.RolePermission;
 import com.netcradus.acis.soar.dto.ApiKeyCreatedResponse;
@@ -18,17 +18,19 @@ import com.netcradus.acis.soar.repository.OrganizationRepository;
 import com.netcradus.acis.soar.repository.LicenseDetailsRepository;
 import com.netcradus.acis.soar.repository.InvoiceRepository;
 import com.netcradus.acis.common.rbac.UserMemberRepository;
-import com.netcradus.acis.soar.repository.UserGroupRepository;
+import com.netcradus.acis.common.rbac.UserGroupRepository;
 import com.netcradus.acis.common.rbac.ConsoleRoleRepository;
 import com.netcradus.acis.common.rbac.RolePermissionRepository;
 import com.netcradus.acis.common.rbac.DefaultRoleProvisioner;
 import com.netcradus.acis.common.rbac.PermissionResolver;
 import com.netcradus.acis.common.rbac.PermissionLevel;
+import com.netcradus.acis.soar.service.InvitationService;
 import lombok.RequiredArgsConstructor;
 import java.util.ArrayList;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 import java.nio.charset.StandardCharsets;
@@ -58,6 +60,7 @@ public class SettingsController {
     private final com.netcradus.acis.soar.support.ApiKeyIssuer apiKeyIssuer;
     private final DefaultRoleProvisioner defaultRoleProvisioner;
     private final PermissionResolver permissionResolver;
+    private final InvitationService invitationService;
 
     /**
      * X-Tenant-ID is always populated by TenantContextFilter from the caller's
@@ -323,8 +326,10 @@ public class SettingsController {
         return ApiResponse.success(userMemberRepository.findByTenantId(resolveTenant(tenantId)));
     }
 
+    public record InviteResponse(UserMember member, boolean emailSent, String emailError) {}
+
     @PostMapping("/users/invite")
-    public ResponseEntity<ApiResponse<UserMember>> inviteUser(@RequestBody UserMember member,
+    public ResponseEntity<ApiResponse<InviteResponse>> inviteUser(@RequestBody UserMember member,
             @RequestHeader(value = "X-Tenant-ID", required = false) UUID tenantId) {
         UUID tenant = resolveTenant(tenantId);
         String email = member.getEmail() == null ? "" : member.getEmail().trim();
@@ -339,19 +344,28 @@ public class SettingsController {
         member.setStatus("Invited");
         member.setLastLogin("Never");
         UserMember saved = userMemberRepository.save(member);
-        auditEventPublisher.publish("USER_INVITE", "user/" + saved.getId(), "email=" + email);
-        return ResponseEntity.ok(ApiResponse.success(saved));
+        // The UserMember row is real and persisted regardless of what happens
+        // next — a failed send doesn't lose the invite, it just means the
+        // admin needs to know so they can retry or hand the link over another
+        // way (see InvitationService.IssueResult / the honest-failure note
+        // in resendInvite below).
+        InvitationService.IssueResult issued = invitationService.issue(saved);
+        auditEventPublisher.publish("USER_INVITE", "user/" + saved.getId(),
+                "email=" + email + " emailSent=" + issued.emailSent());
+        return ResponseEntity.ok(ApiResponse.success(new InviteResponse(saved, issued.emailSent(), issued.emailError())));
     }
 
     @PostMapping("/users/{id}/resend")
-    public ResponseEntity<ApiResponse<UserMember>> resendInvite(@PathVariable UUID id,
+    public ResponseEntity<ApiResponse<InviteResponse>> resendInvite(@PathVariable UUID id,
             @RequestHeader(value = "X-Tenant-ID", required = false) UUID tenantId) {
         return userMemberRepository.findByIdAndTenantId(id, resolveTenant(tenantId))
                 .map(m -> {
                     m.setStatus("Invited");
                     UserMember saved = userMemberRepository.save(m);
-                    auditEventPublisher.publish("USER_RESEND_INVITE", "user/" + id, "resent");
-                    return ResponseEntity.ok(ApiResponse.success(saved));
+                    InvitationService.IssueResult issued = invitationService.issue(saved);
+                    auditEventPublisher.publish("USER_RESEND_INVITE", "user/" + id,
+                            "resent emailSent=" + issued.emailSent());
+                    return ResponseEntity.ok(ApiResponse.success(new InviteResponse(saved, issued.emailSent(), issued.emailError())));
                 })
                 .orElse(ResponseEntity.status(404).body(ApiResponse.error("User member not found")));
     }
@@ -370,7 +384,16 @@ public class SettingsController {
 
     @GetMapping("/groups")
     public ApiResponse<List<UserGroup>> getGroups(@RequestHeader(value = "X-Tenant-ID", required = false) UUID tenantId) {
-        return ApiResponse.success(userGroupRepository.findByTenantId(resolveTenant(tenantId)));
+        UUID tenant = resolveTenant(tenantId);
+        List<UserGroup> groups = userGroupRepository.findByTenantId(tenant);
+        List<UserMember> members = userMemberRepository.findByTenantId(tenant);
+        // Real count, computed fresh every read — memberCount is @Transient
+        // now precisely so nothing can accidentally trust a stale stored
+        // number again (see UserGroup's Javadoc).
+        groups.forEach(g -> g.setMemberCount((int) members.stream()
+                .filter(m -> m.getGroup() != null && m.getGroup().getId().equals(g.getId()))
+                .count()));
+        return ApiResponse.success(groups);
     }
 
     @PostMapping("/groups")
@@ -380,9 +403,6 @@ public class SettingsController {
             return ResponseEntity.badRequest().body(ApiResponse.error("Group name is required"));
         }
         group.setTenantId(resolveTenant(tenantId));
-        if (group.getMemberCount() == null) {
-            group.setMemberCount(0);
-        }
         if (group.getBadgeInitials() == null || group.getBadgeInitials().isEmpty()) {
             String initials = "";
             String[] words = group.getName().trim().split("\\s+");
@@ -399,7 +419,54 @@ public class SettingsController {
         }
         UserGroup saved = userGroupRepository.save(group);
         auditEventPublisher.publish("GROUP_CREATE", "group/" + saved.getId(), "created");
+        saved.setMemberCount(0);
         return ResponseEntity.ok(ApiResponse.success(saved));
+    }
+
+    @DeleteMapping("/groups/{id}")
+    @Transactional
+    public ResponseEntity<ApiResponse<String>> deleteGroup(@PathVariable UUID id,
+            @RequestHeader(value = "X-Tenant-ID", required = false) UUID tenantId) {
+        UUID tenant = resolveTenant(tenantId);
+        return userGroupRepository.findByIdAndTenantId(id, tenant)
+                .map(group -> {
+                    // Ungroup its members rather than block/cascade-delete
+                    // them — losing an organizational label should never
+                    // take a real account down with it.
+                    userMemberRepository.findByTenantId(tenant).stream()
+                            .filter(m -> m.getGroup() != null && m.getGroup().getId().equals(id))
+                            .forEach(m -> { m.setGroup(null); userMemberRepository.save(m); });
+                    userGroupRepository.delete(group);
+                    auditEventPublisher.publish("GROUP_DELETE", "group/" + id, "deleted");
+                    return ResponseEntity.ok(ApiResponse.success("Group deleted successfully"));
+                })
+                .orElse(ResponseEntity.status(404).body(ApiResponse.error("Group not found")));
+    }
+
+    public record AssignGroupRequest(UUID groupId) {}
+
+    /** groupId may be null to unassign — the member then shows as "Ungrouped". */
+    @PutMapping("/users/{id}/group")
+    public ResponseEntity<ApiResponse<UserMember>> assignGroup(@PathVariable UUID id, @RequestBody AssignGroupRequest req,
+            @RequestHeader(value = "X-Tenant-ID", required = false) UUID tenantId) {
+        UUID tenant = resolveTenant(tenantId);
+        return userMemberRepository.findByIdAndTenantId(id, tenant)
+                .map(member -> {
+                    if (req.groupId() == null) {
+                        member.setGroup(null);
+                    } else {
+                        UserGroup group = userGroupRepository.findByIdAndTenantId(req.groupId(), tenant).orElse(null);
+                        if (group == null) {
+                            return ResponseEntity.badRequest().body(ApiResponse.<UserMember>error("Group not found"));
+                        }
+                        member.setGroup(group);
+                    }
+                    UserMember saved = userMemberRepository.save(member);
+                    auditEventPublisher.publish("USER_GROUP_ASSIGN", "user-member/" + id,
+                            req.groupId() != null ? "assigned group " + req.groupId() : "ungrouped");
+                    return ResponseEntity.ok(ApiResponse.success(saved));
+                })
+                .orElse(ResponseEntity.status(404).body(ApiResponse.error("Member not found")));
     }
 
     // ── Roles & Permissions ───────────────────────────────────

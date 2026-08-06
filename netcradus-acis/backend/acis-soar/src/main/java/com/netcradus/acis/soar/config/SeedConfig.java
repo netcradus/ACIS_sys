@@ -5,12 +5,12 @@ import com.netcradus.acis.soar.model.Organization;
 import com.netcradus.acis.soar.model.LicenseDetails;
 import com.netcradus.acis.soar.model.Invoice;
 import com.netcradus.acis.common.rbac.UserMember;
-import com.netcradus.acis.soar.model.UserGroup;
+import com.netcradus.acis.common.rbac.UserGroup;
 import com.netcradus.acis.soar.repository.OrganizationRepository;
 import com.netcradus.acis.soar.repository.LicenseDetailsRepository;
 import com.netcradus.acis.soar.repository.InvoiceRepository;
 import com.netcradus.acis.common.rbac.UserMemberRepository;
-import com.netcradus.acis.soar.repository.UserGroupRepository;
+import com.netcradus.acis.common.rbac.UserGroupRepository;
 import com.netcradus.acis.soar.model.Playbook;
 import com.netcradus.acis.soar.model.PlaybookExecution;
 import com.netcradus.acis.soar.model.RedTeamSimulation;
@@ -403,37 +403,43 @@ public class SeedConfig {
             if (userGroupRepository.count() == 0 && userMemberRepository.count() == 0) {
                 log.info("Seeding Settings Users & Groups...");
 
-                // Groups
+                // Groups — purely organizational (see UserGroup), no permission
+                // implications; memberCount is @Transient and computed for
+                // real on every read (see SettingsController.getGroups).
                 UserGroup g1 = new UserGroup();
                 g1.setTenantId(defaultTenantId);
                 g1.setName("SOC Analysts");
                 g1.setDescription("Monitors alerts, triages events, escalates incidents.");
-                g1.setMemberCount(6);
                 g1.setBadgeInitials("SA");
-                userGroupRepository.save(g1);
+                g1 = userGroupRepository.save(g1);
 
                 UserGroup g2 = new UserGroup();
                 g2.setTenantId(defaultTenantId);
                 g2.setName("Incident Responders");
                 g2.setDescription("Executes SOAR playbooks and containment actions.");
-                g2.setMemberCount(3);
                 g2.setBadgeInitials("IR");
-                userGroupRepository.save(g2);
+                g2 = userGroupRepository.save(g2);
 
                 UserGroup g3 = new UserGroup();
                 g3.setTenantId(defaultTenantId);
                 g3.setName("Admins");
                 g3.setDescription("Full access to configuration, billing, and users.");
-                g3.setMemberCount(2);
                 g3.setBadgeInitials("AD");
-                userGroupRepository.save(g3);
+                g3 = userGroupRepository.save(g3);
+
+                UserGroup g4 = new UserGroup();
+                g4.setTenantId(defaultTenantId);
+                g4.setName("Auditors");
+                g4.setDescription("Read-only visibility for compliance and audit review.");
+                g4.setBadgeInitials("AU");
+                g4 = userGroupRepository.save(g4);
 
                 // Members
                 UserMember m1 = new UserMember();
                 m1.setTenantId(defaultTenantId);
                 m1.setName("Mohit Goel");
                 m1.setEmail("mohit@cyberhaxs.com");
-                m1.setGroupName("Admins");
+                m1.setGroup(g3);
                 m1.setStatus("Active");
                 m1.setLastLogin("2 mins ago");
                 userMemberRepository.save(m1);
@@ -442,7 +448,7 @@ public class SeedConfig {
                 m2.setTenantId(defaultTenantId);
                 m2.setName("Ananya Sharma");
                 m2.setEmail("ananya@cyberhaxs.com");
-                m2.setGroupName("SOC Analysts");
+                m2.setGroup(g1);
                 m2.setStatus("Active");
                 m2.setLastLogin("1 hr ago");
                 userMemberRepository.save(m2);
@@ -451,7 +457,7 @@ public class SeedConfig {
                 m3.setTenantId(defaultTenantId);
                 m3.setName("Rohit Verma");
                 m3.setEmail("rohit@cyberhaxs.com");
-                m3.setGroupName("Incident Responders");
+                m3.setGroup(g2);
                 m3.setStatus("Active");
                 m3.setLastLogin("Yesterday");
                 userMemberRepository.save(m3);
@@ -460,7 +466,7 @@ public class SeedConfig {
                 m4.setTenantId(defaultTenantId);
                 m4.setName("Priya Nair");
                 m4.setEmail("priya@cyberhaxs.com");
-                m4.setGroupName("Auditors");
+                m4.setGroup(g4);
                 m4.setStatus("Invited");
                 m4.setLastLogin("Never");
                 userMemberRepository.save(m4);

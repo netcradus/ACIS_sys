@@ -10,8 +10,23 @@ import java.util.Optional;
 import java.util.UUID;
 
 public interface UserMemberRepository extends JpaRepository<UserMember, UUID> {
-    List<UserMember> findByTenantId(UUID tenantId);
-    Optional<UserMember> findByIdAndTenantId(UUID id, UUID tenantId);
+
+    /**
+     * JOIN FETCH role/group rather than the plain derived-query default:
+     * without it, any member with a role or group actually assigned comes
+     * back as an uninitialized Hibernate proxy, and Jackson has no idea how
+     * to serialize that (InvalidDefinitionException on
+     * ByteBuddyInterceptor/hibernateLazyInitializer) — confirmed live, this
+     * 500'd GET /api/soar/settings/users the moment a real member had a real
+     * role assigned. LEFT JOIN since both are nullable (unassigned member/
+     * ungrouped member).
+     */
+    @Query("SELECT m FROM UserMember m LEFT JOIN FETCH m.role LEFT JOIN FETCH m.group WHERE m.tenantId = :tenantId")
+    List<UserMember> findByTenantId(@Param("tenantId") UUID tenantId);
+
+    @Query("SELECT m FROM UserMember m LEFT JOIN FETCH m.role LEFT JOIN FETCH m.group WHERE m.id = :id AND m.tenantId = :tenantId")
+    Optional<UserMember> findByIdAndTenantId(@Param("id") UUID id, @Param("tenantId") UUID tenantId);
+
     Optional<UserMember> findByTenantIdAndEmailIgnoreCase(UUID tenantId, String email);
 
     /**
