@@ -166,22 +166,28 @@ public class SettingsController {
 
     // ── Organization ──────────────────────────────────────────
 
+    /**
+     * Before a tenant has ever saved an Organization, this returns a
+     * transient (not persisted) blank one rather than fabricating and
+     * saving a fake company identity — no real tenant is ever named
+     * "CyberHaxs Pvt. Ltd." with a shared "org_ch_8841kd" ID. The real row
+     * is only created on first save, via updateOrganization's own
+     * create-if-absent handling below. orgIdString is still populated here
+     * (deterministic from tenantId, not random) purely so the read-only ID
+     * field shows a stable value immediately rather than blank-then-jumping
+     * once saved.
+     */
     @GetMapping("/organization")
     public ApiResponse<Organization> getOrganization(@RequestHeader(value = "X-Tenant-ID", required = false) UUID tenantId) {
         UUID tenant = resolveTenant(tenantId);
-        List<Organization> orgs = organizationRepository.findByTenantId(tenant);
-        if (orgs.isEmpty()) {
-            Organization defaultOrg = new Organization();
-            defaultOrg.setTenantId(tenant);
-            defaultOrg.setName("CyberHaxs Pvt. Ltd.");
-            defaultOrg.setOrgIdString("org_ch_8841kd");
-            defaultOrg.setIndustry("Managed Security Services");
-            defaultOrg.setPrimaryRegion("Asia Pacific (Ghaziabad, IN)");
-            defaultOrg.setSupportEmail("security@cyberhaxs.com");
-            defaultOrg.setTimeZone("IST (UTC +5:30)");
-            return ApiResponse.success(organizationRepository.save(defaultOrg));
-        }
-        return ApiResponse.success(orgs.get(0));
+        return organizationRepository.findByTenantId(tenant).stream().findFirst()
+                .map(ApiResponse::success)
+                .orElseGet(() -> {
+                    Organization blank = new Organization();
+                    blank.setTenantId(tenant);
+                    blank.setOrgIdString(generateOrgIdString(tenant));
+                    return ApiResponse.success(blank);
+                });
     }
 
     @PutMapping("/organization")
@@ -193,11 +199,15 @@ public class SettingsController {
         if (orgs.isEmpty()) {
             orgToUpdate = new Organization();
             orgToUpdate.setTenantId(tenant);
+            orgToUpdate.setOrgIdString(generateOrgIdString(tenant));
         } else {
             orgToUpdate = orgs.get(0);
+            // orgIdString is deliberately never overwritten from the request
+            // here — it's a read-only, server-assigned identifier (see the
+            // frontend's readOnly Organization ID field); once assigned it
+            // never changes, regardless of what the client echoes back.
         }
         orgToUpdate.setName(updatedOrg.getName());
-        orgToUpdate.setOrgIdString(updatedOrg.getOrgIdString());
         orgToUpdate.setIndustry(updatedOrg.getIndustry());
         orgToUpdate.setPrimaryRegion(updatedOrg.getPrimaryRegion());
         orgToUpdate.setSupportEmail(updatedOrg.getSupportEmail());
@@ -205,6 +215,10 @@ public class SettingsController {
         Organization saved = organizationRepository.save(orgToUpdate);
         auditEventPublisher.publish("ORGANIZATION_UPDATE", "organization/" + saved.getId(), "updated");
         return ApiResponse.success(saved);
+    }
+
+    private String generateOrgIdString(UUID tenantId) {
+        return "org_" + tenantId.toString().replace("-", "").substring(0, 12);
     }
 
     @PostMapping("/organization/transfer")
