@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import apiClient from '@/lib/apiClient'
 import wsClient from '@/lib/wsClient'
+import { useAuthStore } from './authStore'
 
 export interface AppNotification {
   id: string
@@ -31,72 +32,25 @@ interface NotificationState {
 
 const STORAGE_KEY = 'acis_notifications_v1'
 
-const INITIAL_DEMO_NOTIFICATIONS: AppNotification[] = [
-  {
-    id: 'notif-101',
-    title: 'Anomalous PowerShell Script Execution',
-    message: 'Encoded PowerShell payload executed on host WORKSTATION-92 by user domain\\jsmith',
-    severity: 'CRITICAL',
-    source: 'AI Anomaly Engine',
-    timestamp: new Date(Date.now() - 2 * 60 * 1000).toISOString(),
-    read: false,
-    actionUrl: '/dashboard/alerts'
-  },
-  {
-    id: 'notif-102',
-    title: 'Multiple Failed SSH Auth Attempts',
-    message: '48 failed authentication attempts from IP 194.26.29.11 targeting Gateway Proxy',
-    severity: 'HIGH',
-    source: 'Log Explorer SIEM',
-    timestamp: new Date(Date.now() - 12 * 60 * 1000).toISOString(),
-    read: false,
-    actionUrl: '/dashboard/logs'
-  },
-  {
-    id: 'notif-103',
-    title: 'Suspicious Keycloak Realm Admin Role Grant',
-    message: 'User admin granted SUPER_ADMIN privileges to external identity user_external_02',
-    severity: 'HIGH',
-    source: 'Keycloak Security Audit',
-    timestamp: new Date(Date.now() - 35 * 60 * 1000).toISOString(),
-    read: false,
-    actionUrl: '/dashboard/settings?tab=Users%20%26%20Groups'
-  },
-  {
-    id: 'notif-104',
-    title: 'Threat Intel Feed Synced',
-    message: '1,420 new IoC indicators imported from AlienVault OTX and CISA Feed',
-    severity: 'INFO',
-    source: 'Threat Intelligence Service',
-    timestamp: new Date(Date.now() - 2 * 3600 * 1000).toISOString(),
-    read: true,
-    actionUrl: '/dashboard/threat-intel'
-  },
-  {
-    id: 'notif-105',
-    title: 'Correlation Rule Triggered: Pass-the-Hash',
-    message: 'NTLM authentication relay detected across subnet 10.0.4.0/24',
-    severity: 'CRITICAL',
-    source: 'Correlation Engine',
-    timestamp: new Date(Date.now() - 5 * 3600 * 1000).toISOString(),
-    read: true,
-    actionUrl: '/dashboard/correlation'
-  }
-]
-
+/**
+ * Real notifications only — no seeded demo rows. This used to fall back to
+ * five fabricated incidents (fake Mimikatz/SQLi/brute-force events) so the
+ * bell was never empty; on a genuinely quiet tenant with no real alerts,
+ * empty is the honest state.
+ */
 function getInitialNotifications(): AppNotification[] {
   try {
     const saved = localStorage.getItem(STORAGE_KEY)
     if (saved) {
       const parsed = JSON.parse(saved)
-      if (Array.isArray(parsed) && parsed.length > 0) {
+      if (Array.isArray(parsed)) {
         return parsed
       }
     }
   } catch (e) {
     console.error('Failed to parse saved notifications:', e)
   }
-  return INITIAL_DEMO_NOTIFICATIONS
+  return []
 }
 
 function saveNotifications(items: AppNotification[]) {
@@ -134,6 +88,13 @@ export const useNotificationStore = create<NotificationState>((set, get) => ({
   isInitialized: false,
 
   addNotification: (data) => {
+    // Real enforcement of the Settings > Profile preferences (previously
+    // these toggles changed local state and nothing else ever read them).
+    const prefs = useAuthStore.getState().user
+    if (prefs?.criticalOnly && (data.severity === 'LOW' || data.severity === 'INFO')) {
+      return
+    }
+
     const newNotif: AppNotification = {
       id: data.id || 'notif-' + Date.now() + '-' + Math.random().toString(36).substring(2, 6),
       title: data.title,
@@ -154,7 +115,7 @@ export const useNotificationStore = create<NotificationState>((set, get) => ({
       }
     })
 
-    if (data.severity === 'CRITICAL' || data.severity === 'HIGH') {
+    if ((data.severity === 'CRITICAL' || data.severity === 'HIGH') && prefs?.soundAlerts !== false) {
       playChime()
     }
   },
@@ -226,7 +187,7 @@ export const useNotificationStore = create<NotificationState>((set, get) => ({
         }
       })
       .catch((err) => {
-        console.log('[NotificationStore] API alerts endpoint offline (using local live telemetry stream):', err?.message)
+        console.log('[NotificationStore] API alerts endpoint unavailable:', err?.message)
       })
 
     // 2. Subscribe to STOMP WebSocket for real-time live events
@@ -253,32 +214,5 @@ export const useNotificationStore = create<NotificationState>((set, get) => ({
     .catch(() => {
       set({ isWsConnected: false })
     })
-
-    // 3. Periodic real-time security event generator (simulates live telemetry traffic every 25 seconds if active)
-    const liveEventsPool = [
-      { title: 'Brute Force Authentication Detected', message: '15 failed logins in 60s for user root from 185.220.101.5', severity: 'HIGH', source: 'Auth Ingest' },
-      { title: 'Suspicious Outbound Data Transfer', message: '480 MB transferred to unrated IP 91.240.118.12 over TCP 443', severity: 'CRITICAL', source: 'Network Sensor' },
-      { title: 'Mimikatz LSASS Dump Attempt', message: 'Process LSASS.exe accessed with PROCESS_ALL_ACCESS by cmd.exe', severity: 'CRITICAL', source: 'Endpoint Agent' },
-      { title: 'New Cloud Admin Identity Provisioned', message: 'AWS IAM role SecOpsAdmin assumed from external IP', severity: 'MEDIUM', source: 'CloudTrail Audit' },
-      { title: 'SQL Injection Attack Blocked', message: 'Malicious payload `UNION SELECT null, @@version` dropped by WAF', severity: 'HIGH', source: 'WAF Gateway' }
-    ]
-
-    let poolIdx = 0
-    const interval = setInterval(() => {
-      const event = liveEventsPool[poolIdx % liveEventsPool.length]
-      poolIdx++
-      
-      // Only inject periodically if less than 20 total notifications to keep performance high
-      if (get().notifications.length < 25) {
-        get().addNotification({
-          ...event,
-          severity: event.severity as any,
-          timestamp: new Date().toISOString(),
-          actionUrl: '/dashboard/alerts'
-        })
-      }
-    }, 28000)
-
-    return () => clearInterval(interval)
   }
 }))

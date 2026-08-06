@@ -73,75 +73,93 @@ export default function SettingsPage() {
     setSearchParams({ tab: tabLabel })
   }
 
-  // Profile states
+  // Profile states — real backend-persisted profile (GET/PUT
+  // /api/soar/settings/profile), not the localStorage-only, backend-less
+  // "save" this used to be. Email is intentionally read-only here: it's the
+  // RBAC lookup key everywhere in this system (see ProfileService's
+  // Javadoc) — a real email change belongs in Keycloak's own account
+  // console, reached via "Manage Keycloak SSO" below.
   const { user, updateProfile, clearAuth } = useAuthStore()
-  const [profileName, setProfileName] = useState(user?.name || 'Security Administrator')
-  const [profileEmail, setProfileEmail] = useState(user?.email || 'admin@netcradus.local')
-  const [profilePhone, setProfilePhone] = useState(user?.phone || '+1 (555) 019-2834')
-  const [profileDepartment, setProfileDepartment] = useState(user?.department || 'Security Operations Center (SOC)')
-  const [profileTimezone, setProfileTimezone] = useState(user?.timezone || 'IST (UTC +05:30)')
+  const [profileName, setProfileName] = useState(user?.name || '')
+  const [profileEmail, setProfileEmail] = useState(user?.email || '')
+  const [profilePhone, setProfilePhone] = useState('')
+  const [profileDepartment, setProfileDepartment] = useState('')
+  const [profileTimezone, setProfileTimezone] = useState('IST (UTC +05:30)')
+  const [profileLoading, setProfileLoading] = useState(true)
   const [profileSaving, setProfileSaving] = useState(false)
   const [profileSavedSuccess, setProfileSavedSuccess] = useState(false)
+  const [profileError, setProfileError] = useState<string | null>(null)
 
-  // Profile Notification / Preference states
-  const [mfaEnabled, setMfaEnabled] = useState(user?.mfaEnabled ?? true)
-  const [emailNotifications, setEmailNotifications] = useState(user?.emailNotifications ?? true)
-  const [soundAlerts, setSoundAlerts] = useState(user?.soundAlerts ?? true)
-  const [criticalSeverityOnly, setCriticalSeverityOnly] = useState(user?.criticalOnly ?? false)
+  // Real, read-only Keycloak-derived security status — not a client-side toggle.
+  const [mfaEnabled, setMfaEnabled] = useState(false)
+  const [passwordLastChangedAt, setPasswordLastChangedAt] = useState<string | null>(null)
 
-  // Sync state if user changes in authStore
-  useEffect(() => {
-    if (user) {
-      if (user.name) setProfileName(user.name)
-      if (user.email) setProfileEmail(user.email)
-      if (user.phone) setProfilePhone(user.phone)
-      if (user.department) setProfileDepartment(user.department)
-      if (user.timezone) setProfileTimezone(user.timezone)
-      if (user.mfaEnabled !== undefined) setMfaEnabled(user.mfaEnabled)
-      if (user.emailNotifications !== undefined) setEmailNotifications(user.emailNotifications)
-      if (user.soundAlerts !== undefined) setSoundAlerts(user.soundAlerts)
-      if (user.criticalOnly !== undefined) setCriticalSeverityOnly(user.criticalOnly)
+  // Real, persisted notification preferences.
+  const [emailNotifications, setEmailNotifications] = useState(true)
+  const [soundAlerts, setSoundAlerts] = useState(true)
+  const [criticalSeverityOnly, setCriticalSeverityOnly] = useState(false)
+
+  const fetchProfile = async () => {
+    try {
+      setProfileLoading(true)
+      setProfileError(null)
+      const res = await apiClient.get('/api/soar/settings/profile')
+      const p = res.data
+      if (p) {
+        setProfileName(p.name || '')
+        setProfileEmail(p.email || '')
+        setProfilePhone(p.phone || '')
+        setProfileDepartment(p.department || '')
+        setProfileTimezone(p.timezone || 'IST (UTC +05:30)')
+        setMfaEnabled(!!p.mfaEnabled)
+        setPasswordLastChangedAt(p.passwordLastChangedAt || null)
+        setEmailNotifications(p.emailNotifications !== false)
+        setSoundAlerts(p.soundAlerts !== false)
+        setCriticalSeverityOnly(!!p.criticalOnly)
+      }
+    } catch (err: any) {
+      setProfileError(err?.message || 'Failed to load profile')
+    } finally {
+      setProfileLoading(false)
     }
-  }, [user])
+  }
+
+  useEffect(() => { fetchProfile() }, [])
+
+  // Real session start time from the JWT's own iat claim — replaces the
+  // hardcoded "Host IP: 127.0.0.1" that used to sit here (a browser can't
+  // know its own public IP, and that string never reflected anything real).
+  const sessionSignedInAt = (() => {
+    const iat = (keycloak.tokenParsed as Record<string, unknown> | undefined)?.iat as number | undefined
+    if (!iat) return 'Unknown'
+    return new Date(iat * 1000).toLocaleString()
+  })()
 
   const handleSaveProfile = async (e?: React.FormEvent) => {
     if (e) e.preventDefault()
     setProfileSaving(true)
-    
-    // Update local Zustand store and localStorage instantly for real-time app update
-    updateProfile({
-      name: profileName,
-      email: profileEmail,
-      phone: profilePhone,
-      department: profileDepartment,
-      timezone: profileTimezone,
-      mfaEnabled,
-      emailNotifications,
-      soundAlerts,
-      criticalOnly: criticalSeverityOnly,
-    })
-
-    // Try posting to backend API if backend service is reachable
+    setProfileError(null)
     try {
-      await apiClient.put('/api/soar/settings/profile', {
+      const res = await apiClient.put('/api/soar/settings/profile', {
         name: profileName,
-        email: profileEmail,
         phone: profilePhone,
         department: profileDepartment,
         timezone: profileTimezone,
-        mfaEnabled,
         emailNotifications,
         soundAlerts,
         criticalOnly: criticalSeverityOnly,
       })
-    } catch (err) {
-      // Backend may be offline or unauthenticated; local state is already persisted
-      console.log('Profile saved locally (backend sync optional):', err)
+      // Optimistic local reflection (sidebar/topbar display name etc.) —
+      // the real source of truth is Keycloak, which fully catches up on
+      // this session's next token refresh/login.
+      updateProfile({ name: res.data?.name || profileName })
+      setProfileSavedSuccess(true)
+      setTimeout(() => setProfileSavedSuccess(false), 3500)
+    } catch (err: any) {
+      setProfileError(err?.message || 'Failed to save profile')
+    } finally {
+      setProfileSaving(false)
     }
-
-    setProfileSaving(false)
-    setProfileSavedSuccess(true)
-    setTimeout(() => setProfileSavedSuccess(false), 3500)
   }
 
   // Agent Deployment States — real per-tenant install key + real fleet,
@@ -1643,13 +1661,20 @@ export default function SettingsPage() {
                 <div className="flex items-center gap-3">
                   <CheckCircle2 className="w-5 h-5 text-success shrink-0" />
                   <div>
-                    <p className="text-text-primary font-semibold">Profile changes saved successfully</p>
-                    <p className="text-small text-success/80">Your display name, email, and preferences have been updated across your active session.</p>
+                    <p className="text-text-primary font-semibold">Profile changes saved</p>
+                    <p className="text-small text-success/80">Your display name and preferences have been saved for real.</p>
                   </div>
                 </div>
                 <button onClick={() => setProfileSavedSuccess(false)} className="text-success hover:text-text-primary">
                   <X className="w-4 h-4" />
                 </button>
+              </div>
+            )}
+
+            {profileError && (
+              <div className="bg-danger/10 border border-danger/30 text-danger p-4 rounded-xl text-small flex items-center gap-3 shadow-sm">
+                <ShieldAlert className="w-5 h-5 shrink-0" />
+                {profileError}
               </div>
             )}
 
@@ -1663,13 +1688,13 @@ export default function SettingsPage() {
                   </div>
                   <div>
                     <div className="flex items-center gap-2">
-                      <h3 className="text-h3 text-text-primary">{profileName}</h3>
+                      <h3 className="text-h3 text-text-primary">{profileLoading ? 'Loading...' : profileName}</h3>
                       <span className="badge-mission bg-accent/10 text-accent border-accent/20">
-                        {user?.roles?.[0] || 'SUPER_ADMIN'}
+                        {user?.roles?.[0] || 'VIEWER'}
                       </span>
                     </div>
                     <p className="text-small text-text-secondary mt-0.5">{profileEmail}</p>
-                    <p className="text-label text-text-muted uppercase font-mono mt-1">Keycloak Subject ID: <span className="text-text-secondary">{user?.sub || 'k8s-admin-sub-001'}</span></p>
+                    <p className="text-label text-text-muted uppercase font-mono mt-1">Keycloak Subject ID: <span className="text-text-secondary">{user?.sub || '—'}</span></p>
                   </div>
                 </div>
 
@@ -1682,8 +1707,8 @@ export default function SettingsPage() {
                   </button>
                   <button
                     onClick={handleSaveProfile}
-                    disabled={profileSaving}
-                    className="btn-fire py-2 px-5 text-small"
+                    disabled={profileSaving || profileLoading}
+                    className="btn-fire py-2 px-5 text-small disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     <Save className="w-3.5 h-3.5" />
                     {profileSaving ? 'Saving...' : 'Save Profile'}
@@ -1700,9 +1725,10 @@ export default function SettingsPage() {
                   <input
                     type="text"
                     required
+                    disabled={profileLoading}
                     value={profileName}
                     onChange={(e) => setProfileName(e.target.value)}
-                    className="input-field"
+                    className="input-field disabled:opacity-50"
                   />
                 </div>
 
@@ -1712,10 +1738,10 @@ export default function SettingsPage() {
                   </label>
                   <input
                     type="email"
-                    required
+                    disabled
+                    title="Email is your Keycloak login identity — change it via Manage Keycloak SSO above."
                     value={profileEmail}
-                    onChange={(e) => setProfileEmail(e.target.value)}
-                    className="input-field"
+                    className="input-field opacity-60 cursor-not-allowed"
                   />
                 </div>
 
@@ -1777,11 +1803,18 @@ export default function SettingsPage() {
                     <span className="font-semibold text-text-primary flex items-center gap-2">
                       <Smartphone className="w-4 h-4 text-accent" /> Multi-Factor Authentication (MFA)
                     </span>
-                    <span className="badge-mission bg-success/10 text-success border-success/20">
-                      Enabled
+                    <span className={clsx(
+                      "badge-mission",
+                      mfaEnabled ? "bg-success/10 text-success border-success/20" : "bg-severity-medium/10 text-severity-medium border-severity-medium/20"
+                    )}>
+                      {profileLoading ? '...' : mfaEnabled ? 'Enabled' : 'Not Configured'}
                     </span>
                   </div>
-                  <p className="text-small text-text-secondary">TOTP Authenticator app is bound to your account for identity verification on login.</p>
+                  <p className="text-small text-text-secondary">
+                    {mfaEnabled
+                      ? 'A TOTP authenticator is bound to your account for identity verification on login.'
+                      : 'No authenticator app is bound to your account yet — set one up in Keycloak for a second factor on login.'}
+                  </p>
                   <button
                     onClick={() => keycloak.accountManagement()}
                     className="text-small text-accent hover:text-accent-dark font-semibold flex items-center gap-1 transition-colors"
@@ -1795,7 +1828,9 @@ export default function SettingsPage() {
                     <span className="font-semibold text-text-primary flex items-center gap-2">
                       <Lock className="w-4 h-4 text-accent" /> Account Password
                     </span>
-                    <span className="text-label text-text-muted font-mono">Last changed: 12 days ago</span>
+                    <span className="text-label text-text-muted font-mono">
+                      {profileLoading ? '...' : passwordLastChangedAt ? `Last changed: ${formatRelativeTime(passwordLastChangedAt)}` : 'Last changed: unknown'}
+                    </span>
                   </div>
                   <p className="text-small text-text-secondary">Managed via Keycloak Central Realm Identity Provider.</p>
                   <button
@@ -1813,7 +1848,9 @@ export default function SettingsPage() {
                   <p className="font-semibold text-text-primary flex items-center gap-2">
                     <span className="w-2 h-2 rounded-full bg-success animate-pulse" /> Active Operator Console Session
                   </p>
-                  <p className="text-small text-text-secondary mt-0.5">Host IP: <span className="font-mono text-text-secondary">127.0.0.1</span> | Protocol: <span className="font-mono text-text-secondary">HTTPS / OpenID Connect</span></p>
+                  <p className="text-small text-text-secondary mt-0.5">
+                    Signed in: <span className="font-mono text-text-secondary">{sessionSignedInAt}</span> | Protocol: <span className="font-mono text-text-secondary">HTTPS / OpenID Connect</span>
+                  </p>
                 </div>
                 <button
                   onClick={() => { clearAuth(); keycloak.logout() }}
@@ -1830,14 +1867,14 @@ export default function SettingsPage() {
                 <h3 className="text-h3 text-text-primary flex items-center gap-2">
                   <Bell className="w-4 h-4 text-accent" /> Notification & Alert Preferences
                 </h3>
-                <p className="text-small text-text-muted mt-1">Customize real-time telemetry alerts, email summaries, and console sounds</p>
+                <p className="text-small text-text-muted mt-1">Saved for real. Sound and severity filtering below are enforced live in this browser's alert bell.</p>
               </div>
 
               <div className="space-y-4">
                 <div className="flex items-center justify-between py-2 border-b border-fire-border/50">
                   <div>
                     <p className="font-semibold text-text-primary">Email Digest & Instant Incident Alerts</p>
-                    <p className="text-small text-text-muted">Receive instant email notifications when high-severity threats or correlation rules trigger.</p>
+                    <p className="text-small text-text-muted">Saved as a preference — email delivery on alerts isn't wired up yet, so this doesn't send anything today.</p>
                   </div>
                   <button
                     type="button"

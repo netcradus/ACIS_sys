@@ -54,6 +54,15 @@ public class RbacEnforcementFilter extends OncePerRequestFilter {
             filterChain.doFilter(request, response);
             return;
         }
+        // Same rationale: every authenticated user must always be able to
+        // view/edit their own profile, regardless of what Settings-module
+        // permission (if any) their Console Role grants — see
+        // SecurityConfig's matching authenticated()-only carve-out and
+        // ProfileController.
+        if (uri.endsWith("/settings/profile")) {
+            filterChain.doFilter(request, response);
+            return;
+        }
         String module = null;
         for (Map.Entry<String, String> entry : pathToModule.entrySet()) {
             if (uri.startsWith(entry.getKey())) {

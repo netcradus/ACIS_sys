@@ -67,6 +67,12 @@ public class SecurityConfig {
                 // blanket rule below (Spring evaluates authorizeHttpRequests
                 // matchers in declaration order, first match wins).
                 .requestMatchers("/api/soar/settings/my-permissions").authenticated()
+                // Every authenticated tenant user must be able to view/edit their
+                // OWN profile (name, phone, notification prefs, ...) — that's not
+                // an admin-only capability just because it lives under /settings/**.
+                // Same reasoning and same placement-before-the-blanket-rule
+                // requirement as my-permissions above (see ProfileController).
+                .requestMatchers("/api/soar/settings/profile").authenticated()
                 // H-01/M-01 fix: /settings/** covers billing, API keys, org
                 // ownership transfer, org deletion, user/role management and
                 // datasource config — tenant-administration actions that must

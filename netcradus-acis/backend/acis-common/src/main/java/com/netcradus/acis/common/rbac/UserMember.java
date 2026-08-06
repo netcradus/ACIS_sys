@@ -42,4 +42,22 @@ public class UserMember {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "role_id")
     private ConsoleRole role;
+
+    // Real self-service profile fields (see ProfileController) — nullable,
+    // since neither Keycloak nor the RBAC seed ever populates them; a member
+    // simply hasn't set one yet until they visit Settings > Profile.
+    private String phone;
+
+    private String department;
+
+    private String timezone;
+
+    @Column(name = "email_notifications")
+    private Boolean emailNotifications = true;
+
+    @Column(name = "sound_alerts")
+    private Boolean soundAlerts = true;
+
+    @Column(name = "critical_only")
+    private Boolean criticalOnly = false;
 }

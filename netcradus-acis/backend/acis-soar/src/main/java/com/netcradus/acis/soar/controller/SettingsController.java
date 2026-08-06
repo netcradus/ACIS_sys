@@ -26,6 +26,7 @@ import com.netcradus.acis.common.rbac.PermissionResolver;
 import com.netcradus.acis.common.rbac.PermissionLevel;
 import com.netcradus.acis.soar.service.InvitationService;
 import com.netcradus.acis.soar.service.AgentEnrollmentService;
+import com.netcradus.acis.soar.service.ProfileService;
 import com.netcradus.acis.soar.model.AgentEndpoint;
 import com.netcradus.acis.soar.model.AgentEnrollmentToken;
 import com.netcradus.acis.soar.repository.AgentEndpointRepository;
@@ -70,6 +71,7 @@ public class SettingsController {
     private final AgentEnrollmentService agentEnrollmentService;
     private final AgentEndpointRepository agentEndpointRepository;
     private final AgentPolicyRepository agentPolicyRepository;
+    private final ProfileService profileService;
 
     /**
      * X-Tenant-ID is always populated by TenantContextFilter from the caller's
@@ -326,6 +328,23 @@ public class SettingsController {
                             .body(bytes);
                 })
                 .orElse(ResponseEntity.notFound().build());
+    }
+
+    // ── Profile ────────────────────────────────────────────────
+    //
+    // Self-service — every authenticated user, not just admins, can read/
+    // write their OWN profile (see SecurityConfig + RbacEnforcementFilter's
+    // explicit carve-outs for this exact path). See ProfileService for how
+    // this stays in sync with Keycloak (name/email/MFA/password status).
+
+    @GetMapping("/profile")
+    public ApiResponse<ProfileService.ProfileView> getProfile() {
+        return ApiResponse.success(profileService.getProfile());
+    }
+
+    @PutMapping("/profile")
+    public ApiResponse<ProfileService.ProfileView> updateProfile(@RequestBody ProfileService.ProfileUpdateRequest request) {
+        return ApiResponse.success(profileService.updateProfile(request));
     }
 
     // ── Users & Groups ────────────────────────────────────────
