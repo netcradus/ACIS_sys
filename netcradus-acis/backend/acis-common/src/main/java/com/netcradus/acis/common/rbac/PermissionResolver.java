@@ -91,6 +91,16 @@ public class PermissionResolver {
      * a plain check-then-insert lets every one of them see "no row yet"
      * simultaneously and each try to create one — confirmed live: a single
      * page load produced 5 duplicate rows before this fix.
+     *
+     * The role-less-admin check below runs on EVERY call, not just the row's
+     * first-ever creation — confirmed live this was a real, permanent trap:
+     * a UserMember whose role ever ends up null (a lost race on a concurrent
+     * first login, an admin clearing it, etc.) used to stay role-less
+     * forever, since the old code only ever attempted this auto-assignment
+     * inside the "just created" branch. An admin correctly editing some
+     * OTHER role's permissions would never fix this account, because it was
+     * never attached to any role at all — there was nothing to fix short of
+     * a manual reassignment via Settings > Users & Groups.
      */
     private Optional<UserMember> currentMember() {
         String tenantIdStr = TenantContext.getTenantId();
@@ -105,18 +115,20 @@ public class PermissionResolver {
             return Optional.empty();
         }
         Optional<UserMember> existing = userMemberRepository.findByTenantIdAndEmailIgnoreCase(tenantId, email);
+        UserMember member;
         if (existing.isPresent()) {
-            return existing;
+            member = existing.get();
+        } else {
+            userMemberRepository.insertIfAbsent(UUID.randomUUID(), tenantId, email, email, "Active");
+            member = userMemberRepository.findByTenantIdAndEmailIgnoreCase(tenantId, email)
+                    .orElseThrow(() -> new IllegalStateException("insertIfAbsent completed but no row found for " + email));
         }
 
-        userMemberRepository.insertIfAbsent(UUID.randomUUID(), tenantId, email, email, "Active");
-        UserMember member = userMemberRepository.findByTenantIdAndEmailIgnoreCase(tenantId, email)
-                .orElseThrow(() -> new IllegalStateException("insertIfAbsent completed but no row found for " + email));
-
-        // Only the row's actual creator (role still unset) needs to decide a
-        // starting role — a concurrent loser of the insert race already has
-        // whatever the winner ends up assigning here, and re-assigning the
-        // same role to the same row a second time is harmless if it overlaps.
+        // Re-checked on every login while the member has no role — a
+        // concurrent loser of the insert race, or any other still-role-less
+        // account, self-heals the next time its real JWT shows up carrying
+        // admin/company-admin, instead of staying stuck until an already-
+        // provisioned admin manually reassigns it.
         if (member.getRole() == null) {
             // Keycloak's realm_access.roles carries raw lowercase role names
             // (e.g. "admin", "company-admin" — see PlatformUserService.
