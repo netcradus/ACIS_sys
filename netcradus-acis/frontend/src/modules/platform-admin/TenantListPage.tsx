@@ -25,6 +25,28 @@ function StatusBadge({ status }: { status: TenantStatus }) {
   )
 }
 
+function AdminActivationBadge({ status }: { status: Tenant['adminActivationStatus'] }) {
+  const labels: Record<Tenant['adminActivationStatus'], string> = {
+    NONE: 'Not Sent',
+    PENDING: 'Pending',
+    ACTIVE: 'Activated',
+    EXPIRED: 'Link Expired',
+  }
+  return (
+    <span
+      className={clsx(
+        'px-2 py-0.5 rounded-full text-label uppercase',
+        status === 'ACTIVE' && 'bg-success/10 text-success',
+        status === 'PENDING' && 'bg-warning/10 text-warning',
+        status === 'EXPIRED' && 'bg-danger/10 text-danger',
+        status === 'NONE' && 'bg-surface-3 text-text-muted'
+      )}
+    >
+      {labels[status]}
+    </span>
+  )
+}
+
 export default function TenantListPage() {
   const navigate = useNavigate()
   const showToast = usePlatformToastStore((s) => s.show)
@@ -94,6 +116,12 @@ export default function TenantListPage() {
         headerName: 'PLAN',
         flex: 1,
         cellRenderer: (params: any) => <span className="text-text-secondary">{params.value || '—'}</span>,
+      },
+      {
+        field: 'adminActivationStatus',
+        headerName: 'ADMIN ONBOARDING',
+        flex: 1,
+        cellRenderer: (params: any) => <AdminActivationBadge status={params.value} />,
       },
       {
         field: 'enabledModules',
@@ -181,10 +209,17 @@ export default function TenantListPage() {
       {isModalOpen && (
         <CreateTenantModal
           onClose={() => setIsModalOpen(false)}
-          onCreated={() => {
+          onCreated={(result) => {
             setIsModalOpen(false)
             fetchTenants()
-            showToast('success', 'Tenant created successfully.')
+            if (result.activationEmailSent) {
+              showToast('success', `Tenant created. Activation email sent to ${result.tenant.contactEmail}.`)
+            } else {
+              showToast(
+                'error',
+                `Tenant created, but the activation email failed to send${result.activationEmailError ? ` (${result.activationEmailError})` : ''}. Use "Resend Activation" on the tenant's page.`
+              )
+            }
           }}
           onError={(msg) => showToast('error', msg)}
         />
@@ -199,7 +234,7 @@ function CreateTenantModal({
   onError,
 }: {
   onClose: () => void
-  onCreated: () => void
+  onCreated: (result: import('@/lib/platformAdminApi').CreateTenantResponse) => void
   onError: (msg: string) => void
 }) {
   const [name, setName] = useState('')
@@ -218,21 +253,25 @@ function CreateTenantModal({
       setFieldError('Tenant name is required.')
       return
     }
-    if (contactEmail.trim() && !/^\S+@\S+\.\S+$/.test(contactEmail.trim())) {
-      setFieldError('Contact email is not a valid email address.')
+    if (!contactName.trim()) {
+      setFieldError("The tenant administrator's name is required — the real onboarding email is addressed to them.")
+      return
+    }
+    if (!contactEmail.trim() || !/^\S+@\S+\.\S+$/.test(contactEmail.trim())) {
+      setFieldError("A valid email address for the tenant administrator is required — that's who the activation link is sent to.")
       return
     }
 
     setSubmitting(true)
     try {
-      await createTenant({
+      const result = await createTenant({
         name: name.trim(),
         slug: slug.trim() || undefined,
         planName: planName.trim() || undefined,
-        contactEmail: contactEmail.trim() || undefined,
-        contactName: contactName.trim() || undefined,
+        contactEmail: contactEmail.trim(),
+        contactName: contactName.trim(),
       })
-      onCreated()
+      onCreated(result)
     } catch (err: any) {
       console.error('Failed to create tenant:', err)
       onError(err?.message || 'Failed to create tenant.')
@@ -286,7 +325,7 @@ function CreateTenantModal({
           </div>
 
           <div className="space-y-1">
-            <label className="text-label text-text-muted uppercase block">Contact Name</label>
+            <label className="text-label text-text-muted uppercase block">Tenant Administrator Name *</label>
             <input
               value={contactName}
               onChange={(e) => setContactName(e.target.value)}
@@ -296,13 +335,17 @@ function CreateTenantModal({
           </div>
 
           <div className="space-y-1">
-            <label className="text-label text-text-muted uppercase block">Contact Email</label>
+            <label className="text-label text-text-muted uppercase block">Tenant Administrator Email *</label>
             <input
+              type="email"
               value={contactEmail}
               onChange={(e) => setContactEmail(e.target.value)}
               className="w-full bg-surface border border-fire-border rounded-lg px-3.5 py-2.5 text-body text-text-primary placeholder:text-text-muted transition-colors focus:outline-none focus:border-accent-pa focus:ring-4 focus:ring-accent-pa/10"
               placeholder="jane@acme.example"
             />
+            <p className="text-label text-text-muted normal-case">
+              A real activation email is sent here to set their password and log in.
+            </p>
           </div>
 
           <div className="flex items-center justify-end gap-3 pt-3 border-t border-fire-border mt-4">

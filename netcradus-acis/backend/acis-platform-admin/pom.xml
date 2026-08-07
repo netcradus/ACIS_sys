@@ -71,6 +71,13 @@
       <artifactId>spring-boot-starter-actuator</artifactId>
     </dependency>
 
+    <!-- Real SMTP delivery for tenant onboarding activation emails (see
+         acis-common's EmailService, shared with acis-soar's invitations). -->
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-mail</artifactId>
+    </dependency>
+
     <!-- Apache POI — server-generated XLSX export for the Audit Logs UI.
          Backend-only, so the SPA bundle never carries a spreadsheet library. -->
     <dependency>

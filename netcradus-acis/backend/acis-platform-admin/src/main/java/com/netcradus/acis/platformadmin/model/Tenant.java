@@ -10,6 +10,7 @@ import jakarta.persistence.Id;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
+import jakarta.persistence.Transient;
 import lombok.Getter;
 import lombok.Setter;
 import org.hibernate.annotations.Fetch;
@@ -48,8 +49,16 @@ public class Tenant {
     @Column(unique = true)
     private String slug;
 
+    // Explicit columnDefinition, not just nullable — see
+    // PlatformAuditEvent.action's Javadoc for why: Hibernate auto-generates
+    // a CHECK constraint enumerating the current enum's names for a plain
+    // @Enumerated(EnumType.STRING) column, and ddl-auto:update never widens
+    // it when a value is added later. Not currently broken (every
+    // TenantStatus value predates this constraint), but a bare @Enumerated
+    // here is the same landmine that just took down tenant activation
+    // auditing — this heads it off before a future status value trips it.
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
+    @Column(nullable = false, columnDefinition = "varchar(32)")
     private TenantStatus status = TenantStatus.ACTIVE;
 
     private String planName;
@@ -71,6 +80,18 @@ public class Tenant {
     private OffsetDateTime updatedAt;
     private OffsetDateTime suspendedAt;
     private String suspendedReason;
+
+    // Populated by TenantAdminController from TenantActivationRepository —
+    // never persisted here (this table has no onboarding-status column of
+    // its own). "ACTIVE" once the admin has actually set a password and
+    // logged in, "PENDING"/"EXPIRED" while their real link is outstanding,
+    // "NONE" if no activation was ever issued (e.g. a self-service-signup
+    // tenant, which never goes through this flow at all).
+    @Transient
+    private String adminActivationStatus;
+
+    @Transient
+    private OffsetDateTime adminActivationSentAt;
 
     @PrePersist
     protected void onCreate() {

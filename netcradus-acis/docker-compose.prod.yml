@@ -496,6 +496,19 @@ services:
       # dev, showing up in the real platform-wide Tenants list next to
       # actual customers.
       SPRING_PROFILES_ACTIVE: prod
+      # Real SMTP for the tenant-onboarding activation email a Platform
+      # Admin's "New Tenant" action sends (see TenantActivationService) —
+      # same Zoho Mail account acis-soar's invitations already use.
+      SMTP_HOST: ${SMTP_HOST:?Set SMTP_HOST in .env}
+      SMTP_PORT: ${SMTP_PORT:-465}
+      SMTP_USERNAME: ${SMTP_USERNAME:?Set SMTP_USERNAME in .env}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:?Set SMTP_PASSWORD in .env}
+      SMTP_SSL: ${SMTP_SSL:-true}
+      MAIL_FROM_EMAIL: ${MAIL_FROM_EMAIL:-info@netcradus.com}
+      MAIL_FROM_NAME: ${MAIL_FROM_NAME:-ACIS Security}
+      # Where the activation email's link points — the tenant console's
+      # real public origin, not the API gateway.
+      FRONTEND_URL: https://${PUBLIC_APP_DOMAIN:-localhost}
     expose:
       - "8088"
     depends_on:

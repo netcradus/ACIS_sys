@@ -4,10 +4,13 @@ import com.netcradus.acis.common.dto.ApiResponse;
 import com.netcradus.acis.platformadmin.audit.AuditAction;
 import com.netcradus.acis.platformadmin.audit.PlatformAuditService;
 import com.netcradus.acis.platformadmin.model.Tenant;
+import com.netcradus.acis.platformadmin.model.TenantActivation;
 import com.netcradus.acis.platformadmin.model.TenantModule;
 import com.netcradus.acis.platformadmin.model.TenantStatus;
+import com.netcradus.acis.platformadmin.repository.TenantActivationRepository;
 import com.netcradus.acis.platformadmin.repository.TenantRepository;
 import com.netcradus.acis.platformadmin.service.PlatformUserService;
+import com.netcradus.acis.platformadmin.service.TenantActivationService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.ResponseEntity;
@@ -21,6 +24,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.regex.Pattern;
 
 /**
  * Every endpoint here explicitly names its target tenant via a path
@@ -39,40 +43,102 @@ import java.util.UUID;
 @PreAuthorize("hasRole('PLATFORM_ADMIN')")
 public class TenantAdminController {
 
+    private static final Pattern EMAIL_PATTERN = Pattern.compile("^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$");
+
     private final TenantRepository tenantRepository;
+    private final TenantActivationRepository activationRepository;
+    private final TenantActivationService activationService;
     private final PlatformAuditService auditService;
     private final PlatformUserService platformUserService;
 
     @GetMapping
     public ApiResponse<List<Tenant>> listTenants() {
-        return ApiResponse.success(tenantRepository.findAll());
+        List<Tenant> tenants = tenantRepository.findAll();
+        tenants.forEach(this::attachActivationStatus);
+        return ApiResponse.success(tenants);
     }
 
     @GetMapping("/{tenantId}")
     public ApiResponse<Tenant> getTenant(@PathVariable UUID tenantId) {
-        return ApiResponse.success(resolve(tenantId));
+        Tenant tenant = resolve(tenantId);
+        attachActivationStatus(tenant);
+        return ApiResponse.success(tenant);
     }
 
     public record CreateTenantRequest(String name, String slug, String planName, String contactEmail, String contactName) {}
 
+    public record CreateTenantResponse(Tenant tenant, boolean activationEmailSent, String activationEmailError) {}
+
+    /**
+     * Creates the real Tenant row AND issues a real onboarding link to the
+     * named administrator — contactEmail/contactName are no longer just
+     * display metadata, they're required so there's always somewhere to
+     * send it. See TenantActivationService for what happens next: nothing
+     * about the admin's Keycloak account is created until they actually
+     * click the link and set a password.
+     */
     @PostMapping
-    public ResponseEntity<ApiResponse<Tenant>> createTenant(@RequestBody CreateTenantRequest request) {
+    public ResponseEntity<ApiResponse<CreateTenantResponse>> createTenant(@RequestBody CreateTenantRequest request) {
         if (request.name() == null || request.name().isBlank()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "name is required");
         }
+        if (request.contactName() == null || request.contactName().isBlank()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "The tenant administrator's name is required");
+        }
+        if (request.contactEmail() == null || !EMAIL_PATTERN.matcher(request.contactEmail().trim()).matches()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "A valid email address for the tenant administrator is required");
+        }
+
         Tenant tenant = new Tenant();
         tenant.setId(UUID.randomUUID());
         tenant.setName(request.name());
         tenant.setSlug(request.slug() != null && !request.slug().isBlank() ? request.slug() : slugify(request.name()));
         tenant.setPlanName(request.planName());
-        tenant.setContactEmail(request.contactEmail());
-        tenant.setContactName(request.contactName());
+        tenant.setContactEmail(request.contactEmail().trim());
+        tenant.setContactName(request.contactName().trim());
         tenant.setStatus(TenantStatus.ACTIVE);
         Tenant saved = tenantRepository.save(tenant);
 
         auditService.record(AuditAction.TENANT_CREATED, "TENANT", null, null, null,
                 saved.getId().toString(), saved.getName(), null, saved.getName());
-        return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.success(saved));
+
+        TenantActivationService.IssueResult issued = activationService.issue(
+                saved, request.contactName().trim(), request.contactEmail().trim());
+        attachActivationStatus(saved);
+
+        return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.success(
+                new CreateTenantResponse(saved, issued.emailSent(), issued.emailError())));
+    }
+
+    /** Issues a fresh onboarding link — for a first send that failed, or a link the admin never used before it expired. */
+    @PostMapping("/{tenantId}/resend-activation")
+    public ApiResponse<CreateTenantResponse> resendActivation(@PathVariable UUID tenantId) {
+        Tenant tenant = resolve(tenantId);
+        if (tenant.getContactEmail() == null || tenant.getContactEmail().isBlank()
+                || tenant.getContactName() == null || tenant.getContactName().isBlank()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "This tenant has no administrator name/email on file — set one via Edit before resending.");
+        }
+        TenantActivationService.IssueResult issued = activationService.issue(tenant, tenant.getContactName(), tenant.getContactEmail());
+        attachActivationStatus(tenant);
+        return ApiResponse.success(new CreateTenantResponse(tenant, issued.emailSent(), issued.emailError()));
+    }
+
+    private void attachActivationStatus(Tenant tenant) {
+        List<TenantActivation> activations = activationRepository.findByTenantIdOrderByCreatedAtDesc(tenant.getId());
+        if (activations.isEmpty()) {
+            tenant.setAdminActivationStatus("NONE");
+            return;
+        }
+        TenantActivation latest = activations.get(0);
+        tenant.setAdminActivationSentAt(latest.getCreatedAt());
+        if (latest.getConsumedAt() != null) {
+            tenant.setAdminActivationStatus("ACTIVE");
+        } else if (latest.getExpiresAt().isAfter(OffsetDateTime.now())) {
+            tenant.setAdminActivationStatus("PENDING");
+        } else {
+            tenant.setAdminActivationStatus("EXPIRED");
+        }
     }
 
     public record UpdateTenantRequest(String name, String contactEmail, String contactName) {}

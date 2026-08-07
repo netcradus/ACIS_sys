@@ -20,7 +20,11 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 // (RbacEnforcementFilter), outside this app's default @SpringBootApplication
 // scan root. @EntityScan only covers @Entity/repository interfaces, not
 // plain @Component beans, so @ComponentScan must be widened too.
-@ComponentScan(basePackages = { "com.netcradus.acis.soar", "com.netcradus.acis.common.rbac" })
+// com.netcradus.acis.common.email holds the shared EmailService (real SMTP
+// delivery), used by InvitationService here and by acis-platform-admin's
+// tenant activation flow — moved out of this module so both share one
+// mail integration instead of maintaining two.
+@ComponentScan(basePackages = { "com.netcradus.acis.soar", "com.netcradus.acis.common.rbac", "com.netcradus.acis.common.email" })
 @EntityScan(basePackages = { "com.netcradus.acis.soar", "com.netcradus.acis.common.apikey", "com.netcradus.acis.common.syslog", "com.netcradus.acis.common.rbac" })
 @EnableJpaRepositories(basePackages = { "com.netcradus.acis.soar", "com.netcradus.acis.common.apikey", "com.netcradus.acis.common.syslog", "com.netcradus.acis.common.rbac" })
 public class SoarApplication {

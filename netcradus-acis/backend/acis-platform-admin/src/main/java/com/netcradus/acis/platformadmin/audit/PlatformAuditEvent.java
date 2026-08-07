@@ -32,7 +32,18 @@ public class PlatformAuditEvent {
     private String targetEmail;
     private String tenantId;
     private String tenantName;
-    @Column(nullable = false, length = 64)
+    // columnDefinition (not just length) matters here: Hibernate 6 auto-
+    // generates a CHECK constraint enumerating every current AuditAction
+    // name for a plain @Enumerated(EnumType.STRING) column, and ddl-auto:
+    // update never widens it when the enum gains a new value — confirmed
+    // live, adding TENANT_ACTIVATION_SENT/TENANT_ADMIN_ACTIVATED silently
+    // broke every tenant-activation audit write (and, since this ran inside
+    // the same transaction as the real work, rolled back the activation
+    // record it was supposed to just be logging) until the stale
+    // constraint was manually dropped. An explicit columnDefinition takes
+    // the DDL type verbatim and skips that auto-CHECK generation entirely,
+    // so a future AuditAction addition can never repeat this.
+    @Column(nullable = false, columnDefinition = "varchar(64)")
     @Enumerated(EnumType.STRING)
     private AuditAction action;
     @Column(nullable = false, length = 32)
@@ -44,7 +55,7 @@ public class PlatformAuditEvent {
     private String ipAddress;
     @Column(length = 512)
     private String userAgent;
-    @Column(nullable = false, length = 16)
+    @Column(nullable = false, columnDefinition = "varchar(16)")
     @Enumerated(EnumType.STRING)
     private AuditStatus status;
     @Column(columnDefinition = "TEXT")

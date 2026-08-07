@@ -29,6 +29,8 @@ export const ALL_TENANT_MODULES: { key: TenantModule; label: string }[] = [
   { key: 'AI_ANALYST', label: 'AI Analyst' },
 ]
 
+export type TenantAdminActivationStatus = 'NONE' | 'PENDING' | 'ACTIVE' | 'EXPIRED'
+
 export interface Tenant {
   id: string
   name: string
@@ -42,20 +44,30 @@ export interface Tenant {
   updatedAt: string
   suspendedAt: string | null
   suspendedReason: string | null
+  /** Real status of the tenant administrator's onboarding link — see TenantActivationService. */
+  adminActivationStatus: TenantAdminActivationStatus
+  adminActivationSentAt: string | null
 }
 
 export interface CreateTenantRequest {
   name: string
   slug?: string
   planName?: string
-  contactEmail?: string
-  contactName?: string
+  /** Required: this is who the real onboarding activation email is sent to. */
+  contactEmail: string
+  contactName: string
 }
 
 export interface UpdateTenantRequest {
   name?: string
   contactEmail?: string
   contactName?: string
+}
+
+export interface CreateTenantResponse {
+  tenant: Tenant
+  activationEmailSent: boolean
+  activationEmailError: string | null
 }
 
 const BASE = '/api/platform/tenants'
@@ -70,8 +82,13 @@ export async function getTenant(tenantId: string): Promise<Tenant> {
   return res.data
 }
 
-export async function createTenant(payload: CreateTenantRequest): Promise<Tenant> {
-  const res = await apiClient.post<Tenant>(BASE, payload)
+export async function createTenant(payload: CreateTenantRequest): Promise<CreateTenantResponse> {
+  const res = await apiClient.post<CreateTenantResponse>(BASE, payload)
+  return res.data
+}
+
+export async function resendTenantActivation(tenantId: string): Promise<CreateTenantResponse> {
+  const res = await apiClient.post<CreateTenantResponse>(`${BASE}/${tenantId}/resend-activation`, {})
   return res.data
 }
 

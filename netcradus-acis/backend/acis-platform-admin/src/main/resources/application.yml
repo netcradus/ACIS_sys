@@ -38,6 +38,25 @@ spring:
         spring.json.trusted.packages: "*"
         spring.json.use.type.headers: false
         spring.json.value.default.type: com.netcradus.acis.platformadmin.audit.PlatformAuditEvent
+  # Real SMTP for tenant onboarding activation emails (see
+  # TenantActivationService) — same Zoho Mail config acis-soar's invitations
+  # use. No default: an unset SMTP_PASSWORD means a tenant still gets
+  # created (and its activation link still works if handed over manually)
+  # but the email genuinely won't send — EmailService logs that honestly
+  # rather than pretending it worked.
+  mail:
+    host: ${SMTP_HOST:}
+    port: ${SMTP_PORT:465}
+    username: ${SMTP_USERNAME:}
+    password: ${SMTP_PASSWORD:}
+    properties:
+      mail:
+        smtp:
+          auth: true
+          ssl:
+            enable: ${SMTP_SSL:true}
+          connectiontimeout: 8000
+          timeout: 8000
 
 # Keycloak Admin REST — manages the same users that authenticate into the
 # system via the existing acis-backend confidential client's service
@@ -48,6 +67,13 @@ acis:
     realm: ${KEYCLOAK_REALM:acis}
     admin-client-id: acis-backend
     admin-client-secret: ${KEYCLOAK_BACKEND_CLIENT_SECRET:acis-backend-secret}
+  mail:
+    from-email: ${MAIL_FROM_EMAIL:info@netcradus.com}
+    from-name: ${MAIL_FROM_NAME:ACIS Security}
+  # Where the activation email's link points — the real tenant-console
+  # frontend origin, not the API gateway (mirrors acis-soar's own
+  # frontend-url, used identically by InvitationService).
+  frontend-url: ${FRONTEND_URL:http://localhost:3000}
 
 management:
   endpoints:

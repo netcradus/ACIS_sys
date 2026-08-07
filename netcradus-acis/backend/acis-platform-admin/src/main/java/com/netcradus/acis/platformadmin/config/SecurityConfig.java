@@ -48,6 +48,11 @@ public class SecurityConfig {
                 // why (self-service tenant signup can't require a pre-existing
                 // token) and its rate-limiting caveats.
                 .requestMatchers(org.springframework.http.HttpMethod.POST, "/api/platform/signup").permitAll()
+                // Real public tenant-onboarding activation flow (see
+                // TenantActivationController) — GET to preview the link, POST to
+                // accept it. No JWT exists until acceptance succeeds and the new
+                // tenant admin logs in for the first time.
+                .requestMatchers("/api/platform/activate/**").permitAll()
                 .anyRequest().hasRole("PLATFORM_ADMIN")
             )
             .oauth2ResourceServer(oauth -> oauth.jwt(jwt -> jwt.jwtAuthenticationConverter(jwtAuthenticationConverter())))

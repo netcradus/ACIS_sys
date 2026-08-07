@@ -6,6 +6,7 @@ import PlatformAdminRoute      from './PlatformAdminRoute'
 import PlatformAdminLayout     from './PlatformAdminLayout'
 import SignupPage              from '@/modules/auth/SignupPage'
 import AcceptInvitePage        from '@/modules/auth/AcceptInvitePage'
+import ActivateTenantPage      from '@/modules/auth/ActivateTenantPage'
 import RequirePermission       from '@/components/RequirePermission'
 import { MODULES }             from '@/store/permissionsStore'
 
@@ -132,6 +133,14 @@ export const router = createBrowserRouter([
   {
     path: '/accept-invite',
     element: <AcceptInvitePage />,
+    errorElement: <RouteErrorFallback />,
+  },
+  // Also deliberately outside ProtectedRoute — a brand-new tenant's admin
+  // has no Keycloak account until this page's own activation flow creates
+  // one. See TenantActivationService/TenantActivationController.
+  {
+    path: '/activate-tenant',
+    element: <ActivateTenantPage />,
     errorElement: <RouteErrorFallback />,
   },
   // Catch-all: redirect unknown paths to /dashboard, which itself sends

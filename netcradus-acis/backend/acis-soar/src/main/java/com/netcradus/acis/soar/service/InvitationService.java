@@ -1,6 +1,7 @@
 package com.netcradus.acis.soar.service;
 
 import com.netcradus.acis.common.audit.AuditEventPublisher;
+import com.netcradus.acis.common.email.EmailService;
 import com.netcradus.acis.common.rbac.UserMember;
 import com.netcradus.acis.common.tenant.TenantContext;
 import com.netcradus.acis.soar.model.Invitation;

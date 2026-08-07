@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { ArrowLeft, Loader2, ShieldOff, ShieldCheck, Trash2, Save } from 'lucide-react'
+import { ArrowLeft, Loader2, ShieldOff, ShieldCheck, Trash2, Save, Send } from 'lucide-react'
 import { clsx } from 'clsx'
 import {
   getTenant,
@@ -10,6 +10,7 @@ import {
   setTenantPlan,
   setTenantModules,
   deleteTenant,
+  resendTenantActivation,
   Tenant,
   TenantModule,
   ALL_TENANT_MODULES,
@@ -38,6 +39,7 @@ export default function TenantDetailPage() {
   const [savingDetails, setSavingDetails] = useState(false)
   const [savingPlan, setSavingPlan] = useState(false)
   const [savingModules, setSavingModules] = useState(false)
+  const [resendingActivation, setResendingActivation] = useState(false)
   const [suspendReason, setSuspendReason] = useState('')
   const [confirmAction, setConfirmAction] = useState<ConfirmAction>(null)
   const [confirmBusy, setConfirmBusy] = useState(false)
@@ -92,6 +94,25 @@ export default function TenantDetailPage() {
       showToast('error', e?.message || 'Failed to save tenant details.')
     } finally {
       setSavingDetails(false)
+    }
+  }
+
+  const handleResendActivation = async () => {
+    if (!id) return
+    setResendingActivation(true)
+    try {
+      const result = await resendTenantActivation(id)
+      setTenant(result.tenant)
+      if (result.activationEmailSent) {
+        showToast('success', `Activation email sent to ${result.tenant.contactEmail}.`)
+      } else {
+        showToast('error', `Failed to send activation email${result.activationEmailError ? `: ${result.activationEmailError}` : '.'}`)
+      }
+    } catch (e: any) {
+      console.error('Failed to resend activation:', e)
+      showToast('error', e?.message || 'Failed to resend activation email.')
+    } finally {
+      setResendingActivation(false)
     }
   }
 
@@ -256,7 +277,7 @@ export default function TenantDetailPage() {
             />
           </div>
           <div className="space-y-1">
-            <label className="text-label text-text-muted uppercase block">Contact Name</label>
+            <label className="text-label text-text-muted uppercase block">Tenant Administrator Name</label>
             <input
               value={contactName}
               onChange={(e) => setContactName(e.target.value)}
@@ -264,7 +285,7 @@ export default function TenantDetailPage() {
             />
           </div>
           <div className="space-y-1">
-            <label className="text-label text-text-muted uppercase block">Contact Email</label>
+            <label className="text-label text-text-muted uppercase block">Tenant Administrator Email</label>
             <input
               value={contactEmail}
               onChange={(e) => setContactEmail(e.target.value)}
@@ -278,6 +299,37 @@ export default function TenantDetailPage() {
           >
             <Save className="w-3.5 h-3.5" /> {savingDetails ? 'Saving...' : 'Save Details'}
           </button>
+
+          <div className="border-t border-fire-border pt-4 flex items-center justify-between gap-3">
+            <div>
+              <span className="text-label text-text-muted uppercase block mb-1">Admin Onboarding</span>
+              <span
+                className={clsx(
+                  'px-2 py-0.5 rounded-full text-label uppercase',
+                  tenant.adminActivationStatus === 'ACTIVE' && 'bg-success/10 text-success',
+                  tenant.adminActivationStatus === 'PENDING' && 'bg-warning/10 text-warning',
+                  tenant.adminActivationStatus === 'EXPIRED' && 'bg-danger/10 text-danger',
+                  tenant.adminActivationStatus === 'NONE' && 'bg-surface-3 text-text-muted'
+                )}
+              >
+                {{ NONE: 'Not Sent', PENDING: 'Pending', ACTIVE: 'Activated', EXPIRED: 'Link Expired' }[tenant.adminActivationStatus]}
+              </span>
+              {tenant.adminActivationSentAt && (
+                <p className="text-label text-text-muted normal-case mt-1">
+                  Last sent {new Date(tenant.adminActivationSentAt).toLocaleString()}
+                </p>
+              )}
+            </div>
+            {tenant.adminActivationStatus !== 'ACTIVE' && (
+              <button
+                onClick={handleResendActivation}
+                disabled={resendingActivation}
+                className="flex items-center gap-2 bg-surface-3 hover:bg-accent-pa/10 border border-fire-border hover:border-accent-pa/40 text-text-secondary hover:text-accent-pa font-semibold px-4 py-2 rounded-lg text-small transition-colors disabled:opacity-50 shrink-0"
+              >
+                <Send className="w-3.5 h-3.5" /> {resendingActivation ? 'Sending...' : 'Resend Activation'}
+              </button>
+            )}
+          </div>
         </div>
 
         {/* Plan */}

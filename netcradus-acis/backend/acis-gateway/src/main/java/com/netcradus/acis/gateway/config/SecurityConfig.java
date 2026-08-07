@@ -25,6 +25,11 @@ public class SecurityConfig {
                 // its own; a JWT-requiring gateway would reject it before the
                 // downstream service is ever called.
                 .pathMatchers(HttpMethod.POST, "/api/platform/signup").permitAll()
+                // Real public tenant-onboarding activation flow (acis-platform-
+                // admin's TenantActivationController) — GET to preview the link,
+                // POST to accept it. No JWT exists until acceptance succeeds and
+                // the new tenant admin logs in for the first time.
+                .pathMatchers("/api/platform/activate/**").permitAll()
                 // Real public accept-invite flow (acis-soar's InvitationController)
                 // — GET to preview the invite, POST to accept it. No JWT exists
                 // until acceptance succeeds and the invitee logs in for the first

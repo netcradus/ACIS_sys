@@ -78,6 +78,13 @@
       <artifactId>spring-kafka</artifactId>
       <scope>provided</scope>
     </dependency>
+    <!-- Real SMTP delivery (EmailService) — provided, each consuming service
+         that wants to send email declares spring-boot-starter-mail itself. -->
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-mail</artifactId>
+      <scope>provided</scope>
+    </dependency>
   </dependencies>
 </project>
 
