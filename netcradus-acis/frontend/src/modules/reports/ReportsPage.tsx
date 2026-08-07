@@ -22,14 +22,38 @@ interface Alert {
   createdAt: string
 }
 
+interface Incident {
+  id: string
+  incidentNumber: string
+  title: string
+  severity: string
+  status: string
+  createdAt: string
+  updatedAt: string
+}
+
+interface RedTeamSimulation {
+  id: string
+  mitreTechniques: string[]
+}
+
+interface RedTeamExecutionSummary {
+  simulationId: string
+  status: string
+  stepLogs: string
+}
+
 export default function ReportsPage() {
   const canWrite = useCanWrite(MODULES.REPORTS_COMPLIANCE)
   const canAdmin = useCanAdmin(MODULES.REPORTS_COMPLIANCE)
   const [schedules, setSchedules] = useState<ReportSchedule[]>([])
   const [alerts, setAlerts] = useState<Alert[]>([])
+  const [incidents, setIncidents] = useState<Incident[]>([])
+  const [redTeamSimulations, setRedTeamSimulations] = useState<RedTeamSimulation[]>([])
+  const [redTeamExecutions, setRedTeamExecutions] = useState<RedTeamExecutionSummary[]>([])
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
-  
+
   // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [newReportName, setNewReportName] = useState('')
@@ -39,12 +63,18 @@ export default function ReportsPage() {
 
   const fetchData = async () => {
     try {
-      const [schedulesRes, alertsRes] = await Promise.all([
+      const [schedulesRes, alertsRes, incidentsRes, simsRes, execsRes] = await Promise.all([
         apiClient.get('/api/soar/reports/schedules'),
-        apiClient.get('/api/alerts')
+        apiClient.get('/api/alerts'),
+        apiClient.get('/api/incidents'),
+        apiClient.get('/api/red-team/simulations'),
+        apiClient.get('/api/red-team/executions')
       ])
       setSchedules(schedulesRes.data || [])
       setAlerts(alertsRes.data || [])
+      setIncidents(incidentsRes.data || [])
+      setRedTeamSimulations(simsRes.data || [])
+      setRedTeamExecutions(execsRes.data || [])
     } catch (err) {
       console.error("Failed to fetch reports details", err)
     } finally {
@@ -115,16 +145,23 @@ export default function ReportsPage() {
         content += `[${a.createdAt}] ${a.title} - Severity: ${a.severity} (${a.status})\n`
       })
     } else if (reportType.includes("Board")) {
-      content += `- Total Incidents recorded: 6\n`
-      content += `- Mean Time to Resolution (MTTR): 14.8 min\n\n`
-      content += `TIMELINE STEPS:\n`
-      content += `1. Detected initial access vector (phishing payload execution)\n`
-      content += `2. Lateral movement containment via Cisco firewall block list\n`
-      content += `3. Isolated workstation node from production VLAN\n`
+      content += `- Total Incidents recorded: ${incidents.length}\n`
+      content += `- Mean Time to Resolution (MTTR): ${mttrMinutes !== null ? `${mttrMinutes.toFixed(1)} min` : 'Not enough resolved incidents yet'}\n\n`
+      content += `INCIDENT LIST:\n`
+      if (incidents.length === 0) {
+        content += `(no incidents recorded)\n`
+      } else {
+        incidents.forEach(i => {
+          content += `[${i.incidentNumber}] ${i.title} - Severity: ${i.severity} (${i.status}) - Opened ${new Date(i.createdAt).toUTCString()}\n`
+        })
+      }
     } else {
       content += `MITRE ATT&CK TECHNIQUES COVERAGE:\n`
-      content += `- Covered: 156/200 techniques (78%)\n`
-      content += `- Target compliance: SOC2, ISO27001\n`
+      content += declaredTechniques.size > 0
+        ? `- Covered: ${executedTechniques.size}/${declaredTechniques.size} declared techniques (${coveragePercent}%)\n`
+        : `- No MITRE techniques declared on any Red Team simulation yet\n`
+      content += `\nTECHNIQUES EXECUTED:\n`
+      content += executedTechniques.size > 0 ? Array.from(executedTechniques).join(', ') + '\n' : '(none)\n'
     }
 
     const blob = new Blob([content], { type: 'text/plain' })
@@ -141,6 +178,30 @@ export default function ReportsPage() {
   const totalThreats = alerts.length
   const resolvedThreats = alerts.filter(a => a.status === 'CLOSED').length
   const openThreats = alerts.filter(a => a.status === 'OPEN').length
+
+  // Real MTTR: average resolution time for incidents that have actually
+  // reached a terminal state, computed from real createdAt/updatedAt
+  // timestamps. Null (not fabricated) when no incident has resolved yet.
+  const resolvedIncidents = incidents.filter(i => i.status === 'MITIGATED' || i.status === 'CLOSED')
+  const mttrMinutes = resolvedIncidents.length > 0
+    ? resolvedIncidents.reduce((sum, i) => sum + (new Date(i.updatedAt).getTime() - new Date(i.createdAt).getTime()), 0)
+      / resolvedIncidents.length / 60000
+    : null
+
+  // Real MITRE ATT&CK coverage: a technique counts as covered only once a
+  // completed execution actually logged a step tagged with it.
+  const declaredTechniques = new Set(redTeamSimulations.flatMap(s => s.mitreTechniques || []))
+  const executedTechniques = new Set<string>()
+  redTeamExecutions.forEach(e => {
+    if (e.status !== 'completed') return
+    try {
+      const steps = JSON.parse(e.stepLogs)
+      if (Array.isArray(steps)) steps.forEach((s: any) => { if (s.technique) executedTechniques.add(s.technique) })
+    } catch { /* ignore malformed step logs */ }
+  })
+  const coveragePercent = declaredTechniques.size > 0
+    ? Math.round((executedTechniques.size / declaredTechniques.size) * 100)
+    : null
 
   const filteredSchedules = useMemo(() => {
     return schedules.filter(s => s.reportName.toLowerCase().includes(searchTerm.toLowerCase()))
@@ -200,12 +261,12 @@ export default function ReportsPage() {
             <div className="mt-4 space-y-1 text-label text-text-secondary normal-case">
               <div className="flex items-center gap-1.5"><Clock className="w-3.5 h-3.5 text-text-muted" /> Generated: Weekly • Every Monday 08:00</div>
               <div className="flex items-center gap-1.5"><Activity className="w-3.5 h-3.5 text-text-muted" /> Coverage: Last 7 days</div>
-              <div className="flex items-center gap-1.5"><CheckCircle2 className="w-3.5 h-3.5 text-text-muted" /> Recipients: exec-team@netcradus.local (+3)</div>
+              <div className="flex items-center gap-1.5"><CheckCircle2 className="w-3.5 h-3.5 text-text-muted" /> Recipients: configured per schedule below</div>
             </div>
           </div>
 
           <div className="mt-4 bg-surface border border-fire-border rounded-lg p-3 flex flex-col gap-1 text-label font-mono">
-            <span className="text-text-muted uppercase">Executive Summary - Week 24/2026</span>
+            <span className="text-text-muted uppercase">Executive Summary - as of {new Date().toLocaleDateString()}</span>
             <div className="flex gap-2 text-text-secondary font-semibold mt-1">
               <span>Threats: <b className="text-danger">{totalThreats}</b></span>
               <span>Resolved: <b className="text-success">{resolvedThreats}</b></span>
@@ -243,15 +304,17 @@ export default function ReportsPage() {
             <div className="mt-4 space-y-1 text-label text-text-secondary normal-case">
               <div className="flex items-center gap-1.5"><Clock className="w-3.5 h-3.5 text-text-muted" /> On-demand + monthly scheduled</div>
               <div className="flex items-center gap-1.5"><Activity className="w-3.5 h-3.5 text-text-muted" /> Coverage: Per incident + monthly rollup</div>
-              <div className="flex items-center gap-1.5"><CheckCircle2 className="w-3.5 h-3.5 text-text-muted" /> Recipients: board@netcradus.local, legal@netcradus.local</div>
+              <div className="flex items-center gap-1.5"><CheckCircle2 className="w-3.5 h-3.5 text-text-muted" /> Recipients: configured per schedule below</div>
             </div>
           </div>
 
           <div className="mt-4 bg-surface border border-fire-border rounded-lg p-3 flex flex-col gap-1 text-label font-mono">
-            <span className="text-text-muted uppercase">Incident Report - INC-101 through INC-106</span>
+            <span className="text-text-muted uppercase">
+              {incidents.length > 0 ? `Incident Report - ${incidents[incidents.length - 1].incidentNumber} through ${incidents[0].incidentNumber}` : 'Incident Report - no incidents recorded'}
+            </span>
             <div className="flex gap-2 text-text-secondary font-semibold mt-1">
-              <span>Total incidents: <b>6</b></span>
-              <span>MTTR: <b className="text-severity-high">14.8 min</b></span>
+              <span>Total incidents: <b>{incidents.length}</b></span>
+              <span>MTTR: <b className="text-severity-high">{mttrMinutes !== null ? `${mttrMinutes.toFixed(1)} min` : 'Not tracked'}</b></span>
             </div>
           </div>
 
@@ -285,17 +348,19 @@ export default function ReportsPage() {
             <div className="mt-4 space-y-1 text-label text-text-secondary normal-case">
               <div className="flex items-center gap-1.5"><Clock className="w-3.5 h-3.5 text-text-muted" /> Monthly - 1st of each month</div>
               <div className="flex items-center gap-1.5"><Activity className="w-3.5 h-3.5 text-text-muted" /> Coverage: MITRE ATT&CK Enterprise v14</div>
-              <div className="flex items-center gap-1.5"><CheckCircle2 className="w-3.5 h-3.5 text-text-muted" /> Recipients: security-team@netcradus.local</div>
+              <div className="flex items-center gap-1.5"><CheckCircle2 className="w-3.5 h-3.5 text-text-muted" /> Recipients: configured per schedule below</div>
             </div>
           </div>
 
           <div className="mt-4 bg-surface border border-fire-border rounded-lg p-3 flex flex-col gap-1 text-label font-mono">
-            <span className="text-text-muted uppercase">Detection Coverage - June 2026</span>
+            <span className="text-text-muted uppercase">Detection Coverage - as of {new Date().toLocaleDateString()}</span>
             <div className="flex items-center justify-between font-semibold mt-1 text-label">
-              <span className="text-success">Covered: 156/200 techniques (78%)</span>
+              <span className="text-success">
+                {declaredTechniques.size > 0 ? `Covered: ${executedTechniques.size}/${declaredTechniques.size} techniques (${coveragePercent}%)` : 'No MITRE techniques declared yet'}
+              </span>
             </div>
             <div className="w-full bg-surface-3 rounded-full h-1.5 mt-1 overflow-hidden">
-              <div className="bg-success h-1.5 rounded-full" style={{ width: '78%' }} />
+              <div className="bg-success h-1.5 rounded-full" style={{ width: `${coveragePercent ?? 0}%` }} />
             </div>
           </div>
 

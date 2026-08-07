@@ -38,8 +38,14 @@ public class AlertDataSeeder implements CommandLineRunner {
     }
 
     private void seed() {
-        log.info("Clearing existing alerts for clean seed...");
-        repository.deleteAll();
+        // Confirmed live: this used to call repository.deleteAll() on every
+        // single boot, unconditionally — meaning any real alert a tenant
+        // received via the real Kafka/correlation pipeline between restarts
+        // was destroyed and silently replaced with these 11 fixed demo rows
+        // on the next deploy. Only seed an empty table now.
+        if (repository.count() > 0) {
+            return;
+        }
         log.info("Seeding initial alerts for ACIS demo matching screenshot...");
 
             Alert a1 = Alert.builder()

@@ -34,6 +34,6 @@ public class RlsConfig {
     @Bean
     @Order(1000)
     public CommandLineRunner enableRowLevelSecurity(JdbcTemplate jdbcTemplate) {
-        return args -> RlsBootstrapper.apply(jdbcTemplate, "alerts");
+        return args -> RlsBootstrapper.apply(jdbcTemplate, "alerts", "incidents");
     }
 }

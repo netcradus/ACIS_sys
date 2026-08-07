@@ -38,7 +38,8 @@ spring:
         - id: alerts
           uri: ${ALERTS_SERVICE_URL:http://localhost:8081}
           predicates:
-            - Path=/api/alerts/**,/ws/alerts/**
+            # /api/incidents/** is the real Incidents feature (IncidentController), same service as Alerts.
+            - Path=/api/alerts/**,/ws/alerts/**,/api/incidents/**
 
         - id: correlation
           uri: ${CORRELATION_SERVICE_URL:http://localhost:8083}

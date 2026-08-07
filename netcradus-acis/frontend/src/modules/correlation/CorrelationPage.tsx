@@ -12,6 +12,9 @@ interface CorrelationRule {
   severity: string
   riskScore: number
   enabled: boolean
+  scheduleCron: string | null
+  windowMinutes: number | null
+  threshold: number | null
   lastRunAt: string | null
 }
 
@@ -32,56 +35,18 @@ interface CorrelationStats {
   ruleActivity: RuleActivity[]
 }
 
-const ruleConfigs: Record<string, { schedule: string, threshold: string, severity: string, throttle: string }> = {
-  "Impossible Travel Detection": {
-    schedule: "Every 5 minutes",
-    threshold: "2+ countries in 4 hours",
-    severity: "High",
-    throttle: "1 alert per user per hour"
-  },
-  "Privilege Escalation on DC": {
-    schedule: "Every 1 minute",
-    threshold: "Admin group modification",
-    severity: "Critical",
-    throttle: "No throttling"
-  },
-  "Excessive 401 Failures (Brute Force)": {
-    schedule: "Every 5 minutes",
-    threshold: "10+ failures in 1 minute",
-    severity: "High",
-    throttle: "1 alert per source IP per hour"
-  },
-  "Suspicious ASR Bypass via LOLBin": {
-    schedule: "Every 10 minutes",
-    threshold: "Process execution pattern",
-    severity: "High",
-    throttle: "No throttling"
-  },
-  "Beaconing to Rare External Domain": {
-    schedule: "Every 1 hour",
-    threshold: "Periodic egress connections",
-    severity: "Medium",
-    throttle: "1 alert per domain per day"
-  },
-  "Data Exfiltration via DNS Tunneling": {
-    schedule: "Every 15 minutes",
-    threshold: "High TXT query volume",
-    severity: "High",
-    throttle: "1 alert per client IP per day"
-  }
-}
-
 export default function CorrelationPage() {
   const canWrite = useCanWrite(MODULES.ALERTS_CORRELATION)
   const [rules, setRules] = useState<CorrelationRule[]>([])
   const [stats, setStats] = useState<CorrelationStats | null>(null)
   const [selectedRuleId, setSelectedRuleId] = useState<string | null>(null)
   const [searchTerm, setSearchTerm] = useState('')
-  const [alertsToday, setAlertsToday] = useState<number>(221) // fallback default
+  const [alertsToday, setAlertsToday] = useState<number>(0)
   const [isLoading, setIsLoading] = useState(false)
   const [isModalOpen, setIsModalOpen] = useState(false)
+  const [editingRuleId, setEditingRuleId] = useState<string | null>(null)
 
-  // Form State for New Rule
+  // Form State for New/Edit Rule
   const [newRuleName, setNewRuleName] = useState('')
   const [newRuleDesc, setNewRuleDesc] = useState('')
   const [newRuleSpl, setNewRuleSpl] = useState('')
@@ -104,7 +69,7 @@ export default function CorrelationPage() {
       }
       
       if (alertsSummaryRes?.data) {
-        setAlertsToday(alertsSummaryRes.data.totalAlerts || 221)
+        setAlertsToday(alertsSummaryRes.data.totalAlerts ?? 0)
       }
 
       // Default selection to first rule if not set
@@ -151,7 +116,7 @@ export default function CorrelationPage() {
     }
   }
 
-  const handleCreateRule = async (e: React.FormEvent) => {
+  const handleSubmitRule = async (e: React.FormEvent) => {
     e.preventDefault()
     try {
       // tenantId is derived server-side from the X-Tenant-ID header (JWT
@@ -164,21 +129,42 @@ export default function CorrelationPage() {
         severity: newRuleSeverity,
         riskScore: newRuleRisk
       }
-      await apiClient.post('/api/correlation/rules', payload)
-      
-      // Reset form
-      setNewRuleName('')
-      setNewRuleDesc('')
-      setNewRuleSpl('')
-      setNewRuleSeverity('HIGH')
-      setNewRuleRisk(70)
-      setIsModalOpen(false)
-      
-      // Reload
+      if (editingRuleId) {
+        await apiClient.put(`/api/correlation/rules/${editingRuleId}`, payload)
+      } else {
+        await apiClient.post('/api/correlation/rules', payload)
+      }
+
+      closeModal()
       fetchRulesAndStats()
     } catch (error) {
-      console.error('Failed to create rule:', error)
+      console.error('Failed to save rule:', error)
     }
+  }
+
+  const openCreateModal = () => {
+    setEditingRuleId(null)
+    setNewRuleName('')
+    setNewRuleDesc('')
+    setNewRuleSpl('')
+    setNewRuleSeverity('HIGH')
+    setNewRuleRisk(70)
+    setIsModalOpen(true)
+  }
+
+  const openEditModal = (rule: CorrelationRule) => {
+    setEditingRuleId(rule.id)
+    setNewRuleName(rule.name)
+    setNewRuleDesc(rule.description)
+    setNewRuleSpl(rule.splQuery)
+    setNewRuleSeverity(rule.severity)
+    setNewRuleRisk(rule.riskScore)
+    setIsModalOpen(true)
+  }
+
+  const closeModal = () => {
+    setIsModalOpen(false)
+    setEditingRuleId(null)
   }
 
   const formatLastRun = (dateStr: string | null) => {
@@ -231,10 +217,10 @@ export default function CorrelationPage() {
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         {[
-          { label: 'Active Rules', value: stats?.activeRules ?? 4, borderColor: 'border-l-severity-high' },
+          { label: 'Active Rules', value: stats?.activeRules ?? 0, borderColor: 'border-l-severity-high' },
           { label: 'Alerts Fired Today', value: alertsToday, borderColor: 'border-l-info' },
-          { label: 'Rules Disabled', value: stats?.disabledRules ?? 2, borderColor: 'border-l-severity-medium' },
-          { label: 'Avg Risk Score', value: stats?.avgRiskScore ?? 94, borderColor: 'border-l-danger' }
+          { label: 'Rules Disabled', value: stats?.disabledRules ?? 0, borderColor: 'border-l-severity-medium' },
+          { label: 'Avg Risk Score', value: stats?.avgRiskScore ?? 0, borderColor: 'border-l-danger' }
         ].map((c, i) => (
           <div key={i} className={clsx("card-mission flex flex-col justify-between h-28 border-l-4", c.borderColor)}>
             <span className="text-h1 text-text-primary leading-none">{c.value}</span>
@@ -251,7 +237,7 @@ export default function CorrelationPage() {
             <p className="text-small text-text-muted mt-1">Risk-based alerting — schedule & throttling</p>
           </div>
           <button
-            onClick={() => setIsModalOpen(true)}
+            onClick={openCreateModal}
             disabled={!canWrite}
             title={!canWrite ? "Your role doesn't have write access to Alerts & Correlation" : undefined}
             className="btn-fire disabled:opacity-50 disabled:cursor-not-allowed"
@@ -313,8 +299,10 @@ export default function CorrelationPage() {
                   </td>
                   <td className="text-right">
                     <button
-                      onClick={(e) => { e.stopPropagation(); alert(`Editing ${rule.name} is in development`); }}
-                      className="btn-mission py-1.5 px-3 text-label uppercase"
+                      onClick={(e) => { e.stopPropagation(); openEditModal(rule); }}
+                      disabled={!canWrite}
+                      title={!canWrite ? "Your role doesn't have write access to Alerts & Correlation" : undefined}
+                      className="btn-mission py-1.5 px-3 text-label uppercase disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       Edit
                     </button>
@@ -364,10 +352,10 @@ export default function CorrelationPage() {
                 <span className="text-label uppercase text-text-muted block">Configuration</span>
                 <div className="grid grid-cols-2 gap-y-3 gap-x-6 text-small">
                   {[
-                    { label: 'Schedule', val: ruleConfigs[selectedRule.name]?.schedule || 'Every 5 minutes' },
-                    { label: 'Threshold', val: ruleConfigs[selectedRule.name]?.threshold || 'Matching event occurrence' },
+                    { label: 'Window', val: `${selectedRule.windowMinutes ?? 5} min sliding window` },
+                    { label: 'Threshold', val: selectedRule.threshold != null ? `count > ${selectedRule.threshold}` : 'Matching event occurrence' },
                     { label: 'Severity', val: selectedRule.severity },
-                    { label: 'Throttle', val: ruleConfigs[selectedRule.name]?.throttle || 'No throttling' }
+                    { label: 'Schedule', val: selectedRule.scheduleCron || 'Continuous (real-time stream)' }
                   ].map((cfg, i) => (
                     <div key={i} className="flex justify-between border-b border-fire-border/60 pb-1.5">
                       <span className="text-text-muted font-medium">{cfg.label}:</span>
@@ -449,15 +437,15 @@ export default function CorrelationPage() {
         <div className="fixed inset-0 bg-background/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="bg-surface border border-fire-border rounded-xl w-full max-w-lg overflow-hidden shadow-card animate-scale-in">
             <div className="flex items-center justify-between p-5 border-b border-fire-border">
-              <h3 className="text-h3 text-text-primary">Create Correlation Rule</h3>
+              <h3 className="text-h3 text-text-primary">{editingRuleId ? 'Edit Correlation Rule' : 'Create Correlation Rule'}</h3>
               <button
-                onClick={() => setIsModalOpen(false)}
+                onClick={closeModal}
                 className="text-text-muted hover:text-text-primary transition-colors focus:outline-none"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
-            <form onSubmit={handleCreateRule} className="p-5 space-y-4">
+            <form onSubmit={handleSubmitRule} className="p-5 space-y-4">
               <div className="space-y-1.5">
                 <label className="text-label uppercase text-text-muted block">Rule Name</label>
                 <input
@@ -525,7 +513,7 @@ export default function CorrelationPage() {
               <div className="flex items-center justify-end gap-3 pt-3 border-t border-fire-border mt-4">
                 <button
                   type="button"
-                  onClick={() => setIsModalOpen(false)}
+                  onClick={closeModal}
                   className="btn-mission"
                 >
                   Cancel
@@ -534,7 +522,7 @@ export default function CorrelationPage() {
                   type="submit"
                   className="btn-fire"
                 >
-                  Create
+                  {editingRuleId ? 'Save Changes' : 'Create'}
                 </button>
               </div>
             </form>

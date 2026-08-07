@@ -19,9 +19,20 @@ interface Asset {
   updatedAt: string
 }
 
+interface AgentEndpointView {
+  id: string
+  agentId: string
+  hostname: string
+  os: string
+  ipAddress: string
+  agentVersion: string
+  status: 'ONLINE' | 'OFFLINE'
+}
+
 export default function EndpointsPage() {
   const canWrite = useCanWrite(MODULES.ASSETS_THREAT_INTEL)
   const [endpoints, setEndpoints] = useState<Asset[]>([])
+  const [agents, setAgents] = useState<AgentEndpointView[]>([])
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
   const [processingId, setProcessingId] = useState<string | null>(null)
@@ -31,10 +42,10 @@ export default function EndpointsPage() {
       const response = await apiClient.get('/api/assets')
       const assets = response.data || []
       // Include WORKSTATION, SERVER, NETWORK_DEVICE, and CLOUD_INSTANCE as endpoints
-      const filtered = assets.filter((a: Asset) => 
-        a.type === 'WORKSTATION' || 
-        a.type === 'SERVER' || 
-        a.type === 'NETWORK_DEVICE' || 
+      const filtered = assets.filter((a: Asset) =>
+        a.type === 'WORKSTATION' ||
+        a.type === 'SERVER' ||
+        a.type === 'NETWORK_DEVICE' ||
         a.type === 'CLOUD_INSTANCE' ||
         a.type === 'IOT_DEVICE'
       )
@@ -46,11 +57,31 @@ export default function EndpointsPage() {
     }
   }
 
+  const fetchAgents = async () => {
+    try {
+      const response = await apiClient.get('/api/soar/settings/agents')
+      setAgents(response.data || [])
+    } catch (err) {
+      console.error("Failed to fetch agent fleet", err)
+    }
+  }
+
   useEffect(() => {
     fetchEndpoints()
-    const interval = setInterval(fetchEndpoints, 5000)
+    fetchAgents()
+    const interval = setInterval(() => {
+      fetchEndpoints()
+      fetchAgents()
+    }, 5000)
     return () => clearInterval(interval)
   }, [])
+
+  /** Real deployed-agent record for this endpoint, matched by IP (the field
+   * both Asset and the heartbeat-reported AgentEndpoint reliably carry) or
+   * hostname — no agent enrolled means no agent record, shown honestly
+   * rather than guessed from the asset's name. */
+  const agentForEndpoint = (ep: Asset) =>
+    agents.find(a => (ep.ipAddress && a.ipAddress === ep.ipAddress) || a.hostname?.toLowerCase() === ep.name.toLowerCase())
 
   // Isolate Endpoint Action
   const handleIsolate = async (id: string) => {
@@ -86,7 +117,8 @@ export default function EndpointsPage() {
     }
   }
 
-  // Rollback Endpoint Action
+  // Clear a real DEGRADED flag (set by the backend's drift detector once the
+  // correlated high-severity alert has been triaged/resolved).
   const handleRollback = async (id: string) => {
     setProcessingId(id)
     try {
@@ -96,7 +128,6 @@ export default function EndpointsPage() {
         health: 'OK'
       })
       fetchEndpoints()
-      alert("Successfully restored configuration from last healthy snapshot.")
     } catch (err) {
       console.error(err)
     } finally {
@@ -114,7 +145,7 @@ export default function EndpointsPage() {
     setLoading(true)
     try {
       await Promise.all(
-        pending.map(ep => 
+        pending.map(ep =>
           apiClient.put(`/api/assets/${ep.id}/status`, {
             isolated: false,
             status: 'ACTIVE',
@@ -123,27 +154,11 @@ export default function EndpointsPage() {
         )
       )
       fetchEndpoints()
-      alert(`Successfully rolled back ${pending.length} degraded nodes to normal state.`)
     } catch (e) {
       console.error(e)
     } finally {
       setLoading(false)
     }
-  }
-
-  // Mock mapping of agent version based on name
-  const getAgentVersion = (name: string) => {
-    if (name.includes('printer')) return '1.8.2'
-    if (name.includes('backup')) return '2.0.9'
-    if (name.includes('workstation-88')) return '2.1.2'
-    return '2.1.3'
-  }
-
-  const getRollbackStatus = (health: string, name: string) => {
-    if (name.includes('printer')) return '—'
-    const h = health?.toUpperCase() || 'OK'
-    if (h === 'OK') return 'Ready'
-    return 'Snapshot'
   }
 
   // Live Stats calculations
@@ -213,20 +228,19 @@ export default function EndpointsPage() {
           <table className="table-enterprise">
             <thead>
               <tr>
-                <th className="w-[25%]">Endpoint</th>
-                <th className="w-[15%]">Health</th>
-                <th className="w-[12%]">Isolation</th>
-                <th className="w-[15%]">Rollback</th>
+                <th className="w-[22%]">Endpoint</th>
+                <th className="w-[13%]">Health</th>
+                <th className="w-[10%]">Isolation</th>
+                <th className="w-[15%]">Agent Status</th>
                 <th className="w-[15%]">Agent Ver</th>
-                <th className="w-[18%] text-right">Actions</th>
+                <th className="w-[25%] text-right">Actions</th>
               </tr>
             </thead>
             <tbody>
               {filteredEndpoints.map(ep => {
                 const isIsolated = ep.status === 'INACTIVE' || ep.isolationStatus
                 const health = isIsolated ? 'Quarantined' : ep.health === 'DEGRADED' ? 'Degraded' : 'OK'
-                const rollback = getRollbackStatus(ep.health, ep.name)
-                const version = getAgentVersion(ep.name)
+                const agent = agentForEndpoint(ep)
 
                 return (
                   <tr key={ep.id}>
@@ -257,14 +271,16 @@ export default function EndpointsPage() {
                       </span>
                     </td>
                     <td className="font-mono font-medium">
-                      <span className={clsx(
-                        rollback === 'Snapshot' ? "text-severity-high" : "text-text-muted"
-                      )}>
-                        {rollback}
-                      </span>
+                      {agent ? (
+                        <span className={clsx(agent.status === 'ONLINE' ? "text-success" : "text-danger")}>
+                          {agent.status}
+                        </span>
+                      ) : (
+                        <span className="text-text-muted">Not Enrolled</span>
+                      )}
                     </td>
                     <td className="text-text-secondary font-mono">
-                      {version}
+                      {agent?.agentVersion || '—'}
                     </td>
                     <td className="text-right">
                       <div className="flex items-center justify-end gap-2">
@@ -284,16 +300,7 @@ export default function EndpointsPage() {
                             title={!canWrite ? "Your role doesn't have write access to Assets & Threat Intel" : undefined}
                             className="border border-severity-high/30 bg-severity-high/10 hover:bg-severity-high/20 text-severity-high font-semibold px-3 py-1.5 rounded-lg text-label uppercase transition-colors focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
                           >
-                            Rollback
-                          </button>
-                        ) : version === '1.8.2' ? (
-                          <button
-                            onClick={() => alert("Agent update initiated...")}
-                            disabled={!canWrite}
-                            title={!canWrite ? "Your role doesn't have write access to Assets & Threat Intel" : undefined}
-                            className="btn-mission py-1.5 px-3 text-label uppercase disabled:opacity-50 disabled:cursor-not-allowed"
-                          >
-                            Update
+                            Clear & Restore
                           </button>
                         ) : (
                           <button

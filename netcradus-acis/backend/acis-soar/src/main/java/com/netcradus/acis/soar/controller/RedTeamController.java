@@ -53,4 +53,9 @@ public class RedTeamController {
                 .map(ApiResponse::success)
                 .orElse(ApiResponse.error("Execution not found"));
     }
+
+    @GetMapping("/executions")
+    public ApiResponse<List<java.util.Map<String, Object>>> getAllExecutions(@RequestHeader("X-Tenant-ID") UUID tenantId) {
+        return ApiResponse.success(redTeamService.getAllExecutionViews(tenantId));
+    }
 }

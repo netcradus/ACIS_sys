@@ -80,11 +80,56 @@ public class GuardDutyClient {
                 if (f.resource() != null) {
                     event.put("resourceType", f.resource().resourceType());
                 }
+                extractIndicator(f).ifPresent(ioc -> {
+                    event.put("iocValue", ioc.value());
+                    event.put("iocType", ioc.type());
+                });
                 events.add(event);
             }
             return events;
         } catch (SdkException e) {
             throw new GuardDutyApiException(describeError(e));
+        }
+    }
+
+    private record Indicator(String value, String type) {}
+
+    /**
+     * Pulls the real remote IP/domain GuardDuty attached to this finding's
+     * action — the actual IoC an analyst would pivot on — from whichever of
+     * the finding's action sub-objects is populated for its actionType.
+     * Findings whose action shape doesn't carry one (many do not) yield
+     * empty rather than a guessed value.
+     */
+    private java.util.Optional<Indicator> extractIndicator(Finding f) {
+        try {
+            if (f.service() == null || f.service().action() == null) {
+                return java.util.Optional.empty();
+            }
+            Action action = f.service().action();
+            if (action.networkConnectionAction() != null
+                    && action.networkConnectionAction().remoteIpDetails() != null
+                    && action.networkConnectionAction().remoteIpDetails().ipAddressV4() != null) {
+                return java.util.Optional.of(new Indicator(action.networkConnectionAction().remoteIpDetails().ipAddressV4(), "IP"));
+            }
+            if (action.awsApiCallAction() != null
+                    && action.awsApiCallAction().remoteIpDetails() != null
+                    && action.awsApiCallAction().remoteIpDetails().ipAddressV4() != null) {
+                return java.util.Optional.of(new Indicator(action.awsApiCallAction().remoteIpDetails().ipAddressV4(), "IP"));
+            }
+            if (action.portProbeAction() != null && action.portProbeAction().hasPortProbeDetails()
+                    && !action.portProbeAction().portProbeDetails().isEmpty()) {
+                var remote = action.portProbeAction().portProbeDetails().get(0).remoteIpDetails();
+                if (remote != null && remote.ipAddressV4() != null) {
+                    return java.util.Optional.of(new Indicator(remote.ipAddressV4(), "IP"));
+                }
+            }
+            if (action.dnsRequestAction() != null && action.dnsRequestAction().domain() != null) {
+                return java.util.Optional.of(new Indicator(action.dnsRequestAction().domain(), "DOMAIN"));
+            }
+            return java.util.Optional.empty();
+        } catch (RuntimeException e) {
+            return java.util.Optional.empty();
         }
     }
 

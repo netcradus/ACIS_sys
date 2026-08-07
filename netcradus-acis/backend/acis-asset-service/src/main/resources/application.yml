@@ -28,6 +28,14 @@ spring:
         jwt:
           jwk-set-uri: ${KEYCLOAK_URL:http://localhost:8180}/realms/${KEYCLOAK_REALM:acis}/protocol/openid-connect/certs
 
+acis:
+  alerts-service:
+    url: ${ALERTS_SERVICE_URL:http://localhost:8081}
+  # How often AssetDriftDetectionService cross-checks real open CRITICAL/HIGH
+  # alerts against the asset inventory — deliberately not sub-minute, this
+  # is a background health sweep, not a live event handler.
+  drift-detection-interval-ms: ${DRIFT_DETECTION_INTERVAL_MS:300000}
+
 logging:
   level:
     com.netcradus.acis: DEBUG

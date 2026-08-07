@@ -7,13 +7,11 @@ import com.netcradus.acis.threat.repository.ThreatIndicatorRepository;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
-import java.util.Random;
 
 @Service
 @RequiredArgsConstructor
@@ -27,7 +25,6 @@ public class ThreatIntelligenceService {
     private static final String DEMO_TENANT_ID = "11111111-1111-4111-8111-111111111111";
 
     private final ThreatIndicatorRepository repository;
-    private final Random random = new Random();
 
     @PostConstruct
     public void initMockData() {
@@ -68,20 +65,24 @@ public class ThreatIntelligenceService {
         return repository.findByValueAndTenantId(value, tenantId);
     }
 
-    @Scheduled(fixedRate = 600000) // Every 10 minutes
-    public void updateFeeds() {
-        // Demo-only synthetic feed refresh, scoped to the demo tenant — there is
-        // no per-request context in a @Scheduled job, so this cannot (and must
-        // not) be attributed to an arbitrary/real tenant. TenantContext must be
-        // set explicitly here so the Row Level Security policy on
-        // `threat_indicators` allows the insert.
-        log.info("Refreshing demo threat feed...");
-        try {
-            TenantContext.setTenantId(DEMO_TENANT_ID);
-            String randomIp = "10.0.0." + random.nextInt(255);
-            generateMockIndicator(DEMO_TENANT_ID, randomIp, "IP", ThreatSeverity.LOW, "Auto-generated suspicious IP", "System Mock");
-        } finally {
-            TenantContext.clear();
-        }
+    /**
+     * Real, persisted enrichment — called from ThreatController after a
+     * genuine VirusTotal/AbuseIPDB lookup (see ThreatIntelligenceGrpcClient/
+     * ai-service's threat_intel_client.py) so a result a user actually
+     * triggers shows up in the indicator list afterward instead of being
+     * thrown away. Upserts by (tenantId, value) so re-enriching the same
+     * IOC updates its existing row rather than duplicating it.
+     */
+    public ThreatIndicator saveEnrichmentResult(String tenantId, String value, String type,
+            ThreatSeverity severity, String description, String source) {
+        ThreatIndicator indicator = repository.findByValueAndTenantId(value, tenantId).orElseGet(ThreatIndicator::new);
+        indicator.setTenantId(tenantId);
+        indicator.setValue(value);
+        indicator.setType(type);
+        indicator.setSeverity(severity);
+        indicator.setDescription(description);
+        indicator.setSource(source);
+        indicator.setLastSeen(LocalDateTime.now());
+        return repository.save(indicator);
     }
 }

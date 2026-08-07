@@ -47,14 +47,45 @@ interface DashboardStats {
   events24h: number | null
 }
 
+interface RedTeamSimulation {
+  id: string
+  name: string
+  description: string
+  steps: string
+}
+
+interface RedTeamExecution {
+  id: string
+  simulationId: string
+  status: 'running' | 'completed' | 'failed'
+  stepLogs: string
+  startedAt: string | null
+  completedAt: string | null
+}
+
+/** Same phishing/lateral/other classification RedTeamService.executeSimulationAsync
+ * uses server-side to pick a scenario's synthetic log stages — reused here so the
+ * simulator's decorative "which SOAR action is active" panel stays consistent
+ * with what the real backend execution is actually doing. */
+function simulationCategory(name: string): 'phishing' | 'lateral' | 'other' {
+  const n = name.toLowerCase()
+  if (n.includes('phishing')) return 'phishing'
+  if (n.includes('lateral')) return 'lateral'
+  return 'other'
+}
+
 export default function DashboardPage() {
   const chartColors = useChartColors()
   const [activeTab, setActiveTab] = useState<'architecture' | 'overview'>('architecture')
   const [stats, setStats] = useState<DashboardStats | null>(null)
   const [incidents, setIncidents] = useState<any[]>([])
+  const [severityCounts, setSeverityCounts] = useState<{ critical: number; high: number; medium: number; low: number } | null>(null)
+  const [responseReadiness, setResponseReadiness] = useState<number | null>(null)
   const [isLoading, setIsLoading] = useState(true)
 
-  // Simulation State Machine
+  // Simulation State Machine — driven by real acis-soar Red Team executions,
+  // not a scripted setTimeout sequence. simVector holds the real
+  // RedTeamSimulation.id being run.
   const [simState, setSimState] = useState<'idle' | 'simulating'>('idle')
   const [simVector, setSimVector] = useState<string | null>(null)
   const [simStep, setSimStep] = useState<number>(0)
@@ -65,6 +96,9 @@ export default function DashboardPage() {
   const [gridNodes, setGridNodes] = useState<('secure' | 'probing' | 'compromised' | 'contained')[]>(
     Array(24).fill('secure')
   )
+  const [redTeamSimulations, setRedTeamSimulations] = useState<RedTeamSimulation[]>([])
+  const [activeExecutionId, setActiveExecutionId] = useState<string | null>(null)
+  const [loggedStages, setLoggedStages] = useState<number>(0)
 
   // Demo telemetry for the architecture view's decorative widgets — this
   // simulator screen has no real backend feed for ingest-lag history or
@@ -76,12 +110,15 @@ export default function DashboardPage() {
   )
   const cpuUsage = 28
 
-  const liveThreatFeed = [
-    { severity: 'CRITICAL', message: 'Possible ransomware activity detected', category: 'Endpoint', time: '12 sec ago' },
-    { severity: 'HIGH', message: 'Credential dumping attempt', category: 'Identity', time: '1 min ago' },
-    { severity: 'MEDIUM', message: 'Unusual outbound connection', category: 'Network', time: '2 min ago' },
-    { severity: 'LOW', message: 'Port scan detected', category: 'Network', time: '5 min ago' },
-  ]
+  // Real live feed — derived from the same real, WebSocket-refreshed alert
+  // data already fetched into `incidents` below, instead of a static
+  // 4-item array with fabricated relative timestamps that never updated.
+  const liveThreatFeed = incidents.slice(0, 4).map((inc) => ({
+    severity: (inc.severity || '').toUpperCase(),
+    message: inc.title,
+    category: inc.source,
+    time: inc.updated,
+  }))
 
   const attackMapNodes = [
     { id: 'n1', x: 22, y: 38 },
@@ -105,6 +142,23 @@ export default function DashboardPage() {
       ])
 
       setStats(statsRes.data)
+      // Real per-severity counts computed from the same real alert list
+      // already fetched here — replaces a pie chart that used to show a
+      // hardcoded Low count (0 in the chart itself, 84 in the legend right
+      // below it) and Medium/Critical/High fallback literals whenever
+      // stats hadn't loaded yet.
+      const allAlerts = alertsRes.data as any[]
+      setSeverityCounts({
+        critical: allAlerts.filter(a => a.severity === 'CRITICAL').length,
+        high: allAlerts.filter(a => a.severity === 'HIGH').length,
+        medium: allAlerts.filter(a => a.severity === 'MEDIUM').length,
+        low: allAlerts.filter(a => a.severity === 'LOW').length,
+      })
+      // Real "Response Readiness": share of open alerts that already have
+      // an assigned owner (ownerId), i.e. actively being worked rather than
+      // sitting unassigned — replaces a hardcoded "95%".
+      const openAlerts = allAlerts.filter(a => a.status === 'OPEN' || a.status === 'INVESTIGATING')
+      setResponseReadiness(openAlerts.length === 0 ? 100 : Math.round((openAlerts.filter(a => a.ownerId).length / openAlerts.length) * 100))
       const recent = (alertsRes.data as any[]).slice(0, 5).map(a => ({
         id: a.id,
         title: a.title,
@@ -136,8 +190,18 @@ export default function DashboardPage() {
     return `${Math.floor(diffHours / 24)}d ago`
   }
 
+  const fetchRedTeamSimulations = async () => {
+    try {
+      const response = await apiClient.get<RedTeamSimulation[]>('/api/red-team/simulations')
+      setRedTeamSimulations(response.data || [])
+    } catch (error) {
+      console.error('Failed to fetch red team simulations:', error)
+    }
+  }
+
   useEffect(() => {
     fetchData()
+    fetchRedTeamSimulations()
     const dashSub = wsClient.subscribe('/topic/dashboard', () => fetchData())
     const alertSub = wsClient.subscribe('/topic/alerts', () => fetchData())
 
@@ -153,86 +217,117 @@ export default function DashboardPage() {
     setSimLogs(prev => [`[${time}] [${sender}] ${text}`, ...prev])
   }
 
-  // Trigger Simulation Step Sequence
-  const runSimulation = (vector: string) => {
-    if (simState === 'simulating') return
-
-    setSimState('simulating')
-    setSimVector(vector)
-    setSimStep(1)
-    setSimRisk(25)
-    setSimLogs([])
-
-    // Highlight node grid on red team simulator
-    const vectorNodes = [...gridNodes]
-    for (let i = 0; i < 5; i++) {
-      const idx = Math.floor(Math.random() * 24)
-      vectorNodes[idx] = 'probing'
+  function parseStepLogs(stepLogsJson: string): { stage: number; name: string; technique: string | null }[] {
+    try {
+      const parsed = JSON.parse(stepLogsJson)
+      return Array.isArray(parsed) ? parsed : []
+    } catch {
+      return []
     }
-    setGridNodes(vectorNodes)
-    
-    logMsg('RED TEAM', `Initiating validated campaign: '${vector}' mapping to MITRE ATT&CK matrix...`)
   }
 
-  useEffect(() => {
-    if (simState !== 'simulating') return
-
-    const interval = setTimeout(() => {
-      const nextStep = simStep + 1
-      setSimStep(nextStep)
-
-      if (nextStep === 2) {
-        // Step 2: Layer 1 - SIEM Detection
-        setSimRisk(85)
-        logMsg('SIEM PIPELINE', 'Kafka buffer populated. JSON Log Normalizer outputting structural events...')
-        logMsg('SIEM AI MODEL', 'Anomaly detected by Isolation Forest. LSTM sequence matches privilege drift behavior.')
-        
-        // Update nodes to compromised (red)
-        setGridNodes(prev => prev.map(n => n === 'probing' ? 'compromised' : n))
-
-      } else if (nextStep === 3) {
-        // Step 3: Layer 2 - SOAR Decisions
-        logMsg('SOAR ENGINE', 'Critical risk score evaluated (85). Automating incident containment protocol...')
-        logMsg('SOAR ENGINE', `Selecting response playbook: 'Isolate Endpoint & Block IP' (Latency < 2.5s)`)
-        
-      } else if (nextStep === 4) {
-        // Step 4: Layer 4 - Healing & Deception
-        setSimRisk(12)
-        logMsg('HEALING ENGINE', 'Releasing automatic containment. Rollback sequence triggered on target nodes.')
-        logMsg('HEALING ENGINE', 'Configuration restored to healthy state from cached Docker/VSS snapshots.')
-        logMsg('DECEPTION', 'Honeypots deployed. Fake credentials seeded on adjacent network subnets.')
-        
-        // Nodes isolated/contained (blue)
-        setGridNodes(prev => prev.map(n => n === 'compromised' ? 'contained' : n))
-
-      } else if (nextStep === 5) {
-        // Step 5: Layer 5 - Threat Intel Swarm
-        logMsg('INTEL SWARM', 'Aggregating localized detection vectors. Activating federated learning parameters loop...')
-        logMsg('INTEL SWARM', 'Federated sync completed (+1,204 new parameters). Distributing updated model weights.')
-
-      } else if (nextStep === 6) {
-        // Step 6: Secure State / Idle
-        setSimRisk(20)
-        setSimState('idle')
-        setSimVector(null)
-        setSimStep(0)
-        setGridNodes(Array(24).fill('secure'))
-        logMsg('SYSTEM', 'Closed-loop cycle complete. Model refreshed. Grid state: 100% SECURE.')
-      }
-    }, 3000)
-
-    return () => clearTimeout(interval)
-  }, [simState, simStep])
-
-  const activeVectorLabel = useMemo(() => {
-    switch (simVector) {
-      case 'phishing': return 'Phishing Simulation'
-      case 'privilege': return 'Privilege Escalation'
-      case 'lateral': return 'Lateral Movement'
-      case 'cloud': return 'Cloud Attack'
-      default: return 'Campaign Verification'
+  function parseDeclaredStepCount(stepsJson: string): number {
+    try {
+      const parsed = JSON.parse(stepsJson)
+      return Array.isArray(parsed) ? parsed.length : 1
+    } catch {
+      return 1
     }
-  }, [simVector])
+  }
+
+  const activeSimulation = useMemo(
+    () => redTeamSimulations.find(s => s.id === simVector) || null,
+    [redTeamSimulations, simVector]
+  )
+
+  // Trigger a real Red Team execution — POSTs to acis-soar, which actually
+  // runs the campaign (real synthetic events sent to Kafka, real MITRE
+  // technique tags, real step_logs persisted per execution) rather than
+  // a client-side scripted narrative.
+  const runSimulation = async (simulationId: string) => {
+    if (simState === 'simulating') return
+    const simulation = redTeamSimulations.find(s => s.id === simulationId)
+    if (!simulation) return
+
+    setSimState('simulating')
+    setSimVector(simulationId)
+    setSimStep(1)
+    setSimRisk(70)
+    setLoggedStages(0)
+    setSimLogs([])
+    setGridNodes(Array(24).fill('secure'))
+    logMsg('RED TEAM', `Initiating real campaign: '${simulation.name}' mapping to MITRE ATT&CK matrix...`)
+
+    try {
+      const response = await apiClient.post<RedTeamExecution>(`/api/red-team/simulations/${simulationId}/start`)
+      setActiveExecutionId(response.data.id)
+    } catch (err) {
+      console.error('Failed to start simulation', err)
+      logMsg('SYSTEM', 'Failed to start campaign — see console for details.')
+      setSimState('idle')
+      setSimVector(null)
+      setSimStep(0)
+    }
+  }
+
+  // Poll the real execution this session started, rendering its real
+  // persisted step_logs as they land instead of a fixed setTimeout script.
+  useEffect(() => {
+    if (simState !== 'simulating' || !activeExecutionId) return
+    let cancelled = false
+
+    const poll = async () => {
+      try {
+        const response = await apiClient.get<RedTeamExecution>(`/api/red-team/executions/${activeExecutionId}`)
+        const execution = response.data
+        if (cancelled) return
+
+        const steps = parseStepLogs(execution.stepLogs)
+        if (steps.length > loggedStages) {
+          steps.slice(loggedStages).forEach(step => {
+            const tag = step.technique ? ` [${step.technique}]` : ''
+            logMsg('RED TEAM', `${step.name}${tag}`)
+          })
+          setLoggedStages(steps.length)
+        }
+
+        const declaredTotal = Math.max(
+          activeSimulation ? parseDeclaredStepCount(activeSimulation.steps) : 1,
+          steps.length,
+          1
+        )
+        const progress = Math.min(1, steps.length / declaredTotal)
+        const litCount = Math.round(progress * 24)
+        setGridNodes(prev => prev.map((_, idx) =>
+          idx >= litCount ? 'secure' : execution.status === 'completed' ? 'contained' : 'compromised'
+        ))
+        setSimStep(execution.status === 'running' ? Math.min(4, 2 + Math.floor(progress * 2)) : 5)
+
+        if (execution.status === 'completed' || execution.status === 'failed') {
+          logMsg('SYSTEM', execution.status === 'completed'
+            ? 'Closed-loop cycle complete. Grid state: 100% SECURE.'
+            : 'Campaign execution failed — see acis-soar service logs.')
+          setSimRisk(20)
+          setTimeout(() => {
+            setSimState('idle')
+            setSimVector(null)
+            setSimStep(0)
+            setActiveExecutionId(null)
+            setLoggedStages(0)
+            setGridNodes(Array(24).fill('secure'))
+          }, 2500)
+        }
+      } catch (err) {
+        console.error('Failed to poll execution status', err)
+      }
+    }
+
+    poll()
+    const interval = setInterval(poll, 1500)
+    return () => { cancelled = true; clearInterval(interval) }
+  }, [simState, activeExecutionId, loggedStages, activeSimulation])
+
+  const activeVectorLabel = activeSimulation?.name || 'Campaign Verification'
 
   return (
     <div className="space-y-6 animate-fade-in relative min-h-screen text-text-primary pb-12">
@@ -291,18 +386,18 @@ export default function DashboardPage() {
                 </div>
                 <h2 className="text-lg font-medium text-text-primary tracking-tight">Closed-Loop Attack & Remediation Simulator</h2>
                 <p className="max-w-2xl text-[11px] uppercase tracking-[0.1em] text-text-secondary">
-                  Select a threat vector to trigger a simulated red-team attack campaign. Watch as the system moves automatically through the defense lifecycle.
+                  Select a real Red Team campaign to run against acis-soar. Watch as the system moves through the defense lifecycle using the campaign's actual persisted execution log.
                 </p>
               </div>
 
-              {/* Simulation Selectors */}
+              {/* Simulation Selectors — real campaigns from this tenant's Red Team library */}
               <div className="flex flex-wrap gap-2 w-full xl:w-auto">
-                {[
-                  { id: 'phishing', label: 'Phishing' },
-                  { id: 'privilege', label: 'Privilege Escalation' },
-                  { id: 'lateral', label: 'Lateral Movement' },
-                  { id: 'cloud', label: 'Cloud Attacks' }
-                ].map(v => (
+                {redTeamSimulations.length === 0 && (
+                  <span className="text-[10px] font-bold text-text-muted uppercase tracking-widest">
+                    No Red Team campaigns configured yet — add one on the Red Team page
+                  </span>
+                )}
+                {redTeamSimulations.map(v => (
                   <button
                     key={v.id}
                     onClick={() => runSimulation(v.id)}
@@ -312,7 +407,7 @@ export default function DashboardPage() {
                       simVector === v.id ? "border-accent text-accent bg-accent/5 font-extrabold" : "text-text-primary bg-background/40 hover:bg-background/60"
                     )}
                   >
-                    {v.label}
+                    {v.name}
                   </button>
                 ))}
 
@@ -322,6 +417,8 @@ export default function DashboardPage() {
                     setSimVector(null);
                     setSimStep(0);
                     setSimRisk(20);
+                    setActiveExecutionId(null);
+                    setLoggedStages(0);
                     setGridNodes(Array(24).fill('secure'));
                     setSimLogs([`[${new Date().toLocaleTimeString()}] [SYSTEM] Telemetry reset. System secure.`]);
                   }}
@@ -494,9 +591,9 @@ export default function DashboardPage() {
                 {/* Action HUD list */}
                 <div className="space-y-2">
                   {[
-                    { key: 'block', name: 'Block IP Range', icon: Ban, active: simStep === 3 && simVector === 'cloud' },
-                    { key: 'isolate', name: 'Isolate Endpoint Node', icon: MonitorOff, active: simStep === 3 && (simVector === 'privilege' || simVector === 'lateral') },
-                    { key: 'script', name: 'Execute Containment Script', icon: FileCode2, active: simStep === 3 && simVector === 'phishing' },
+                    { key: 'block', name: 'Block IP Range', icon: Ban, active: simStep === 3 && activeSimulation !== null && simulationCategory(activeSimulation.name) === 'other' },
+                    { key: 'isolate', name: 'Isolate Endpoint Node', icon: MonitorOff, active: simStep === 3 && activeSimulation !== null && simulationCategory(activeSimulation.name) === 'lateral' },
+                    { key: 'script', name: 'Execute Containment Script', icon: FileCode2, active: simStep === 3 && activeSimulation !== null && simulationCategory(activeSimulation.name) === 'phishing' },
                     { key: 'kill', name: 'Kill Malicious Process', icon: Bug, active: false },
                     { key: 'remediate', name: 'Remediate & Log', icon: ClipboardCheck, active: false },
                   ].map(a => (
@@ -694,10 +791,6 @@ export default function DashboardPage() {
                   <span className={clsx(
                     "font-bold shrink-0",
                     log.includes('RED TEAM') && "text-accent",
-                    log.includes('SIEM') && "text-info",
-                    log.includes('SOAR') && "text-warning",
-                    log.includes('HEALING') && "text-success",
-                    log.includes('SWARM') && "text-success",
                     log.includes('SYSTEM') && "text-text-primary"
                   )}>
                     {log}
@@ -735,13 +828,15 @@ export default function DashboardPage() {
               <div className="grid grid-cols-1 gap-4">
                 <div className="card-mission bg-glass-surface border-fire-border/50 p-5">
                   <p className="text-label uppercase text-text-muted mb-2">Threat Confidence</p>
-                  <p className="text-display text-text-primary">87%</p>
-                  <p className="text-small text-text-secondary mt-2">Based on correlation score and real-time model predictions.</p>
+                  <p className="text-small font-normal text-text-muted">Still in development</p>
+                  <p className="text-small text-text-secondary mt-2">Will be based on correlation score and real-time model predictions once that scoring is built.</p>
                 </div>
                 <div className="card-mission bg-glass-surface border-fire-border/50 p-5">
                   <p className="text-label uppercase text-text-muted mb-2">Response Readiness</p>
-                  <p className="text-display text-text-primary">95%</p>
-                  <p className="text-small text-text-secondary mt-2">Automated playbooks and analyst workflows are ready.</p>
+                  <p className="text-display text-text-primary">
+                    {isLoading || responseReadiness === null ? '—' : `${responseReadiness}%`}
+                  </p>
+                  <p className="text-small text-text-secondary mt-2">Share of open alerts with an assigned owner, ready for response.</p>
                 </div>
               </div>
             </div>
@@ -755,8 +850,13 @@ export default function DashboardPage() {
             </div>
             <div className="flex items-center gap-4 bg-surface-2 border border-fire-border px-4 py-2.5 rounded-lg">
               <div className="flex flex-col items-end">
-                <span className="text-label uppercase text-text-muted leading-none mb-1">Grid Sync</span>
-                <span className="text-small font-semibold text-success tabular-nums">100% Secure</span>
+                <span className="text-label uppercase text-text-muted leading-none mb-1">Grid Status</span>
+                <span className={clsx(
+                  "text-small font-semibold tabular-nums",
+                  (stats?.criticalAlerts ?? 0) > 0 ? "text-danger" : "text-success"
+                )}>
+                  {isLoading ? '—' : (stats?.criticalAlerts ?? 0) > 0 ? `${stats!.criticalAlerts} Critical Active` : 'Secure'}
+                </span>
               </div>
               <div className="w-px h-6 bg-border" />
               <Activity className="w-4 h-4 text-accent" />
@@ -832,10 +932,10 @@ export default function DashboardPage() {
                   <PieChart>
                     <Pie
                       data={[
-                        { name: 'Critical', value: stats?.criticalAlerts ?? 0, color: chartColors.danger },
-                        { name: 'High', value: stats?.highAlerts ?? 0, color: chartColors.severityHigh },
-                        { name: 'Medium', value: (stats?.totalAlerts ?? 0) - (stats?.criticalAlerts ?? 0) - (stats?.highAlerts ?? 0), color: chartColors.severityMedium },
-                        { name: 'Low', value: 0, color: chartColors.info },
+                        { name: 'Critical', value: severityCounts?.critical ?? 0, color: chartColors.danger },
+                        { name: 'High', value: severityCounts?.high ?? 0, color: chartColors.severityHigh },
+                        { name: 'Medium', value: severityCounts?.medium ?? 0, color: chartColors.severityMedium },
+                        { name: 'Low', value: severityCounts?.low ?? 0, color: chartColors.info },
                       ]}
                       cx="50%"
                       cy="50%"
@@ -858,17 +958,17 @@ export default function DashboardPage() {
                   </PieChart>
                 </ResponsiveContainer>
                 <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                  <span className="text-h1 text-text-primary leading-none">{stats?.totalAlerts ?? 221}</span>
+                  <span className="text-h1 text-text-primary leading-none">{stats?.totalAlerts ?? 0}</span>
                   <span className="text-label uppercase text-text-secondary mt-1">Alerts</span>
                 </div>
               </div>
 
               <div className="mt-8 space-y-2">
                 {[
-                  { name: 'Critical', value: stats?.criticalAlerts ?? 18, color: chartColors.danger },
-                  { name: 'High', value: stats?.highAlerts ?? 64, color: chartColors.severityHigh },
-                  { name: 'Medium', value: (stats?.totalAlerts ?? 0) - (stats?.criticalAlerts ?? 0) - (stats?.highAlerts ?? 0) || 55, color: chartColors.severityMedium },
-                  { name: 'Low', value: 84, color: chartColors.info },
+                  { name: 'Critical', value: severityCounts?.critical ?? 0, color: chartColors.danger },
+                  { name: 'High', value: severityCounts?.high ?? 0, color: chartColors.severityHigh },
+                  { name: 'Medium', value: severityCounts?.medium ?? 0, color: chartColors.severityMedium },
+                  { name: 'Low', value: severityCounts?.low ?? 0, color: chartColors.info },
                 ].map((item) => (
                   <div key={item.name} className="flex items-center gap-3 px-2 py-1.5 hover:bg-surface-3 rounded-lg transition-colors group">
                     <div className="w-2.5 h-2.5 rounded-sm" style={{ backgroundColor: item.color }} />

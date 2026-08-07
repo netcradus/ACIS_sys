@@ -196,6 +196,7 @@ public class RedTeamService {
                 stepLog.put("stage", i + 1);
                 stepLog.put("name", stageLog.getMessage());
                 stepLog.put("status", "success");
+                stepLog.put("technique", stageLog.getMetadata() != null ? stageLog.getMetadata().get("technique") : null);
                 stepLog.put("timestamp", OffsetDateTime.now().toString());
                 logList.add(stepLog);
                 
@@ -235,5 +236,41 @@ public class RedTeamService {
     public Optional<RedTeamExecution> getExecution(UUID executionId, UUID tenantId) {
         return executionRepository.findById(executionId)
                 .filter(exec -> simulationRepository.findByIdAndTenantId(exec.getSimulationId(), tenantId).isPresent());
+    }
+
+    /**
+     * All real executions across every simulation owned by the tenant, newest
+     * first, with the owning simulation's name/techniques attached — powers
+     * the frontend's execution history table and coverage stats, replacing
+     * client-side formulas that fabricated coverage/duration/status figures.
+     */
+    public List<java.util.Map<String, Object>> getAllExecutionViews(UUID tenantId) {
+        List<RedTeamSimulation> simulations = simulationRepository.findByTenantId(tenantId);
+        java.util.Map<UUID, RedTeamSimulation> simulationsById = new java.util.HashMap<>();
+        for (RedTeamSimulation simulation : simulations) {
+            simulationsById.put(simulation.getId(), simulation);
+        }
+
+        List<RedTeamExecution> executions = executionRepository.findBySimulationIdIn(new java.util.ArrayList<>(simulationsById.keySet()));
+        executions.sort((a, b) -> {
+            if (a.getStartedAt() == null || b.getStartedAt() == null) return 0;
+            return b.getStartedAt().compareTo(a.getStartedAt());
+        });
+
+        List<java.util.Map<String, Object>> views = new java.util.ArrayList<>();
+        for (RedTeamExecution execution : executions) {
+            RedTeamSimulation simulation = simulationsById.get(execution.getSimulationId());
+            java.util.Map<String, Object> view = new java.util.LinkedHashMap<>();
+            view.put("id", execution.getId());
+            view.put("simulationId", execution.getSimulationId());
+            view.put("simulationName", simulation != null ? simulation.getName() : "Unknown Simulation");
+            view.put("mitreTechniques", simulation != null ? simulation.getMitreTechniques() : java.util.List.of());
+            view.put("status", execution.getStatus());
+            view.put("stepLogs", execution.getStepLogs());
+            view.put("startedAt", execution.getStartedAt());
+            view.put("completedAt", execution.getCompletedAt());
+            views.add(view);
+        }
+        return views;
     }
 }

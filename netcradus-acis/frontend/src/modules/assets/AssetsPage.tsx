@@ -22,50 +22,49 @@ interface Asset {
   updatedAt: string
 }
 
-const assetIdentities: Record<string, { username: string, role: string, lastActive: string, flagged?: boolean }[]> = {
-  "dc-prod-01": [
-    { username: "it-admin", role: "Domain Admin", lastActive: "2h ago" },
-    { username: "j.singh", role: "User", lastActive: "15m ago", flagged: true },
-    { username: "a.sharma", role: "User", lastActive: "1d ago" }
-  ],
-  "fw-edge-01": [
-    { username: "netops", role: "Network Ops", lastActive: "5m ago" },
-    { username: "it-admin", role: "Domain Admin", lastActive: "1d ago" }
-  ],
-  "laptop-332": [
-    { username: "a.sharma", role: "User", lastActive: "8m ago" }
-  ],
-  "srv-erp-02": [
-    { username: "sap-admin", role: "SAP Admin", lastActive: "12m ago" },
-    { username: "it-admin", role: "Domain Admin", lastActive: "2h ago" }
-  ],
-  "api-gw-prod": [
-    { username: "devops", role: "Cloud Administrator", lastActive: "1m ago" }
-  ],
-  "workstation-114": [
-    { username: "j.singh", role: "User", lastActive: "22m ago", flagged: true }
-  ]
+interface IdentityView {
+  id: string
+  assetId: string
+  username: string
+  role: string | null
+  lastActive: string
+  flagged: boolean
 }
 
-const assetAlerts: Record<string, { title: string, severity: string, time: string }[]> = {
-  "dc-prod-01": [
-    { title: "Excessive 401 failures", severity: "High", time: "12m ago" },
-    { title: "Suspicious PowerShell", severity: "High", time: "31m ago" }
-  ],
-  "fw-edge-01": [
-    { title: "Beaconing to rare domain cdn-x7.io", severity: "High", time: "5m ago" }
-  ],
-  "laptop-332": [
-    { title: "ASR Rule Bypass Detected", severity: "Medium", time: "8m ago" }
-  ],
-  "workstation-114": [
-    { title: "ASR Rule Bypass Detected", severity: "Medium", time: "22m ago" }
-  ]
+interface RealAlert {
+  id: string
+  title: string
+  severity: string
+  status: string
+  rawEvent: string | null
+  createdAt: string
+}
+
+/** Best-effort real correlation from real alert data — an asset "has" an
+ * alert if the asset's own IP shows up in the alert's parsed raw event, or
+ * the asset's name is mentioned in the alert title. Replaces a hardcoded
+ * map keyed by 4 specific asset names that every other asset silently
+ * showed a fake "no alerts" reassurance for. */
+function alertsForAsset(asset: Asset, alerts: RealAlert[]): RealAlert[] {
+  return alerts.filter(a => {
+    if (a.status === 'MITIGATED' || a.status === 'CLOSED') return false
+    if (a.title.toLowerCase().includes(asset.name.toLowerCase())) return true
+    if (!a.rawEvent) return false
+    try {
+      const parsed = JSON.parse(a.rawEvent)
+      const haystack = [parsed.src_ip, parsed.target, parsed.destination].filter(Boolean).join(' ')
+      return asset.ipAddress && haystack.includes(asset.ipAddress)
+    } catch {
+      return false
+    }
+  })
 }
 
 export default function AssetsPage() {
   const canWrite = useCanWrite(MODULES.ASSETS_THREAT_INTEL)
   const [assets, setAssets] = useState<Asset[]>([])
+  const [identities, setIdentities] = useState<IdentityView[]>([])
+  const [alerts, setAlerts] = useState<RealAlert[]>([])
   const [selectedAssetId, setSelectedAssetId] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
@@ -76,16 +75,21 @@ export default function AssetsPage() {
   const [newType, setNewType] = useState('SERVER')
   const [newOwner, setNewOwner] = useState('')
   const [newIp, setNewIp] = useState('')
+  const [newMac, setNewMac] = useState('')
   const [newOs, setNewOs] = useState('')
   const [newCriticality, setNewCriticality] = useState('HIGH')
   const [newTags, setNewTags] = useState('')
+
+  // Form state for adding an identity to the selected asset
+  const [newIdentityUsername, setNewIdentityUsername] = useState('')
+  const [newIdentityRole, setNewIdentityRole] = useState('')
 
   const fetchAssets = async () => {
     setIsLoading(true)
     try {
       const response = await apiClient.get('/api/assets')
       setAssets(response.data)
-      
+
       // Auto-select first asset
       if (response.data.length > 0 && !selectedAssetId) {
         setSelectedAssetId(response.data[0].id)
@@ -97,9 +101,55 @@ export default function AssetsPage() {
     }
   }
 
+  const fetchIdentities = async () => {
+    try {
+      const response = await apiClient.get('/api/assets/identities')
+      setIdentities(response.data)
+    } catch (error) {
+      console.error('Failed to fetch identities:', error)
+    }
+  }
+
+  const fetchAlerts = async () => {
+    try {
+      const response = await apiClient.get('/api/alerts')
+      setAlerts(response.data)
+    } catch (error) {
+      console.error('Failed to fetch alerts:', error)
+    }
+  }
+
   useEffect(() => {
     fetchAssets()
+    fetchIdentities()
+    fetchAlerts()
   }, [])
+
+  const handleAddIdentity = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!selectedAsset || !newIdentityUsername.trim()) return
+    try {
+      await apiClient.post('/api/assets/identities', {
+        assetId: selectedAsset.id,
+        username: newIdentityUsername.trim(),
+        role: newIdentityRole.trim() || null
+      })
+      setNewIdentityUsername('')
+      setNewIdentityRole('')
+      fetchIdentities()
+    } catch (e) {
+      console.error('Failed to add identity:', e)
+    }
+  }
+
+  const handleDeleteIdentity = async (identityId: string) => {
+    try {
+      await apiClient.delete(`/api/assets/identities/${identityId}`)
+      setIdentities(prev => prev.filter(i => i.id !== identityId))
+    } catch (e) {
+      console.error('Failed to delete identity:', e)
+    }
+  }
 
   const handleCreateAsset = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -114,15 +164,16 @@ export default function AssetsPage() {
         health: 'OK',
         criticality: newCriticality,
         tags: newTags,
-        macAddress: '00:1A:2B:3C:4D:' + Math.floor(10 + Math.random() * 89)
+        macAddress: newMac.trim() || null
       }
       await apiClient.post('/api/assets', payload)
-      
+
       // Reset form
       setNewName('')
       setNewType('SERVER')
       setNewOwner('')
       setNewIp('')
+      setNewMac('')
       setNewOs('')
       setNewCriticality('HIGH')
       setNewTags('')
@@ -165,7 +216,7 @@ export default function AssetsPage() {
   const totalAssetsCount = assets.length
   const highCriticalityCount = assets.filter(a => a.criticality === 'HIGH').length
   const quarantinedCount = assets.filter(a => a.status === 'INACTIVE' || a.isolationStatus).length
-  const identityConflictsCount = assets.reduce((count, a) => count + (assetIdentities[a.name]?.filter(u => u.flagged).length || 0), 0)
+  const identityConflictsCount = identities.filter(i => i.flagged).length
 
   const getCriticalityBadge = (crit: string) => {
     const c = crit?.toUpperCase() || 'MEDIUM'
@@ -359,10 +410,8 @@ export default function AssetsPage() {
                   <p className="text-label text-text-muted mt-0.5 normal-case leading-none">Users with access to this asset</p>
                 </div>
                 <div className="space-y-2">
-                  {(assetIdentities[selectedAsset.name] || [
-                    { username: selectedAsset.owner, role: "Owner", lastActive: "Just now" }
-                  ]).map((user, idx) => (
-                    <div key={idx} className="flex items-center justify-between bg-surface p-3 rounded-lg border border-fire-border">
+                  {identities.filter(i => i.assetId === selectedAsset.id).map((user) => (
+                    <div key={user.id} className="flex items-center justify-between bg-surface p-3 rounded-lg border border-fire-border group">
                       <div className="flex items-center gap-2.5">
                         <div className="w-7 h-7 rounded-full bg-surface-3 border border-fire-border text-label uppercase text-accent flex items-center justify-center">
                           {user.username.slice(0, 2)}
@@ -376,34 +425,70 @@ export default function AssetsPage() {
                               </span>
                             )}
                           </div>
-                          <span className="text-label text-text-muted normal-case">{user.role}</span>
+                          <span className="text-label text-text-muted normal-case">{user.role || '—'}</span>
                         </div>
                       </div>
-                      <span className="text-label text-text-muted font-mono">{user.lastActive}</span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-label text-text-muted font-mono">{new Date(user.lastActive).toLocaleDateString()}</span>
+                        {canWrite && (
+                          <button
+                            onClick={() => handleDeleteIdentity(user.id)}
+                            className="text-text-muted hover:text-danger transition-colors opacity-0 group-hover:opacity-100"
+                          >
+                            <X className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                      </div>
                     </div>
                   ))}
+                  {identities.filter(i => i.assetId === selectedAsset.id).length === 0 && (
+                    <div className="text-small text-text-muted bg-surface p-3 rounded-lg border border-fire-border">
+                      No identities registered for this asset.
+                    </div>
+                  )}
                 </div>
+                {canWrite && (
+                  <form onSubmit={handleAddIdentity} className="flex items-center gap-2">
+                    <input
+                      type="text"
+                      placeholder="Username"
+                      value={newIdentityUsername}
+                      onChange={(e) => setNewIdentityUsername(e.target.value)}
+                      className="input-field text-small py-1.5 flex-1"
+                    />
+                    <input
+                      type="text"
+                      placeholder="Role"
+                      value={newIdentityRole}
+                      onChange={(e) => setNewIdentityRole(e.target.value)}
+                      className="input-field text-small py-1.5 flex-1"
+                    />
+                    <button type="submit" className="btn-mission text-small py-1.5 px-3">
+                      <Plus className="w-3.5 h-3.5" />
+                    </button>
+                  </form>
+                )}
               </div>
 
               {/* Open Alerts */}
               <div className="mt-6 space-y-3">
                 <span className="text-label text-text-muted uppercase block">Open Alerts</span>
                 <div className="space-y-2">
-                  {(assetAlerts[selectedAsset.name] || []).map((alert, idx) => (
-                    <div key={idx} className="flex items-center justify-between bg-danger/5 border border-danger/10 p-3 rounded-lg">
+                  {alertsForAsset(selectedAsset, alerts).map((alert) => (
+                    <div key={alert.id} className="flex items-center justify-between bg-danger/5 border border-danger/10 p-3 rounded-lg">
                       <div className="flex items-center gap-2">
                         <span className={clsx(
                           "px-1.5 py-0.5 rounded text-label uppercase border",
-                          alert.severity === 'High' ? "bg-severity-high/10 text-severity-high border-severity-high/25" : "bg-severity-medium/10 text-severity-medium border-severity-medium/25"
+                          alert.severity === 'HIGH' || alert.severity === 'CRITICAL' ? "bg-severity-high/10 text-severity-high border-severity-high/25" : "bg-severity-medium/10 text-severity-medium border-severity-medium/25"
                         )}>
                           {alert.severity}
                         </span>
                         <span className="text-small font-semibold text-text-secondary">{alert.title}</span>
                       </div>
-                      <span className="text-label text-text-muted font-mono">{alert.time}</span>
+                      <span className="text-label text-text-muted font-mono">{new Date(alert.createdAt).toLocaleString()}</span>
                     </div>
                   ))}
-                  {(!assetAlerts[selectedAsset.name] || assetAlerts[selectedAsset.name].length === 0) && (
+                  {alertsForAsset(selectedAsset, alerts).length === 0 && (
                     <div className="flex items-center gap-2 bg-success/5 border border-success/10 p-3 rounded-lg text-success font-semibold text-small">
                       <ShieldCheck className="w-4 h-4 text-success" />
                       No open security alerts detected
@@ -510,6 +595,17 @@ export default function AssetsPage() {
                   placeholder="e.g. 192.168.1.102"
                   value={newIp}
                   onChange={(e) => setNewIp(e.target.value)}
+                  className="input-field"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-label text-text-muted uppercase block">MAC Address (optional)</label>
+                <input
+                  type="text"
+                  placeholder="e.g. 00:1A:2B:3C:4D:5E"
+                  value={newMac}
+                  onChange={(e) => setNewMac(e.target.value)}
                   className="input-field"
                 />
               </div>

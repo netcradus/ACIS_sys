@@ -22,6 +22,8 @@ public class CorrelationRuleDto {
     private boolean enabled;
     private String scheduleCron;
     private Integer windowMinutes;
+    /** Real, parsed out of splQuery by CorrelationEngine (e.g. "count > 50") — null for simple predicate-match rules with no threshold clause. */
+    private Integer threshold;
     private LocalDateTime lastRunAt;
     private LocalDateTime createdAt;
 }

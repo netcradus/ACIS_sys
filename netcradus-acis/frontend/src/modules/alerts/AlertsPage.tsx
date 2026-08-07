@@ -20,10 +20,14 @@ interface Alert {
 
 interface Incident {
   id: string
+  incidentNumber: string
   title: string
   severity: string
   status: string
-  owner: string
+  ownerId: string | null
+  ownerName: string | null
+  alertId: string | null
+  checklist: string | null // JSON array of {label, done}
   createdAt: string
 }
 
@@ -39,14 +43,21 @@ export default function AlertsPage() {
   const [searchTerm, setSearchTerm] = useState('')
   const [severityFilter, setSeverityFilter] = useState<'ALL' | 'CRITICAL' | 'HIGH' | 'OPEN'>('ALL')
 
-  // Local state for Incidents
-  const [incidents, setIncidents] = useState<Incident[]>([
-    { id: 'INC-1001', title: 'Multiple Host Compromise via Ransomware', severity: 'CRITICAL', status: 'ACTIVE', owner: 'analyst1', createdAt: new Date(Date.now() - 3600000 * 2).toISOString() },
-    { id: 'INC-1002', title: 'Data Leak to External File Sharing Domain', severity: 'HIGH', status: 'INVESTIGATING', owner: 'analyst2', createdAt: new Date(Date.now() - 3600000 * 5).toISOString() },
-    { id: 'INC-1003', title: 'Active Brute Force on VPN Gateway', severity: 'HIGH', status: 'ACTIVE', owner: 'analyst3', createdAt: new Date(Date.now() - 3600000 * 8).toISOString() },
-    { id: 'INC-1004', title: 'Phishing Outbreak Targeting Financial Division', severity: 'MEDIUM', status: 'MITIGATED', owner: 'analyst1', createdAt: new Date(Date.now() - 3600000 * 12).toISOString() },
-    { id: 'INC-1005', title: 'Suspicious Domain Controller Access Pattern', severity: 'CRITICAL', status: 'MITIGATED', owner: 'analyst2', createdAt: new Date(Date.now() - 3600000 * 24).toISOString() }
-  ])
+  // Real incidents — fetched from the backend, not fabricated client state.
+  const [incidents, setIncidents] = useState<Incident[]>([])
+  const [incidentsLoading, setIncidentsLoading] = useState(true)
+
+  const fetchIncidents = async () => {
+    try {
+      setIncidentsLoading(true)
+      const res = await apiClient.get('/api/incidents')
+      setIncidents(Array.isArray(res.data) ? res.data : [])
+    } catch (e) {
+      console.error('Failed to fetch incidents:', e)
+    } finally {
+      setIncidentsLoading(false)
+    }
+  }
 
   const fetchAlerts = async () => {
     setIsLoading(true)
@@ -69,7 +80,8 @@ export default function AlertsPage() {
 
   useEffect(() => {
     fetchAlerts()
-    
+    fetchIncidents()
+
     // Subscribe to new alerts via WebSocket
     const sub = wsClient.subscribe('/topic/alerts', (message) => {
       try {
@@ -104,24 +116,49 @@ export default function AlertsPage() {
     }
   }
 
-  // Create Incident from Alert
-  const handleCreateIncident = (alert: Alert) => {
-    const incId = `INC-${1000 + incidents.length + 1}`
-    const newInc: Incident = {
-      id: incId,
-      title: alert.title,
-      severity: alert.severity,
-      status: 'ACTIVE',
-      owner: alert.ownerId || currentUsername,
-      createdAt: new Date().toISOString()
+  // Create Incident from Alert — real, persisted, escalated with a real
+  // checklist. Previously this only ever pushed into local React state;
+  // "Create Incident" never called the backend at all. Parameter
+  // deliberately not named "alert" — that shadowed window.alert() in the
+  // original code, which would have thrown "alert is not a function" the
+  // moment the catch block's own alert(...) call ran, real evidence this
+  // path was never actually exercised before.
+  const handleCreateIncident = async (sourceAlert: Alert) => {
+    try {
+      const res = await apiClient.post('/api/incidents', {
+        title: sourceAlert.title,
+        severity: sourceAlert.severity,
+        alertId: sourceAlert.id,
+      })
+      const newInc: Incident = res.data
+      setIncidents(prev => [newInc, ...prev])
+      setActiveTab('INCIDENTS')
+      setSelectedIncident(newInc)
+      setSelectedAlert(null)
+    } catch (e: any) {
+      console.error('Failed to create incident:', e)
+      alert(e?.message || 'Failed to create incident')
     }
-    setIncidents(prev => [newInc, ...prev])
-    alert(`Incident ${incId} created successfully from Alert ${alert.id}!`)
-    
-    // Switch to incidents tab and select it
-    setActiveTab('INCIDENTS')
-    setSelectedIncident(newInc)
-    setSelectedAlert(null)
+  }
+
+  const handleUpdateIncidentStatus = async (incidentId: string, status: string) => {
+    try {
+      const res = await apiClient.put(`/api/incidents/${incidentId}/status?status=${status}`)
+      setIncidents(prev => prev.map(i => i.id === incidentId ? res.data : i))
+      setSelectedIncident(prev => prev && prev.id === incidentId ? res.data : prev)
+    } catch (e) {
+      console.error('Failed to update incident status:', e)
+    }
+  }
+
+  const handleToggleChecklistItem = async (incidentId: string, index: number) => {
+    try {
+      const res = await apiClient.put(`/api/incidents/${incidentId}/checklist`, { index })
+      setIncidents(prev => prev.map(i => i.id === incidentId ? res.data : i))
+      setSelectedIncident(prev => prev && prev.id === incidentId ? res.data : prev)
+    } catch (e) {
+      console.error('Failed to update checklist:', e)
+    }
   }
 
   // Quick state update helper
@@ -175,27 +212,21 @@ export default function AlertsPage() {
 
   const filteredIncidents = useMemo(() => {
     return incidents.filter(i => {
-      const matchesSearch = i.title.toLowerCase().includes(searchTerm.toLowerCase()) || i.id.toLowerCase().includes(searchTerm.toLowerCase())
+      const matchesSearch = i.title.toLowerCase().includes(searchTerm.toLowerCase()) || i.incidentNumber.toLowerCase().includes(searchTerm.toLowerCase())
       if (!matchesSearch) return false
 
       if (severityFilter === 'CRITICAL') return i.severity === 'CRITICAL'
       if (severityFilter === 'HIGH') return i.severity === 'HIGH'
-      if (severityFilter === 'OPEN') return i.status === 'ACTIVE'
+      if (severityFilter === 'OPEN') return i.status === 'OPEN'
       return true
     })
   }, [incidents, searchTerm, severityFilter])
 
-  // Parse Raw Event
+  // Parse Raw Event — honest null when there's no real rawEvent, rather
+  // than fabricating a plausible-looking sample event in its place.
   const parsedEvent = useMemo(() => {
     if (!selectedAlert || !selectedAlert.rawEvent) {
-      return {
-        eventId: 4625,
-        src_ip: "10.0.12.44",
-        user: "j.singh",
-        target: "dc-prod-01",
-        failures: 847,
-        window: "60s"
-      }
+      return null
     }
     try {
       return JSON.parse(selectedAlert.rawEvent)
@@ -204,58 +235,33 @@ export default function AlertsPage() {
     }
   }, [selectedAlert])
 
-  // Get Risk Indicators based on selected alert
+  // Risk indicators derived only from fields actually present in the real
+  // parsed event — no more inventing sample IPs/usernames/domains when a
+  // field is missing.
   const riskIndicators = useMemo(() => {
-    if (!selectedAlert) return []
-    try {
-      const title = selectedAlert.title.toLowerCase()
-      if (title.includes('stuffing') || title.includes('login') || title.includes('failure')) {
-        const failures = parsedEvent?.failures || 847
-        const srcIp = parsedEvent?.src_ip || '10.0.12.44'
-        const target = parsedEvent?.target || 'dc-prod-01'
-        return [
-          { label: `${failures} failed authentications in 60 seconds`, color: 'border-l-danger' },
-          { label: `Source IP ${srcIp} — 1st appearance`, color: 'border-l-severity-high' },
-          { label: `Target: ${target}`, color: 'border-l-severity-medium' }
-        ]
-      }
-      if (title.includes('beaconing') || title.includes('domain') || title.includes('outbound')) {
-        const domain = parsedEvent?.domain || 'cdn-x7.io'
-        const dest = parsedEvent?.destination || '185.199.110.153'
-        const src = parsedEvent?.src_ip || '10.0.12.50'
-        return [
-          { label: `Egress traffic to anomalous domain ${domain}`, color: 'border-l-danger' },
-          { label: `Source host: ${src}`, color: 'border-l-severity-high' },
-          { label: `Destination IP: ${dest}`, color: 'border-l-severity-medium' }
-        ]
-      }
-      if (title.includes('asr') || title.includes('bypass') || title.includes('lolbin')) {
-        const proc = parsedEvent?.process || 'powershell.exe'
-        const parent = parsedEvent?.parent_process || 'cmd.exe'
-        return [
-          { label: `ASR bypass trigger by ${proc}`, color: 'border-l-danger' },
-          { label: `Parent process: ${parent}`, color: 'border-l-severity-high' },
-          { label: `Command arguments bypass detection signatures`, color: 'border-l-severity-medium' }
-        ]
-      }
-      if (title.includes('travel')) {
-        const user = parsedEvent?.user || 'a.patel'
-        const c1 = parsedEvent?.login_1_city || 'Mumbai'
-        const c2 = parsedEvent?.login_2_city || 'London'
-        return [
-          { label: `User ${user} travel anomaly detected`, color: 'border-l-danger' },
-          { label: `Login 1: ${c1} | Login 2: ${c2}`, color: 'border-l-severity-high' },
-          { label: `Time difference of 15 minutes physically impossible`, color: 'border-l-severity-medium' }
-        ]
-      }
-    } catch (e) {
-      // fallback
+    if (!selectedAlert || !parsedEvent || parsedEvent.error) return []
+    const title = selectedAlert.title.toLowerCase()
+    const indicators: { label: string; color: string }[] = []
+
+    if (title.includes('stuffing') || title.includes('login') || title.includes('failure')) {
+      if (parsedEvent.failures) indicators.push({ label: `${parsedEvent.failures} failed authentications${parsedEvent.window ? ` in ${parsedEvent.window}` : ''}`, color: 'border-l-danger' })
+      if (parsedEvent.src_ip) indicators.push({ label: `Source IP ${parsedEvent.src_ip}`, color: 'border-l-severity-high' })
+      if (parsedEvent.target) indicators.push({ label: `Target: ${parsedEvent.target}`, color: 'border-l-severity-medium' })
+    } else if (title.includes('beaconing') || title.includes('domain') || title.includes('outbound')) {
+      if (parsedEvent.domain) indicators.push({ label: `Egress traffic to anomalous domain ${parsedEvent.domain}`, color: 'border-l-danger' })
+      if (parsedEvent.src_ip) indicators.push({ label: `Source host: ${parsedEvent.src_ip}`, color: 'border-l-severity-high' })
+      if (parsedEvent.destination) indicators.push({ label: `Destination IP: ${parsedEvent.destination}`, color: 'border-l-severity-medium' })
+    } else if (title.includes('asr') || title.includes('bypass') || title.includes('lolbin')) {
+      if (parsedEvent.process) indicators.push({ label: `ASR bypass trigger by ${parsedEvent.process}`, color: 'border-l-danger' })
+      if (parsedEvent.parent_process) indicators.push({ label: `Parent process: ${parsedEvent.parent_process}`, color: 'border-l-severity-high' })
+    } else if (title.includes('travel')) {
+      if (parsedEvent.user) indicators.push({ label: `User ${parsedEvent.user} travel anomaly detected`, color: 'border-l-danger' })
+      if (parsedEvent.login_1_city && parsedEvent.login_2_city) indicators.push({ label: `Login 1: ${parsedEvent.login_1_city} | Login 2: ${parsedEvent.login_2_city}`, color: 'border-l-severity-high' })
+      if (parsedEvent.time_diff_minutes) indicators.push({ label: `Time difference of ${parsedEvent.time_diff_minutes} minutes`, color: 'border-l-severity-medium' })
+    } else {
+      indicators.push({ label: `Source component: ${selectedAlert.source}`, color: 'border-l-severity-high' })
     }
-    return [
-      { label: `Anomalous security alert trigger`, color: 'border-l-danger' },
-      { label: `Source component: ${selectedAlert.source}`, color: 'border-l-severity-high' },
-      { label: `Risk rating calculated based on alert signature`, color: 'border-l-severity-medium' }
-    ]
+    return indicators
   }, [selectedAlert, parsedEvent])
 
   const getSeverityBadge = (sev: string) => {
@@ -369,7 +375,7 @@ export default function AlertsPage() {
                   severityFilter === 'OPEN' ? "border-danger/30 text-danger bg-danger/5" : "text-text-muted"
                 )}
               >
-                Open • {activeTab === 'ALERTS' ? openCount : incidents.filter(i => i.status === 'ACTIVE').length}
+                Open • {activeTab === 'ALERTS' ? openCount : incidents.filter(i => i.status === 'OPEN').length}
               </button>
             </div>
           </div>
@@ -442,7 +448,7 @@ export default function AlertsPage() {
                       )}
                     >
                       <td className="font-mono text-small font-semibold text-danger">
-                        {inc.id}
+                        {inc.incidentNumber}
                       </td>
                       <td className="text-small font-semibold text-text-primary">
                         {inc.title}
@@ -453,7 +459,7 @@ export default function AlertsPage() {
                         </span>
                       </td>
                       <td className="text-small text-text-secondary">
-                        SOAR
+                        {inc.alertId ? `Escalated from ${inc.alertId}` : 'Manual'}
                       </td>
                       <td>
                         <span className={getStatusBadge(inc.status)}>
@@ -461,7 +467,7 @@ export default function AlertsPage() {
                         </span>
                       </td>
                       <td className="text-small text-text-secondary font-mono">
-                        {inc.owner}
+                        {inc.ownerName || inc.ownerId || '—'}
                       </td>
                       <td className="text-right">
                         <button
@@ -520,6 +526,11 @@ export default function AlertsPage() {
               <div className="mt-6 space-y-3">
                 <span className="text-label uppercase text-text-muted block">Risk Indicators</span>
                 <div className="space-y-2">
+                  {riskIndicators.length === 0 && (
+                    <div className="p-3 bg-surface-2 rounded-lg text-text-muted text-small">
+                      No raw event data to derive risk indicators from.
+                    </div>
+                  )}
                   {riskIndicators.map((risk, idx) => (
                     <div
                       key={idx}
@@ -536,9 +547,9 @@ export default function AlertsPage() {
 
               {/* Raw Event */}
               <div className="mt-6 space-y-2">
-                <span className="text-label uppercase text-text-muted block">Raw Event (Sample)</span>
+                <span className="text-label uppercase text-text-muted block">Raw Event</span>
                 <div className="bg-surface-2 border border-fire-border rounded-lg p-4 font-mono text-small text-text-secondary overflow-x-auto whitespace-pre leading-relaxed border-l-2 border-l-accent">
-                  {JSON.stringify(parsedEvent, null, 2)}
+                  {parsedEvent ? JSON.stringify(parsedEvent, null, 2) : 'No raw event data available for this alert.'}
                 </div>
               </div>
             </div>
@@ -612,26 +623,36 @@ export default function AlertsPage() {
                 </div>
               </div>
 
-              {/* Timeline Status */}
+              {/* Investigation Checklist — real, persisted, toggled by real user click */}
               <div className="mt-6 space-y-3">
                 <span className="text-label uppercase text-text-muted block">Investigation Checklist</span>
                 <div className="space-y-2 text-small">
-                  {[
-                    { title: 'Triage & Scope Assessment', done: true },
-                    { title: 'Threat Intelligence Lookup (SIEM/EDR)', done: true },
-                    { title: 'Automated Isolation Playbook Triggered', done: selectedIncident.status === 'MITIGATED' },
-                    { title: 'Final Resolution Signature', done: selectedIncident.status === 'MITIGATED' }
-                  ].map((step, idx) => (
-                    <div key={idx} className="flex items-center gap-2.5 py-1">
-                      <div className={clsx(
-                        "w-4 h-4 rounded border flex items-center justify-center font-semibold text-[9px] shrink-0",
-                        step.done ? "bg-accent/10 border-accent text-accent" : "border-fire-border text-text-muted"
-                      )}>
-                        {step.done ? '✓' : ''}
-                      </div>
-                      <span className={clsx("font-medium", step.done ? "text-text-secondary" : "text-text-muted")}>{step.title}</span>
-                    </div>
-                  ))}
+                  {(() => {
+                    let items: { label: string; done: boolean }[] = []
+                    try {
+                      items = selectedIncident.checklist ? JSON.parse(selectedIncident.checklist) : []
+                    } catch { items = [] }
+                    if (items.length === 0) {
+                      return <div className="text-text-muted text-small">No checklist items.</div>
+                    }
+                    return items.map((step, idx) => (
+                      <button
+                        key={idx}
+                        type="button"
+                        onClick={() => handleToggleChecklistItem(selectedIncident.id, idx)}
+                        disabled={!canWrite}
+                        className="flex items-center gap-2.5 py-1 w-full text-left focus:outline-none disabled:cursor-not-allowed"
+                      >
+                        <div className={clsx(
+                          "w-4 h-4 rounded border flex items-center justify-center font-semibold text-[9px] shrink-0",
+                          step.done ? "bg-accent/10 border-accent text-accent" : "border-fire-border text-text-muted"
+                        )}>
+                          {step.done ? '✓' : ''}
+                        </div>
+                        <span className={clsx("font-medium", step.done ? "text-text-secondary" : "text-text-muted")}>{step.label}</span>
+                      </button>
+                    ))
+                  })()}
                 </div>
               </div>
             </div>
@@ -641,14 +662,12 @@ export default function AlertsPage() {
               <span className="text-label uppercase text-text-muted block">Incident Workflow Actions</span>
               <div className="grid grid-cols-2 gap-2">
                 <button
-                  onClick={() => {
-                    setIncidents(prev => prev.map(i => i.id === selectedIncident.id ? { ...i, status: 'MITIGATED' } : i))
-                    setSelectedIncident(prev => prev && prev.id === selectedIncident.id ? { ...prev, status: 'MITIGATED' } : prev)
-                  }}
-                  disabled={selectedIncident.status === 'MITIGATED'}
+                  onClick={() => handleUpdateIncidentStatus(selectedIncident.id, 'MITIGATED')}
+                  disabled={selectedIncident.status === 'MITIGATED' || !canWrite}
+                  title={!canWrite ? "Your role doesn't have write access to Alerts & Correlation" : undefined}
                   className={clsx(
                     "col-span-2 py-2.5 text-center font-semibold rounded-lg text-small transition-colors focus:outline-none border",
-                    selectedIncident.status === 'MITIGATED'
+                    selectedIncident.status === 'MITIGATED' || !canWrite
                       ? "bg-surface-3 border-fire-border text-text-muted cursor-not-allowed"
                       : "bg-accent hover:bg-accent-dark text-white border-transparent"
                   )}

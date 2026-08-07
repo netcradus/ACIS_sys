@@ -47,6 +47,25 @@ public class CorrelationController {
         return saved;
     }
 
+    @PutMapping("/rules/{id}")
+    public CorrelationRule updateRule(@PathVariable String id, @RequestBody CorrelationRuleDto dto,
+            @RequestHeader("X-Tenant-ID") String tenantId) {
+        CorrelationRule rule = repository.findByIdAndTenantId(id, tenantId)
+                .orElseThrow(() -> new NotFoundException("Correlation rule not found"));
+        rule.setName(dto.getName());
+        rule.setDescription(dto.getDescription());
+        rule.setSplQuery(dto.getSplQuery());
+        rule.setSeverity(dto.getSeverity());
+        rule.setRiskScore(dto.getRiskScore());
+        if (dto.getWindowMinutes() != null && dto.getWindowMinutes() > 0) {
+            rule.setWindowMinutes(dto.getWindowMinutes());
+        }
+        rule.setScheduleCron(dto.getScheduleCron());
+        CorrelationRule saved = repository.save(rule);
+        auditEventPublisher.publish("CORRELATION_RULE_UPDATE", "correlation-rule/" + id, "updated");
+        return saved;
+    }
+
     @PutMapping("/rules/{id}/toggle")
     public CorrelationRule toggleRule(@PathVariable String id, @RequestHeader("X-Tenant-ID") String tenantId) {
         CorrelationRule rule = repository.findByIdAndTenantId(id, tenantId)
@@ -98,7 +117,9 @@ public class CorrelationController {
                 .severity(rule.getSeverity())
                 .riskScore(rule.getRiskScore())
                 .enabled(rule.isEnabled())
+                .scheduleCron(rule.getScheduleCron())
                 .windowMinutes(rule.getWindowMinutes())
+                .threshold(correlationEngine.extractThresholdPublic(rule.getSplQuery()))
                 .lastRunAt(rule.getLastRunAt())
                 .createdAt(rule.getCreatedAt())
                 .build();

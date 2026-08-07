@@ -26,6 +26,7 @@ public class SecurityConfig {
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         LinkedHashMap<String, String> pathToModule = new LinkedHashMap<>();
         pathToModule.put("/api/alerts", "Alerts & Correlation");
+        pathToModule.put("/api/incidents", "Alerts & Correlation");
         RbacEnforcementFilter rbacFilter = new RbacEnforcementFilter(permissionResolver, pathToModule);
 
         http

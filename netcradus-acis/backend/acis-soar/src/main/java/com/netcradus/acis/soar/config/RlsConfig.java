@@ -32,10 +32,15 @@ public class RlsConfig {
 
     /**
      * Runs after SeedConfig (Order 0) so seed inserts happen before RLS is
-     * enforced. playbook_executions, red_team_executions and report_schedules
-     * are intentionally excluded — they have no tenant_id column (they're
+     * enforced. playbook_executions and red_team_executions are
+     * intentionally excluded — they have no tenant_id column (they're
      * child records of a tenant-owned parent) and remain enforced at the
      * application layer, which already scopes them via the parent lookup.
+     * report_schedules WAS in that same "no tenant_id" bucket, but that was
+     * a real cross-tenant bug (confirmed live: every tenant could see/edit/
+     * delete every other tenant's scheduled reports) rather than a genuine
+     * child-record case — it now has its own tenant_id column and RLS like
+     * everything else in this list.
      *
      * api_keys is also excluded from this generic list — see
      * enableApiKeysRowLevelSecurity below for why it needs a non-standard
@@ -58,7 +63,8 @@ public class RlsConfig {
                 "user_members",
                 "user_groups",
                 "agent_endpoints",
-                "agent_policies");
+                "agent_policies",
+                "report_schedules");
     }
 
     /**

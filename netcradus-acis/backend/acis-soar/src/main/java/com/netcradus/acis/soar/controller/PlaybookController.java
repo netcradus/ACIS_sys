@@ -39,6 +39,17 @@ public class PlaybookController {
                 .orElse(ApiResponse.error("Playbook not found"));
     }
 
+    @PutMapping("/playbooks/{id}")
+    public ApiResponse<Playbook> updatePlaybook(@PathVariable UUID id, @RequestBody Playbook playbook,
+            @RequestHeader("X-Tenant-ID") UUID tenantId) {
+        return playbookService.updatePlaybook(id, tenantId, playbook)
+                .map(saved -> {
+                    auditEventPublisher.publish("PLAYBOOK_UPDATE", "playbook/" + id, "updated");
+                    return ApiResponse.success(saved);
+                })
+                .orElse(ApiResponse.error("Playbook not found"));
+    }
+
     @PostMapping("/playbooks/{id}/execute")
     public org.springframework.http.ResponseEntity<ApiResponse<PlaybookExecution>> executePlaybook(
             @PathVariable UUID id,

@@ -15,7 +15,6 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
-import java.util.stream.StreamSupport;
 import java.util.stream.Stream;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.http.ResponseEntity;
@@ -36,21 +35,22 @@ public class LogController {
 
     @GetMapping("/search")
     public Mono<List<LogDocument>> search(
+            @RequestHeader("X-Tenant-ID") String tenantId,
             @RequestParam(required = false) String service,
             @RequestParam(required = false) String level,
             @RequestParam(required = false) String host,
             @RequestParam(required = false) String query,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "50") int size) {
-        
+
+        // Real per-tenant scoping — confirmed live this session that this
+        // endpoint previously returned every tenant's logs regardless of
+        // caller. X-Tenant-ID is always the JWT-derived real value here
+        // (TenantContextFilter overrides whatever the client sent), never
+        // client-supplied.
         List<LogDocument> allLogs;
         try {
-            allLogs = StreamSupport.stream(logRepository.findAll().spliterator(), false)
-                    .collect(Collectors.toList());
-
-            if (allLogs.isEmpty()) {
-                allLogs = logRepository.findTop100ByOrderByTimestampDesc();
-            }
+            allLogs = logRepository.findByTenantId(tenantId);
         } catch (Exception e) {
             log.warn("Elasticsearch search failed, returning empty result: {}", e.getMessage());
             return Mono.just(Collections.emptyList());
@@ -88,10 +88,10 @@ public class LogController {
     }
 
     @GetMapping("/latest")
-    public Flux<LogDocument> getLatest() {
+    public Flux<LogDocument> getLatest(@RequestHeader("X-Tenant-ID") String tenantId) {
         // Returns the most recent logs for real-time dashboard initial load
         try {
-            return Flux.fromIterable(logRepository.findTop100ByOrderByTimestampDesc());
+            return Flux.fromIterable(logRepository.findTop100ByTenantIdOrderByTimestampDesc(tenantId));
         } catch (Exception e) {
             log.warn("Elasticsearch search failed, returning empty result: {}", e.getMessage());
             return Flux.empty();

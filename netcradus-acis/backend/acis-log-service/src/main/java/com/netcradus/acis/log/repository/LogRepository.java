@@ -11,4 +11,8 @@ public interface LogRepository extends ElasticsearchRepository<LogDocument, Stri
     List<LogDocument> findByServiceOrderByTimestampDesc(String service);
     List<LogDocument> findByLevelOrderByTimestampDesc(String level);
     List<LogDocument> findTop100ByOrderByTimestampDesc();
+
+    /** Real per-tenant scoping — see LogController; every log carries a real tenantId set at ingestion. */
+    List<LogDocument> findByTenantId(String tenantId);
+    List<LogDocument> findTop100ByTenantIdOrderByTimestampDesc(String tenantId);
 }

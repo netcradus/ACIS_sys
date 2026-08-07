@@ -76,6 +76,9 @@ public class IntegrationPollerService {
     @Value("${acis.ingestion-service.url}")
     private String ingestionServiceUrl;
 
+    @Value("${acis.threat-service.url}")
+    private String threatServiceUrl;
+
     @Scheduled(fixedDelayString = "${acis.integration-poll-interval-ms:120000}", initialDelayString = "${acis.integration-poll-initial-delay-ms:30000}")
     public void pollAll() {
         pollPaloAlto();
@@ -167,6 +170,7 @@ public class IntegrationPollerService {
                 String secretAccessKey = CredentialEncryptor.decrypt(integ.getSecretAccessKeyEncrypted(), encryptionKey);
                 List<Map<String, Object>> events = guardDutyClient.fetchFindings(accessKeyId, secretAccessKey, integ.getRegion(), since);
                 forwardAndRecord(events, integ.getSystemApiKeyEncrypted(), integ.getTenantId());
+                forwardGuardDutyIndicators(events, integ.getTenantId());
                 integ.setLastPollStatus("Success");
                 integ.setLastPollError(null);
             } catch (Exception e) {
@@ -215,6 +219,7 @@ public class IntegrationPollerService {
                 String clientSecret = CredentialEncryptor.decrypt(integ.getClientSecretEncrypted(), encryptionKey);
                 List<Map<String, Object>> events = azureAdClient.fetchSignIns(integ.getAzureTenantId(), integ.getClientId(), clientSecret, since);
                 forwardAndRecord(events, integ.getSystemApiKeyEncrypted(), integ.getTenantId());
+                forwardAzureAdIndicators(events, integ.getTenantId());
                 integ.setLastPollStatus("Success");
                 integ.setLastPollError(null);
             } catch (Exception e) {
@@ -236,6 +241,93 @@ public class IntegrationPollerService {
             return query.get();
         } finally {
             TenantContext.setSystemPollerInProgress(false);
+        }
+    }
+
+    /**
+     * Bridges real GuardDuty findings that carry an extracted remote IP/
+     * domain (see GuardDutyClient.extractIndicator) into acis-threat-service's
+     * threat_indicators table — closing the gap where real findings only
+     * ever flowed into the Alerts pipeline via /api/ingest/external/json,
+     * never appearing in the Threat Intelligence indicator list. AWS's own
+     * three-band severity scale (Low 0.1-3.9 / Medium 4.0-6.9 / High
+     * 7.0-8.9) is preserved rather than stretched into a fabricated
+     * CRITICAL band GuardDuty itself never assigns.
+     */
+    private void forwardGuardDutyIndicators(List<Map<String, Object>> events, java.util.UUID tenantId) {
+        List<Map<String, Object>> indicators = new java.util.ArrayList<>();
+        for (Map<String, Object> event : events) {
+            Object value = event.get("iocValue");
+            Object type = event.get("iocType");
+            if (value == null || type == null) continue;
+
+            double severityScore = 0;
+            Object severityObj = event.get("severity");
+            if (severityObj instanceof Number n) severityScore = n.doubleValue();
+            String severity = severityScore >= 7 ? "HIGH" : severityScore >= 4 ? "MEDIUM" : "LOW";
+
+            Map<String, Object> indicator = new java.util.LinkedHashMap<>();
+            indicator.put("value", value);
+            indicator.put("type", type);
+            indicator.put("severity", severity);
+            indicator.put("description", event.get("title") != null ? event.get("title") : event.get("description"));
+            indicator.put("source", "AWS GuardDuty");
+            indicators.add(indicator);
+        }
+        forwardIndicators(indicators, tenantId);
+    }
+
+    /**
+     * Bridges real Azure AD risky/failed sign-ins into the Threat
+     * Intelligence indicator list — only sign-ins Microsoft Graph itself
+     * flagged (a non-"none" riskLevelAggregated) or that failed outright
+     * (a non-zero status.errorCode) are forwarded, so a normal successful
+     * sign-in from a real ipAddress is never fabricated into a threat.
+     */
+    @SuppressWarnings("unchecked")
+    private void forwardAzureAdIndicators(List<Map<String, Object>> events, java.util.UUID tenantId) {
+        List<Map<String, Object>> indicators = new java.util.ArrayList<>();
+        for (Map<String, Object> event : events) {
+            Object ip = event.get("ipAddress");
+            if (ip == null || String.valueOf(ip).isBlank()) continue;
+
+            String riskLevel = String.valueOf(event.getOrDefault("riskLevelAggregated", "none"));
+            boolean risky = riskLevel != null && !riskLevel.equalsIgnoreCase("none") && !riskLevel.equalsIgnoreCase("null");
+
+            long errorCode = 0;
+            Object statusObj = event.get("status");
+            if (statusObj instanceof Map<?, ?> status && status.get("errorCode") instanceof Number n) {
+                errorCode = n.longValue();
+            }
+            boolean failed = errorCode != 0;
+            if (!risky && !failed) continue;
+
+            String severity = riskLevel.equalsIgnoreCase("high") ? "HIGH" : riskLevel.equalsIgnoreCase("medium") ? "MEDIUM" : "LOW";
+            String userPrincipal = String.valueOf(event.getOrDefault("userPrincipalName", "unknown user"));
+
+            Map<String, Object> indicator = new java.util.LinkedHashMap<>();
+            indicator.put("value", ip);
+            indicator.put("type", "IP");
+            indicator.put("severity", severity);
+            indicator.put("description", (failed ? "Failed" : "Risky") + " Azure AD sign-in from " + userPrincipal
+                    + (failed ? " (error " + errorCode + ")" : " (risk: " + riskLevel + ")"));
+            indicator.put("source", "Azure AD");
+            indicators.add(indicator);
+        }
+        forwardIndicators(indicators, tenantId);
+    }
+
+    private void forwardIndicators(List<Map<String, Object>> indicators, java.util.UUID tenantId) {
+        if (indicators.isEmpty()) return;
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        headers.set("X-Tenant-ID", tenantId.toString());
+        HttpEntity<List<Map<String, Object>>> request = new HttpEntity<>(indicators, headers);
+        try {
+            restTemplate.postForEntity(threatServiceUrl + "/api/threat-intel/indicators/bulk", request, String.class);
+            log.info("Forwarded {} real indicators for tenant {}", indicators.size(), tenantId);
+        } catch (RestClientException e) {
+            log.warn("Could not forward indicators to threat-service for tenant {}: {}", tenantId, e.getMessage());
         }
     }
 

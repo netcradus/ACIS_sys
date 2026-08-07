@@ -7,4 +7,5 @@ import java.util.UUID;
 
 public interface RedTeamExecutionRepository extends JpaRepository<RedTeamExecution, UUID> {
     List<RedTeamExecution> findBySimulationId(UUID simulationId);
+    List<RedTeamExecution> findBySimulationIdIn(List<UUID> simulationIds);
 }

@@ -77,6 +77,11 @@ acis:
     url: ${ASSET_SERVICE_URL:http://localhost:8086}
   ingestion-service:
     url: ${INGESTION_SERVICE_URL:http://localhost:8084}
+  # Real cross-service call so GuardDuty/Azure AD findings the integration
+  # poller pulls also land in the Threat Intelligence indicator list, not
+  # just the Alerts pipeline — see IntegrationPollerService.forwardIndicators.
+  threat-service:
+    url: ${THREAT_SERVICE_URL:http://localhost:8087}
   # How often IntegrationPollerService pulls Palo Alto/Wazuh/SentinelOne —
   # real vendor API/firewall calls, so this is deliberately not sub-minute.
   integration-poll-interval-ms: ${INTEGRATION_POLL_INTERVAL_MS:120000}

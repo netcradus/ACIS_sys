@@ -51,6 +51,20 @@ public class PlaybookService {
         return playbookRepository.findByIdAndTenantId(id, tenantId);
     }
 
+    public Optional<Playbook> updatePlaybook(UUID id, UUID tenantId, Playbook updated) {
+        return playbookRepository.findByIdAndTenantId(id, tenantId).map(existing -> {
+            existing.setName(updated.getName());
+            existing.setDescription(updated.getDescription());
+            if (updated.getSteps() != null) {
+                existing.setSteps(updated.getSteps());
+            }
+            if (updated.getEnabled() != null) {
+                existing.setEnabled(updated.getEnabled());
+            }
+            return playbookRepository.save(existing);
+        });
+    }
+
     @Transactional
     public PlaybookExecution startExecution(UUID playbookId, UUID tenantId, UUID userId, String userEmail,
                                              String bearerToken, java.util.Map<String, String> params) {

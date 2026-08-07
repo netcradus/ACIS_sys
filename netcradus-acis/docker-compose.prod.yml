@@ -404,6 +404,10 @@ services:
       KEYCLOAK_REALM: ${KEYCLOAK_REALM:-acis}
       ASSET_SERVICE_URL: http://asset-service:8086
       INGESTION_SERVICE_URL: http://ingestion:8084
+      # Real cross-service call so the integration poller's GuardDuty/Azure
+      # AD findings also land in the Threat Intelligence indicator list —
+      # see IntegrationPollerService.forwardIndicators.
+      THREAT_SERVICE_URL: http://threat-service:8087
       CREDENTIAL_ENCRYPTION_KEY: ${CREDENTIAL_ENCRYPTION_KEY:?Set CREDENTIAL_ENCRYPTION_KEY in .env, generated via openssl rand -base64 32}
       # Real Keycloak account provisioning on invite-accept (see
       # KeycloakAdminConfig / InvitationService) — same acis-backend service
@@ -453,6 +457,10 @@ services:
       KAFKA_BOOTSTRAP_SERVERS: kafka:29092
       KEYCLOAK_URL: http://keycloak:8080
       KEYCLOAK_REALM: ${KEYCLOAK_REALM:-acis}
+      # Real cross-service call for the self-healing drift detector — see
+      # AssetDriftDetectionService, same RestTemplate + X-Tenant-ID pattern
+      # ComplianceService already uses to call acis-asset-service.
+      ALERTS_SERVICE_URL: http://alerts:8081
     expose:
       - "8086"
     depends_on:

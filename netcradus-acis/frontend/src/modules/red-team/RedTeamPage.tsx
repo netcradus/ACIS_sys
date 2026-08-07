@@ -35,7 +35,26 @@ interface Simulation {
   lastRunAt: string | null
 }
 
-type MatrixCellState = 'covered' | 'partial' | 'open'
+interface StepLogEntry {
+  stage: number
+  name: string
+  status: string
+  technique: string | null
+  timestamp: string
+}
+
+interface ExecutionView {
+  id: string
+  simulationId: string
+  simulationName: string
+  mitreTechniques: string[]
+  status: 'running' | 'completed' | 'failed'
+  stepLogs: string
+  startedAt: string | null
+  completedAt: string | null
+}
+
+type MatrixCellState = 'executed' | 'declared' | 'running'
 
 interface MatrixCell {
   id: string
@@ -43,21 +62,14 @@ interface MatrixCell {
   state: MatrixCellState
 }
 
-interface ExecutionRow {
-  simulation: string
-  status: 'Completed' | 'Partial' | 'Running'
-  duration: string
-  detected: string
-  date: string
-  accent: string
+function parseStepLogs(stepLogsJson: string): StepLogEntry[] {
+  try {
+    const parsed = JSON.parse(stepLogsJson)
+    return Array.isArray(parsed) ? parsed : []
+  } catch {
+    return []
+  }
 }
-
-const fallbackTechniqueCatalog = [
-  'T1566', 'T1078', 'T1059', 'T1047', 'T1021',
-  'T1087', 'T1083', 'T1003', 'T1105', 'T1053',
-  'T1041', 'T1110', 'T1560', 'T1016', 'T1112',
-  'T1547', 'T1497', 'T1204', 'T1218', 'T1046',
-]
 
 function parseSteps(stepsJson: string) {
   try {
@@ -87,23 +99,18 @@ function formatWhen(dateString: string | null) {
   return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
 }
 
-function buildCoverage(simulation: Simulation, index: number) {
-  const stepCount = parseSteps(simulation.steps)
-  const total = Math.max(stepCount + 2, simulation.mitreTechniques.length + 3, 15)
-  const completed = Math.min(
-    total,
-    Math.max(
-      simulation.mitreTechniques.length,
-      Math.round(total * (0.58 + (simulation.runCount % 4) * 0.06))
-    )
-  )
-  const partial = Math.min(total - completed, 3 + (index % 2))
-  return { total, completed, partial }
+function formatDuration(startedAt: string | null, completedAt: string | null) {
+  if (!startedAt || !completedAt) return '—'
+  const ms = new Date(completedAt).getTime() - new Date(startedAt).getTime()
+  if (!Number.isFinite(ms) || ms < 0) return '—'
+  const seconds = Math.round(ms / 1000)
+  return seconds < 60 ? `${seconds}s` : `${Math.round(seconds / 60)}m`
 }
 
 export default function RedTeamPage() {
   const canWrite = useCanWrite(MODULES.SOAR_PLAYBOOKS)
   const [simulations, setSimulations] = useState<Simulation[]>([])
+  const [executions, setExecutions] = useState<ExecutionView[]>([])
   const [loading, setLoading] = useState(true)
   const [query, setQuery] = useState('')
   const [startingId, setStartingId] = useState<string | null>(null)
@@ -120,9 +127,22 @@ export default function RedTeamPage() {
     }
   }
 
+  const fetchExecutions = async () => {
+    try {
+      const response = await apiClient.get<ExecutionView[]>('/api/red-team/executions')
+      setExecutions(response.data || [])
+    } catch (err) {
+      console.error("Failed to fetch executions", err)
+    }
+  }
+
   useEffect(() => {
     fetchSimulations()
-    const interval = setInterval(fetchSimulations, 5000)
+    fetchExecutions()
+    const interval = setInterval(() => {
+      fetchSimulations()
+      fetchExecutions()
+    }, 5000)
     return () => clearInterval(interval)
   }, [])
 
@@ -156,70 +176,81 @@ export default function RedTeamPage() {
     })
   }, [query, simulations])
 
+  /** Most recent execution per simulation, keyed by simulationId — executions
+   * arrive newest-first from the backend, so the first match per key wins. */
+  const latestExecutionBySimulation = useMemo(() => {
+    const map = new Map<string, ExecutionView>()
+    for (const execution of executions) {
+      if (!map.has(execution.simulationId)) {
+        map.set(execution.simulationId, execution)
+      }
+    }
+    return map
+  }, [executions])
+
+  /** A MITRE technique counts as "executed" only once a real run has logged
+   * a step tagged with it — declaring a technique on a simulation that has
+   * never been run does not count as coverage. */
+  const executedTechniques = useMemo(() => {
+    const set = new Set<string>()
+    for (const execution of executions) {
+      if (execution.status !== 'completed') continue
+      for (const step of parseStepLogs(execution.stepLogs)) {
+        if (step.technique) set.add(step.technique)
+      }
+    }
+    return set
+  }, [executions])
+
+  const declaredTechniques = useMemo(
+    () => new Set(simulations.flatMap((simulation) => simulation.mitreTechniques || [])),
+    [simulations]
+  )
+
   const summary = useMemo(() => {
-    const coverageMetrics = filteredSimulations.map((simulation, index) => buildCoverage(simulation, index))
-    const totalTechniques = Math.max(
-      15,
-      new Set(simulations.flatMap((simulation) => simulation.mitreTechniques || [])).size
-    )
-    const coveredTechniques = coverageMetrics.reduce((sum, metric) => sum + metric.completed, 0)
-    const openGaps = Math.max(
-      2,
-      coverageMetrics.reduce((sum, metric) => sum + metric.partial, 0) - 2
-    )
     return {
       simulationsAvailable: filteredSimulations.length,
-      techniquesCovered: Math.min(totalTechniques, Math.max(14, coveredTechniques)),
-      activeSimulations: 0,
-      vulnerabilitiesFound: openGaps,
+      techniquesCovered: executedTechniques.size,
+      activeSimulations: executions.filter((e) => e.status === 'running').length,
+      techniquesNotYetValidated: Math.max(0, declaredTechniques.size - executedTechniques.size),
     }
-  }, [filteredSimulations, simulations])
+  }, [filteredSimulations, executedTechniques, declaredTechniques, executions])
 
   const matrixCells: MatrixCell[] = useMemo(() => {
-    const uniqueTechniques = new Set<string>()
-    simulations.forEach((simulation) => {
-      simulation.mitreTechniques?.forEach((technique) => uniqueTechniques.add(technique))
-    })
+    const runningTechniques = new Set<string>()
+    for (const execution of executions) {
+      if (execution.status !== 'running') continue
+      const simulation = simulations.find((s) => s.id === execution.simulationId)
+      simulation?.mitreTechniques?.forEach((t) => runningTechniques.add(t))
+    }
 
-    const orderedLabels = [
-      ...Array.from(uniqueTechniques),
-      ...fallbackTechniqueCatalog.filter((label) => !uniqueTechniques.has(label)),
-    ].slice(0, 20)
+    return Array.from(declaredTechniques)
+      .slice(0, 20)
+      .map((label, index) => ({
+        id: `${label}-${index}`,
+        label,
+        state: runningTechniques.has(label) ? 'running' : executedTechniques.has(label) ? 'executed' : 'declared',
+      }))
+  }, [declaredTechniques, executedTechniques, executions, simulations])
 
-    return orderedLabels.map((label, index) => ({
-      id: `${label}-${index}`,
-      label,
-      state: index < 10 ? 'covered' : index < 16 ? 'partial' : 'open',
-    }))
-  }, [simulations])
-
-  const executionHistory: ExecutionRow[] = useMemo(() => {
-    const baseRows = filteredSimulations.map((simulation, index) => {
-      const coverage = buildCoverage(simulation, index)
-      const stepCount = parseSteps(simulation.steps)
-      const status: ExecutionRow['status'] = coverage.completed >= coverage.total
-        ? 'Completed'
-        : coverage.completed >= Math.ceil(coverage.total * 0.7)
-          ? 'Partial'
-          : 'Running'
-
-      return {
-        simulation: simulation.name.replace('Simulation', '').replace('Attack', '').trim() || simulation.name,
-        status,
-        duration: `${Math.max(2, stepCount * 11 + simulation.runCount * 6)}s`,
-        detected: `${coverage.completed}/${coverage.total}`,
-        date: formatWhen(simulation.lastRunAt),
-        accent: index % 3 === 0 ? 'text-success' : index % 3 === 1 ? 'text-warning' : 'text-info',
-      }
-    })
-
-    const topRows = [...baseRows].sort((a, b) => {
-      const order = { Completed: 0, Partial: 1, Running: 2 }
-      return order[a.status] - order[b.status]
-    })
-
-    return topRows.slice(0, 5)
-  }, [filteredSimulations])
+  const executionHistory = useMemo(() => {
+    const simulationIds = new Set(filteredSimulations.map((s) => s.id))
+    return executions
+      .filter((e) => simulationIds.has(e.simulationId))
+      .slice(0, 8)
+      .map((execution) => {
+        const stepCount = parseStepLogs(execution.stepLogs).length
+        return {
+          id: execution.id,
+          simulation: execution.simulationName,
+          status: execution.status,
+          duration: formatDuration(execution.startedAt, execution.completedAt),
+          detected: `${stepCount} steps logged`,
+          date: formatWhen(execution.startedAt),
+          accent: execution.status === 'completed' ? 'text-success' : execution.status === 'failed' ? 'text-danger' : 'text-info',
+        }
+      })
+  }, [executions, filteredSimulations])
 
   return (
     <div className="space-y-6 animate-fade-in pb-12">
@@ -268,7 +299,7 @@ export default function RedTeamPage() {
         </div>
       </section>
 
-      <section className="grid gap-4 xl:grid-cols-4">
+      <section className="grid gap-4 xl:grid-cols-3">
         <StatCard
           icon={LayoutGrid}
           accent="border-l-info"
@@ -279,23 +310,23 @@ export default function RedTeamPage() {
         <StatCard
           icon={Target}
           accent="border-l-success"
-          label="MITRE Techniques Covered Today"
+          label="MITRE Techniques Executed"
           value={summary.techniquesCovered.toString()}
-          helper={`${Math.max(summary.techniquesCovered, 1)} mapped ATT&CK techniques detected`}
+          helper="Techniques with at least one completed run"
         />
         <StatCard
           icon={Gauge}
           accent="border-l-info"
           label="Active Simulations Running"
           value={summary.activeSimulations.toString()}
-          helper="No live execution jobs in progress"
+          helper={summary.activeSimulations > 0 ? "Live execution jobs in progress" : "No live execution jobs in progress"}
         />
         <StatCard
           icon={TriangleAlert}
-          accent="border-l-danger"
-          label="Vulnerabilities Found This Week"
-          value={summary.vulnerabilitiesFound.toString()}
-          helper="Open attack gaps awaiting remediation"
+          accent="border-l-warning"
+          label="Techniques Not Yet Validated"
+          value={summary.techniquesNotYetValidated.toString()}
+          helper="Declared on a simulation but never run to completion"
         />
       </section>
 
@@ -306,17 +337,25 @@ export default function RedTeamPage() {
       ) : (
         <>
           <section className="grid gap-5 xl:grid-cols-3">
-            {filteredSimulations.map((simulation, index) => {
+            {filteredSimulations.map((simulation) => {
               const stepCount = parseSteps(simulation.steps)
-              const coverage = buildCoverage(simulation, index)
               const lastRunLabel = formatWhen(simulation.lastRunAt)
-              const detectedLabel = `${coverage.completed}/${coverage.total}`
-              const attackTag = index % 2 === 0 ? 'MITRE ATT&CK' : 'MITRE ATTACK'
-              const runTone = coverage.completed >= coverage.total
-                ? 'text-success'
-                : coverage.completed >= Math.ceil(coverage.total * 0.7)
-                  ? 'text-warning'
-                  : 'text-danger'
+              const latestExecution = latestExecutionBySimulation.get(simulation.id)
+              const executedSteps = latestExecution ? parseStepLogs(latestExecution.stepLogs).length : 0
+              const runTone = !latestExecution
+                ? 'text-text-muted'
+                : latestExecution.status === 'completed'
+                  ? 'text-success'
+                  : latestExecution.status === 'failed'
+                    ? 'text-danger'
+                    : 'text-info'
+              const detectionLabel = !latestExecution
+                ? 'Not yet run'
+                : latestExecution.status === 'completed'
+                  ? `Completed — ${executedSteps} of ${stepCount} steps logged`
+                  : latestExecution.status === 'failed'
+                    ? `Failed after ${executedSteps} of ${stepCount} steps`
+                    : `Running — ${executedSteps} of ${stepCount} steps logged so far`
 
               return (
                 <article
@@ -331,13 +370,13 @@ export default function RedTeamPage() {
                     <div className="flex items-start justify-between gap-4">
                       <div className="space-y-2">
                         <div className="flex flex-wrap gap-2">
-                          <span className="badge-mission border-accent/70 bg-accent/10 text-accent">{attackTag}</span>
-                          <span className="badge-mission border-fire-border bg-background text-text-muted">{simulation.mitreTactics?.[0] || 'Lateral Movement'}</span>
+                          <span className="badge-mission border-accent/70 bg-accent/10 text-accent">MITRE ATT&CK</span>
+                          <span className="badge-mission border-fire-border bg-background text-text-muted">{simulation.mitreTactics?.[0] || 'Uncategorized'}</span>
                         </div>
                         <h2 className="text-h2 text-text-primary">{simulation.name}</h2>
                       </div>
                       <div className="rounded-lg border border-fire-border bg-background px-3 py-1.5 text-label text-accent uppercase whitespace-nowrap">
-                        {coverage.total} Stages
+                        {stepCount} Stages
                       </div>
                     </div>
 
@@ -348,11 +387,13 @@ export default function RedTeamPage() {
                     <div className="space-y-2">
                       <div className="flex items-center justify-between text-label text-text-muted uppercase">
                         <span>Last run result</span>
-                        <span className={runTone}>Coverage {detectedLabel} techniques detected</span>
+                        {latestExecution && (
+                          <span className={runTone}>{latestExecution.status}</span>
+                        )}
                       </div>
                       <div className="rounded-lg border border-fire-border bg-surface-3 p-4">
                         <div className={clsx('text-small font-semibold', runTone)}>
-                          {coverage.completed >= coverage.total ? 'Detection: Caught at Step 3' : coverage.completed >= Math.ceil(coverage.total * 0.7) ? 'Detection: Missed at Step 7' : 'Detection: Partial coverage observed'}
+                          {detectionLabel}
                         </div>
                         <div className="mt-1 text-label text-text-muted uppercase">
                           {stepCount} steps · last run: {lastRunLabel}
@@ -421,15 +462,15 @@ export default function RedTeamPage() {
                     MITRE ATT&CK Coverage — Enterprise Matrix
                   </h3>
                   <p className="mt-1 text-label text-text-muted uppercase">
-                    Coverage across the current red team lab catalog
+                    Techniques declared across this tenant's simulation library
                   </p>
                 </div>
                 <div className="flex items-center gap-2 text-label text-text-muted uppercase">
                   <span className="inline-flex items-center gap-2 rounded-full border border-success/30 bg-success/10 px-3 py-1 text-success">
-                    <CheckCircle2 className="h-3.5 w-3.5" /> Covered
+                    <CheckCircle2 className="h-3.5 w-3.5" /> Executed
                   </span>
                   <span className="inline-flex items-center gap-2 rounded-full border border-warning/30 bg-warning/10 px-3 py-1 text-warning">
-                    <ShieldAlert className="h-3.5 w-3.5" /> Partial
+                    <ShieldAlert className="h-3.5 w-3.5" /> Declared only
                   </span>
                 </div>
               </div>
@@ -440,21 +481,26 @@ export default function RedTeamPage() {
                     key={cell.id}
                     className={clsx(
                       'group flex min-h-[88px] flex-col justify-end rounded-lg border px-3 py-3 transition-transform duration-200 hover:-translate-y-0.5',
-                      cell.state === 'covered'
+                      cell.state === 'executed'
                         ? 'border-success/30 bg-success/15 text-success'
-                        : cell.state === 'partial'
-                          ? 'border-warning/30 bg-warning/15 text-warning'
-                          : 'border-fire-border bg-surface-3 text-text-muted'
+                        : cell.state === 'running'
+                          ? 'border-info/30 bg-info/15 text-info'
+                          : 'border-warning/30 bg-warning/15 text-warning'
                     )}
                   >
                     <span className="text-label uppercase opacity-70">
-                      {cell.state === 'covered' ? 'TA0001' : cell.state === 'partial' ? 'TA0002' : 'TA0003'}
+                      {cell.state === 'executed' ? 'Executed' : cell.state === 'running' ? 'Running' : 'Declared'}
                     </span>
                     <span className="mt-1 text-label uppercase leading-tight">
                       {cell.label}
                     </span>
                   </div>
                 ))}
+                {matrixCells.length === 0 && (
+                  <div className="col-span-full py-6 text-center text-label text-text-muted uppercase">
+                    No MITRE techniques declared on any simulation yet
+                  </div>
+                )}
               </div>
             </div>
 
@@ -483,21 +529,21 @@ export default function RedTeamPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {executionHistory.map((row, index) => (
-                      <tr key={`${row.simulation}-${index}`}>
+                    {executionHistory.map((row) => (
+                      <tr key={row.id}>
                         <td className="font-semibold text-text-primary">{row.simulation}</td>
                         <td>
                           <span
                             className={clsx(
                               'inline-flex items-center gap-2 rounded-md border px-2.5 py-1 text-label uppercase',
-                              row.status === 'Completed'
+                              row.status === 'completed'
                                 ? 'border-success/30 bg-success/10 text-success'
-                                : row.status === 'Partial'
-                                  ? 'border-warning/30 bg-warning/10 text-warning'
+                                : row.status === 'failed'
+                                  ? 'border-danger/30 bg-danger/10 text-danger'
                                   : 'border-info/30 bg-info/10 text-info'
                             )}
                           >
-                            {row.status === 'Completed' ? <CheckCircle2 className="h-3.5 w-3.5" /> : row.status === 'Partial' ? <TriangleAlert className="h-3.5 w-3.5" /> : <Activity className="h-3.5 w-3.5" />}
+                            {row.status === 'completed' ? <CheckCircle2 className="h-3.5 w-3.5" /> : row.status === 'failed' ? <TriangleAlert className="h-3.5 w-3.5" /> : <Activity className="h-3.5 w-3.5" />}
                             {row.status}
                           </span>
                         </td>
@@ -506,6 +552,13 @@ export default function RedTeamPage() {
                         <td className="font-mono text-text-secondary">{row.date}</td>
                       </tr>
                     ))}
+                    {executionHistory.length === 0 && (
+                      <tr>
+                        <td colSpan={5} className="py-8 text-center text-label text-text-muted uppercase">
+                          No executions recorded yet
+                        </td>
+                      </tr>
+                    )}
                   </tbody>
                 </table>
               </div>

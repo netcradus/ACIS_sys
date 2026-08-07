@@ -161,6 +161,11 @@ public class CorrelationEngine {
         return terms;
     }
 
+    /** Exposed for CorrelationController to show a rule's real parsed threshold instead of a hardcoded per-name lookup. */
+    public Integer extractThresholdPublic(String splQuery) {
+        return extractThreshold(splQuery);
+    }
+
     private Integer extractThreshold(String splQuery) {
         if (splQuery == null) return null;
         Matcher m = THRESHOLD_PATTERN.matcher(splQuery);

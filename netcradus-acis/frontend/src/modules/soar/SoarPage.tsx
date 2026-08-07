@@ -26,30 +26,6 @@ interface Execution {
   stepLogs: string // JSON string
 }
 
-const playbookStepsList: Record<string, string[]> = {
-  "Isolate Endpoint (EDR)": [
-    "Check endpoint health",
-    "Quarantine via EDR API",
-    "Block outbound firewall"
-  ],
-  "Reset Compromised Account": [
-    "Disable AD account",
-    "Revoke all OAuth tokens",
-    "Force MFA re-enrollment"
-  ],
-  "Block Domain on FW & Proxy": [
-    "Add domain to block list",
-    "Push policy to Palo Alto",
-    "Update proxy ACL"
-  ]
-}
-
-const playbookDurations: Record<string, string> = {
-  "Isolate Endpoint (EDR)": "< 45s",
-  "Reset Compromised Account": "< 30s",
-  "Block Domain on FW & Proxy": "< 15s"
-}
-
 export default function SoarPage() {
   const canWrite = useCanWrite(MODULES.SOAR_PLAYBOOKS)
   const [playbooks, setPlaybooks] = useState<Playbook[]>([])
@@ -59,10 +35,11 @@ export default function SoarPage() {
   const [searchTerm, setSearchTerm] = useState('')
   const [isModalOpen, setIsModalOpen] = useState(false)
 
-  // Form states for New Playbook
+  // Form states for New/Edit Playbook
   const [newPbName, setNewPbName] = useState('')
   const [newPbDesc, setNewPbDesc] = useState('')
   const [newPbSteps, setNewPbSteps] = useState('')
+  const [editingPlaybookId, setEditingPlaybookId] = useState<string | null>(null)
 
   const fetchData = async () => {
     try {
@@ -106,7 +83,7 @@ export default function SoarPage() {
     }
   }
 
-  const handleCreatePlaybook = async (e: React.FormEvent) => {
+  const handleSubmitPlaybook = async (e: React.FormEvent) => {
     e.preventDefault()
     try {
       const payload = {
@@ -117,17 +94,58 @@ export default function SoarPage() {
         successCount: 0,
         runCount: 0
       }
-      await apiClient.post('/api/soar/playbooks', payload)
-      
-      setNewPbName('')
-      setNewPbDesc('')
-      setNewPbSteps('')
-      setIsModalOpen(false)
+      if (editingPlaybookId) {
+        await apiClient.put(`/api/soar/playbooks/${editingPlaybookId}`, payload)
+      } else {
+        await apiClient.post('/api/soar/playbooks', payload)
+      }
 
+      closePlaybookModal()
       fetchData()
     } catch (e) {
-      console.error("Failed to create playbook:", e)
+      console.error("Failed to save playbook:", e)
     }
+  }
+
+  const openCreatePlaybookModal = () => {
+    setEditingPlaybookId(null)
+    setNewPbName('')
+    setNewPbDesc('')
+    setNewPbSteps('')
+    setIsModalOpen(true)
+  }
+
+  const openEditPlaybookModal = (pb: Playbook) => {
+    setEditingPlaybookId(pb.id)
+    setNewPbName(pb.name)
+    setNewPbDesc(pb.description)
+    setNewPbSteps(getStepNames(pb.steps).join(', '))
+    setIsModalOpen(true)
+  }
+
+  const closePlaybookModal = () => {
+    setIsModalOpen(false)
+    setEditingPlaybookId(null)
+  }
+
+  /** Real step names parsed from the playbook's own stored steps JSON — replaces a hardcoded per-name lookup that only covered 3 fixed playbook names and silently fell back to generic placeholder text for anything else, including every user-created playbook. */
+  const getStepNames = (stepsJson: string): string[] => {
+    try {
+      const parsed = JSON.parse(stepsJson)
+      if (!Array.isArray(parsed)) return []
+      return parsed.map((s: any) => s?.step || s?.name || 'Step').filter(Boolean)
+    } catch {
+      return []
+    }
+  }
+
+  /** Real average duration computed from this playbook's own completed executions — replaces a hardcoded "< 45s" style literal. */
+  const getAvgDuration = (playbookId: string): string => {
+    const completed = executions.filter(e => e.playbookId === playbookId && e.completedAt && e.status !== 'running')
+    if (completed.length === 0) return '—'
+    const totalMs = completed.reduce((sum, e) => sum + (new Date(e.completedAt!).getTime() - new Date(e.startedAt).getTime()), 0)
+    const avgSeconds = Math.round(totalMs / completed.length / 1000)
+    return avgSeconds < 60 ? `~${avgSeconds}s` : `~${Math.round(avgSeconds / 60)}m`
   }
 
   const getStepCount = (stepsJson: string) => {
@@ -196,7 +214,7 @@ export default function SoarPage() {
           <p className="text-label text-text-muted mt-1 uppercase">Orchestrate multi-tool responses</p>
         </div>
         <button
-          onClick={() => setIsModalOpen(true)}
+          onClick={openCreatePlaybookModal}
           disabled={!canWrite}
           title={!canWrite ? "Your role doesn't have write access to SOAR Playbooks" : undefined}
           className="btn-fire text-small py-2 px-4 flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
@@ -211,7 +229,7 @@ export default function SoarPage() {
           const cardColor = getPlaybookCardColor(pb.name)
           const stepsCount = getStepCount(pb.steps)
           const successRate = pb.runCount > 0 ? Math.round((pb.successCount / pb.runCount) * 100) : 0
-          const stepsList = playbookStepsList[pb.name] || ["Process payload steps", "Trigger target alert enrichment"]
+          const stepsList = getStepNames(pb.steps)
           
           return (
             <div key={pb.id} className="bg-surface-2 border border-fire-border rounded-xl p-5 relative overflow-hidden flex flex-col justify-between shadow-sm h-[290px]">
@@ -233,7 +251,7 @@ export default function SoarPage() {
                     <span className="text-label text-text-muted uppercase mt-0.5">Steps</span>
                   </div>
                   <div className="flex flex-col">
-                    <span className="text-h3 text-text-primary">{playbookDurations[pb.name] || '< 60s'}</span>
+                    <span className="text-h3 text-text-primary">{getAvgDuration(pb.id)}</span>
                     <span className="text-label text-text-muted uppercase mt-0.5">Duration</span>
                   </div>
                 </div>
@@ -263,8 +281,10 @@ export default function SoarPage() {
                   <Play className="w-3 h-3 fill-white" /> Run
                 </button>
                 <button
-                  onClick={() => alert('Editing playbook configurations is in development')}
-                  className="btn-mission py-2 text-small"
+                  onClick={() => openEditPlaybookModal(pb)}
+                  disabled={!canWrite}
+                  title={!canWrite ? "Your role doesn't have write access to SOAR Playbooks" : undefined}
+                  className="btn-mission py-2 text-small disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   Edit
                 </button>
@@ -364,15 +384,15 @@ export default function SoarPage() {
         <div className="fixed inset-0 bg-background/85 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="bg-surface border border-fire-border rounded-xl w-full max-w-md overflow-hidden shadow-card animate-scale-in">
             <div className="flex items-center justify-between p-5 border-b border-fire-border">
-              <h3 className="text-h3 text-text-primary">Create SOAR Playbook</h3>
+              <h3 className="text-h3 text-text-primary">{editingPlaybookId ? 'Edit SOAR Playbook' : 'Create SOAR Playbook'}</h3>
               <button
-                onClick={() => setIsModalOpen(false)}
+                onClick={closePlaybookModal}
                 className="text-text-muted hover:text-text-primary transition-colors focus:outline-none"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
-            <form onSubmit={handleCreatePlaybook} className="p-5 space-y-4">
+            <form onSubmit={handleSubmitPlaybook} className="p-5 space-y-4">
               <div className="space-y-1">
                 <label className="text-label text-text-muted uppercase block">Playbook Name</label>
                 <input
@@ -412,7 +432,7 @@ export default function SoarPage() {
               <div className="flex items-center justify-end gap-3 pt-3 border-t border-fire-border mt-4">
                 <button
                   type="button"
-                  onClick={() => setIsModalOpen(false)}
+                  onClick={closePlaybookModal}
                   className="btn-mission py-2 px-4 text-small"
                 >
                   Cancel
@@ -421,7 +441,7 @@ export default function SoarPage() {
                   type="submit"
                   className="btn-fire py-2 px-4 text-small"
                 >
-                  Create Playbook
+                  {editingPlaybookId ? 'Save Changes' : 'Create Playbook'}
                 </button>
               </div>
             </form>

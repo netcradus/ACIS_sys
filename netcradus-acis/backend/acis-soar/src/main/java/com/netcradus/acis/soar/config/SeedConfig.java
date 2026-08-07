@@ -187,10 +187,11 @@ public class SeedConfig {
             executionRepository.save(pe6);
 
 
+            if (reportScheduleRepository.findByTenantId(defaultTenantId).isEmpty()) {
             log.info("Seeding Report Schedules...");
-            reportScheduleRepository.deleteAll();
 
             ReportSchedule rs1 = new ReportSchedule();
+            rs1.setTenantId(defaultTenantId);
             rs1.setReportName("Weekly Executive Summary");
             rs1.setFormat("PDF");
             rs1.setFrequency("Weekly Mon 08:00");
@@ -200,6 +201,7 @@ public class SeedConfig {
             reportScheduleRepository.save(rs1);
 
             ReportSchedule rs2 = new ReportSchedule();
+            rs2.setTenantId(defaultTenantId);
             rs2.setReportName("Incident Board Pack");
             rs2.setFormat("PPTX");
             rs2.setFrequency("Monthly 1st");
@@ -209,6 +211,7 @@ public class SeedConfig {
             reportScheduleRepository.save(rs2);
 
             ReportSchedule rs3 = new ReportSchedule();
+            rs3.setTenantId(defaultTenantId);
             rs3.setReportName("Detection Coverage");
             rs3.setFormat("CSV");
             rs3.setFrequency("Monthly 1st");
@@ -218,6 +221,7 @@ public class SeedConfig {
             reportScheduleRepository.save(rs3);
 
             ReportSchedule rs4 = new ReportSchedule();
+            rs4.setTenantId(defaultTenantId);
             rs4.setReportName("Compliance Posture");
             rs4.setFormat("PDF");
             rs4.setFrequency("Quarterly");
@@ -227,6 +231,7 @@ public class SeedConfig {
             reportScheduleRepository.save(rs4);
 
             ReportSchedule rs5 = new ReportSchedule();
+            rs5.setTenantId(defaultTenantId);
             rs5.setReportName("Threat Intel Summary");
             rs5.setFormat("PDF");
             rs5.setFrequency("Weekly Fri");
@@ -234,6 +239,7 @@ public class SeedConfig {
             rs5.setRecipients("2 recipients");
             rs5.setStatus("Paused");
             reportScheduleRepository.save(rs5);
+            }
 
 
             if (apiKeyRepository.count() == 0) {
