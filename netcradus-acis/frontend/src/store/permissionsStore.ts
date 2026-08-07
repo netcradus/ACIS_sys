@@ -6,9 +6,17 @@ export type PermissionLevel = 'NONE' | 'READ' | 'WRITE' | 'ADMIN'
 
 const RANK: Record<PermissionLevel, number> = { NONE: 0, READ: 1, WRITE: 2, ADMIN: 3 }
 
-/** The 6 modules the backend's RbacEnforcementFilter actually enforces — see DefaultRoleProvisioner.MODULES. */
+/**
+ * The 5 modules the backend's RbacEnforcementFilter actually enforces — see
+ * DefaultRoleProvisioner.MODULES. There is no separate "Dashboard" module:
+ * the Dashboard page has no backend endpoints of its own (pure aggregate
+ * view over real alert data), so it's gated on ALERTS_CORRELATION directly
+ * — the module its data calls actually require. A standalone "Dashboard"
+ * permission used to exist here and let an admin grant it independently of
+ * Alerts & Correlation, which passed the page-level gate but left every
+ * fetch inside the page 403ing.
+ */
 export const MODULES = {
-  DASHBOARD: 'Dashboard',
   ALERTS_CORRELATION: 'Alerts & Correlation',
   ASSETS_THREAT_INTEL: 'Assets & Threat Intel',
   SOAR_PLAYBOOKS: 'SOAR Playbooks',

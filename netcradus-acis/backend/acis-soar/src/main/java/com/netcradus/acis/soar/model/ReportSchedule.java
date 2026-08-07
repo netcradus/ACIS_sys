@@ -14,7 +14,13 @@ public class ReportSchedule {
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
 
-    @Column(name = "tenant_id", nullable = false)
+    // Not DB-NOT-NULL: with no migration framework in place (ddl-auto=update),
+    // a hard NOT NULL would fail schema-update on any DB that already has
+    // rows from before this column existed (confirmed live: this exact
+    // failure crashed acis-soar's boot against a DB with pre-existing
+    // report_schedules rows). Enforced as non-null in application code
+    // instead — same pattern as Asset.tenantId.
+    @Column(name = "tenant_id")
     private UUID tenantId;
 
     @Column(name = "report_name")

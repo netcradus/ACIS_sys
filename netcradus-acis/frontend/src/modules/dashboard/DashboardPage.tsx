@@ -38,6 +38,7 @@ import apiClient from '@/lib/apiClient'
 import wsClient from '@/lib/wsClient'
 import { clsx } from 'clsx'
 import { useChartColors } from '@/hooks/useChartColors'
+import { useCanRead, MODULES } from '@/store/permissionsStore'
 
 interface DashboardStats {
   totalAlerts: number
@@ -76,6 +77,7 @@ function simulationCategory(name: string): 'phishing' | 'lateral' | 'other' {
 
 export default function DashboardPage() {
   const chartColors = useChartColors()
+  const canReadSoarPlaybooks = useCanRead(MODULES.SOAR_PLAYBOOKS)
   const [activeTab, setActiveTab] = useState<'architecture' | 'overview'>('architecture')
   const [stats, setStats] = useState<DashboardStats | null>(null)
   const [incidents, setIncidents] = useState<any[]>([])
@@ -201,7 +203,14 @@ export default function DashboardPage() {
 
   useEffect(() => {
     fetchData()
-    fetchRedTeamSimulations()
+    // Red Team simulations require SOAR Playbooks READ (same module the
+    // Red Team nav item itself is gated on) — skipping the call entirely
+    // for a user who lacks it avoids a 403 console error and an honestly
+    // wrong "no campaigns configured" message for campaigns that exist but
+    // just aren't visible to them.
+    if (canReadSoarPlaybooks) {
+      fetchRedTeamSimulations()
+    }
     const dashSub = wsClient.subscribe('/topic/dashboard', () => fetchData())
     const alertSub = wsClient.subscribe('/topic/alerts', () => fetchData())
 
@@ -209,7 +218,7 @@ export default function DashboardPage() {
       dashSub.then(s => s?.unsubscribe())
       alertSub.then(s => s?.unsubscribe())
     }
-  }, [])
+  }, [canReadSoarPlaybooks])
 
   // Add Log Entry Utility
   const logMsg = (sender: string, text: string) => {
@@ -392,7 +401,12 @@ export default function DashboardPage() {
 
               {/* Simulation Selectors — real campaigns from this tenant's Red Team library */}
               <div className="flex flex-wrap gap-2 w-full xl:w-auto">
-                {redTeamSimulations.length === 0 && (
+                {!canReadSoarPlaybooks && (
+                  <span className="text-[10px] font-bold text-text-muted uppercase tracking-widest">
+                    Your role doesn't have access to SOAR Playbooks — ask an admin for access to run campaigns
+                  </span>
+                )}
+                {canReadSoarPlaybooks && redTeamSimulations.length === 0 && (
                   <span className="text-[10px] font-bold text-text-muted uppercase tracking-widest">
                     No Red Team campaigns configured yet — add one on the Red Team page
                   </span>

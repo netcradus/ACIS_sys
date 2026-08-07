@@ -52,7 +52,13 @@ public class PermissionResolver {
                 .orElse(PermissionLevel.NONE);
     }
 
-    /** Every module the caller's role has an explicit entry for — used by GET /api/soar/settings/my-permissions to drive frontend gating. */
+    /**
+     * Every module the caller's role has an explicit entry for — used by GET
+     * /api/soar/settings/my-permissions to drive frontend gating. Filtered to
+     * DefaultRoleProvisioner.MODULES so a role provisioned before a module
+     * was retired (e.g. the old standalone "Dashboard" entry) doesn't leak a
+     * stale key the frontend no longer checks for.
+     */
     @Transactional
     public Map<String, PermissionLevel> resolveAll() {
         Map<String, PermissionLevel> result = new LinkedHashMap<>();
@@ -60,7 +66,10 @@ public class PermissionResolver {
         if (member.isEmpty()) return result;
         ConsoleRole role = member.get().getRole();
         if (role == null || role.getPermissions() == null) return result;
-        role.getPermissions().forEach(p -> result.put(p.getModuleName(), PermissionLevel.fromString(p.getPermissionLevel())));
+        java.util.Set<String> currentModules = java.util.Set.of(DefaultRoleProvisioner.MODULES);
+        role.getPermissions().stream()
+                .filter(p -> currentModules.contains(p.getModuleName()))
+                .forEach(p -> result.put(p.getModuleName(), PermissionLevel.fromString(p.getPermissionLevel())));
         return result;
     }
 

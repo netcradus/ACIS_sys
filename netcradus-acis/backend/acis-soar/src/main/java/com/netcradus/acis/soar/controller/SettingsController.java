@@ -605,6 +605,17 @@ public class SettingsController {
         roles.forEach(r -> r.setUserCount(userMemberRepository.findByTenantId(tenant).stream()
                 .filter(m -> m.getRole() != null && m.getRole().getId().equals(r.getId()))
                 .toList().size()));
+        // Self-heals roles provisioned before "Dashboard" was retired as a
+        // separate module (see DefaultRoleProvisioner.MODULES): drops any
+        // stale permission row whose module no longer exists so the matrix
+        // UI only ever shows real, currently-enforced modules. The DB row
+        // itself is cleared out the next time this role is saved.
+        java.util.Set<String> currentModules = java.util.Set.of(DefaultRoleProvisioner.MODULES);
+        roles.forEach(r -> {
+            if (r.getPermissions() != null) {
+                r.getPermissions().removeIf(p -> !currentModules.contains(p.getModuleName()));
+            }
+        });
         return ApiResponse.success(roles);
     }
 

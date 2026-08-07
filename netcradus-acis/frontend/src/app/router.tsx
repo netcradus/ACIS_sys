@@ -81,7 +81,7 @@ export const router = createBrowserRouter([
         element: <AppLayout />,
         errorElement: <RouteErrorFallback />,
         children: [
-          { index: true,              element: <RequirePermission module={MODULES.DASHBOARD}><DashboardPage /></RequirePermission> },
+          { index: true,              element: <RequirePermission module={MODULES.ALERTS_CORRELATION}><DashboardPage /></RequirePermission> },
           { path: 'logs',             element: <RequirePermission module={MODULES.ALERTS_CORRELATION}><LogExplorerPage /></RequirePermission> },
           { path: 'correlation',      element: <RequirePermission module={MODULES.ALERTS_CORRELATION}><CorrelationPage /></RequirePermission> },
           { path: 'alerts',           element: <RequirePermission module={MODULES.ALERTS_CORRELATION}><AlertsPage /></RequirePermission> },

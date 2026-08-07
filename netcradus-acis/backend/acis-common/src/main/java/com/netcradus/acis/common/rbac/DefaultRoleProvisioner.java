@@ -24,9 +24,22 @@ public class DefaultRoleProvisioner {
 
     public static final String SUPER_ADMIN = "Super Admin";
 
-    /** The 6 modules RbacEnforcementFilter's path→module tables across every service resolve requests into. */
+    /**
+     * The 5 modules RbacEnforcementFilter's path→module tables across every
+     * service actually resolve requests into. "Dashboard" used to be a 6th
+     * entry here despite having no backend endpoints of its own — the
+     * Dashboard page's real data calls (/api/alerts/dashboard/summary,
+     * /api/alerts) were always gated under "Alerts & Correlation" instead.
+     * That let an admin grant someone "Dashboard" alone (a natural minimal
+     * grant) while the page's own data calls kept 403ing — confirmed live:
+     * a role with only Dashboard=READ passed the page-level gate but every
+     * fetch inside it failed. The Dashboard nav item/route is now gated on
+     * Alerts & Correlation directly (see Sidebar.tsx/router.tsx), the module
+     * it actually and exclusively depends on, instead of a second module
+     * that only pretended to be independent.
+     */
     public static final String[] MODULES = {
-            "Dashboard", "Alerts & Correlation", "Assets & Threat Intel",
+            "Alerts & Correlation", "Assets & Threat Intel",
             "SOAR Playbooks", "Reports & Compliance", "Settings"
     };
 
@@ -38,10 +51,10 @@ public class DefaultRoleProvisioner {
             return existing;
         }
         List<ConsoleRole> created = new ArrayList<>();
-        created.add(buildRole(tenantId, SUPER_ADMIN, levels("ADMIN", "ADMIN", "ADMIN", "WRITE", "ADMIN", "ADMIN")));
-        created.add(buildRole(tenantId, "SOC Analyst", levels("READ", "WRITE", "READ", "NONE", "READ", "NONE")));
-        created.add(buildRole(tenantId, "Incident Responder", levels("READ", "WRITE", "WRITE", "WRITE", "READ", "NONE")));
-        created.add(buildRole(tenantId, "Read-Only Auditor", levels("READ", "READ", "READ", "READ", "READ", "READ")));
+        created.add(buildRole(tenantId, SUPER_ADMIN, levels("ADMIN", "ADMIN", "WRITE", "ADMIN", "ADMIN")));
+        created.add(buildRole(tenantId, "SOC Analyst", levels("WRITE", "READ", "NONE", "READ", "NONE")));
+        created.add(buildRole(tenantId, "Incident Responder", levels("WRITE", "WRITE", "WRITE", "READ", "NONE")));
+        created.add(buildRole(tenantId, "Read-Only Auditor", levels("READ", "READ", "READ", "READ", "READ")));
         List<ConsoleRole> saved = new ArrayList<>();
         created.forEach(r -> saved.add(consoleRoleRepository.save(r)));
         return saved;
