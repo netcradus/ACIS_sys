@@ -7,6 +7,7 @@ import com.netcradus.acis.platformadmin.repository.TenantRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.CommandLineRunner;
+import org.springframework.context.annotation.Profile;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 
@@ -18,11 +19,20 @@ import java.util.UUID;
  * constant used across every other service's seeders, e.g.
  * acis-asset-service's AssetDataSeeder) so existing tenant-scoped data
  * isn't orphaned once this registry exists.
+ *
+ * @Profile("!prod") — this is the platform-wide Tenants list a real
+ * operator uses to see every real customer; without this guard, a fake
+ * "Acme Corp (Demo)" row would sit there indistinguishable from a real
+ * tenant on every environment, including production (confirmed live:
+ * docker-compose.prod.yml previously activated no Spring profile at all,
+ * so this ran identically there). See docker-compose.prod.yml's
+ * platform-admin service for where SPRING_PROFILES_ACTIVE=prod is now set.
  */
 @Component
 @RequiredArgsConstructor
 @Slf4j
 @Order(1000)
+@Profile("!prod")
 public class TenantSeeder implements CommandLineRunner {
 
     private static final UUID DEMO_TENANT_ID = UUID.fromString("11111111-1111-4111-8111-111111111111");

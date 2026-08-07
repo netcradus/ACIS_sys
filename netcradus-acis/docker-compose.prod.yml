@@ -483,6 +483,11 @@ services:
       # is the only thing that makes the real rotated secret actually reach
       # the service that authenticates with it via client_credentials.
       KEYCLOAK_BACKEND_CLIENT_SECRET: ${KEYCLOAK_BACKEND_CLIENT_SECRET:?Set KEYCLOAK_BACKEND_CLIENT_SECRET in .env}
+      # Suppresses TenantSeeder's fake "Acme Corp (Demo)" row, which — with
+      # no profile active — otherwise seeds identically here as in local
+      # dev, showing up in the real platform-wide Tenants list next to
+      # actual customers.
+      SPRING_PROFILES_ACTIVE: prod
     expose:
       - "8088"
     depends_on:
