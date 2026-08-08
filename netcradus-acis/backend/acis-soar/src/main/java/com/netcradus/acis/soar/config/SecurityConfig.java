@@ -1,9 +1,11 @@
 package com.netcradus.acis.soar.config;
 
+import com.netcradus.acis.common.rbac.InternalServiceKeyMatcher;
 import com.netcradus.acis.common.rbac.PermissionResolver;
 import com.netcradus.acis.common.rbac.RbacEnforcementFilter;
 import com.netcradus.acis.common.tenant.TenantContextFilter;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -29,6 +31,9 @@ public class SecurityConfig {
 
     private final PermissionResolver permissionResolver;
 
+    @Value("${acis.internal-service-key}")
+    private String internalServiceKey;
+
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         // Longest-prefix-first: /api/soar/settings and /api/soar/reports must be
@@ -39,12 +44,17 @@ public class SecurityConfig {
         pathToModule.put("/api/red-team", "SOAR Playbooks");
         pathToModule.put("/api/compliance", "Reports & Compliance");
         pathToModule.put("/api/soar", "SOAR Playbooks");
-        RbacEnforcementFilter rbacFilter = new RbacEnforcementFilter(permissionResolver, pathToModule);
+        RbacEnforcementFilter rbacFilter = new RbacEnforcementFilter(permissionResolver, pathToModule, internalServiceKey);
 
         http
             .csrf(csrf -> csrf.disable())
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/actuator/**").permitAll()
+                // Real internal service-to-service calls carry no end-user
+                // JWT — see InternalServiceKeyMatcher's Javadoc. Must be
+                // matched before every other rule below, including the
+                // /settings/** admin-only restriction.
+                .requestMatchers(new InternalServiceKeyMatcher(internalServiceKey)).permitAll()
                 // Real public accept-invite flow (InvitationController) — the
                 // caller has no JWT at all until AFTER they accept, since no
                 // Keycloak account exists before then (see InvitationService).
@@ -88,7 +98,7 @@ public class SecurityConfig {
                 .anyRequest().authenticated()
             )
             .oauth2ResourceServer(oauth -> oauth.jwt(jwt -> jwt.jwtAuthenticationConverter(jwtAuthenticationConverter())))
-            .addFilterAfter(new TenantContextFilter(), BearerTokenAuthenticationFilter.class)
+            .addFilterAfter(new TenantContextFilter(internalServiceKey), BearerTokenAuthenticationFilter.class)
             .addFilterAfter(rbacFilter, TenantContextFilter.class);
 
         return http.build();

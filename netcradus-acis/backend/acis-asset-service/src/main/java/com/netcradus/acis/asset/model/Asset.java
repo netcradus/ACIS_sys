@@ -47,12 +47,24 @@ public class Asset {
 
     private String os;
 
+    // @Builder.Default matters here, not just the field initializer: Lombok's
+    // generated builder silently ignores plain field initializers for any
+    // field the caller doesn't explicitly set — confirmed live, every asset
+    // AssetDataSeeder created via Asset.builder() (without calling
+    // .health(...)) ended up with health=NULL in the database instead of
+    // "OK", which in turn broke two real features that do a strict "OK"
+    // check: the Endpoints page's Healthy stat card, and
+    // AssetDriftDetectionService (a null health silently skipped every
+    // seeded asset, so self-healing could never actually trigger for them).
+    @Builder.Default
     private String health = "OK";
 
+    @Builder.Default
     private String criticality = "HIGH";
 
     private String tags;
 
+    @Builder.Default
     @Column(name = "isolation_status")
     private Boolean isolationStatus = false;
 

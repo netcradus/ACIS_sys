@@ -35,6 +35,13 @@ spring:
         jwt:
           jwk-set-uri: ${KEYCLOAK_URL:http://localhost:8180}/realms/${KEYCLOAK_REALM:acis}/protocol/openid-connect/certs
 
+acis:
+  # Shared secret real internal service-to-service callers (no end-user JWT
+  # to present) attach as X-Internal-Service-Key — see
+  # InternalServiceKeyMatcher/RbacEnforcementFilter. Must be identical
+  # across every backend service.
+  internal-service-key: ${INTERNAL_SERVICE_KEY:local-dev-internal-key}
+
 logging:
   level:
     com.netcradus.acis: DEBUG

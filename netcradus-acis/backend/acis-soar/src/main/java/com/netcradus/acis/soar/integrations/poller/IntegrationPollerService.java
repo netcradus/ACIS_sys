@@ -79,6 +79,9 @@ public class IntegrationPollerService {
     @Value("${acis.threat-service.url}")
     private String threatServiceUrl;
 
+    @Value("${acis.internal-service-key}")
+    private String internalServiceKey;
+
     @Scheduled(fixedDelayString = "${acis.integration-poll-interval-ms:120000}", initialDelayString = "${acis.integration-poll-initial-delay-ms:30000}")
     public void pollAll() {
         pollPaloAlto();
@@ -322,6 +325,7 @@ public class IntegrationPollerService {
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
         headers.set("X-Tenant-ID", tenantId.toString());
+        headers.set("X-Internal-Service-Key", internalServiceKey);
         HttpEntity<List<Map<String, Object>>> request = new HttpEntity<>(indicators, headers);
         try {
             restTemplate.postForEntity(threatServiceUrl + "/api/threat-intel/indicators/bulk", request, String.class);

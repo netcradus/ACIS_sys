@@ -1,9 +1,11 @@
 package com.netcradus.acis.asset.config;
 
+import com.netcradus.acis.common.rbac.InternalServiceKeyMatcher;
 import com.netcradus.acis.common.rbac.PermissionResolver;
 import com.netcradus.acis.common.rbac.RbacEnforcementFilter;
 import com.netcradus.acis.common.tenant.TenantContextFilter;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -22,20 +24,28 @@ public class SecurityConfig {
 
     private final PermissionResolver permissionResolver;
 
+    @Value("${acis.internal-service-key}")
+    private String internalServiceKey;
+
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         LinkedHashMap<String, String> pathToModule = new LinkedHashMap<>();
         pathToModule.put("/api/assets", "Assets & Threat Intel");
-        RbacEnforcementFilter rbacFilter = new RbacEnforcementFilter(permissionResolver, pathToModule);
+        RbacEnforcementFilter rbacFilter = new RbacEnforcementFilter(permissionResolver, pathToModule, internalServiceKey);
 
         http
             .csrf(csrf -> csrf.disable())
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/actuator/**").permitAll()
+                // Real internal service-to-service calls (e.g.
+                // ComplianceService.fetchAssetManagementSignal) carry no
+                // end-user JWT — see InternalServiceKeyMatcher's Javadoc.
+                // Must be matched before the authenticated() catch-all below.
+                .requestMatchers(new InternalServiceKeyMatcher(internalServiceKey)).permitAll()
                 .anyRequest().authenticated()
             )
             .oauth2ResourceServer(oauth -> oauth.jwt(withDefaults()))
-            .addFilterAfter(new TenantContextFilter(), BearerTokenAuthenticationFilter.class)
+            .addFilterAfter(new TenantContextFilter(internalServiceKey), BearerTokenAuthenticationFilter.class)
             .addFilterAfter(rbacFilter, TenantContextFilter.class);
 
         return http.build();

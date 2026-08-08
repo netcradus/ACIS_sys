@@ -27,21 +27,48 @@ import java.util.Map;
  * Method → required level, deliberately simple and uniform rather than
  * per-endpoint: GET/HEAD/OPTIONS need READ, DELETE needs ADMIN, everything
  * else (POST/PUT/PATCH) needs WRITE.
+ *
+ * Real, genuinely-internal service-to-service calls (a @Scheduled job with
+ * no end-user request to derive a JWT from — AssetDriftDetectionService,
+ * IntegrationPollerService — plus ComplianceService's synchronous asset
+ * lookup) carry no Authorization header at all, so PermissionResolver
+ * always resolves them to NONE and every one of these was silently
+ * rejected — confirmed live: none of GuardDuty/Azure AD indicator
+ * bridging, the Endpoints self-healing drift detector, or Compliance's
+ * Asset Management control ever actually worked, each failing closed into
+ * its own honest-degradation path rather than crashing, which is exactly
+ * why this went unnoticed. internalServiceKey is a shared secret (see each
+ * service's application.yml/docker-compose) these specific callers attach
+ * as X-Internal-Service-Key; a request presenting the correct value skips
+ * the permission check entirely, matching a real system action rather than
+ * a user's — distinct from, and never a substitute for, the per-user JWT
+ * path everything else in this filter still enforces.
  */
 public class RbacEnforcementFilter extends OncePerRequestFilter {
 
+    private static final String INTERNAL_SERVICE_HEADER = "X-Internal-Service-Key";
+
     private final PermissionResolver permissionResolver;
     private final LinkedHashMap<String, String> pathToModule;
+    private final String internalServiceKey;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
-    public RbacEnforcementFilter(PermissionResolver permissionResolver, LinkedHashMap<String, String> pathToModule) {
+    public RbacEnforcementFilter(PermissionResolver permissionResolver, LinkedHashMap<String, String> pathToModule,
+            String internalServiceKey) {
         this.permissionResolver = permissionResolver;
         this.pathToModule = pathToModule;
+        this.internalServiceKey = internalServiceKey;
     }
 
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
             throws ServletException, IOException {
+
+        if (internalServiceKey != null && !internalServiceKey.isBlank()
+                && internalServiceKey.equals(request.getHeader(INTERNAL_SERVICE_HEADER))) {
+            filterChain.doFilter(request, response);
+            return;
+        }
 
         String uri = request.getRequestURI();
         // Every authenticated user must always be able to read their own

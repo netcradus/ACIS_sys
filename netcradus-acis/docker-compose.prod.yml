@@ -275,6 +275,11 @@ services:
       KEYCLOAK_URL: http://keycloak:8080
       KEYCLOAK_REALM: ${KEYCLOAK_REALM:-acis}
       AI_SERVICE_URL: http://ai-service:8090
+      # Shared secret real internal service-to-service callers (no end-user
+      # JWT) attach as X-Internal-Service-Key — see
+      # InternalServiceKeyMatcher/RbacEnforcementFilter. Must be identical
+      # across every backend service in this file.
+      INTERNAL_SERVICE_KEY: ${INTERNAL_SERVICE_KEY:?Set INTERNAL_SERVICE_KEY in .env, generated via openssl rand -base64 32}
     expose:
       - "8081"
     depends_on:
@@ -310,6 +315,7 @@ services:
       DB_NAME: ${DB_NAME:-acis}
       DB_USER: acis_app
       DB_PASSWORD: ${DB_PASSWORD:?Set DB_PASSWORD in .env}
+      INTERNAL_SERVICE_KEY: ${INTERNAL_SERVICE_KEY:?Set INTERNAL_SERVICE_KEY in .env, generated via openssl rand -base64 32}
     expose:
       - "8082"
     depends_on:
@@ -338,6 +344,7 @@ services:
       KAFKA_BOOTSTRAP_SERVERS: kafka:29092
       KEYCLOAK_URL: http://keycloak:8080
       KEYCLOAK_REALM: ${KEYCLOAK_REALM:-acis}
+      INTERNAL_SERVICE_KEY: ${INTERNAL_SERVICE_KEY:?Set INTERNAL_SERVICE_KEY in .env, generated via openssl rand -base64 32}
     expose:
       - "8083"
     depends_on:
@@ -408,6 +415,11 @@ services:
       # AD findings also land in the Threat Intelligence indicator list —
       # see IntegrationPollerService.forwardIndicators.
       THREAT_SERVICE_URL: http://threat-service:8087
+      # Shared secret real internal service-to-service callers (no end-user
+      # JWT) attach as X-Internal-Service-Key — see
+      # InternalServiceKeyMatcher/RbacEnforcementFilter. Must be identical
+      # across every backend service in this file.
+      INTERNAL_SERVICE_KEY: ${INTERNAL_SERVICE_KEY:?Set INTERNAL_SERVICE_KEY in .env, generated via openssl rand -base64 32}
       CREDENTIAL_ENCRYPTION_KEY: ${CREDENTIAL_ENCRYPTION_KEY:?Set CREDENTIAL_ENCRYPTION_KEY in .env, generated via openssl rand -base64 32}
       # Real Keycloak account provisioning on invite-accept (see
       # KeycloakAdminConfig / InvitationService) — same acis-backend service
@@ -461,6 +473,7 @@ services:
       # AssetDriftDetectionService, same RestTemplate + X-Tenant-ID pattern
       # ComplianceService already uses to call acis-asset-service.
       ALERTS_SERVICE_URL: http://alerts:8081
+      INTERNAL_SERVICE_KEY: ${INTERNAL_SERVICE_KEY:?Set INTERNAL_SERVICE_KEY in .env, generated via openssl rand -base64 32}
     expose:
       - "8086"
     depends_on:
@@ -534,6 +547,7 @@ services:
       KEYCLOAK_REALM: ${KEYCLOAK_REALM:-acis}
       AI_SERVICE_GRPC_HOST: ai-service
       AI_SERVICE_GRPC_PORT: "50051"
+      INTERNAL_SERVICE_KEY: ${INTERNAL_SERVICE_KEY:?Set INTERNAL_SERVICE_KEY in .env, generated via openssl rand -base64 32}
     expose:
       - "8087"
     depends_on:

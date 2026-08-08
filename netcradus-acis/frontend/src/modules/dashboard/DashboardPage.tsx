@@ -452,7 +452,7 @@ export default function DashboardPage() {
                 { step: 2, label: 'DETECT (L1)', desc: 'AI-Powered SIEM', status: simStep === 2, icon: Cpu, color: 'text-success bg-success/10 border-success/30' },
                 { step: 3, label: 'ANALYZE / RESPOND (L2)', desc: 'Autonomous SOAR', status: simStep === 3, icon: Network, color: 'text-accent-pa bg-accent-pa/10 border-accent-pa/30' },
                 { step: 4, label: 'HEAL & DECEIVE (L4)', desc: 'State Snapshot Restore', status: simStep === 4, icon: ShieldCheck, color: 'text-accent bg-accent/10 border-accent/30' },
-                { step: 5, label: 'LEARN (L5)', desc: 'Swarm Retraining', status: simStep === 5, icon: Brain, color: 'text-accent bg-accent/10 border-accent/30' }
+                { step: 5, label: 'CLOSE (L5)', desc: 'Cycle Complete', status: simStep === 5, icon: Brain, color: 'text-accent bg-accent/10 border-accent/30' }
               ].map(item => (
                 <div
                   key={item.step}

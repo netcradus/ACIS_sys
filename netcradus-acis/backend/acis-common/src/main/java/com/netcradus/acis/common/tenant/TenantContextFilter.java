@@ -37,12 +37,33 @@ import java.util.UUID;
  * For backward compatibility with existing {@code @RequestHeader("X-Tenant-ID")}
  * controller parameters, the incoming request is wrapped so that header always
  * resolves to the JWT-derived tenant id, regardless of what the client sent.
+ *
+ * Real internal service-to-service callers (scheduled jobs with no end-user
+ * JWT — e.g. AssetDriftDetectionService, ComplianceService, IntegrationPollerService)
+ * carry no JwtAuthenticationToken at all, so the JWT-derived path above never
+ * runs for them. Without an explicit bypass here, TenantContext (which
+ * TenantAwareDataSource reads to set Postgres's RLS session GUC) is simply
+ * never set for those requests — RLS then silently returns zero rows even
+ * though RbacEnforcementFilter/InternalServiceKeyMatcher already let the
+ * request through. The X-Internal-Service-Key header (validated the same way
+ * as those two) is the trust boundary that makes it safe to derive the tenant
+ * straight from the caller-supplied X-Tenant-ID header instead of a JWT claim.
  */
 public class TenantContextFilter extends OncePerRequestFilter {
 
     public static final String TENANT_HEADER = "X-Tenant-ID";
+    public static final String INTERNAL_SERVICE_KEY_HEADER = "X-Internal-Service-Key";
 
     private final ObjectMapper objectMapper = new ObjectMapper();
+    private final String internalServiceKey;
+
+    public TenantContextFilter() {
+        this(null);
+    }
+
+    public TenantContextFilter(String internalServiceKey) {
+        this.internalServiceKey = internalServiceKey;
+    }
 
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
@@ -51,6 +72,18 @@ public class TenantContextFilter extends OncePerRequestFilter {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
 
         if (!(auth instanceof JwtAuthenticationToken jwtAuth)) {
+            if (isValidInternalServiceCall(request)) {
+                String tenantId = request.getHeader(TENANT_HEADER);
+                if (tenantId != null && !tenantId.isBlank()) {
+                    try {
+                        TenantContext.setTenantId(tenantId);
+                        filterChain.doFilter(request, response);
+                    } finally {
+                        TenantContext.clear();
+                    }
+                    return;
+                }
+            }
             // Not a JWT-authenticated request (permitAll actuator/health, WS handshake, etc).
             filterChain.doFilter(request, response);
             return;
@@ -97,6 +130,14 @@ public class TenantContextFilter extends OncePerRequestFilter {
         } finally {
             TenantContext.clear();
         }
+    }
+
+    private boolean isValidInternalServiceCall(HttpServletRequest request) {
+        if (internalServiceKey == null || internalServiceKey.isBlank()) {
+            return false;
+        }
+        String provided = request.getHeader(INTERNAL_SERVICE_KEY_HEADER);
+        return internalServiceKey.equals(provided);
     }
 
     @SuppressWarnings("unchecked")

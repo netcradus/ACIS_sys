@@ -61,6 +61,11 @@ spring:
 acis:
   ai-service:
     url: ${AI_SERVICE_URL:http://localhost:8090}
+  # Shared secret real internal service-to-service callers (no end-user JWT
+  # to present) attach as X-Internal-Service-Key — see
+  # InternalServiceKeyMatcher/RbacEnforcementFilter. Must be identical
+  # across every backend service.
+  internal-service-key: ${INTERNAL_SERVICE_KEY:local-dev-internal-key}
   mock-log-generator:
     # Synthetic demo log generator — off by default everywhere, including prod.
     # Only for local/demo environments with no real log sources wired up yet.

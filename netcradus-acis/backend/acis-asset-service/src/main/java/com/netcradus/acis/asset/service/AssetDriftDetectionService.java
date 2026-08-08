@@ -3,6 +3,7 @@ package com.netcradus.acis.asset.service;
 import com.netcradus.acis.asset.model.Asset;
 import com.netcradus.acis.asset.repository.AssetRepository;
 import com.netcradus.acis.common.audit.AuditEventPublisher;
+import com.netcradus.acis.common.tenant.TenantContext;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -39,14 +40,32 @@ public class AssetDriftDetectionService {
     @Value("${acis.alerts-service.url}")
     private String alertsServiceUrl;
 
+    @Value("${acis.internal-service-key}")
+    private String internalServiceKey;
+
     @Scheduled(fixedRateString = "${acis.drift-detection-interval-ms:300000}", initialDelay = 60000)
     public void detectDrift() {
-        for (String tenantId : assetRepository.findDistinctTenantIds()) {
+        for (String tenantId : findDistinctTenantIds()) {
             try {
                 detectDriftForTenant(tenantId);
             } catch (Exception e) {
                 log.warn("Drift detection failed for tenant {}: {}", tenantId, e.getMessage());
             }
+        }
+    }
+
+    /**
+     * Reads across all tenants — this scheduled sweep has no request/JWT of
+     * its own, so without this bypass RLS (which FORCEs even the table-owning
+     * connection role) would silently return zero tenants and the whole
+     * sweep would never run for anyone. See RlsConfig.enableAssetsRowLevelSecurity.
+     */
+    private List<String> findDistinctTenantIds() {
+        TenantContext.setSystemPollerInProgress(true);
+        try {
+            return assetRepository.findDistinctTenantIds();
+        } finally {
+            TenantContext.setSystemPollerInProgress(false);
         }
     }
 
@@ -56,6 +75,7 @@ public class AssetDriftDetectionService {
         try {
             HttpHeaders headers = new HttpHeaders();
             headers.set("X-Tenant-ID", tenantId);
+            headers.set("X-Internal-Service-Key", internalServiceKey);
             ResponseEntity<List> response = restTemplate.exchange(
                     alertsServiceUrl + "/api/alerts", HttpMethod.GET, new HttpEntity<>(headers), List.class);
             alerts = response.getBody();
@@ -76,17 +96,26 @@ public class AssetDriftDetectionService {
             return;
         }
 
-        for (Asset asset : assetRepository.findByTenantId(tenantId)) {
-            if (!"OK".equalsIgnoreCase(asset.getHealth()) || Boolean.TRUE.equals(asset.getIsolationStatus())) {
-                continue;
+        // This sweep's own local queries (findByTenantId/save) are subject to
+        // the same RLS as everything else — the scheduled thread has no
+        // tenant context until set explicitly here, mirroring
+        // IntegrationPollerService's per-tenant TenantContext.setTenantId pattern.
+        TenantContext.setTenantId(tenantId);
+        try {
+            for (Asset asset : assetRepository.findByTenantId(tenantId)) {
+                if (!"OK".equalsIgnoreCase(asset.getHealth()) || Boolean.TRUE.equals(asset.getIsolationStatus())) {
+                    continue;
+                }
+                boolean correlated = activeHighSeverity.stream().anyMatch(alert -> correlates(asset, alert));
+                if (correlated) {
+                    asset.setHealth("DEGRADED");
+                    assetRepository.save(asset);
+                    auditEventPublisher.publish("ASSET_DRIFT_DETECTED", "asset/" + asset.getId(),
+                            "marked DEGRADED: correlated with an active high-severity alert");
+                }
             }
-            boolean correlated = activeHighSeverity.stream().anyMatch(alert -> correlates(asset, alert));
-            if (correlated) {
-                asset.setHealth("DEGRADED");
-                assetRepository.save(asset);
-                auditEventPublisher.publish("ASSET_DRIFT_DETECTED", "asset/" + asset.getId(),
-                        "marked DEGRADED: correlated with an active high-severity alert");
-            }
+        } finally {
+            TenantContext.clear();
         }
     }
 

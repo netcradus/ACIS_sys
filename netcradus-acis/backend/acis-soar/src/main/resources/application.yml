@@ -67,6 +67,12 @@ acis:
     realm: ${KEYCLOAK_REALM:acis}
     admin-client-id: acis-backend
     admin-client-secret: ${KEYCLOAK_BACKEND_CLIENT_SECRET:acis-backend-secret}
+  # Shared secret real internal service-to-service callers (no end-user JWT
+  # to present — ComplianceService.fetchAssetManagementSignal,
+  # IntegrationPollerService.forwardIndicators) attach as
+  # X-Internal-Service-Key — see InternalServiceKeyMatcher/
+  # RbacEnforcementFilter. Must be identical across every backend service.
+  internal-service-key: ${INTERNAL_SERVICE_KEY:local-dev-internal-key}
   mail:
     from-email: ${MAIL_FROM_EMAIL:info@netcradus.com}
     from-name: ${MAIL_FROM_NAME:ACIS Security}

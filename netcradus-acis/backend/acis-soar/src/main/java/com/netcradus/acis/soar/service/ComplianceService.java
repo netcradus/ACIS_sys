@@ -48,6 +48,9 @@ public class ComplianceService {
     @Value("${acis.asset-service.url}")
     private String assetServiceUrl;
 
+    @Value("${acis.internal-service-key}")
+    private String internalServiceKey;
+
     private final RestTemplate restTemplate = new RestTemplate();
 
     public List<ComplianceFramework> getFrameworks(UUID tenantId) {
@@ -127,6 +130,7 @@ public class ComplianceService {
         try {
             HttpHeaders headers = new HttpHeaders();
             headers.set("X-Tenant-ID", tenantId.toString());
+            headers.set("X-Internal-Service-Key", internalServiceKey);
             ResponseEntity<List> response = restTemplate.exchange(
                     assetServiceUrl + "/api/assets", HttpMethod.GET, new HttpEntity<>(headers), List.class);
             List<Map<String, Object>> assets = response.getBody();
