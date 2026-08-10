@@ -1,8 +1,36 @@
 import React, { useEffect, useState, useMemo } from 'react'
-import { Play, Edit2, Clock, CheckCircle2, XCircle, ChevronRight, Zap, Target, Shield, Server, Plus, MoreHorizontal, Activity, Search, X } from 'lucide-react'
+import { Play, Edit2, Clock, CheckCircle2, XCircle, ChevronRight, Zap, Target, Shield, Server, Plus, MoreHorizontal, Activity, Search, X, GripVertical, Trash2 } from 'lucide-react'
 import { clsx } from 'clsx'
 import apiClient from '@/lib/apiClient'
 import { useCanWrite, MODULES } from '@/store/permissionsStore'
+import StepExecutionTimeline, { type ExecutionStep, type StepStatus } from '@/components/viz/StepExecutionTimeline'
+import ConfirmDialog from '@/components/ui/ConfirmDialog'
+
+/** Maps PlaybookService's real status strings ("Success"/"Failed"/"Skipped") to StepExecutionTimeline's normalized union. */
+function normalizeSoarStatus(raw: string | undefined): StepStatus {
+  const s = (raw || '').toLowerCase()
+  if (s === 'success' || s === 'completed') return 'success'
+  if (s === 'failed') return 'failed'
+  if (s === 'skipped') return 'skipped'
+  if (s === 'running') return 'running'
+  return 'pending'
+}
+
+/** Parses an execution's real stepLogs JSON ({step, status, message, timestamp}[]) into ExecutionStep[] — same wire format PlaybookService already writes, just normalized for the shared timeline component. */
+function parseSoarSteps(stepLogsJson: string): ExecutionStep[] {
+  try {
+    const parsed = JSON.parse(stepLogsJson)
+    if (!Array.isArray(parsed)) return []
+    return parsed.map((s: any) => ({
+      name: s.step || s.name || 'Step',
+      status: normalizeSoarStatus(s.status),
+      timestamp: s.timestamp ? new Date(s.timestamp).toLocaleTimeString() : undefined,
+      output: s.message || undefined,
+    }))
+  } catch {
+    return []
+  }
+}
 
 interface Playbook {
   id: string
@@ -38,8 +66,14 @@ export default function SoarPage() {
   // Form states for New/Edit Playbook
   const [newPbName, setNewPbName] = useState('')
   const [newPbDesc, setNewPbDesc] = useState('')
-  const [newPbSteps, setNewPbSteps] = useState('')
+  const [newPbStepsList, setNewPbStepsList] = useState<string[]>([''])
   const [editingPlaybookId, setEditingPlaybookId] = useState<string | null>(null)
+
+  // Run Playbook can genuinely execute real remediation steps (isolation,
+  // containment) — gated behind a real confirm dialog instead of firing on
+  // the first click.
+  const [confirmingRunPlaybookId, setConfirmingRunPlaybookId] = useState<string | null>(null)
+  const [runBusy, setRunBusy] = useState(false)
 
   const fetchData = async () => {
     try {
@@ -73,23 +107,29 @@ export default function SoarPage() {
   }, [])
 
   const handleRunPlaybook = async (pbId: string) => {
+    setRunBusy(true)
     try {
       await apiClient.post(`/api/soar/playbooks/${pbId}/execute`)
-      // Refresh immediately
       fetchData()
-      alert("SOAR Playbook started. It will process async tasks and update the execution queue in real-time.")
     } catch (err) {
       console.error("Failed to trigger playbook:", err)
+    } finally {
+      setRunBusy(false)
+      setConfirmingRunPlaybookId(null)
     }
   }
 
   const handleSubmitPlaybook = async (e: React.FormEvent) => {
     e.preventDefault()
     try {
+      const cleanSteps = newPbStepsList.map(s => s.trim()).filter(Boolean)
       const payload = {
         name: newPbName,
         description: newPbDesc,
-        steps: JSON.stringify(newPbSteps.split(',').map(s => ({ step: s.trim(), status: 'Completed' }))),
+        // Same wire format PlaybookService already reads — a JSON array of
+        // {step, status}. `status` here is a template placeholder (real
+        // per-run status lives in an Execution's own stepLogs, not here).
+        steps: JSON.stringify(cleanSteps.map(step => ({ step, status: 'Completed' }))),
         enabled: true,
         successCount: 0,
         runCount: 0
@@ -111,7 +151,7 @@ export default function SoarPage() {
     setEditingPlaybookId(null)
     setNewPbName('')
     setNewPbDesc('')
-    setNewPbSteps('')
+    setNewPbStepsList([''])
     setIsModalOpen(true)
   }
 
@@ -119,13 +159,34 @@ export default function SoarPage() {
     setEditingPlaybookId(pb.id)
     setNewPbName(pb.name)
     setNewPbDesc(pb.description)
-    setNewPbSteps(getStepNames(pb.steps).join(', '))
+    const names = getStepNames(pb.steps)
+    setNewPbStepsList(names.length > 0 ? names : [''])
     setIsModalOpen(true)
   }
 
   const closePlaybookModal = () => {
     setIsModalOpen(false)
     setEditingPlaybookId(null)
+  }
+
+  // Multi-step builder helpers — replaces the single comma-separated
+  // textarea with real add/remove/reorder controls over the same
+  // {step, status}[] JSON wire format.
+  const updateStepAt = (index: number, value: string) => {
+    setNewPbStepsList(prev => prev.map((s, i) => (i === index ? value : s)))
+  }
+  const addStep = () => setNewPbStepsList(prev => [...prev, ''])
+  const removeStep = (index: number) => {
+    setNewPbStepsList(prev => (prev.length > 1 ? prev.filter((_, i) => i !== index) : prev))
+  }
+  const moveStep = (index: number, direction: -1 | 1) => {
+    setNewPbStepsList(prev => {
+      const target = index + direction
+      if (target < 0 || target >= prev.length) return prev
+      const next = [...prev]
+      ;[next[index], next[target]] = [next[target], next[index]]
+      return next
+    })
   }
 
   /** Real step names parsed from the playbook's own stored steps JSON — replaces a hardcoded per-name lookup that only covered 3 fixed playbook names and silently fell back to generic placeholder text for anything else, including every user-created playbook. */
@@ -273,7 +334,7 @@ export default function SoarPage() {
               {/* Action Buttons */}
               <div className="grid grid-cols-2 gap-2 mt-4">
                 <button
-                  onClick={() => handleRunPlaybook(pb.id)}
+                  onClick={() => setConfirmingRunPlaybookId(pb.id)}
                   disabled={!canWrite}
                   title={!canWrite ? "Your role doesn't have write access to SOAR Playbooks" : undefined}
                   className="btn-fire py-2 text-small disabled:opacity-50 disabled:cursor-not-allowed"
@@ -366,16 +427,10 @@ export default function SoarPage() {
           <h4 className="text-label text-text-muted uppercase">
             Execution Detail — {getPlaybookName(selectedExecution.playbookId)} ({formatTimeElapsed(selectedExecution.startedAt)})
           </h4>
-          <div className="bg-surface border border-fire-border rounded-lg p-4 font-mono text-small text-text-secondary overflow-x-auto whitespace-pre leading-relaxed border-l-2 border-l-accent">
-            {(() => {
-              try {
-                const logs = JSON.parse(selectedExecution.stepLogs)
-                return JSON.stringify(logs, null, 2)
-              } catch (e) {
-                return selectedExecution.stepLogs
-              }
-            })()}
-          </div>
+          <StepExecutionTimeline
+            steps={parseSoarSteps(selectedExecution.stepLogs)}
+            mode={selectedExecution.status === 'running' ? 'live' : 'historical'}
+          />
         </div>
       )}
 
@@ -418,15 +473,56 @@ export default function SoarPage() {
               </div>
 
               <div className="space-y-1">
-                <label className="text-label text-text-muted uppercase block">Playbook Steps (comma-separated)</label>
-                <textarea
-                  required
-                  rows={4}
-                  placeholder="e.g. Identify target port, Disable port via SSH, Log activity payload"
-                  value={newPbSteps}
-                  onChange={(e) => setNewPbSteps(e.target.value)}
-                  className="input-field"
-                />
+                <label className="text-label text-text-muted uppercase block">Playbook Steps</label>
+                <div className="space-y-2">
+                  {newPbStepsList.map((step, idx) => (
+                    <div key={idx} className="flex items-center gap-1.5">
+                      <GripVertical className="w-3.5 h-3.5 text-text-muted shrink-0" />
+                      <input
+                        type="text"
+                        required
+                        placeholder={`Step ${idx + 1} — e.g. Disable port via SSH`}
+                        value={step}
+                        onChange={(e) => updateStepAt(idx, e.target.value)}
+                        className="input-field flex-1"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => moveStep(idx, -1)}
+                        disabled={idx === 0}
+                        className="text-text-muted hover:text-text-primary disabled:opacity-30 disabled:cursor-not-allowed transition-colors px-1"
+                        title="Move up"
+                      >
+                        <ChevronRight className="w-3.5 h-3.5 -rotate-90" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => moveStep(idx, 1)}
+                        disabled={idx === newPbStepsList.length - 1}
+                        className="text-text-muted hover:text-text-primary disabled:opacity-30 disabled:cursor-not-allowed transition-colors px-1"
+                        title="Move down"
+                      >
+                        <ChevronRight className="w-3.5 h-3.5 rotate-90" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => removeStep(idx)}
+                        disabled={newPbStepsList.length === 1}
+                        className="text-text-muted hover:text-danger disabled:opacity-30 disabled:cursor-not-allowed transition-colors px-1"
+                        title="Remove step"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  ))}
+                  <button
+                    type="button"
+                    onClick={addStep}
+                    className="btn-mission py-1.5 px-3 text-small flex items-center gap-1.5"
+                  >
+                    <Plus className="w-3.5 h-3.5" /> Add Step
+                  </button>
+                </div>
               </div>
 
               <div className="flex items-center justify-end gap-3 pt-3 border-t border-fire-border mt-4">
@@ -448,6 +544,16 @@ export default function SoarPage() {
           </div>
         </div>
       )}
+
+      <ConfirmDialog
+        open={!!confirmingRunPlaybookId}
+        title="Run Playbook"
+        message={`This will execute "${confirmingRunPlaybookId ? getPlaybookName(confirmingRunPlaybookId) : ''}" now, running its real automated response steps against live targets. Continue?`}
+        confirmLabel="Run Playbook"
+        busy={runBusy}
+        onConfirm={() => confirmingRunPlaybookId && handleRunPlaybook(confirmingRunPlaybookId)}
+        onCancel={() => setConfirmingRunPlaybookId(null)}
+      />
 
     </div>
   )

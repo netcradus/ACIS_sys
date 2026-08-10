@@ -23,6 +23,9 @@ import { clsx } from 'clsx'
 import { useCanWrite, MODULES } from '@/store/permissionsStore'
 import apiClient from '@/lib/apiClient'
 import { useNavigate } from 'react-router-dom'
+import HeatmapGrid from '@/components/viz/HeatmapGrid'
+import StepExecutionTimeline, { type ExecutionStep, type StepStatus } from '@/components/viz/StepExecutionTimeline'
+import ConfirmDialog from '@/components/ui/ConfirmDialog'
 
 interface Simulation {
   id: string
@@ -71,6 +74,25 @@ function parseStepLogs(stepLogsJson: string): StepLogEntry[] {
   }
 }
 
+/** Maps RedTeamService's real status strings (lowercase "success"/"failed"/etc.) to StepExecutionTimeline's normalized union — a different shape/casing than SOAR's stepLogs, so normalized separately. */
+function normalizeRedTeamStatus(raw: string): StepStatus {
+  const s = (raw || '').toLowerCase()
+  if (s === 'success' || s === 'completed') return 'success'
+  if (s === 'failed') return 'failed'
+  if (s === 'skipped') return 'skipped'
+  if (s === 'running') return 'running'
+  return 'pending'
+}
+
+function parseExecutionSteps(stepLogsJson: string): ExecutionStep[] {
+  return parseStepLogs(stepLogsJson).map((s) => ({
+    name: s.name,
+    status: normalizeRedTeamStatus(s.status),
+    timestamp: s.timestamp ? new Date(s.timestamp).toLocaleTimeString() : undefined,
+    output: s.technique || undefined,
+  }))
+}
+
 function parseSteps(stepsJson: string) {
   try {
     const parsed = JSON.parse(stepsJson)
@@ -114,6 +136,11 @@ export default function RedTeamPage() {
   const [loading, setLoading] = useState(true)
   const [query, setQuery] = useState('')
   const [startingId, setStartingId] = useState<string | null>(null)
+  const [selectedExecutionId, setSelectedExecutionId] = useState<string | null>(null)
+  // Starting a simulation genuinely triggers real attack emulation against
+  // live targets — gated behind a confirm dialog instead of firing on the
+  // first click, matching the pattern used for Run Playbook in SoarPage.
+  const [confirmingStartId, setConfirmingStartId] = useState<string | null>(null)
   const navigate = useNavigate()
 
   const fetchSimulations = async () => {
@@ -155,6 +182,7 @@ export default function RedTeamPage() {
       console.error(err)
     } finally {
       setStartingId(null)
+      setConfirmingStartId(null)
     }
   }
 
@@ -251,6 +279,9 @@ export default function RedTeamPage() {
         }
       })
   }, [executions, filteredSimulations])
+
+  const selectedExecution = executions.find((e) => e.id === selectedExecutionId)
+    || (executionHistory.length > 0 ? executions.find((e) => e.id === executionHistory[0].id) : undefined)
 
   return (
     <div className="space-y-6 animate-fade-in pb-12">
@@ -433,7 +464,7 @@ export default function RedTeamPage() {
 
                     <div className="grid grid-cols-2 gap-3 pt-1">
                       <button
-                        onClick={() => startSimulation(simulation.id)}
+                        onClick={() => setConfirmingStartId(simulation.id)}
                         disabled={startingId === simulation.id || !canWrite}
                         title={!canWrite ? "Your role doesn't have write access to SOAR Playbooks" : undefined}
                         className="btn-fire justify-center py-3 text-small disabled:cursor-wait disabled:opacity-50 disabled:cursor-not-allowed"
@@ -475,33 +506,29 @@ export default function RedTeamPage() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-5">
-                {matrixCells.map((cell) => (
-                  <div
-                    key={cell.id}
-                    className={clsx(
-                      'group flex min-h-[88px] flex-col justify-end rounded-lg border px-3 py-3 transition-transform duration-200 hover:-translate-y-0.5',
+              {matrixCells.length === 0 ? (
+                <div className="col-span-full py-6 text-center text-label text-text-muted uppercase">
+                  No MITRE techniques declared on any simulation yet
+                </div>
+              ) : (
+                <HeatmapGrid
+                  items={matrixCells}
+                  getId={(cell) => cell.id}
+                  getLabel={(cell) => cell.label}
+                  getTooltip={(cell) => `${cell.label} — ${cell.state === 'executed' ? 'Executed' : cell.state === 'running' ? 'Running' : 'Declared'}`}
+                  getColorClass={(cell) =>
+                    clsx(
+                      'min-h-[88px] flex flex-col justify-end',
                       cell.state === 'executed'
                         ? 'border-success/30 bg-success/15 text-success'
                         : cell.state === 'running'
                           ? 'border-info/30 bg-info/15 text-info'
                           : 'border-warning/30 bg-warning/15 text-warning'
-                    )}
-                  >
-                    <span className="text-label uppercase opacity-70">
-                      {cell.state === 'executed' ? 'Executed' : cell.state === 'running' ? 'Running' : 'Declared'}
-                    </span>
-                    <span className="mt-1 text-label uppercase leading-tight">
-                      {cell.label}
-                    </span>
-                  </div>
-                ))}
-                {matrixCells.length === 0 && (
-                  <div className="col-span-full py-6 text-center text-label text-text-muted uppercase">
-                    No MITRE techniques declared on any simulation yet
-                  </div>
-                )}
-              </div>
+                    )
+                  }
+                  columns={5}
+                />
+              )}
             </div>
 
             <div className="card-mission">
@@ -530,7 +557,11 @@ export default function RedTeamPage() {
                   </thead>
                   <tbody>
                     {executionHistory.map((row) => (
-                      <tr key={row.id}>
+                      <tr
+                        key={row.id}
+                        onClick={() => setSelectedExecutionId(row.id)}
+                        className={clsx('cursor-pointer', selectedExecutionId === row.id ? 'bg-surface-3' : '')}
+                      >
                         <td className="font-semibold text-text-primary">{row.simulation}</td>
                         <td>
                           <span
@@ -564,6 +595,18 @@ export default function RedTeamPage() {
               </div>
             </div>
           </section>
+
+          {selectedExecution && (
+            <div className="card-mission space-y-3">
+              <h4 className="text-label text-text-muted uppercase">
+                Execution Detail — {selectedExecution.simulationName} ({formatWhen(selectedExecution.startedAt)})
+              </h4>
+              <StepExecutionTimeline
+                steps={parseExecutionSteps(selectedExecution.stepLogs)}
+                mode={selectedExecution.status === 'running' ? 'live' : 'historical'}
+              />
+            </div>
+          )}
         </>
       )}
 
@@ -572,6 +615,16 @@ export default function RedTeamPage() {
           No simulations match the current search.
         </div>
       )}
+
+      <ConfirmDialog
+        open={!!confirmingStartId}
+        title="Start Simulation"
+        message={`This will launch a real attack emulation run for "${simulations.find((s) => s.id === confirmingStartId)?.name || ''}" against the configured targets. Continue?`}
+        confirmLabel="Start Simulation"
+        busy={startingId === confirmingStartId}
+        onConfirm={() => confirmingStartId && startSimulation(confirmingStartId)}
+        onCancel={() => setConfirmingStartId(null)}
+      />
     </div>
   )
 }

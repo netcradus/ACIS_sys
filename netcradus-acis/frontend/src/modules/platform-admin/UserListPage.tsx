@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { AgGridReact } from 'ag-grid-react'
-import { ColDef } from 'ag-grid-community'
+import { ColDef, ICellRendererParams } from 'ag-grid-community'
 import { Search, Plus, X, Loader2 } from 'lucide-react'
 import { clsx } from 'clsx'
 import { listUsers, createUser, listTenants, PlatformUser, Tenant, ALL_REALM_ROLES } from '@/lib/platformAdminApi'
@@ -19,6 +19,38 @@ function StatusBadge({ enabled }: { enabled: boolean }) {
       )}
     >
       {enabled ? 'ACTIVE' : 'DISABLED'}
+    </span>
+  )
+}
+
+// Real named components, not inline arrow functions — see TenantListPage.tsx
+// for why this matters (ag-grid-react only mounts a cellRenderer through
+// React's own reconciler when it's a real component reference).
+function UserCell(params: ICellRendererParams) {
+  return (
+    <div className="leading-tight">
+      <div className="font-semibold text-text-primary">{params.value}</div>
+      <div className="text-label text-text-muted">{params.data.email || '—'}</div>
+    </div>
+  )
+}
+function TenantCell(params: ICellRendererParams) {
+  return <span className="text-text-secondary">{params.value || '—'}</span>
+}
+function RolesCell(params: ICellRendererParams) {
+  return (
+    <span className="text-text-muted text-small">
+      {(params.value || []).filter((r: string) => r !== 'default-roles-acis' && r !== 'offline_access' && r !== 'uma_authorization').join(', ') || '—'}
+    </span>
+  )
+}
+function EnabledCell(params: ICellRendererParams) {
+  return <StatusBadge enabled={params.value} />
+}
+function MfaCell(params: ICellRendererParams) {
+  return (
+    <span className={clsx('text-label uppercase', params.value ? 'text-success' : 'text-text-muted')}>
+      {params.value ? 'ON' : 'OFF'}
     </span>
   )
 }
@@ -78,49 +110,11 @@ export default function UserListPage() {
 
   const columnDefs = useMemo<ColDef[]>(
     () => [
-      {
-        field: 'username',
-        headerName: 'USER',
-        flex: 2,
-        cellRenderer: (params: any) => (
-          <div className="leading-tight">
-            <div className="font-semibold text-text-primary">{params.value}</div>
-            <div className="text-label text-text-muted">{params.data.email || '—'}</div>
-          </div>
-        ),
-      },
-      {
-        field: 'tenantName',
-        headerName: 'TENANT',
-        flex: 1,
-        cellRenderer: (params: any) => <span className="text-text-secondary">{params.value || '—'}</span>,
-      },
-      {
-        field: 'roles',
-        headerName: 'ROLES',
-        flex: 1.5,
-        cellRenderer: (params: any) => (
-          <span className="text-text-muted text-small">
-            {(params.value || []).filter((r: string) => r !== 'default-roles-acis' && r !== 'offline_access' && r !== 'uma_authorization').join(', ') || '—'}
-          </span>
-        ),
-      },
-      {
-        field: 'enabled',
-        headerName: 'STATUS',
-        flex: 1,
-        cellRenderer: (params: any) => <StatusBadge enabled={params.value} />,
-      },
-      {
-        field: 'totp',
-        headerName: 'MFA',
-        flex: 0.7,
-        cellRenderer: (params: any) => (
-          <span className={clsx('text-label uppercase', params.value ? 'text-success' : 'text-text-muted')}>
-            {params.value ? 'ON' : 'OFF'}
-          </span>
-        ),
-      },
+      { field: 'username', headerName: 'USER', flex: 2, cellRenderer: UserCell },
+      { field: 'tenantName', headerName: 'TENANT', flex: 1, cellRenderer: TenantCell },
+      { field: 'roles', headerName: 'ROLES', flex: 1.5, cellRenderer: RolesCell },
+      { field: 'enabled', headerName: 'STATUS', flex: 1, cellRenderer: EnabledCell },
+      { field: 'totp', headerName: 'MFA', flex: 0.7, cellRenderer: MfaCell },
     ],
     []
   )

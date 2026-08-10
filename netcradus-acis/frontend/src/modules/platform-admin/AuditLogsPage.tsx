@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, useCallback } from 'react'
 import { AgGridReact } from 'ag-grid-react'
-import { ColDef } from 'ag-grid-community'
+import { ColDef, ICellRendererParams } from 'ag-grid-community'
 import { Search, Download, X, Loader2, FileText, RefreshCw, FileSpreadsheet } from 'lucide-react'
 import { clsx } from 'clsx'
 import {
@@ -15,6 +15,49 @@ import {
 } from '@/lib/platformAdminApi'
 import { usePlatformToastStore } from '@/store/platformToastStore'
 import keycloak from '@/lib/keycloak'
+
+// Real named components, not inline arrow functions — see
+// TenantListPage.tsx for why this matters. ViewCell needs setDetailEvent,
+// which isn't in scope for a module-level component, so it's read from AG
+// Grid's `context` prop instead (see AuditGridContext / <AgGridReact context=.../>).
+interface AuditGridContext {
+  onViewDetail: (event: AuditEvent) => void
+}
+
+function TimeCell(p: ICellRendererParams) {
+  return <span className="text-small text-text-secondary">{p.value ? new Date(p.value).toLocaleString() : ''}</span>
+}
+function AdminCell(p: ICellRendererParams) {
+  return <span className="text-small text-text-primary font-semibold">{p.value}</span>
+}
+function ActionCell(p: ICellRendererParams) {
+  return (
+    <span className="text-label px-2 py-0.5 rounded bg-accent-pa/10 text-accent-pa">
+      {(p.value || '').replace(/_/g, ' ')}
+    </span>
+  )
+}
+function TargetCell(p: ICellRendererParams) {
+  return <span className="text-small text-text-secondary">{p.value || '—'}</span>
+}
+function TenantCell(p: ICellRendererParams) {
+  return <span className="text-small text-text-secondary">{p.value || '—'}</span>
+}
+function AuditStatusCell(p: ICellRendererParams) {
+  return (
+    <span className={clsx('text-label px-2 py-0.5 rounded', p.value === 'SUCCESS' ? 'bg-success/10 text-success' : 'bg-danger/10 text-danger')}>
+      {p.value}
+    </span>
+  )
+}
+function ViewCell(p: ICellRendererParams) {
+  const context = p.context as AuditGridContext | undefined
+  return (
+    <button onClick={() => context?.onViewDetail(p.data)} className="text-label text-accent-pa hover:underline font-semibold">
+      View
+    </button>
+  )
+}
 
 export default function AuditLogsPage() {
   const showToast = usePlatformToastStore((s) => s.show)
@@ -91,45 +134,16 @@ export default function AuditLogsPage() {
   const totalPages = Math.ceil(totalElements / size)
 
   const columnDefs = useMemo<ColDef[]>(() => [
-    {
-      field: 'timestamp', headerName: 'TIME', flex: 1.2,
-      cellRenderer: (p: any) => <span className="text-small text-text-secondary">{p.value ? new Date(p.value).toLocaleString() : ''}</span>
-    },
-    {
-      field: 'adminUsername', headerName: 'ADMIN', flex: 1,
-      cellRenderer: (p: any) => <span className="text-small text-text-primary font-semibold">{p.value}</span>
-    },
-    {
-      field: 'action', headerName: 'ACTION', flex: 1.2,
-      cellRenderer: (p: any) => (
-        <span className="text-label px-2 py-0.5 rounded bg-accent-pa/10 text-accent-pa">
-          {(p.value || '').replace(/_/g, ' ')}
-        </span>
-      )
-    },
-    {
-      field: 'targetUsername', headerName: 'TARGET', flex: 1,
-      cellRenderer: (p: any) => <span className="text-small text-text-secondary">{p.value || '—'}</span>
-    },
-    {
-      field: 'tenantName', headerName: 'TENANT', flex: 0.8,
-      cellRenderer: (p: any) => <span className="text-small text-text-secondary">{p.value || '—'}</span>
-    },
-    {
-      field: 'status', headerName: 'STATUS', flex: 0.6,
-      cellRenderer: (p: any) => (
-        <span className={clsx('text-label px-2 py-0.5 rounded',
-          p.value === 'SUCCESS' ? 'bg-success/10 text-success' : 'bg-danger/10 text-danger'
-        )}>{p.value}</span>
-      )
-    },
-    {
-      headerName: '', width: 60,
-      cellRenderer: (p: any) => (
-        <button onClick={() => setDetailEvent(p.data)} className="text-label text-accent-pa hover:underline font-semibold">View</button>
-      )
-    },
+    { field: 'timestamp', headerName: 'TIME', flex: 1.2, cellRenderer: TimeCell },
+    { field: 'adminUsername', headerName: 'ADMIN', flex: 1, cellRenderer: AdminCell },
+    { field: 'action', headerName: 'ACTION', flex: 1.2, cellRenderer: ActionCell },
+    { field: 'targetUsername', headerName: 'TARGET', flex: 1, cellRenderer: TargetCell },
+    { field: 'tenantName', headerName: 'TENANT', flex: 0.8, cellRenderer: TenantCell },
+    { field: 'status', headerName: 'STATUS', flex: 0.6, cellRenderer: AuditStatusCell },
+    { headerName: '', width: 60, cellRenderer: ViewCell },
   ], [])
+
+  const gridContext = useMemo<AuditGridContext>(() => ({ onViewDetail: setDetailEvent }), [])
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -188,6 +202,7 @@ export default function AuditLogsPage() {
           <AgGridReact
             rowData={events}
             columnDefs={columnDefs}
+            context={gridContext}
             defaultColDef={{ sortable: true, resizable: true }}
             domLayout="normal"
             rowHeight={44}

@@ -3,6 +3,7 @@ import { Server, Cpu, Shield, ShieldAlert, ShieldCheck, Activity, RefreshCw, Sea
 import { clsx } from 'clsx'
 import apiClient from '@/lib/apiClient'
 import { useCanWrite, MODULES } from '@/store/permissionsStore'
+import ConfirmDialog from '@/components/ui/ConfirmDialog'
 
 interface Asset {
   id: string
@@ -36,6 +37,13 @@ export default function EndpointsPage() {
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
   const [processingId, setProcessingId] = useState<string | null>(null)
+
+  // Isolate/Release/Rollback genuinely change an endpoint's live containment
+  // state — gated behind a real confirm dialog instead of firing on the
+  // first click, matching the pattern already used in AssetsPage/AlertsPage.
+  const [confirmTarget, setConfirmTarget] = useState<{ id: string; action: 'isolate' | 'release' | 'rollback' } | null>(null)
+  const [confirmingRollbackAll, setConfirmingRollbackAll] = useState(false)
+  const [rollbackAllBusy, setRollbackAllBusy] = useState(false)
 
   const fetchEndpoints = async () => {
     try {
@@ -97,6 +105,7 @@ export default function EndpointsPage() {
       console.error(err)
     } finally {
       setProcessingId(null)
+      setConfirmTarget(null)
     }
   }
 
@@ -114,6 +123,7 @@ export default function EndpointsPage() {
       console.error(err)
     } finally {
       setProcessingId(null)
+      setConfirmTarget(null)
     }
   }
 
@@ -132,17 +142,24 @@ export default function EndpointsPage() {
       console.error(err)
     } finally {
       setProcessingId(null)
+      setConfirmTarget(null)
     }
+  }
+
+  const confirmTargetEndpoint = confirmTarget ? endpoints.find(ep => ep.id === confirmTarget.id) : undefined
+
+  const runConfirmedAction = () => {
+    if (!confirmTarget) return
+    if (confirmTarget.action === 'isolate') handleIsolate(confirmTarget.id)
+    else if (confirmTarget.action === 'release') handleRelease(confirmTarget.id)
+    else handleRollback(confirmTarget.id)
   }
 
   // Rollback All Pending
   const handleRollbackAll = async () => {
     const pending = endpoints.filter(ep => ep.health === 'DEGRADED')
-    if (pending.length === 0) {
-      alert("No endpoints currently pending rollback.")
-      return
-    }
-    setLoading(true)
+    if (pending.length === 0) return
+    setRollbackAllBusy(true)
     try {
       await Promise.all(
         pending.map(ep =>
@@ -157,7 +174,8 @@ export default function EndpointsPage() {
     } catch (e) {
       console.error(e)
     } finally {
-      setLoading(false)
+      setRollbackAllBusy(false)
+      setConfirmingRollbackAll(false)
     }
   }
 
@@ -216,8 +234,10 @@ export default function EndpointsPage() {
             <p className="text-label text-text-muted mt-1 uppercase">Auto-isolation • rollback • policy drift repair</p>
           </div>
           <button
-            onClick={handleRollbackAll}
-            className="btn-fire text-small py-2 px-4"
+            onClick={() => setConfirmingRollbackAll(true)}
+            disabled={pendingRollbackCount === 0 || !canWrite}
+            title={!canWrite ? "Your role doesn't have write access to Assets & Threat Intel" : pendingRollbackCount === 0 ? 'No endpoints currently pending rollback' : undefined}
+            className="btn-fire text-small py-2 px-4 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             Rollback All Pending
           </button>
@@ -286,7 +306,7 @@ export default function EndpointsPage() {
                       <div className="flex items-center justify-end gap-2">
                         {isIsolated ? (
                           <button
-                            onClick={() => handleRelease(ep.id)}
+                            onClick={() => setConfirmTarget({ id: ep.id, action: 'release' })}
                             disabled={processingId === ep.id || !canWrite}
                             title={!canWrite ? "Your role doesn't have write access to Assets & Threat Intel" : undefined}
                             className="border border-success/30 bg-success/10 hover:bg-success/20 text-success font-semibold px-3 py-1.5 rounded-lg text-label uppercase transition-colors focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
@@ -295,7 +315,7 @@ export default function EndpointsPage() {
                           </button>
                         ) : ep.health === 'DEGRADED' ? (
                           <button
-                            onClick={() => handleRollback(ep.id)}
+                            onClick={() => setConfirmTarget({ id: ep.id, action: 'rollback' })}
                             disabled={processingId === ep.id || !canWrite}
                             title={!canWrite ? "Your role doesn't have write access to Assets & Threat Intel" : undefined}
                             className="border border-severity-high/30 bg-severity-high/10 hover:bg-severity-high/20 text-severity-high font-semibold px-3 py-1.5 rounded-lg text-label uppercase transition-colors focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
@@ -304,7 +324,7 @@ export default function EndpointsPage() {
                           </button>
                         ) : (
                           <button
-                            onClick={() => handleIsolate(ep.id)}
+                            onClick={() => setConfirmTarget({ id: ep.id, action: 'isolate' })}
                             disabled={processingId === ep.id || !canWrite}
                             title={!canWrite ? "Your role doesn't have write access to Assets & Threat Intel" : undefined}
                             className="border border-danger/30 bg-danger/10 hover:bg-danger/20 text-danger font-semibold px-3 py-1.5 rounded-lg text-label uppercase transition-colors focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
@@ -328,6 +348,37 @@ export default function EndpointsPage() {
           </table>
         </div>
       </div>
+
+      <ConfirmDialog
+        open={!!confirmTarget}
+        title={
+          confirmTarget?.action === 'isolate' ? 'Isolate Endpoint'
+          : confirmTarget?.action === 'release' ? 'Release Endpoint'
+          : 'Clear & Restore Endpoint'
+        }
+        message={
+          confirmTarget?.action === 'isolate'
+            ? `This will quarantine "${confirmTargetEndpoint?.name || ''}" and cut it off from the network. Continue?`
+            : confirmTarget?.action === 'release'
+              ? `This will release "${confirmTargetEndpoint?.name || ''}" from quarantine and restore normal network access. Continue?`
+              : `This will clear the DEGRADED flag on "${confirmTargetEndpoint?.name || ''}" and restore it to healthy status. Continue?`
+        }
+        confirmLabel={confirmTarget?.action === 'isolate' ? 'Isolate' : confirmTarget?.action === 'release' ? 'Release' : 'Clear & Restore'}
+        danger={confirmTarget?.action === 'isolate'}
+        busy={processingId === confirmTarget?.id}
+        onConfirm={runConfirmedAction}
+        onCancel={() => setConfirmTarget(null)}
+      />
+
+      <ConfirmDialog
+        open={confirmingRollbackAll}
+        title="Rollback All Pending"
+        message={`This will clear the DEGRADED flag on all ${pendingRollbackCount} endpoint(s) currently pending rollback and restore them to healthy status. Continue?`}
+        confirmLabel="Rollback All"
+        busy={rollbackAllBusy}
+        onConfirm={handleRollbackAll}
+        onCancel={() => setConfirmingRollbackAll(false)}
+      />
 
     </div>
   )

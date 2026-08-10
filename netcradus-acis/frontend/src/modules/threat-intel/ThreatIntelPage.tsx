@@ -2,6 +2,8 @@ import React, { useState, useEffect, useMemo } from 'react'
 import { Globe, ShieldAlert, Skull, AlertTriangle, ShieldCheck, Database, Clock } from 'lucide-react'
 import { clsx } from 'clsx'
 import apiClient from '@/lib/apiClient'
+import SeverityBadge, { toSeverity } from '@/components/viz/SeverityBadge'
+import PivotChip from '@/components/ui/PivotChip'
 
 /** Simple, real client-side IOC type detection — no backend round-trip needed for this. */
 function detectIocType(value: string): string {
@@ -10,15 +12,6 @@ function detectIocType(value: string): string {
   if (/^[a-fA-F0-9]{32}$|^[a-fA-F0-9]{40}$|^[a-fA-F0-9]{64}$/.test(v)) return 'HASH'
   if (/^[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(v)) return 'DOMAIN'
   return 'UNKNOWN'
-}
-
-function severityBadgeClasses(severity: string | undefined) {
-  switch (severity) {
-    case 'CRITICAL': return 'bg-danger/10 text-danger border-danger/30'
-    case 'HIGH': return 'bg-danger/10 text-danger border-danger/30'
-    case 'MEDIUM': return 'bg-warning/10 text-warning border-warning/30'
-    default: return 'bg-success/10 text-success border-success/30'
-  }
 }
 
 export default function ThreatIntelPage() {
@@ -153,9 +146,7 @@ export default function ThreatIntelPage() {
                 <div className="space-y-2">
                   <div className="flex flex-wrap items-center gap-3">
                     <span className="text-h2 font-mono text-text-primary">{result.indicator || ioc}</span>
-                    <span className={clsx('px-3 py-1 rounded-full text-label uppercase border', severityBadgeClasses(result.severity))}>
-                      {result.severity || 'Unknown'}
-                    </span>
+                    <SeverityBadge severity={toSeverity(result.severity)} label={result.severity || 'Unknown'} />
                   </div>
                 </div>
 
@@ -249,10 +240,16 @@ export default function ThreatIntelPage() {
                   )}
                   {!indicatorsLoading && indicators.slice(0, 20).map((ind) => (
                     <tr key={ind.id}>
-                      <td className="font-mono text-text-secondary">{ind.value}</td>
+                      <td className="font-mono text-text-secondary">
+                        {ind.type === 'IP' ? (
+                          <PivotChip type="ip" value={ind.value} route="/dashboard/assets" />
+                        ) : (
+                          ind.value
+                        )}
+                      </td>
                       <td className="text-text-secondary">{ind.type}</td>
                       <td>
-                        <span className={clsx('badge-mission', severityBadgeClasses(ind.severity))}>{ind.severity}</span>
+                        <SeverityBadge severity={toSeverity(ind.severity)} label={ind.severity} size="sm" />
                       </td>
                       <td className="text-text-secondary">{ind.source || '—'}</td>
                       <td className="text-text-muted text-small">{ind.lastSeen ? new Date(ind.lastSeen).toLocaleString() : '—'}</td>
@@ -286,7 +283,7 @@ export default function ThreatIntelPage() {
             <div className="space-y-2">
               {(['CRITICAL', 'HIGH', 'MEDIUM', 'LOW'] as const).map((sev) => (
                 <div key={sev} className="flex items-center justify-between text-small">
-                  <span className={clsx('text-label uppercase', severityBadgeClasses(sev).split(' ')[1])}>{sev}</span>
+                  <SeverityBadge severity={toSeverity(sev)} label={sev} size="sm" />
                   <span className="text-text-primary font-semibold tabular-nums">{severityBreakdown[sev]}</span>
                 </div>
               ))}

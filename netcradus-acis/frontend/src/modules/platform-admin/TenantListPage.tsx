@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { AgGridReact } from 'ag-grid-react'
-import { ColDef } from 'ag-grid-community'
+import { ColDef, ICellRendererParams } from 'ag-grid-community'
 import { Search, Plus, X, Loader2 } from 'lucide-react'
 import { clsx } from 'clsx'
 import { listTenants, createTenant, Tenant, TenantStatus } from '@/lib/platformAdminApi'
@@ -45,6 +45,32 @@ function AdminActivationBadge({ status }: { status: Tenant['adminActivationStatu
       {labels[status]}
     </span>
   )
+}
+
+// Real named components (referenced by name in columnDefs), not inline
+// arrow functions — ag-grid-react only mounts a cellRenderer through
+// React's own reconciler when it recognizes a real component reference,
+// which matters for any cell that ever needs real event binding.
+function NameCell(params: ICellRendererParams) {
+  return <span className="font-bold text-text-primary">{params.value}</span>
+}
+function SlugCell(params: ICellRendererParams) {
+  return <span className="font-mono text-text-muted">{params.value || '—'}</span>
+}
+function StatusCell(params: ICellRendererParams) {
+  return <StatusBadge status={params.value} />
+}
+function PlanCell(params: ICellRendererParams) {
+  return <span className="text-text-secondary">{params.value || '—'}</span>
+}
+function AdminOnboardingCell(params: ICellRendererParams) {
+  return <AdminActivationBadge status={params.value} />
+}
+function ModulesCell(params: ICellRendererParams) {
+  return <span className="text-text-muted">{(params.value || []).length} enabled</span>
+}
+function CreatedCell(params: ICellRendererParams) {
+  return <span className="font-mono text-small text-text-muted">{new Date(params.value).toLocaleDateString()}</span>
 }
 
 export default function TenantListPage() {
@@ -93,50 +119,13 @@ export default function TenantListPage() {
 
   const columnDefs = useMemo<ColDef[]>(
     () => [
-      {
-        field: 'name',
-        headerName: 'TENANT',
-        flex: 2,
-        cellRenderer: (params: any) => <span className="font-bold text-text-primary">{params.value}</span>,
-      },
-      {
-        field: 'slug',
-        headerName: 'SLUG',
-        flex: 1,
-        cellRenderer: (params: any) => <span className="font-mono text-text-muted">{params.value || '—'}</span>,
-      },
-      {
-        field: 'status',
-        headerName: 'STATUS',
-        flex: 1,
-        cellRenderer: (params: any) => <StatusBadge status={params.value} />,
-      },
-      {
-        field: 'planName',
-        headerName: 'PLAN',
-        flex: 1,
-        cellRenderer: (params: any) => <span className="text-text-secondary">{params.value || '—'}</span>,
-      },
-      {
-        field: 'adminActivationStatus',
-        headerName: 'ADMIN ONBOARDING',
-        flex: 1,
-        cellRenderer: (params: any) => <AdminActivationBadge status={params.value} />,
-      },
-      {
-        field: 'enabledModules',
-        headerName: 'MODULES',
-        flex: 1,
-        cellRenderer: (params: any) => <span className="text-text-muted">{(params.value || []).length} enabled</span>,
-      },
-      {
-        field: 'createdAt',
-        headerName: 'CREATED',
-        flex: 1,
-        cellRenderer: (params: any) => (
-          <span className="font-mono text-small text-text-muted">{new Date(params.value).toLocaleDateString()}</span>
-        ),
-      },
+      { field: 'name', headerName: 'TENANT', flex: 2, cellRenderer: NameCell },
+      { field: 'slug', headerName: 'SLUG', flex: 1, cellRenderer: SlugCell },
+      { field: 'status', headerName: 'STATUS', flex: 1, cellRenderer: StatusCell },
+      { field: 'planName', headerName: 'PLAN', flex: 1, cellRenderer: PlanCell },
+      { field: 'adminActivationStatus', headerName: 'ADMIN ONBOARDING', flex: 1, cellRenderer: AdminOnboardingCell },
+      { field: 'enabledModules', headerName: 'MODULES', flex: 1, cellRenderer: ModulesCell },
+      { field: 'createdAt', headerName: 'CREATED', flex: 1, cellRenderer: CreatedCell },
     ],
     []
   )
