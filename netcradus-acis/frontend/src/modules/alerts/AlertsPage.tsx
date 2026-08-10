@@ -4,6 +4,10 @@ import apiClient from '@/lib/apiClient'
 import wsClient from '@/lib/wsClient'
 import { useAuthStore } from '@/store/authStore'
 import { useCanWrite, MODULES } from '@/store/permissionsStore'
+import { usePivotSeed, useEntityPivot } from '@/hooks/useEntityPivot'
+import SeverityBadge, { toSeverity } from '@/components/viz/SeverityBadge'
+import PivotChip from '@/components/ui/PivotChip'
+import ConfirmDialog from '@/components/ui/ConfirmDialog'
 import { clsx } from 'clsx'
 
 interface Alert {
@@ -42,6 +46,24 @@ export default function AlertsPage() {
   const [activeTab, setActiveTab] = useState<'ALERTS' | 'INCIDENTS'>('ALERTS')
   const [searchTerm, setSearchTerm] = useState('')
   const [severityFilter, setSeverityFilter] = useState<'ALL' | 'CRITICAL' | 'HIGH' | 'OPEN'>('ALL')
+  const { pivotTo } = useEntityPivot()
+
+  // Run Playbook is a real, consequential action — PlaybookService's real
+  // "quarantine"/"isolate" steps genuinely isolate a real asset via
+  // acis-asset-service. It previously fired immediately with no
+  // confirmation at all; now gated behind a real confirm dialog.
+  const [confirmingPlaybookAlertId, setConfirmingPlaybookAlertId] = useState<string | null>(null)
+  const [playbookBusy, setPlaybookBusy] = useState(false)
+
+  // Seeds the severity filter when arriving via a Dashboard KPI drill-down
+  // (e.g. "View All Criticals" -> pivotTo('/dashboard/alerts', {type:
+  // 'severity', value: 'CRITICAL'})) — see useEntityPivot.ts.
+  const pivotSeed = usePivotSeed()
+  useEffect(() => {
+    if (pivotSeed?.type === 'severity' && (pivotSeed.value === 'CRITICAL' || pivotSeed.value === 'HIGH')) {
+      setSeverityFilter(pivotSeed.value)
+    }
+  }, [pivotSeed])
 
   // Real incidents — fetched from the backend, not fabricated client state.
   const [incidents, setIncidents] = useState<Incident[]>([])
@@ -174,14 +196,15 @@ export default function AlertsPage() {
     }
   }
 
-  // Execute SOAR Playbook
+  // Execute SOAR Playbook — real remediation steps (e.g. asset isolation),
+  // now gated behind confirmingPlaybookAlertId's ConfirmDialog rather than
+  // firing the instant the button is clicked.
   const handleRunPlaybook = async (alertId: string) => {
+    setPlaybookBusy(true)
     try {
       const pbs = await apiClient.get('/api/soar/playbooks')
       if (pbs.data && pbs.data.length > 0) {
-        // execute first playbook for this alert
         await apiClient.post(`/api/soar/playbooks/${pbs.data[0].id}/execute`, { alertId })
-        alert(`SOAR Playbook '${pbs.data[0].name}' executed successfully! Status updated to MITIGATED.`)
         handleUpdateStatus(alertId, 'MITIGATED')
       } else {
         alert('No active SOAR playbooks found.')
@@ -189,6 +212,9 @@ export default function AlertsPage() {
     } catch (e) {
       console.error('Playbook execution failed:', e)
       alert('Error triggering SOAR playbook execution.')
+    } finally {
+      setPlaybookBusy(false)
+      setConfirmingPlaybookAlertId(null)
     }
   }
 
@@ -237,20 +263,22 @@ export default function AlertsPage() {
 
   // Risk indicators derived only from fields actually present in the real
   // parsed event — no more inventing sample IPs/usernames/domains when a
-  // field is missing.
+  // field is missing. IP/host values carry a real pivot target so an
+  // analyst can jump straight to that value in Assets or Log Explorer
+  // instead of copy-pasting it manually.
   const riskIndicators = useMemo(() => {
     if (!selectedAlert || !parsedEvent || parsedEvent.error) return []
     const title = selectedAlert.title.toLowerCase()
-    const indicators: { label: string; color: string }[] = []
+    const indicators: { label: string; color: string; pivot?: { type: 'ip' | 'host'; value: string } }[] = []
 
     if (title.includes('stuffing') || title.includes('login') || title.includes('failure')) {
       if (parsedEvent.failures) indicators.push({ label: `${parsedEvent.failures} failed authentications${parsedEvent.window ? ` in ${parsedEvent.window}` : ''}`, color: 'border-l-danger' })
-      if (parsedEvent.src_ip) indicators.push({ label: `Source IP ${parsedEvent.src_ip}`, color: 'border-l-severity-high' })
-      if (parsedEvent.target) indicators.push({ label: `Target: ${parsedEvent.target}`, color: 'border-l-severity-medium' })
+      if (parsedEvent.src_ip) indicators.push({ label: 'Source IP', color: 'border-l-severity-high', pivot: { type: 'ip', value: parsedEvent.src_ip } })
+      if (parsedEvent.target) indicators.push({ label: 'Target', color: 'border-l-severity-medium', pivot: { type: 'host', value: parsedEvent.target } })
     } else if (title.includes('beaconing') || title.includes('domain') || title.includes('outbound')) {
       if (parsedEvent.domain) indicators.push({ label: `Egress traffic to anomalous domain ${parsedEvent.domain}`, color: 'border-l-danger' })
-      if (parsedEvent.src_ip) indicators.push({ label: `Source host: ${parsedEvent.src_ip}`, color: 'border-l-severity-high' })
-      if (parsedEvent.destination) indicators.push({ label: `Destination IP: ${parsedEvent.destination}`, color: 'border-l-severity-medium' })
+      if (parsedEvent.src_ip) indicators.push({ label: 'Source host', color: 'border-l-severity-high', pivot: { type: 'ip', value: parsedEvent.src_ip } })
+      if (parsedEvent.destination) indicators.push({ label: 'Destination IP', color: 'border-l-severity-medium', pivot: { type: 'ip', value: parsedEvent.destination } })
     } else if (title.includes('asr') || title.includes('bypass') || title.includes('lolbin')) {
       if (parsedEvent.process) indicators.push({ label: `ASR bypass trigger by ${parsedEvent.process}`, color: 'border-l-danger' })
       if (parsedEvent.parent_process) indicators.push({ label: `Parent process: ${parsedEvent.parent_process}`, color: 'border-l-severity-high' })
@@ -263,14 +291,6 @@ export default function AlertsPage() {
     }
     return indicators
   }, [selectedAlert, parsedEvent])
-
-  const getSeverityBadge = (sev: string) => {
-    const s = sev?.toUpperCase() || 'LOW'
-    if (s === 'CRITICAL') return 'bg-danger/10 text-danger border border-danger/25 px-2 py-0.5 rounded text-label uppercase'
-    if (s === 'HIGH') return 'bg-severity-high/10 text-severity-high border border-severity-high/25 px-2 py-0.5 rounded text-label uppercase'
-    if (s === 'MEDIUM') return 'bg-severity-medium/10 text-severity-medium border border-severity-medium/25 px-2 py-0.5 rounded text-label uppercase'
-    return 'bg-info/10 text-info border border-info/25 px-2 py-0.5 rounded text-label uppercase'
-  }
 
   const getStatusBadge = (status: string) => {
     const s = status?.toUpperCase() || 'OPEN'
@@ -412,9 +432,7 @@ export default function AlertsPage() {
                         {alert.title}
                       </td>
                       <td>
-                        <span className={getSeverityBadge(alert.severity)}>
-                          {alert.severity}
-                        </span>
+                        <SeverityBadge severity={toSeverity(alert.severity)} label={alert.severity} />
                       </td>
                       <td className="text-small text-text-secondary">
                         {alert.source}
@@ -454,9 +472,7 @@ export default function AlertsPage() {
                         {inc.title}
                       </td>
                       <td>
-                        <span className={getSeverityBadge(inc.severity)}>
-                          {inc.severity}
-                        </span>
+                        <SeverityBadge severity={toSeverity(inc.severity)} label={inc.severity} />
                       </td>
                       <td className="text-small text-text-secondary">
                         {inc.alertId ? `Escalated from ${inc.alertId}` : 'Manual'}
@@ -500,9 +516,7 @@ export default function AlertsPage() {
               <div className="flex items-center justify-between border-b border-fire-border pb-3">
                 <div className="flex items-center gap-2">
                   <span className="font-mono text-small font-semibold text-danger">{selectedAlert.id}</span>
-                  <span className={getSeverityBadge(selectedAlert.severity)}>
-                    {selectedAlert.severity}
-                  </span>
+                  <SeverityBadge severity={toSeverity(selectedAlert.severity)} label={selectedAlert.severity} />
                 </div>
                 <button
                   onClick={() => setSelectedAlert(null)}
@@ -535,11 +549,19 @@ export default function AlertsPage() {
                     <div
                       key={idx}
                       className={clsx(
-                        "p-3 bg-surface-2 rounded-r-lg border-l-2 text-text-secondary text-small font-medium leading-snug",
+                        "p-3 bg-surface-2 rounded-r-lg border-l-2 text-text-secondary text-small font-medium leading-snug flex items-center justify-between gap-3",
                         risk.color
                       )}
                     >
-                      {risk.label}
+                      <span>{risk.label}</span>
+                      {risk.pivot && (
+                        <PivotChip
+                          type={risk.pivot.type}
+                          value={risk.pivot.value}
+                          route={risk.pivot.type === 'ip' ? '/dashboard/assets' : '/dashboard/assets'}
+                          className="flex-shrink-0"
+                        />
+                      )}
                     </div>
                   ))}
                 </div>
@@ -580,7 +602,7 @@ export default function AlertsPage() {
                   Create Incident
                 </button>
                 <button
-                  onClick={() => handleRunPlaybook(selectedAlert.id)}
+                  onClick={() => setConfirmingPlaybookAlertId(selectedAlert.id)}
                   disabled={!canWrite}
                   title={!canWrite ? "Your role doesn't have write access to Alerts & Correlation" : undefined}
                   className="btn-mission col-span-2 disabled:opacity-50 disabled:cursor-not-allowed"
@@ -601,9 +623,7 @@ export default function AlertsPage() {
               <div className="flex items-center justify-between border-b border-fire-border pb-3">
                 <div className="flex items-center gap-2">
                   <span className="font-mono text-small font-semibold text-danger">{selectedIncident.id}</span>
-                  <span className={getSeverityBadge(selectedIncident.severity)}>
-                    {selectedIncident.severity}
-                  </span>
+                  <SeverityBadge severity={toSeverity(selectedIncident.severity)} label={selectedIncident.severity} />
                 </div>
                 <button
                   onClick={() => setSelectedIncident(null)}
@@ -681,6 +701,16 @@ export default function AlertsPage() {
         )}
 
       </div>
+
+      <ConfirmDialog
+        open={confirmingPlaybookAlertId !== null}
+        title="Run SOAR playbook?"
+        message="This executes the first available playbook's real steps against this alert — including any quarantine/isolation actions it defines. This is a genuine remediation action, not a simulation."
+        confirmLabel="Run Playbook"
+        busy={playbookBusy}
+        onConfirm={() => confirmingPlaybookAlertId && handleRunPlaybook(confirmingPlaybookAlertId)}
+        onCancel={() => setConfirmingPlaybookAlertId(null)}
+      />
 
     </div>
   )

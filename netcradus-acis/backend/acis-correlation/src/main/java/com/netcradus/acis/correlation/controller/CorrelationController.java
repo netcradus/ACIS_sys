@@ -40,6 +40,7 @@ public class CorrelationController {
                 .severity(dto.getSeverity())
                 .riskScore(dto.getRiskScore())
                 .windowMinutes(dto.getWindowMinutes() != null && dto.getWindowMinutes() > 0 ? dto.getWindowMinutes() : 5)
+                .scheduleCron(dto.getScheduleCron())
                 .enabled(true)
                 .build();
         CorrelationRule saved = repository.save(rule);

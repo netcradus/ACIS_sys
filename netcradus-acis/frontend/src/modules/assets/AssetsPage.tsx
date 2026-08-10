@@ -1,7 +1,11 @@
 import React, { useState, useEffect, useMemo } from 'react'
-import { Monitor, UserCircle2, Server, Laptop, Network, Cloud, Cpu, Plus, RefreshCw, Search, ShieldCheck, Database, HardDrive, Smartphone, X, AlertTriangle, ShieldAlert } from 'lucide-react'
+import { Monitor, UserCircle2, Server, Laptop, Network, Cloud, Cpu, Plus, RefreshCw, Search, ShieldCheck, Database, HardDrive, Smartphone, X, AlertTriangle, ShieldAlert, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react'
 import apiClient from '@/lib/apiClient'
 import { useCanWrite, MODULES } from '@/store/permissionsStore'
+import { usePivotSeed, useEntityPivot } from '@/hooks/useEntityPivot'
+import SeverityBadge, { toSeverity } from '@/components/viz/SeverityBadge'
+import PivotChip from '@/components/ui/PivotChip'
+import ConfirmDialog from '@/components/ui/ConfirmDialog'
 import { clsx } from 'clsx'
 
 interface Asset {
@@ -69,6 +73,35 @@ export default function AssetsPage() {
   const [isLoading, setIsLoading] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
   const [isModalOpen, setIsModalOpen] = useState(false)
+  const { pivotTo } = useEntityPivot()
+
+  // Real pivot target — arriving from Alerts/Log Explorer with an IP or
+  // asset-name value seeds the search box (which already matches ipAddress,
+  // see filteredAssets below) instead of requiring a manual copy-paste.
+  const pivotSeed = usePivotSeed()
+  useEffect(() => {
+    if (pivotSeed?.type === 'ip' || pivotSeed?.type === 'asset' || pivotSeed?.type === 'host') {
+      setSearchTerm(pivotSeed.value)
+    }
+  }, [pivotSeed])
+
+  // Real column sort — this table previously had none at all.
+  const [sortKey, setSortKey] = useState<'name' | 'owner' | 'criticality'>('name')
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc')
+  const toggleSort = (key: 'name' | 'owner' | 'criticality') => {
+    if (sortKey === key) {
+      setSortDir(d => d === 'asc' ? 'desc' : 'asc')
+    } else {
+      setSortKey(key)
+      setSortDir('asc')
+    }
+  }
+
+  // Isolating (or re-instating) an asset is a real, consequential network
+  // action — previously fired the instant the button was clicked with no
+  // confirmation at all.
+  const [confirmingIsolateAsset, setConfirmingIsolateAsset] = useState<Asset | null>(null)
+  const [isolateBusy, setIsolateBusy] = useState(false)
 
   // Form states for Registering Node
   const [newName, setNewName] = useState('')
@@ -186,10 +219,11 @@ export default function AssetsPage() {
   }
 
   const handleIsolateToggle = async (asset: Asset) => {
+    setIsolateBusy(true)
     try {
       const newIsolated = !asset.isolationStatus
       const newStatus = newIsolated ? 'QUARANTINED' : 'ACTIVE'
-      
+
       await apiClient.put(`/api/assets/${asset.id}/status`, {
         isolated: newIsolated,
         status: newStatus,
@@ -199,16 +233,30 @@ export default function AssetsPage() {
       setAssets(prev => prev.map(a => a.id === asset.id ? { ...a, isolationStatus: newIsolated, status: newIsolated ? 'INACTIVE' : 'ACTIVE', health: newIsolated ? 'CRITICAL' : 'OK' } : a))
     } catch (e) {
       console.error('Failed to isolate asset:', e)
+    } finally {
+      setIsolateBusy(false)
+      setConfirmingIsolateAsset(null)
     }
   }
 
   const filteredAssets = useMemo(() => {
-    return assets.filter(a => 
-      a.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      a.owner.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (a.tags && a.tags.toLowerCase().includes(searchTerm.toLowerCase()))
+    const q = searchTerm.toLowerCase()
+    const filtered = assets.filter(a =>
+      a.name.toLowerCase().includes(q) ||
+      a.owner.toLowerCase().includes(q) ||
+      (a.ipAddress && a.ipAddress.toLowerCase().includes(q)) ||
+      (a.tags && a.tags.toLowerCase().includes(q))
     )
-  }, [assets, searchTerm])
+    const CRITICALITY_RANK: Record<string, number> = { HIGH: 3, MEDIUM: 2, LOW: 1 }
+    const sorted = [...filtered].sort((a, b) => {
+      let cmp = 0
+      if (sortKey === 'name') cmp = a.name.localeCompare(b.name)
+      else if (sortKey === 'owner') cmp = a.owner.localeCompare(b.owner)
+      else cmp = (CRITICALITY_RANK[a.criticality?.toUpperCase()] ?? 0) - (CRITICALITY_RANK[b.criticality?.toUpperCase()] ?? 0)
+      return sortDir === 'asc' ? cmp : -cmp
+    })
+    return sorted
+  }, [assets, searchTerm, sortKey, sortDir])
 
   const selectedAsset = assets.find(a => a.id === selectedAssetId)
 
@@ -217,13 +265,6 @@ export default function AssetsPage() {
   const highCriticalityCount = assets.filter(a => a.criticality === 'HIGH').length
   const quarantinedCount = assets.filter(a => a.status === 'INACTIVE' || a.isolationStatus).length
   const identityConflictsCount = identities.filter(i => i.flagged).length
-
-  const getCriticalityBadge = (crit: string) => {
-    const c = crit?.toUpperCase() || 'MEDIUM'
-    if (c === 'HIGH') return 'bg-severity-high/10 text-severity-high border border-severity-high/20 px-2 py-0.5 rounded text-label uppercase'
-    if (c === 'MEDIUM') return 'bg-severity-medium/10 text-severity-medium border border-severity-medium/20 px-2 py-0.5 rounded text-label uppercase'
-    return 'bg-info/10 text-info border border-info/20 px-2 py-0.5 rounded text-label uppercase'
-  }
 
   const getTypeIcon = (type: string) => {
     switch (type) {
@@ -239,6 +280,23 @@ export default function AssetsPage() {
     if (!tagsStr) return []
     return tagsStr.split(',').map(t => t.trim())
   }
+
+  const SortHeader = ({ label, sortKeyName, className }: { label: string; sortKeyName: 'name' | 'owner' | 'criticality'; className?: string }) => (
+    <th className={className}>
+      <button
+        type="button"
+        onClick={() => toggleSort(sortKeyName)}
+        className="inline-flex items-center gap-1 hover:text-text-primary transition-colors"
+      >
+        {label}
+        {sortKey === sortKeyName ? (
+          sortDir === 'asc' ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />
+        ) : (
+          <ArrowUpDown className="w-3 h-3 opacity-40" />
+        )}
+      </button>
+    </th>
+  )
 
   return (
     <div className="space-y-6 animate-fade-in flex flex-col h-full text-text-secondary min-h-screen">
@@ -300,10 +358,10 @@ export default function AssetsPage() {
             <table className="table-enterprise">
               <thead>
                 <tr>
-                  <th className="w-[25%]">Asset</th>
+                  <SortHeader label="Asset" sortKeyName="name" className="w-[25%]" />
                   <th className="w-[15%]">Type</th>
-                  <th className="w-[15%]">Owner</th>
-                  <th className="w-[12%]">Criticality</th>
+                  <SortHeader label="Owner" sortKeyName="owner" className="w-[15%]" />
+                  <SortHeader label="Criticality" sortKeyName="criticality" className="w-[12%]" />
                   <th className="w-[23%]">Tags</th>
                   <th className="w-[10%]">Status</th>
                 </tr>
@@ -329,9 +387,7 @@ export default function AssetsPage() {
                       {asset.owner}
                     </td>
                     <td>
-                      <span className={getCriticalityBadge(asset.criticality)}>
-                        {asset.criticality}
-                      </span>
+                      <SeverityBadge severity={toSeverity(asset.criticality)} label={asset.criticality} />
                     </td>
                     <td>
                       <div className="flex flex-wrap gap-1.5">
@@ -370,9 +426,7 @@ export default function AssetsPage() {
               <div className="flex items-center justify-between border-b border-fire-border pb-3">
                 <div className="flex items-center gap-2 flex-wrap">
                   <h3 className="text-h3 text-text-primary">{selectedAsset.name}</h3>
-                  <span className={getCriticalityBadge(selectedAsset.criticality)}>
-                    {selectedAsset.criticality}
-                  </span>
+                  <SeverityBadge severity={toSeverity(selectedAsset.criticality)} label={selectedAsset.criticality} />
                   <span className="bg-surface-3 text-text-secondary px-2 py-0.5 rounded text-label uppercase">
                     {selectedAsset.type}
                   </span>
@@ -393,7 +447,13 @@ export default function AssetsPage() {
                   <span className="col-span-2 text-text-secondary font-semibold font-mono">{selectedAsset.owner}@netcradus.local</span>
 
                   <span className="text-text-muted font-medium">IP Address:</span>
-                  <span className="col-span-2 text-text-secondary font-semibold font-mono">{selectedAsset.ipAddress}</span>
+                  <span className="col-span-2 font-semibold">
+                    {selectedAsset.ipAddress ? (
+                      <PivotChip type="ip" value={selectedAsset.ipAddress} route="/dashboard/logs" className="text-text-secondary" />
+                    ) : (
+                      <span className="text-text-secondary font-mono">—</span>
+                    )}
+                  </span>
 
                   <span className="text-text-muted font-medium">OS:</span>
                   <span className="col-span-2 text-text-secondary font-semibold">{selectedAsset.os || '—'}</span>
@@ -477,12 +537,7 @@ export default function AssetsPage() {
                   {alertsForAsset(selectedAsset, alerts).map((alert) => (
                     <div key={alert.id} className="flex items-center justify-between bg-danger/5 border border-danger/10 p-3 rounded-lg">
                       <div className="flex items-center gap-2">
-                        <span className={clsx(
-                          "px-1.5 py-0.5 rounded text-label uppercase border",
-                          alert.severity === 'HIGH' || alert.severity === 'CRITICAL' ? "bg-severity-high/10 text-severity-high border-severity-high/25" : "bg-severity-medium/10 text-severity-medium border-severity-medium/25"
-                        )}>
-                          {alert.severity}
-                        </span>
+                        <SeverityBadge severity={toSeverity(alert.severity)} label={alert.severity} size="sm" />
                         <span className="text-small font-semibold text-text-secondary">{alert.title}</span>
                       </div>
                       <span className="text-label text-text-muted font-mono">{new Date(alert.createdAt).toLocaleString()}</span>
@@ -502,7 +557,7 @@ export default function AssetsPage() {
             <div className="border-t border-fire-border pt-4 space-y-2">
               <span className="text-label text-text-muted uppercase block">CMDB Node Actions</span>
               <button
-                onClick={() => handleIsolateToggle(selectedAsset)}
+                onClick={() => setConfirmingIsolateAsset(selectedAsset)}
                 disabled={!canWrite}
                 title={!canWrite ? "Your role doesn't have write access to Assets & Threat Intel" : undefined}
                 className={clsx(
@@ -651,6 +706,21 @@ export default function AssetsPage() {
           </div>
         </div>
       )}
+
+      <ConfirmDialog
+        open={confirmingIsolateAsset !== null}
+        title={confirmingIsolateAsset?.isolationStatus ? 'Re-instate this asset?' : 'Isolate this asset?'}
+        message={
+          confirmingIsolateAsset?.isolationStatus
+            ? `${confirmingIsolateAsset?.name} will be reconnected to the network and its health reset to OK. Only do this once you've confirmed the threat is resolved.`
+            : `${confirmingIsolateAsset?.name} will be quarantined and disconnected from the network — a real, immediate action, not a simulation.`
+        }
+        confirmLabel={confirmingIsolateAsset?.isolationStatus ? 'Re-instate' : 'Isolate Asset'}
+        danger={!confirmingIsolateAsset?.isolationStatus}
+        busy={isolateBusy}
+        onConfirm={() => confirmingIsolateAsset && handleIsolateToggle(confirmingIsolateAsset)}
+        onCancel={() => setConfirmingIsolateAsset(null)}
+      />
 
     </div>
   )

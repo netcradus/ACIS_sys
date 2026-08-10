@@ -2,7 +2,27 @@ import React, { useState, useEffect } from 'react'
 import { Plus, Search, RefreshCw, Layers, ShieldCheck, Zap, AlertCircle, Play, Edit2, X } from 'lucide-react'
 import apiClient from '@/lib/apiClient'
 import { useCanWrite, MODULES } from '@/store/permissionsStore'
+import SeverityBadge, { toSeverity } from '@/components/viz/SeverityBadge'
 import { clsx } from 'clsx'
+
+// Threshold is NOT a stored column — acis-correlation's CorrelationEngine
+// derives it live from a "count > N" clause embedded in the rule's own SPL
+// query text (see CorrelationEngine.THRESHOLD_PATTERN / extractThreshold),
+// both for real rule evaluation and for what the API reports back as
+// `threshold`. These helpers keep the Threshold number field and the SPL
+// Query textarea in sync with that real mechanism instead of sending a
+// separate field the backend would silently ignore.
+const THRESHOLD_CLAUSE_RE = /\s*\|\s*where\s+count\s*>\s*\d+/gi
+
+function stripThresholdClause(spl: string): string {
+  return spl.replace(THRESHOLD_CLAUSE_RE, '').trim()
+}
+
+function buildSplWithThreshold(baseSpl: string, threshold: string): string {
+  const stripped = stripThresholdClause(baseSpl)
+  if (threshold.trim() === '') return stripped
+  return `${stripped} | where count > ${threshold.trim()}`
+}
 
 interface CorrelationRule {
   id: string
@@ -52,6 +72,12 @@ export default function CorrelationPage() {
   const [newRuleSpl, setNewRuleSpl] = useState('')
   const [newRuleSeverity, setNewRuleSeverity] = useState('HIGH')
   const [newRuleRisk, setNewRuleRisk] = useState(70)
+  // Previously read-only-displayed-only fields — the data already
+  // round-trips through create/update (CorrelationRule has all three), this
+  // just exposes them as real editable form inputs.
+  const [newRuleWindow, setNewRuleWindow] = useState(5)
+  const [newRuleThreshold, setNewRuleThreshold] = useState<string>('')
+  const [newRuleSchedule, setNewRuleSchedule] = useState('')
 
   const fetchRulesAndStats = async () => {
     setIsLoading(true)
@@ -125,9 +151,14 @@ export default function CorrelationPage() {
       const payload = {
         name: newRuleName,
         description: newRuleDesc,
-        splQuery: newRuleSpl,
+        // threshold has no separate backend field — it's expressed as a
+        // "| where count > N" clause inside the query itself (see
+        // buildSplWithThreshold above).
+        splQuery: buildSplWithThreshold(newRuleSpl, newRuleThreshold),
         severity: newRuleSeverity,
-        riskScore: newRuleRisk
+        riskScore: newRuleRisk,
+        windowMinutes: newRuleWindow,
+        scheduleCron: newRuleSchedule.trim() === '' ? null : newRuleSchedule.trim(),
       }
       if (editingRuleId) {
         await apiClient.put(`/api/correlation/rules/${editingRuleId}`, payload)
@@ -149,6 +180,9 @@ export default function CorrelationPage() {
     setNewRuleSpl('')
     setNewRuleSeverity('HIGH')
     setNewRuleRisk(70)
+    setNewRuleWindow(5)
+    setNewRuleThreshold('')
+    setNewRuleSchedule('')
     setIsModalOpen(true)
   }
 
@@ -159,6 +193,9 @@ export default function CorrelationPage() {
     setNewRuleSpl(rule.splQuery)
     setNewRuleSeverity(rule.severity)
     setNewRuleRisk(rule.riskScore)
+    setNewRuleWindow(rule.windowMinutes ?? 5)
+    setNewRuleThreshold(rule.threshold != null ? String(rule.threshold) : '')
+    setNewRuleSchedule(rule.scheduleCron ?? '')
     setIsModalOpen(true)
   }
 
@@ -354,7 +391,6 @@ export default function CorrelationPage() {
                   {[
                     { label: 'Window', val: `${selectedRule.windowMinutes ?? 5} min sliding window` },
                     { label: 'Threshold', val: selectedRule.threshold != null ? `count > ${selectedRule.threshold}` : 'Matching event occurrence' },
-                    { label: 'Severity', val: selectedRule.severity },
                     { label: 'Schedule', val: selectedRule.scheduleCron || 'Continuous (real-time stream)' }
                   ].map((cfg, i) => (
                     <div key={i} className="flex justify-between border-b border-fire-border/60 pb-1.5">
@@ -362,6 +398,10 @@ export default function CorrelationPage() {
                       <span className="text-text-primary font-semibold">{cfg.val}</span>
                     </div>
                   ))}
+                  <div className="flex justify-between items-center border-b border-fire-border/60 pb-1.5">
+                    <span className="text-text-muted font-medium">Severity:</span>
+                    <SeverityBadge severity={toSeverity(selectedRule.severity)} label={selectedRule.severity} size="sm" />
+                  </div>
                 </div>
               </div>
             </>
@@ -508,6 +548,43 @@ export default function CorrelationPage() {
                     className="w-full accent-accent bg-surface-2 h-2 rounded-lg appearance-none cursor-pointer mt-3"
                   />
                 </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <label className="text-label uppercase text-text-muted block">Window (minutes)</label>
+                  <input
+                    type="number"
+                    min={1}
+                    required
+                    value={newRuleWindow}
+                    onChange={(e) => setNewRuleWindow(Number(e.target.value))}
+                    className="input-field"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-label uppercase text-text-muted block">Threshold (optional)</label>
+                  <input
+                    type="number"
+                    min={0}
+                    placeholder="e.g. 5"
+                    value={newRuleThreshold}
+                    onChange={(e) => setNewRuleThreshold(e.target.value)}
+                    className="input-field"
+                  />
+                  <p className="text-label text-text-muted normal-case">Added to the query as "| where count &gt; N"</p>
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-label uppercase text-text-muted block">Schedule (cron, optional)</label>
+                <input
+                  type="text"
+                  placeholder="Leave blank for continuous real-time stream, e.g. 0 */6 * * *"
+                  value={newRuleSchedule}
+                  onChange={(e) => setNewRuleSchedule(e.target.value)}
+                  className="input-field font-mono text-small"
+                />
               </div>
 
               <div className="flex items-center justify-end gap-3 pt-3 border-t border-fire-border mt-4">

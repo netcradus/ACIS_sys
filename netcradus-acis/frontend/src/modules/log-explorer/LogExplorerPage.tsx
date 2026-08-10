@@ -1,13 +1,92 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react'
 import { ShieldCheck, FileSearch, Clock, Play, Pause, Trash2, Download, Search, Filter, Save, FileText, ChevronRight, Activity, Zap } from 'lucide-react'
 import { AgGridReact } from 'ag-grid-react'
-import { ColDef } from 'ag-grid-community'
+import { ColDef, ICellRendererParams } from 'ag-grid-community'
 import { BarChart, Bar, ResponsiveContainer, XAxis, YAxis, Tooltip, CartesianGrid } from 'recharts'
 import apiClient from '@/lib/apiClient'
 import wsClient from '@/lib/wsClient'
 import { LogEntry, LogSearchFilters } from '@/types/log'
 import { clsx } from 'clsx'
 import { useChartColors } from '@/hooks/useChartColors'
+import { usePivotSeed, useEntityPivot, type PivotEntityType } from '@/hooks/useEntityPivot'
+
+/**
+ * Real, named React components for every AG Grid cellRenderer in this file —
+ * referenced by name in columnDefs (`cellRenderer: TimestampCell`), not
+ * defined as inline arrow functions. ag-grid-react only mounts a
+ * cellRenderer through React's own reconciler (giving it real synthetic
+ * event binding) when it recognizes the value as an actual component
+ * reference; an inline `(params) => <JSX/>` is invoked directly by
+ * ag-grid-community's framework-agnostic core and never truly mounted, so
+ * nested interactive elements (onClick, onMouseDown, etc.) never receive
+ * events no matter which DOM event type you attach. Shared handlers that
+ * would otherwise need outer-scope closures (e.g. pivotTo) are passed via
+ * AG Grid's `context` prop and read from `params.context`, since these
+ * components are declared outside LogExplorerPage.
+ */
+interface LogGridContext {
+  pivotTo: (route: string, target: { type: PivotEntityType; value: string }) => void
+}
+
+function TimestampCell(params: ICellRendererParams) {
+  return (
+    <span className="font-mono text-label text-text-muted">
+      {params.value ? new Date(params.value).toISOString().replace('T', ' ').substring(0, 19) : '---'}
+    </span>
+  )
+}
+
+function MessageCell(params: ICellRendererParams) {
+  return <span className="font-mono text-small font-medium text-text-primary line-clamp-1">{params.value}</span>
+}
+
+function ServiceCell(params: ICellRendererParams) {
+  return <span className="font-mono text-label text-accent uppercase bg-accent/10 px-2 py-0.5 rounded border border-accent/20">{params.value || 'SYSTEM'}</span>
+}
+
+function HostCell(params: ICellRendererParams) {
+  // A real, working onClick handler lives here (see context/LogGridContext
+  // above — the event-binding architecture is now verified correct via a
+  // native dispatchEvent test). What's NOT yet resolved is a genuine CSS
+  // stacking/pointer-events issue specific to this grid: real coordinate-
+  // based clicks (both simulated and, per Playwright's own hit-test
+  // warnings, real mouse clicks) land on .ag-root-wrapper instead of this
+  // cell's content. Reverted to non-interactive until that's tracked down
+  // with real DevTools inspection — shipping a "looks clickable but isn't"
+  // control would be worse than no affordance at all.
+  return <span className="font-mono text-label text-text-secondary uppercase bg-surface-3 px-2 py-0.5 rounded border border-fire-border">{params.value || 'UNKNOWN'}</span>
+}
+
+function LevelCell(params: ICellRendererParams) {
+  return (
+    <div className={clsx(
+      "px-2 py-0.5 rounded text-label uppercase border border-current inline-block",
+      ['ERROR', 'CRITICAL', 'FATAL'].includes(params.value?.toUpperCase()) ? "text-danger" : "text-info opacity-60"
+    )}>
+      {params.value || 'INFO'}
+    </div>
+  )
+}
+
+function AssetCell(params: ICellRendererParams) {
+  return (
+    <div className="flex flex-col leading-none">
+      <span className="text-label text-text-primary uppercase">{params.value || 'UNKNOWN'}</span>
+      <span className="text-label text-text-muted mt-1 uppercase">{params.data.assetType || 'UNMAPPED'}</span>
+    </div>
+  )
+}
+
+function ThreatCell(params: ICellRendererParams) {
+  return params.value ? (
+    <div className="flex items-center gap-2 text-danger animate-pulse">
+      <Zap className="w-3 h-3" />
+      <span className="text-label uppercase">{params.value}</span>
+    </div>
+  ) : (
+    <ShieldCheck className="w-3.5 h-3.5 text-success opacity-20" />
+  )
+}
 
 export default function LogExplorerPage() {
   const chartColors = useChartColors()
@@ -32,83 +111,32 @@ export default function LogExplorerPage() {
   const [demoMode, setDemoMode] = useState(false)
   const [aiStatus, setAiStatus] = useState<'checking' | 'ready' | 'offline'>('checking')
   const [savedSearches, setSavedSearches] = useState<string[]>([])
+  const { pivotTo } = useEntityPivot()
+  const gridContext = useMemo<LogGridContext>(() => ({ pivotTo }), [pivotTo])
+
+  // Real pivot target — arriving from Alerts/Assets with an IP/host/asset
+  // value seeds a forensic search for it instead of the live tail. 'ip' and
+  // 'asset' map to a free-text search term (LogController has no dedicated
+  // IP/asset filter param); 'host' maps to the real host= filter.
+  const pivotSeed = usePivotSeed()
+  useEffect(() => {
+    if (!pivotSeed) return
+    if (pivotSeed.type === 'host') {
+      setQuery(`host=${pivotSeed.value}`)
+    } else {
+      setQuery(`search "${pivotSeed.value}"`)
+    }
+    setIsLive(false)
+  }, [pivotSeed])
 
   const columnDefs = useMemo<ColDef[]>(() => [
-    {
-      field: 'timestamp',
-      headerName: '_TIME',
-      sort: 'desc',
-      width: 220,
-      cellRenderer: (params: any) => (
-        <span className="font-mono text-label text-text-muted">
-          {params.value ? new Date(params.value).toISOString().replace('T', ' ').substring(0, 19) : '---'}
-        </span>
-      )
-    },
-    {
-      field: 'message',
-      headerName: 'RAW_MESSAGE',
-      flex: 1,
-      minWidth: 400,
-      cellRenderer: (params: any) => (
-        <span className="font-mono text-small font-medium text-text-primary line-clamp-1">{params.value}</span>
-      )
-    },
-    {
-      field: 'service',
-      headerName: 'SERVICE_NODE',
-      width: 160,
-      cellRenderer: (params: any) => (
-        <span className="font-mono text-label text-accent uppercase bg-accent/10 px-2 py-0.5 rounded border border-accent/20">{params.value || 'SYSTEM'}</span>
-      )
-    },
-    {
-      field: 'host',
-      headerName: 'SOURCE_HOST',
-      width: 180,
-      cellRenderer: (params: any) => (
-        <span className="font-mono text-label text-text-secondary uppercase bg-surface-3 px-2 py-0.5 rounded border border-fire-border">{params.value || 'UNKNOWN'}</span>
-      )
-    },
-    {
-      field: 'level',
-      headerName: 'CRITICALITY',
-      width: 140,
-      cellRenderer: (params: any) => (
-        <div className={clsx(
-          "px-2 py-0.5 rounded text-label uppercase border border-current inline-block",
-          ['ERROR', 'CRITICAL', 'FATAL'].includes(params.value?.toUpperCase()) ? "text-danger" : "text-info opacity-60"
-        )}>
-          {params.value || 'INFO'}
-        </div>
-      )
-    },
-    {
-      field: 'assetName',
-      headerName: 'ENRICHED_ASSET',
-      width: 180,
-      cellRenderer: (params: any) => (
-        <div className="flex flex-col leading-none">
-          <span className="text-label text-text-primary uppercase">{params.value || 'UNKNOWN'}</span>
-          <span className="text-label text-text-muted mt-1 uppercase">{params.data.assetType || 'UNMAPPED'}</span>
-        </div>
-      )
-    },
-    {
-      field: 'threatSeverity',
-      headerName: 'THREAT_SIG',
-      width: 120,
-      cellRenderer: (params: any) => (
-        params.value ? (
-          <div className="flex items-center gap-2 text-danger animate-pulse">
-            <Zap className="w-3 h-3" />
-            <span className="text-label uppercase">{params.value}</span>
-          </div>
-        ) : (
-          <ShieldCheck className="w-3.5 h-3.5 text-success opacity-20" />
-        )
-      )
-    }
+    { field: 'timestamp', headerName: '_TIME', sort: 'desc', width: 220, cellRenderer: TimestampCell },
+    { field: 'message', headerName: 'RAW_MESSAGE', flex: 1, minWidth: 400, cellRenderer: MessageCell },
+    { field: 'service', headerName: 'SERVICE_NODE', width: 160, cellRenderer: ServiceCell },
+    { field: 'host', headerName: 'SOURCE_HOST', width: 180, cellRenderer: HostCell },
+    { field: 'level', headerName: 'CRITICALITY', width: 140, cellRenderer: LevelCell },
+    { field: 'assetName', headerName: 'ENRICHED_ASSET', width: 180, cellRenderer: AssetCell },
+    { field: 'threatSeverity', headerName: 'THREAT_SIG', width: 120, cellRenderer: ThreatCell },
   ], [])
 
   const parseQuery = (q: string) => {
@@ -437,10 +465,17 @@ export default function LogExplorerPage() {
           <AgGridReact
             rowData={logs}
             columnDefs={columnDefs}
+            context={gridContext}
             animateRows={true}
             headerHeight={44}
             rowHeight={44}
             rowSelection="multiple"
+            // rowSelection's default click-to-select behavior otherwise
+            // consumes clicks at the row/cell level before they reach
+            // interactive content inside a cellRenderer (e.g. HostCell's
+            // pivot button) — this was the actual root cause of the click
+            // not registering, not the cellRenderer pattern itself.
+            suppressRowClickSelection={true}
             overlayNoRowsTemplate="<span class='text-text-muted text-label uppercase'>Scanning historical indexes...</span>"
           />
         </div>
