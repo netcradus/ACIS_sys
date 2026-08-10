@@ -2,18 +2,89 @@
    (js/acis-login.js) layered on top of Keycloak's built-in "keycloak"
    (classic) theme. No template/FTL changes: Keycloak's own form element,
    its inputs, CSRF token, and submission handling are never re-created,
-   only wrapped/restyled — every security-critical behavior is untouched. */
+   only wrapped/restyled — every security-critical behavior is untouched.
+
+   Palette realigned to match the real app's tokens (frontend/src/index.css)
+   instead of the previous orange/cyan/purple/indigo scheme, which shared no
+   colors with either console. This file has no build step reading the
+   frontend's token file, so the values below are copied by hand — keep them
+   in sync manually if index.css's --accent/--accent-pa/etc. ever change.
+   The hero (left) panel stays a fixed dark brand backdrop in both themes,
+   same as Stripe/Linear-style marketing panels — only the card column
+   (right) actually switches with prefers-color-scheme, since that's the
+   functional, text-heavy half a dark-mode visitor would find jarring in
+   forced light. */
+
+:root {
+  color-scheme: light;
+
+  --klogin-card-col-bg: #f8fafc;
+  --klogin-card-bg: #ffffff;
+  --klogin-card-border: rgba(15, 23, 42, 0.04);
+  --klogin-card-shadow: 0 25px 60px rgba(15, 23, 42, 0.12);
+  --klogin-text-primary: #111827;
+  --klogin-text-secondary: #6b7280;
+  --klogin-text-muted: #9ca3af;
+  --klogin-label: #374151;
+  --klogin-input-bg: #ffffff;
+  --klogin-input-border: #e5e7eb;
+  --klogin-input-border-hover: #d1d5db;
+  --klogin-divider: #e5e7eb;
+  --klogin-toggle-border: #f3f4f6;
+  --klogin-toggle-hover-bg: #f9fafb;
+  --klogin-toggle-hover-text: #4b5563;
+
+  /* Mirrors frontend/src/index.css's :root[data-theme="light"] --accent/--accent-dark/--accent-pa */
+  --klogin-accent: #2563EB;
+  --klogin-accent-dark: #1D4ED8;
+  --klogin-accent-light: #3B82F6;
+  --klogin-accent-pa: #6D28D9;
+  --klogin-focus-ring: rgba(37, 99, 235, 0.14);
+  --klogin-btn-shadow: rgba(37, 99, 235, 0.28);
+
+  --klogin-wordmark-net: #030712;
+  --klogin-error-bg: rgba(239, 68, 68, 0.08);
+  --klogin-error-border: rgba(239, 68, 68, 0.3);
+  --klogin-error-text: #b91c1c;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    color-scheme: dark;
+
+    /* Mirrors frontend/src/index.css's :root[data-theme="dark"] tokens */
+    --klogin-card-col-bg: #09090B;
+    --klogin-card-bg: #0E0E11;
+    --klogin-card-border: #26262B;
+    --klogin-card-shadow: 0 25px 60px rgba(0, 0, 0, 0.55);
+    --klogin-text-primary: #FAFAFA;
+    --klogin-text-secondary: #A1A1AA;
+    --klogin-text-muted: #71717A;
+    --klogin-label: #A1A1AA;
+    --klogin-input-bg: #17171B;
+    --klogin-input-border: #26262B;
+    --klogin-input-border-hover: #33333A;
+    --klogin-divider: #26262B;
+    --klogin-toggle-border: #26262B;
+    --klogin-toggle-hover-bg: #17171B;
+    --klogin-toggle-hover-text: #A1A1AA;
+
+    --klogin-accent: #3B82F6;
+    --klogin-accent-dark: #2563EB;
+    --klogin-accent-light: #60A5FA;
+    --klogin-accent-pa: #7C3AED;
+    --klogin-focus-ring: rgba(59, 130, 246, 0.22);
+    --klogin-btn-shadow: rgba(59, 130, 246, 0.28);
+
+    --klogin-wordmark-net: #FAFAFA;
+    --klogin-error-bg: rgba(239, 68, 68, 0.12);
+    --klogin-error-border: rgba(239, 68, 68, 0.35);
+    --klogin-error-text: #FCA5A5;
+  }
+}
 
 * {
   box-sizing: border-box;
-}
-
-html {
-  /* Force light-styled native form controls (checkboxes, buttons) even
-     when the visitor's OS/browser is set to dark mode — this theme is a
-     single fixed light-card design, not a light/dark-aware one, so native
-     controls must not silently pick up a dark UA stylesheet. */
-  color-scheme: light;
 }
 
 html,
@@ -56,7 +127,8 @@ body,
 }
 
 /* ---------------------------------------------------------------------
-   Left: dark hero panel
+   Left: dark hero panel — fixed dark backdrop regardless of theme (see
+   top-of-file note)
    --------------------------------------------------------------------- */
 
 .acis-hero {
@@ -93,8 +165,8 @@ body,
   position: absolute;
   inset: 0;
   background:
-    radial-gradient(circle at 15% 20%, rgba(249, 99, 2, 0.18), transparent 45%),
-    radial-gradient(circle at 85% 80%, rgba(59, 130, 246, 0.16), transparent 45%);
+    radial-gradient(circle at 15% 20%, rgba(59, 130, 246, 0.18), transparent 45%),
+    radial-gradient(circle at 85% 80%, rgba(124, 58, 237, 0.16), transparent 45%);
 }
 
 .acis-hero-content {
@@ -123,7 +195,7 @@ body,
   height: 4px;
   border-radius: 2px;
   margin: 20px 0 24px;
-  background: linear-gradient(to right, #22d3ee, #a855f7);
+  background: linear-gradient(to right, #3B82F6, #7C3AED);
 }
 
 .acis-hero-lines {
@@ -138,9 +210,11 @@ body,
   color: #cbd5e1;
 }
 
-.acis-cyan { color: #0ea5e9; font-weight: 700; }
-.acis-purple { color: #a855f7; font-weight: 700; }
-.acis-blue { color: #3b82f6; font-weight: 700; }
+/* Blue/violet — the same two accents the app itself uses for its two
+   consoles, instead of the old unrelated cyan/purple/blue trio. */
+.acis-cyan { color: #60A5FA; font-weight: 700; }
+.acis-purple { color: #A78BFA; font-weight: 700; }
+.acis-blue { color: #3B82F6; font-weight: 700; }
 
 .acis-stat-grid {
   margin-top: 40px;
@@ -176,9 +250,9 @@ body,
 
 .acis-stat-icon svg { width: 16px; height: 16px; }
 
-.acis-stat-icon--cyan   { background: rgba(34, 211, 238, 0.1); color: #22d3ee; }
-.acis-stat-icon--purple { background: rgba(168, 85, 247, 0.1); color: #a855f7; }
-.acis-stat-icon--blue   { background: rgba(59, 130, 246, 0.1); color: #60a5fa; }
+.acis-stat-icon--cyan   { background: rgba(96, 165, 250, 0.12); color: #60A5FA; }
+.acis-stat-icon--purple { background: rgba(124, 58, 237, 0.14); color: #A78BFA; }
+.acis-stat-icon--blue   { background: rgba(59, 130, 246, 0.12); color: #60A5FA; }
 
 .acis-stat-label {
   color: #94a3b8;
@@ -224,19 +298,19 @@ body,
 .acis-holo-ring {
   position: absolute;
   inset: 0;
-  border: 1px solid rgba(14, 165, 233, 0.18);
+  border: 1px solid rgba(59, 130, 246, 0.2);
   border-radius: 50%;
   animation: acis-holo-rotate 18s linear infinite;
 }
 
-.acis-holo-ring--2 { inset: 15%; border-color: rgba(168, 85, 247, 0.16); animation-duration: 24s; animation-direction: reverse; }
-.acis-holo-ring--3 { inset: 30%; border-color: rgba(59, 130, 246, 0.2); animation-duration: 14s; }
+.acis-holo-ring--2 { inset: 15%; border-color: rgba(124, 58, 237, 0.18); animation-duration: 24s; animation-direction: reverse; }
+.acis-holo-ring--3 { inset: 30%; border-color: rgba(96, 165, 250, 0.22); animation-duration: 14s; }
 
 .acis-beam {
   position: absolute;
   width: 2px;
   height: 90px;
-  background: linear-gradient(to bottom, rgba(14, 165, 233, 0.5), transparent);
+  background: linear-gradient(to bottom, rgba(59, 130, 246, 0.55), transparent);
   border-radius: 2px;
 }
 
@@ -263,7 +337,7 @@ body,
 }
 
 /* ---------------------------------------------------------------------
-   Right: white card column
+   Right: card column — theme-aware via the tokens defined at the top
    --------------------------------------------------------------------- */
 
 .acis-card-col {
@@ -273,16 +347,16 @@ body,
   align-items: center;
   justify-content: center;
   padding: 48px 32px;
-  background: #f8fafc;
+  background: var(--klogin-card-col-bg);
 }
 
 .card-pf,
 #kc-login,
 .acis-card-col .card-pf {
-  background: #ffffff !important;
+  background: var(--klogin-card-bg) !important;
   border-radius: 32px !important;
-  box-shadow: 0 25px 60px rgba(15, 23, 42, 0.12) !important;
-  border: 1px solid rgba(15, 23, 42, 0.04) !important;
+  box-shadow: var(--klogin-card-shadow) !important;
+  border: 1px solid var(--klogin-card-border) !important;
   padding: 40px !important;
   width: 100%;
   max-width: 440px;
@@ -304,7 +378,7 @@ body,
 .acis-tagline {
   display: block;
   margin-top: 6px;
-  color: #111827;
+  color: var(--klogin-text-primary);
   font-size: 0.5rem;
   font-weight: 700;
   letter-spacing: 0.3em;
@@ -312,7 +386,7 @@ body,
 }
 
 .acis-tagline-accent {
-  color: #f96302;
+  color: var(--klogin-accent);
 }
 
 .acis-powered-by {
@@ -326,13 +400,13 @@ body,
 
 .acis-divider-line {
   height: 1px;
-  background: #e5e7eb;
+  background: var(--klogin-divider);
   flex: 1;
 }
 
 .acis-powered-by span:not(.acis-divider-line) {
   font-size: 0.6rem;
-  color: #9ca3af;
+  color: var(--klogin-text-muted);
   font-weight: 600;
   letter-spacing: 0.02em;
 }
@@ -345,14 +419,14 @@ body,
   margin-bottom: 22px;
 }
 
-.acis-netcradus-wordmark .net { color: #030712; }
-.acis-netcradus-wordmark .cradus { color: #f96302; }
-.acis-netcradus-wordmark sup { color: #f96302; font-size: 0.6rem; }
+.acis-netcradus-wordmark .net { color: var(--klogin-wordmark-net); }
+.acis-netcradus-wordmark .cradus { color: var(--klogin-accent); }
+.acis-netcradus-wordmark sup { color: var(--klogin-accent); font-size: 0.6rem; }
 
 #kc-page-title,
 .login-pf-header h1,
 .login-pf-header h2 {
-  color: #111827;
+  color: var(--klogin-text-primary);
   font-weight: 800;
   font-size: 1.5rem;
   text-align: center;
@@ -362,20 +436,20 @@ body,
 
 .acis-subtitle {
   text-align: center;
-  color: #6b7280;
+  color: var(--klogin-text-secondary);
   font-size: 0.85rem;
   margin: 0 0 26px;
 }
 
 label,
 .control-label {
-  color: #374151 !important;
+  color: var(--klogin-label) !important;
   font-weight: 700 !important;
   font-size: 0.75rem !important;
 }
 
 #kc-form-options label {
-  color: #4b5563 !important;
+  color: var(--klogin-text-secondary) !important;
   font-weight: 500 !important;
 }
 
@@ -397,7 +471,7 @@ label,
   left: 14px;
   top: 50%;
   transform: translateY(-50%);
-  color: #9ca3af;
+  color: var(--klogin-text-muted);
   width: 16px;
   height: 16px;
   pointer-events: none;
@@ -412,12 +486,12 @@ label,
 .login-pf-page input[type="text"],
 .login-pf-page input[type="password"],
 .login-pf-page input[type="email"] {
-  background: #ffffff !important;
-  border: 1px solid #e5e7eb !important;
+  background: var(--klogin-input-bg) !important;
+  border: 1px solid var(--klogin-input-border) !important;
   border-radius: 12px !important;
   padding: 12px 16px !important;
   font-size: 0.9rem !important;
-  color: #111827 !important;
+  color: var(--klogin-text-primary) !important;
   box-shadow: none !important;
   height: auto !important;
   width: 100%;
@@ -437,21 +511,21 @@ label,
 #kc-form input[type="text"]::placeholder,
 #kc-form input[type="password"]::placeholder,
 #kc-form input[type="email"]::placeholder {
-  color: #9ca3af;
+  color: var(--klogin-text-muted);
   opacity: 1;
 }
 
 #kc-form input[type="text"]:hover,
 #kc-form input[type="password"]:hover,
 #kc-form input[type="email"]:hover {
-  border-color: #d1d5db !important;
+  border-color: var(--klogin-input-border-hover) !important;
 }
 
 #kc-form input[type="text"]:focus,
 #kc-form input[type="password"]:focus,
 #kc-form input[type="email"]:focus {
-  border-color: #4f46e5 !important;
-  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.14) !important;
+  border-color: var(--klogin-accent) !important;
+  box-shadow: 0 0 0 3px var(--klogin-focus-ring) !important;
   outline: none !important;
 }
 
@@ -461,20 +535,20 @@ label,
 .pf-c-input-group {
   display: flex !important;
   align-items: stretch;
-  background: #ffffff;
-  border: 1px solid #e5e7eb;
+  background: var(--klogin-input-bg);
+  border: 1px solid var(--klogin-input-border);
   border-radius: 12px;
   overflow: hidden;
   transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
 .pf-c-input-group:hover {
-  border-color: #d1d5db;
+  border-color: var(--klogin-input-border-hover);
 }
 
 .pf-c-input-group:focus-within {
-  border-color: #4f46e5;
-  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.14);
+  border-color: var(--klogin-accent);
+  box-shadow: 0 0 0 3px var(--klogin-focus-ring);
 }
 
 #kc-form .pf-c-input-group input[type="password"],
@@ -500,9 +574,9 @@ label,
   flex: 0 0 auto;
   width: 44px;
   border: none;
-  border-left: 1px solid #f3f4f6;
+  border-left: 1px solid var(--klogin-toggle-border);
   background: transparent !important;
-  color: #9ca3af;
+  color: var(--klogin-text-muted);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -512,13 +586,13 @@ label,
 }
 
 .pf-c-input-group .pf-c-button.pf-m-control:hover {
-  color: #4b5563;
-  background: #f9fafb !important;
+  color: var(--klogin-toggle-hover-text);
+  background: var(--klogin-toggle-hover-bg) !important;
 }
 
 .pf-c-input-group .pf-c-button.pf-m-control:focus {
   outline: none;
-  color: #4f46e5;
+  color: var(--klogin-accent);
 }
 
 .pf-c-input-group .pf-c-button.pf-m-control i {
@@ -541,15 +615,15 @@ label,
 .login-pf-page .btn-primary,
 #kc-login button[type="submit"],
 #kc-form-login button[type="submit"] {
-  background: linear-gradient(to right, #2563eb, #4f46e5) !important;
-  background-image: linear-gradient(to right, #2563eb, #4f46e5) !important;
+  background: linear-gradient(to right, var(--klogin-accent), var(--klogin-accent-dark)) !important;
+  background-image: linear-gradient(to right, var(--klogin-accent), var(--klogin-accent-dark)) !important;
   border: none !important;
   border-radius: 12px !important;
   font-weight: 700 !important;
   text-transform: none !important;
   padding: 13px 20px !important;
   width: 100%;
-  box-shadow: 0 10px 25px rgba(79, 70, 229, 0.3) !important;
+  box-shadow: 0 10px 25px var(--klogin-btn-shadow) !important;
   transition: filter 0.15s ease;
   position: relative;
 }
@@ -575,7 +649,7 @@ label,
 a,
 #kc-form a,
 .login-pf-page a {
-  color: #4f46e5 !important;
+  color: var(--klogin-accent) !important;
   font-weight: 600;
   text-decoration: none;
 }
@@ -587,9 +661,9 @@ a:hover {
 .alert-error,
 #kc-error-message,
 .pf-c-alert.pf-m-danger {
-  background: rgba(239, 68, 68, 0.08) !important;
-  border: 1px solid rgba(239, 68, 68, 0.3) !important;
-  color: #b91c1c !important;
+  background: var(--klogin-error-bg) !important;
+  border: 1px solid var(--klogin-error-border) !important;
+  color: var(--klogin-error-text) !important;
   border-radius: 12px !important;
   padding: 12px 16px !important;
   margin-bottom: 16px;
@@ -599,7 +673,7 @@ a:hover {
 #kc-info,
 .login-pf-signup {
   text-align: center;
-  color: #6b7280;
+  color: var(--klogin-text-secondary);
   font-size: 0.8rem;
   margin-top: 20px;
 }
@@ -615,9 +689,9 @@ a:hover {
   text-align: center;
   margin-top: 22px;
   padding-top: 18px;
-  border-top: 1px solid #e5e7eb;
+  border-top: 1px solid var(--klogin-divider);
   font-size: 0.85rem;
-  color: #6b7280;
+  color: var(--klogin-text-secondary);
 }
 
 .acis-signup-link a {
@@ -628,7 +702,7 @@ a:hover {
 .acis-footer {
   text-align: center;
   margin-top: 24px;
-  color: #9ca3af;
+  color: var(--klogin-text-muted);
   font-size: 0.68rem;
   line-height: 1.6;
 }

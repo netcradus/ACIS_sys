@@ -53,7 +53,10 @@ export default function SignupPage() {
 
   return (
     <div className="min-h-screen w-screen bg-[#02050e] text-white flex flex-col lg:flex-row overflow-x-hidden relative font-sans">
-      {/* Background image (behind everything) */}
+      {/* Background image (behind everything) — hero stays a fixed dark
+          brand backdrop regardless of app theme, same as the Keycloak login
+          theme's hero panel, for visual continuity across the whole
+          pre-auth funnel (signup → login → accept-invite → activate). */}
       <div
         className="absolute inset-0 bg-cover bg-center opacity-30 pointer-events-none mix-blend-screen"
         style={{ backgroundImage: `url('/world-network.png')` }}
@@ -65,17 +68,18 @@ export default function SignupPage() {
           <h1 className="text-4xl lg:text-6xl font-extrabold text-white leading-tight tracking-tight">
             Autonomous<br />Cyber Immune<br />System
           </h1>
-          <div className="mt-8 space-y-2 text-lg lg:text-xl font-medium tracking-wide">
-            <p className="text-slate-300">Real-Time <span className="text-[#0ea5e9] font-bold">Detection.</span></p>
-            <p className="text-slate-300">Intelligent <span className="text-[#a855f7] font-bold">Response.</span></p>
-            <p className="text-slate-300">Continuous <span className="text-[#3b82f6] font-bold">Protection.</span></p>
+          <div className="mt-2 h-1 w-[72px] rounded-full bg-gradient-to-r from-accent-light to-accent-pa" />
+          <div className="mt-6 space-y-2 text-lg lg:text-xl font-medium tracking-wide">
+            <p className="text-slate-300">Real-Time <span className="text-accent-light font-bold">Detection.</span></p>
+            <p className="text-slate-300">Intelligent <span className="text-[#A78BFA] font-bold">Response.</span></p>
+            <p className="text-slate-300">Continuous <span className="text-accent-light font-bold">Protection.</span></p>
           </div>
         </div>
       </div>
 
       {/* Right column: signup card */}
       <div className="w-full lg:w-[45%] flex items-center justify-center p-4 lg:p-8 relative z-10 min-h-screen">
-        <div className="w-full max-w-[480px] bg-white text-gray-900 rounded-[32px] p-6 lg:p-10 shadow-2xl border border-gray-100">
+        <div className="w-full max-w-[480px] bg-surface text-text-primary rounded-2xl p-6 lg:p-10 shadow-card border border-fire-border">
           {/* Header */}
           <div className="flex flex-col items-center w-full mb-6">
             <NetcradusLogo size="md" />
@@ -83,16 +87,13 @@ export default function SignupPage() {
 
           {done ? (
             <div className="text-center py-6">
-              <CheckCircle2 className="w-14 h-14 text-emerald-500 mx-auto mb-4" />
-              <h2 className="text-xl font-extrabold text-gray-900 mb-2">Account created!</h2>
-              <p className="text-sm text-gray-500 mb-6">
-                Sign in below, then check <strong>{email}</strong> for a verification link —
+              <CheckCircle2 className="w-14 h-14 text-success mx-auto mb-4" />
+              <h2 className="text-h2 text-text-primary mb-2">Account created!</h2>
+              <p className="text-small text-text-secondary mb-6">
+                Sign in below, then check <strong className="text-text-primary">{email}</strong> for a verification link —
                 you'll need to confirm it before your account is fully active.
               </p>
-              <button
-                onClick={goToLogin}
-                className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-bold py-3 px-4 rounded-xl shadow-lg flex items-center justify-center gap-2 transition-all text-sm"
-              >
+              <button onClick={goToLogin} className="btn-fire w-full">
                 <span>Go to Sign In</span>
                 <ArrowRight className="w-4 h-4" />
               </button>
@@ -100,79 +101,79 @@ export default function SignupPage() {
           ) : (
             <>
               <div className="text-center mb-6">
-                <h2 className="text-2xl font-extrabold text-gray-900 tracking-tight">Create New Account</h2>
-                <p className="text-xs text-gray-400 mt-1.5">Start your ACIS trial in minutes</p>
+                <h2 className="text-h1 text-text-primary">Create New Account</h2>
+                <p className="text-small text-text-muted mt-1.5">Start your ACIS trial in minutes</p>
               </div>
 
               {error && (
-                <div className="mb-4 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+                <div className="mb-4 rounded-lg border border-danger/30 bg-danger/10 px-4 py-3 text-small text-danger">
                   {error}
                 </div>
               )}
 
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div>
-                  <label className="text-small font-semibold text-gray-700 block mb-1.5">Company Name</label>
+                  <label className="text-label uppercase text-text-muted block mb-1.5">Company Name</label>
                   <div className="relative flex items-center">
-                    <Building2 className="absolute left-4 w-4 h-4 text-gray-400 pointer-events-none" />
+                    <Building2 className="absolute left-3.5 w-4 h-4 text-text-muted pointer-events-none" />
                     <input
                       type="text"
                       value={companyName}
                       onChange={(e) => setCompanyName(e.target.value)}
                       placeholder="Acme Corp"
-                      className="w-full bg-white border border-gray-200 rounded-xl pl-12 pr-4 py-3 text-sm text-gray-900 placeholder-gray-400 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none transition-all duration-200"
+                      className="input-field pl-10"
                       required
                     />
                   </div>
                 </div>
 
                 <div>
-                  <label className="text-small font-semibold text-gray-700 block mb-1.5">Your Name</label>
+                  <label className="text-label uppercase text-text-muted block mb-1.5">Your Name</label>
                   <div className="relative flex items-center">
-                    <User className="absolute left-4 w-4 h-4 text-gray-400 pointer-events-none" />
+                    <User className="absolute left-3.5 w-4 h-4 text-text-muted pointer-events-none" />
                     <input
                       type="text"
                       value={adminName}
                       onChange={(e) => setAdminName(e.target.value)}
                       placeholder="Jane Doe"
-                      className="w-full bg-white border border-gray-200 rounded-xl pl-12 pr-4 py-3 text-sm text-gray-900 placeholder-gray-400 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none transition-all duration-200"
+                      className="input-field pl-10"
                       required
                     />
                   </div>
                 </div>
 
                 <div>
-                  <label className="text-small font-semibold text-gray-700 block mb-1.5">Email Address</label>
+                  <label className="text-label uppercase text-text-muted block mb-1.5">Email Address</label>
                   <div className="relative flex items-center">
-                    <Mail className="absolute left-4 w-4 h-4 text-gray-400 pointer-events-none" />
+                    <Mail className="absolute left-3.5 w-4 h-4 text-text-muted pointer-events-none" />
                     <input
                       type="email"
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                       placeholder="you@company.com"
-                      className="w-full bg-white border border-gray-200 rounded-xl pl-12 pr-4 py-3 text-sm text-gray-900 placeholder-gray-400 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none transition-all duration-200"
+                      className="input-field pl-10"
                       required
                     />
                   </div>
                 </div>
 
                 <div>
-                  <label className="text-small font-semibold text-gray-700 block mb-1.5">Password</label>
+                  <label className="text-label uppercase text-text-muted block mb-1.5">Password</label>
                   <div className="relative flex items-center">
-                    <Lock className="absolute left-4 w-4 h-4 text-gray-400 pointer-events-none" />
+                    <Lock className="absolute left-3.5 w-4 h-4 text-text-muted pointer-events-none" />
                     <input
                       type={showPassword ? 'text' : 'password'}
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                       placeholder="At least 8 characters"
-                      className="w-full bg-white border border-gray-200 rounded-xl pl-12 pr-12 py-3 text-sm text-gray-900 placeholder-gray-400 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none transition-all duration-200"
+                      className="input-field pl-10 pr-11"
                       required
                       minLength={8}
                     />
                     <button
                       type="button"
                       onClick={() => setShowPassword(!showPassword)}
-                      className="absolute right-4 text-gray-400 hover:text-gray-600 transition-colors"
+                      className="absolute right-3.5 text-text-muted hover:text-text-primary transition-colors"
                     >
                       {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                     </button>
@@ -180,40 +181,36 @@ export default function SignupPage() {
                 </div>
 
                 <div>
-                  <label className="text-small font-semibold text-gray-700 block mb-1.5">Confirm Password</label>
+                  <label className="text-label uppercase text-text-muted block mb-1.5">Confirm Password</label>
                   <div className="relative flex items-center">
-                    <Lock className="absolute left-4 w-4 h-4 text-gray-400 pointer-events-none" />
+                    <Lock className="absolute left-3.5 w-4 h-4 text-text-muted pointer-events-none" />
                     <input
                       type={showPassword ? 'text' : 'password'}
                       value={confirmPassword}
                       onChange={(e) => setConfirmPassword(e.target.value)}
                       placeholder="Re-enter your password"
-                      className="w-full bg-white border border-gray-200 rounded-xl pl-12 pr-4 py-3 text-sm text-gray-900 placeholder-gray-400 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none transition-all duration-200"
+                      className="input-field pl-10"
                       required
                     />
                   </div>
                 </div>
 
-                <button
-                  type="submit"
-                  disabled={submitting}
-                  className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 disabled:opacity-60 text-white font-bold py-3 px-4 rounded-xl shadow-lg flex items-center justify-center gap-2 hover:scale-[1.01] active:scale-[0.99] transition-all text-sm tracking-wide mt-2"
-                >
+                <button type="submit" disabled={submitting} className="btn-fire w-full mt-2">
                   <span>{submitting ? 'Creating Account…' : 'Create Account'}</span>
                   {!submitting && <ArrowRight className="w-4 h-4" />}
                 </button>
               </form>
 
-              <p className="text-center text-xs text-gray-500 mt-6">
+              <p className="text-center text-small text-text-secondary mt-6">
                 Already have an account?{' '}
-                <button onClick={goToLogin} className="text-blue-600 font-semibold hover:underline">
+                <button onClick={goToLogin} className="text-accent font-semibold hover:underline">
                   Sign in
                 </button>
               </p>
             </>
           )}
 
-          <div className="text-center text-[10px] text-gray-400 font-medium space-y-0.5 mt-6">
+          <div className="text-center text-label text-text-muted space-y-0.5 mt-6">
             <p>© 2026 Netcradus Pvt Ltd</p>
             <p>Version 1.0.0</p>
           </div>

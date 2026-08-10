@@ -90,49 +90,44 @@ export default function ActivateTenantPage() {
           <h1 className="text-4xl lg:text-6xl font-extrabold text-white leading-tight tracking-tight">
             Autonomous<br />Cyber Immune<br />System
           </h1>
-          <div className="mt-8 space-y-2 text-lg lg:text-xl font-medium tracking-wide">
-            <p className="text-slate-300">Real-Time <span className="text-[#0ea5e9] font-bold">Detection.</span></p>
-            <p className="text-slate-300">Intelligent <span className="text-[#a855f7] font-bold">Response.</span></p>
-            <p className="text-slate-300">Continuous <span className="text-[#3b82f6] font-bold">Protection.</span></p>
+          <div className="mt-2 h-1 w-[72px] rounded-full bg-gradient-to-r from-accent-light to-accent-pa" />
+          <div className="mt-6 space-y-2 text-lg lg:text-xl font-medium tracking-wide">
+            <p className="text-slate-300">Real-Time <span className="text-accent-light font-bold">Detection.</span></p>
+            <p className="text-slate-300">Intelligent <span className="text-[#A78BFA] font-bold">Response.</span></p>
+            <p className="text-slate-300">Continuous <span className="text-accent-light font-bold">Protection.</span></p>
           </div>
         </div>
       </div>
 
       <div className="w-full lg:w-[45%] flex items-center justify-center p-4 lg:p-8 relative z-10 min-h-screen">
-        <div className="w-full max-w-[480px] bg-white text-gray-900 rounded-[32px] p-6 lg:p-10 shadow-2xl border border-gray-100">
+        <div className="w-full max-w-[480px] bg-surface text-text-primary rounded-2xl p-6 lg:p-10 shadow-card border border-fire-border">
           <div className="flex flex-col items-center w-full mb-6">
             <NetcradusLogo size="md" />
           </div>
 
           {loadingPreview ? (
             <div className="text-center py-10">
-              <Loader2 className="w-10 h-10 text-blue-500 mx-auto mb-4 animate-spin" />
-              <p className="text-sm text-gray-500">Checking your activation link…</p>
+              <Loader2 className="w-10 h-10 text-accent mx-auto mb-4 animate-spin" />
+              <p className="text-small text-text-secondary">Checking your activation link…</p>
             </div>
           ) : previewError ? (
             <div className="text-center py-6">
-              <XCircle className="w-14 h-14 text-rose-500 mx-auto mb-4" />
-              <h2 className="text-xl font-extrabold text-gray-900 mb-2">Activation link not valid</h2>
-              <p className="text-sm text-gray-500 mb-6">{previewError}</p>
-              <button
-                onClick={goToLogin}
-                className="w-full bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold py-3 px-4 rounded-xl transition-all text-sm"
-              >
+              <XCircle className="w-14 h-14 text-danger mx-auto mb-4" />
+              <h2 className="text-h2 text-text-primary mb-2">Activation link not valid</h2>
+              <p className="text-small text-text-secondary mb-6">{previewError}</p>
+              <button onClick={goToLogin} className="btn-mission w-full">
                 Go to Sign In
               </button>
             </div>
           ) : done ? (
             <div className="text-center py-6">
-              <CheckCircle2 className="w-14 h-14 text-emerald-500 mx-auto mb-4" />
-              <h2 className="text-xl font-extrabold text-gray-900 mb-2">You're all set</h2>
-              <p className="text-sm text-gray-500 mb-6">
-                Your account is active. Sign in with <strong>{preview?.adminEmail}</strong> and the password
+              <CheckCircle2 className="w-14 h-14 text-success mx-auto mb-4" />
+              <h2 className="text-h2 text-text-primary mb-2">You're all set</h2>
+              <p className="text-small text-text-secondary mb-6">
+                Your account is active. Sign in with <strong className="text-text-primary">{preview?.adminEmail}</strong> and the password
                 you just set.
               </p>
-              <button
-                onClick={goToLogin}
-                className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-bold py-3 px-4 rounded-xl shadow-lg flex items-center justify-center gap-2 transition-all text-sm"
-              >
+              <button onClick={goToLogin} className="btn-fire w-full">
                 <span>Go to Sign In</span>
                 <ArrowRight className="w-4 h-4" />
               </button>
@@ -140,29 +135,29 @@ export default function ActivateTenantPage() {
           ) : (
             <>
               <div className="text-center mb-6">
-                <h2 className="text-2xl font-extrabold text-gray-900 tracking-tight">Activate {preview?.tenantName}</h2>
-                <p className="text-xs text-gray-400 mt-1.5">
-                  Set a password for <strong>{preview?.adminEmail}</strong> to activate your administrator account
+                <h2 className="text-h1 text-text-primary">Activate {preview?.tenantName}</h2>
+                <p className="text-small text-text-muted mt-1.5">
+                  Set a password for <strong className="text-text-secondary">{preview?.adminEmail}</strong> to activate your administrator account
                 </p>
               </div>
 
               {submitError && (
-                <div className="mb-4 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+                <div className="mb-4 rounded-lg border border-danger/30 bg-danger/10 px-4 py-3 text-small text-danger">
                   {submitError}
                 </div>
               )}
 
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div>
-                  <label className="text-small font-semibold text-gray-700 block mb-1.5">Password</label>
+                  <label className="text-label uppercase text-text-muted block mb-1.5">Password</label>
                   <div className="relative flex items-center">
-                    <Lock className="absolute left-4 w-4 h-4 text-gray-400 pointer-events-none" />
+                    <Lock className="absolute left-3.5 w-4 h-4 text-text-muted pointer-events-none" />
                     <input
                       type={showPassword ? 'text' : 'password'}
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                       placeholder="At least 8 characters"
-                      className="w-full bg-white border border-gray-200 rounded-xl pl-12 pr-12 py-3 text-sm text-gray-900 placeholder-gray-400 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none transition-all duration-200"
+                      className="input-field pl-10 pr-11"
                       required
                       minLength={8}
                       autoFocus
@@ -170,7 +165,7 @@ export default function ActivateTenantPage() {
                     <button
                       type="button"
                       onClick={() => setShowPassword(!showPassword)}
-                      className="absolute right-4 text-gray-400 hover:text-gray-600 transition-colors"
+                      className="absolute right-3.5 text-text-muted hover:text-text-primary transition-colors"
                     >
                       {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                     </button>
@@ -178,25 +173,21 @@ export default function ActivateTenantPage() {
                 </div>
 
                 <div>
-                  <label className="text-small font-semibold text-gray-700 block mb-1.5">Confirm Password</label>
+                  <label className="text-label uppercase text-text-muted block mb-1.5">Confirm Password</label>
                   <div className="relative flex items-center">
-                    <Lock className="absolute left-4 w-4 h-4 text-gray-400 pointer-events-none" />
+                    <Lock className="absolute left-3.5 w-4 h-4 text-text-muted pointer-events-none" />
                     <input
                       type={showPassword ? 'text' : 'password'}
                       value={confirmPassword}
                       onChange={(e) => setConfirmPassword(e.target.value)}
                       placeholder="Re-enter your password"
-                      className="w-full bg-white border border-gray-200 rounded-xl pl-12 pr-4 py-3 text-sm text-gray-900 placeholder-gray-400 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none transition-all duration-200"
+                      className="input-field pl-10"
                       required
                     />
                   </div>
                 </div>
 
-                <button
-                  type="submit"
-                  disabled={submitting}
-                  className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 disabled:opacity-60 text-white font-bold py-3 px-4 rounded-xl shadow-lg flex items-center justify-center gap-2 hover:scale-[1.01] active:scale-[0.99] transition-all text-sm tracking-wide mt-2"
-                >
+                <button type="submit" disabled={submitting} className="btn-fire w-full mt-2">
                   <span>{submitting ? 'Activating account…' : 'Activate account'}</span>
                   {!submitting && <ArrowRight className="w-4 h-4" />}
                 </button>
@@ -204,7 +195,7 @@ export default function ActivateTenantPage() {
             </>
           )}
 
-          <div className="text-center text-[10px] text-gray-400 font-medium space-y-0.5 mt-6">
+          <div className="text-center text-label text-text-muted space-y-0.5 mt-6">
             <p>© 2026 Netcradus Pvt Ltd</p>
             <p>Version 1.0.0</p>
           </div>

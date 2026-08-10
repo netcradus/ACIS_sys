@@ -68,6 +68,25 @@
     --severity-high-rgb: 251 146 60;
     --severity-medium: #EAB308;
     --severity-medium-rgb: 234 179 8;
+    /* Completes the 5-tier Critical/High/Medium/Low/Info severity ramp
+       SIEM consoles conventionally use — danger/warning/success/info above
+       stay as generic status colors, untouched (too many components
+       reference them by that name for a rename to be worth it). */
+    --severity-critical: #F43F5E;
+    --severity-critical-rgb: 244 63 94;
+    --severity-low: #22D3EE;
+    --severity-low-rgb: 34 211 238;
+    --severity-info: #94A3B8;
+    --severity-info-rgb: 148 163 184;
+    /* Elevation ramp addition — inset sits below --surface (recessed
+       data-dense zones: table headers, log/code viewers); overlay sits
+       above --surface-3 (popovers, command palette, context menus), paired
+       with its own --shadow-overlay distinct from --shadow-card. */
+    --surface-inset: #0B0B0E;
+    --surface-inset-rgb: 11 11 14;
+    --surface-overlay: #232328;
+    --surface-overlay-rgb: 35 35 40;
+    --shadow-overlay: 0 2px 8px rgba(0, 0, 0, 0.35), 0 12px 40px rgba(0, 0, 0, 0.55);
     color-scheme: dark;
   }
 
@@ -122,6 +141,17 @@
     --severity-high-rgb: 194 65 12;
     --severity-medium: #A16207;
     --severity-medium-rgb: 161 98 7;
+    --severity-critical: #BE123C;
+    --severity-critical-rgb: 190 18 60;
+    --severity-low: #0E7490;
+    --severity-low-rgb: 14 116 144;
+    --severity-info: #475569;
+    --severity-info-rgb: 71 85 105;
+    --surface-inset: #EEEFF2;
+    --surface-inset-rgb: 238 239 242;
+    --surface-overlay: #FFFFFF;
+    --surface-overlay-rgb: 255 255 255;
+    --shadow-overlay: 0 4px 16px rgba(20, 22, 28, 0.10), 0 12px 32px rgba(20, 22, 28, 0.12);
     color-scheme: light;
   }
 
@@ -177,6 +207,17 @@
       --severity-high-rgb: 194 65 12;
       --severity-medium: #A16207;
       --severity-medium-rgb: 161 98 7;
+      --severity-critical: #BE123C;
+      --severity-critical-rgb: 190 18 60;
+      --severity-low: #0E7490;
+      --severity-low-rgb: 14 116 144;
+      --severity-info: #475569;
+      --severity-info-rgb: 71 85 105;
+      --surface-inset: #EEEFF2;
+      --surface-inset-rgb: 238 239 242;
+      --surface-overlay: #FFFFFF;
+      --surface-overlay-rgb: 255 255 255;
+      --shadow-overlay: 0 4px 16px rgba(20, 22, 28, 0.10), 0 12px 32px rgba(20, 22, 28, 0.12);
       color-scheme: light;
     }
   }
@@ -185,6 +226,19 @@
   *::before,
   *::after {
     box-sizing: border-box;
+  }
+
+  /* Density spacing + motion tokens — theme-independent (unlike the palette
+     blocks above, these don't change between light/dark), so declared once.
+     Used for data-dense zones (table rows, filter bars, AG Grid contexts)
+     and panel/drawer/palette entrance timing, replacing hand-tuned
+     per-component durations with one shared vocabulary. */
+  :root {
+    --space-dense: 0.375rem;
+    --space-compact: 0.5rem;
+    --ease-standard: cubic-bezier(0.4, 0, 0.2, 1);
+    --duration-fast: 120ms;
+    --duration-base: 200ms;
   }
 
   html {

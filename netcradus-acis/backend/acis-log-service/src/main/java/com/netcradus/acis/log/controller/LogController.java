@@ -29,6 +29,7 @@ import org.springframework.http.MediaType;
 public class LogController {
 
     private final LogRepository logRepository;
+    private final com.netcradus.acis.log.service.IngestMetricsService ingestMetricsService;
 
     @Value("${acis.ai-service.url}")
     private String aiServiceUrl;
@@ -115,6 +116,20 @@ public class LogController {
         } catch (Exception e) {
             return ResponseEntity.internalServerError().body(Map.of("error", e.getMessage()));
         }
+    }
+
+    /**
+     * Real ingestion-pipeline telemetry for the Dashboard's system-health
+     * panel — see IngestMetricsService. Not tenant-scoped (this is a
+     * pipeline-wide health signal, not per-tenant data), so no
+     * X-Tenant-ID dependency here.
+     */
+    @GetMapping("/ingest-stats")
+    public ResponseEntity<Map<String, Object>> getIngestStats() {
+        return ResponseEntity.ok(Map.of(
+                "lagSeriesMs", ingestMetricsService.getLagSeries(),
+                "cpuUsagePercent", ingestMetricsService.getCpuUsagePercent()
+        ));
     }
 
     @GetMapping("/ai-health")

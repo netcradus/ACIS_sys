@@ -1,11 +1,15 @@
 import { useState, useRef, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { LogOut, ChevronDown, ExternalLink } from 'lucide-react'
+import { LogOut, ChevronDown, ExternalLink, Search, Command } from 'lucide-react'
 import keycloak from '@/lib/keycloak'
 import { useAuthStore } from '@/store/authStore'
 import ThemeToggle from './ThemeToggle'
 
-export default function PlatformAdminTopBar() {
+interface PlatformAdminTopBarProps {
+  onOpenPalette: () => void
+}
+
+export default function PlatformAdminTopBar({ onOpenPalette }: PlatformAdminTopBarProps) {
   const { user, clearAuth } = useAuthStore()
   const navigate = useNavigate()
   const [menuOpen, setMenuOpen] = useState(false)
@@ -31,6 +35,20 @@ export default function PlatformAdminTopBar() {
       </div>
 
       <div className="flex items-center gap-3">
+        {/* Command palette trigger — hand-rolled accent-pa styling since .input-field is hardcoded to the tenant console's blue */}
+        <button
+          type="button"
+          onClick={onOpenPalette}
+          className="group hidden md:flex items-center gap-2.5 min-w-[240px] bg-surface border border-fire-border rounded-lg px-3.5 py-2 text-small text-left text-text-muted hover:border-accent-pa/40 transition-colors"
+        >
+          <Search className="w-4 h-4 text-text-muted group-hover:text-accent-pa transition-colors flex-shrink-0" />
+          <span className="flex-1">Search platform...</span>
+          <span className="flex items-center gap-1 px-1.5 py-0.5 bg-surface-3 border border-fire-border rounded flex-shrink-0">
+            <Command className="w-3 h-3 text-text-muted" />
+            <span className="text-label text-text-muted">K</span>
+          </span>
+        </button>
+
         <ThemeToggle accentClass="text-accent-pa" />
 
         <button

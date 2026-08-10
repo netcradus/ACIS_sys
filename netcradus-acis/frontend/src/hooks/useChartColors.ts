@@ -8,13 +8,18 @@ export interface ChartColors {
   warning:       string
   danger:        string
   info:          string
-  severityHigh:   string
-  severityMedium: string
+  severityCritical: string
+  severityHigh:     string
+  severityMedium:   string
+  severityLow:      string
+  severityInfo:     string
   textSecondary: string
   textMuted:     string
   border:        string
   surface:       string
   surface2:      string
+  surfaceInset:  string
+  surfaceOverlay: string
 }
 
 const TOKENS: Array<[keyof ChartColors, string]> = [
@@ -24,13 +29,18 @@ const TOKENS: Array<[keyof ChartColors, string]> = [
   ['warning', '--warning'],
   ['danger', '--danger'],
   ['info', '--info'],
+  ['severityCritical', '--severity-critical'],
   ['severityHigh', '--severity-high'],
   ['severityMedium', '--severity-medium'],
+  ['severityLow', '--severity-low'],
+  ['severityInfo', '--severity-info'],
   ['textSecondary', '--text-secondary'],
   ['textMuted', '--text-muted'],
   ['border', '--border'],
   ['surface', '--surface'],
   ['surface2', '--surface-2'],
+  ['surfaceInset', '--surface-inset'],
+  ['surfaceOverlay', '--surface-overlay'],
 ]
 
 function readChartColors(): ChartColors {

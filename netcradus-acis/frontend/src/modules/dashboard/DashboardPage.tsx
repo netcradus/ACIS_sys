@@ -6,8 +6,6 @@ import {
   Zap,
   Layers,
   ArrowUpRight,
-  ArrowDownRight,
-  MoreHorizontal,
   Terminal,
   RefreshCw,
   Play,
@@ -34,11 +32,16 @@ import {
   MapPin
 } from 'lucide-react'
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, PieChart, Pie } from 'recharts'
+import { useNavigate } from 'react-router-dom'
 import apiClient from '@/lib/apiClient'
 import wsClient from '@/lib/wsClient'
 import { clsx } from 'clsx'
 import { useChartColors } from '@/hooks/useChartColors'
 import { useCanRead, MODULES } from '@/store/permissionsStore'
+import { useEntityPivot } from '@/hooks/useEntityPivot'
+import KpiTile from '@/components/ui/KpiTile'
+import TimelineTrack, { type TimelineEvent } from '@/components/viz/TimelineTrack'
+import { toSeverity } from '@/components/viz/SeverityBadge'
 
 interface DashboardStats {
   totalAlerts: number
@@ -77,6 +80,8 @@ function simulationCategory(name: string): 'phishing' | 'lateral' | 'other' {
 
 export default function DashboardPage() {
   const chartColors = useChartColors()
+  const navigate = useNavigate()
+  const { pivotTo } = useEntityPivot()
   const canReadSoarPlaybooks = useCanRead(MODULES.SOAR_PLAYBOOKS)
   const [activeTab, setActiveTab] = useState<'architecture' | 'overview'>('architecture')
   const [stats, setStats] = useState<DashboardStats | null>(null)
@@ -102,24 +107,40 @@ export default function DashboardPage() {
   const [activeExecutionId, setActiveExecutionId] = useState<string | null>(null)
   const [loggedStages, setLoggedStages] = useState<number>(0)
 
-  // Demo telemetry for the architecture view's decorative widgets — this
-  // simulator screen has no real backend feed for ingest-lag history or
-  // CPU load, matching the existing pattern of synthetic flavor data
-  // elsewhere in this component (e.g. the campaign log messages).
-  const ingestLagHistory = useMemo(
-    () => Array.from({ length: 20 }, (_, i) => ({ t: i, v: 18 + Math.round(Math.sin(i / 2.3) * 6 + Math.random() * 4) })),
-    []
-  )
-  const cpuUsage = 28
+  // Real ingest-pipeline telemetry — GET /api/logs/ingest-stats
+  // (IngestMetricsService/acis-log-service) tracks the genuine gap between
+  // a log's ingest-receipt timestamp and the moment the Kafka consumer
+  // finishes processing it, plus that service's real JVM CPU load. Replaces
+  // what used to be Math.random()-based synthetic history and a hardcoded
+  // cpuUsage constant.
+  const [ingestStats, setIngestStats] = useState<{ lagSeriesMs: number[]; cpuUsagePercent: number } | null>(null)
+
+  useEffect(() => {
+    const fetchIngestStats = async () => {
+      try {
+        const res = await apiClient.get('/api/logs/ingest-stats')
+        setIngestStats(res.data)
+      } catch (e) {
+        console.error('Failed to fetch ingest stats:', e)
+      }
+    }
+    fetchIngestStats()
+    const interval = setInterval(fetchIngestStats, 5000)
+    return () => clearInterval(interval)
+  }, [])
+
+  const ingestLagHistory = (ingestStats?.lagSeriesMs ?? []).map((v, i) => ({ t: i, v }))
+  const cpuUsage = Math.round(ingestStats?.cpuUsagePercent ?? 0)
 
   // Real live feed — derived from the same real, WebSocket-refreshed alert
   // data already fetched into `incidents` below, instead of a static
   // 4-item array with fabricated relative timestamps that never updated.
-  const liveThreatFeed = incidents.slice(0, 4).map((inc) => ({
-    severity: (inc.severity || '').toUpperCase(),
-    message: inc.title,
-    category: inc.source,
-    time: inc.updated,
+  const threatFeedEvents: TimelineEvent[] = incidents.slice(0, 4).map((inc, i) => ({
+    id: String(inc.incidentNumber ?? inc.id ?? i),
+    title: inc.title,
+    description: inc.source,
+    timestamp: inc.updated,
+    severity: toSeverity(inc.severity),
   }))
 
   const attackMapNodes = [
@@ -539,7 +560,9 @@ export default function DashboardPage() {
                 <div className="p-3 bg-background border border-fire-border rounded-xl grid grid-cols-[1fr_auto] gap-3 items-center">
                   <div>
                     <div className="text-[9px] font-black uppercase text-text-muted tracking-widest">Ingest Lag</div>
-                    <div className="text-lg font-black text-text-primary font-mono leading-tight">28 ms</div>
+                    <div className="text-lg font-black text-text-primary font-mono leading-tight">
+                      {ingestLagHistory.length > 0 ? `${ingestLagHistory[ingestLagHistory.length - 1].v} ms` : '— ms'}
+                    </div>
                     <div className="h-8 w-full mt-1">
                       <ResponsiveContainer width="100%" height="100%">
                         <AreaChart data={ingestLagHistory} margin={{ top: 2, right: 0, bottom: 0, left: 0 }}>
@@ -705,40 +728,18 @@ export default function DashboardPage() {
                   <h3 className="text-xs font-black uppercase tracking-[0.2em] text-text-primary">Live Threat Feed</h3>
                 </div>
                 <button
-                  onClick={() => (window.location.href = '/dashboard/alerts')}
-                  className="text-[10px] font-black text-accent uppercase tracking-widest hover:underline"
+                  onClick={() => navigate('/dashboard/alerts')}
+                  className="text-label text-accent hover:underline"
                 >
                   View All
                 </button>
               </div>
 
-              <div className="divide-y divide-fire-border/60">
-                {liveThreatFeed.map((t, i) => (
-                  <div key={i} className="flex items-center gap-3 py-3">
-                    <span className={clsx(
-                      "h-2 w-2 rounded-full shrink-0",
-                      t.severity === 'CRITICAL' && "bg-danger",
-                      t.severity === 'HIGH' && "bg-[var(--severity-high)]",
-                      t.severity === 'MEDIUM' && "bg-[var(--severity-medium)]",
-                      t.severity === 'LOW' && "bg-info"
-                    )} />
-                    <span className={clsx(
-                      "text-[9px] font-black uppercase tracking-widest w-16 shrink-0",
-                      t.severity === 'CRITICAL' && "text-danger",
-                      t.severity === 'HIGH' && "text-[var(--severity-high)]",
-                      t.severity === 'MEDIUM' && "text-[var(--severity-medium)]",
-                      t.severity === 'LOW' && "text-info"
-                    )}>
-                      {t.severity}
-                    </span>
-                    <span className="flex-1 text-xs font-bold text-text-primary truncate">{t.message}</span>
-                    <span className="text-[9px] font-black uppercase tracking-widest text-text-muted bg-surface-3 border border-fire-border px-2 py-0.5 rounded shrink-0">
-                      {t.category}
-                    </span>
-                    <span className="text-[10px] font-bold text-text-muted font-mono shrink-0 w-20 text-right">{t.time}</span>
-                  </div>
-                ))}
-              </div>
+              <TimelineTrack
+                events={threatFeedEvents}
+                onEventClick={() => navigate('/dashboard/alerts')}
+                emptyLabel="No recent incidents"
+              />
             </div>
 
             <div className="card-mission border-fire-border bg-background/40 p-5 relative overflow-hidden">
@@ -877,38 +878,25 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          {/* KPI Row */}
+          {/* KPI Row — real drill-down via KpiTile/useEntityPivot; the
+              previous inline markup's "⋯" icon had no onClick at all. */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {[
-              { title: 'Events (24h)', value: stats?.events24h ?? null, change: 'Live Feed', up: true, data: [] },
-              { title: 'Notable Events', value: stats?.totalAlerts ?? null, change: 'Live Feed', up: true, data: [] },
-              { title: 'Mean Time to Detect', value: null, change: '---', up: false, data: [] },
-              { title: 'Mean Time to Respond', value: null, change: '---', up: false, data: [] },
-            ].map((card, i) => (
-              <div key={i} className="card-mission group relative overflow-hidden bg-surface-2 border-fire-border/60 hover:border-accent/40">
-                <div className="relative z-10">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-label uppercase text-text-muted group-hover:text-text-secondary transition-colors">
-                      {card.title}
-                    </span>
-                    <MoreHorizontal className="w-4 h-4 text-text-muted cursor-pointer hover:text-text-primary" />
-                  </div>
-                  <div className="text-h1 text-text-primary mb-2 tabular-nums">
-                    {isLoading ? '---' : (card.value === null ? <span className="text-small font-normal text-text-muted">Still in development</span> : card.value)}
-                  </div>
-                  <div className="flex items-center gap-1.5 mb-2">
-                    {card.value !== null && card.up && <ArrowUpRight className="w-3 h-3 text-accent" />}
-                    {card.value !== null && !card.up && <ArrowDownRight className="w-3 h-3 text-success" />}
-                    {card.value !== null && (
-                      <span className={clsx("text-small font-medium", card.up ? "text-accent" : "text-success")}>
-                        {card.change} <span className="text-text-muted ml-1">vs yesterday</span>
-                      </span>
-                    )}
-                  </div>
-                </div>
-                <div className={clsx("absolute -bottom-8 -right-8 w-24 h-24 blur-[40px] rounded-full opacity-10 transition-opacity group-hover:opacity-20", card.up ? "bg-accent" : "bg-success")} />
-              </div>
-            ))}
+            <KpiTile
+              title="Events (24h)"
+              value={isLoading ? '—' : stats?.events24h ?? null}
+              loading={isLoading}
+              trend={stats?.events24h != null ? { label: 'Live Feed', direction: 'up' } : undefined}
+              onClick={() => navigate('/dashboard/logs')}
+            />
+            <KpiTile
+              title="Notable Events"
+              value={isLoading ? '—' : stats?.totalAlerts ?? null}
+              loading={isLoading}
+              trend={stats?.totalAlerts != null ? { label: 'Live Feed', direction: 'up' } : undefined}
+              onClick={() => navigate('/dashboard/alerts')}
+            />
+            <KpiTile title="Mean Time to Detect" value={null} />
+            <KpiTile title="Mean Time to Respond" value={null} />
           </div>
 
           {/* Charts Section */}
@@ -1001,7 +989,10 @@ export default function DashboardPage() {
                 <h3 className="text-h3 text-text-primary">Open Incidents Queue</h3>
                 <p className="text-small text-text-secondary mt-1">Prioritized active threats requiring analyst review</p>
               </div>
-              <button className="btn-ghost text-accent">
+              <button
+                className="btn-ghost text-accent"
+                onClick={() => pivotTo('/dashboard/alerts', { type: 'severity', value: 'CRITICAL' })}
+              >
                 View All Criticals <ArrowUpRight className="w-3.5 h-3.5" />
               </button>
             </div>

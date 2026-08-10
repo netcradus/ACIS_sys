@@ -1,51 +1,11 @@
 import { NavLink } from 'react-router-dom'
-import {
-  LayoutDashboard,
-  FileSearch,
-  GitBranch,
-  AlertTriangle,
-  Monitor,
-  Globe,
-  Play,
-  Crosshair,
-  Server,
-  Shield,
-  FileText,
-  Settings,
-  ChevronLeft,
-  ChevronRight,
-  Zap,
-  Sparkles,
-  Bot,
-} from 'lucide-react'
+import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { useState } from 'react'
 import { clsx } from 'clsx'
 import NetcradusLogo from './NetcradusLogo'
+import { tenantNavItems as navItems } from './navConfig'
 import { useAuthStore } from '../store/authStore'
-import { usePermissionsStore, MODULES } from '../store/permissionsStore'
-
-// module: which of the 5 RBAC modules (see acis-common's DefaultRoleProvisioner)
-// this page's real API calls fall under — a nav item only shows if the
-// caller's role has at least READ there. Dashboard has no dedicated backend
-// API of its own (pure aggregate view over real alert data), so it's gated
-// on Alerts & Correlation directly — the module its data calls actually
-// require — rather than a separate "Dashboard" module that used to let an
-// admin grant it independently and leave the page's own fetches 403ing.
-const navItems = [
-  { icon: LayoutDashboard, label: 'Dashboard',             path: '/dashboard',              module: MODULES.ALERTS_CORRELATION },
-  { icon: FileSearch,      label: 'Log Explorer',          path: '/dashboard/logs',          module: MODULES.ALERTS_CORRELATION },
-  { icon: GitBranch,       label: 'Correlation',           path: '/dashboard/correlation',   module: MODULES.ALERTS_CORRELATION },
-  { icon: AlertTriangle,   label: 'Alerts & Incidents',    path: '/dashboard/alerts',        module: MODULES.ALERTS_CORRELATION },
-  { icon: Monitor,         label: 'Assets & Identities',   path: '/dashboard/assets',        module: MODULES.ASSETS_THREAT_INTEL },
-  { icon: Globe,           label: 'Threat Intel',          path: '/dashboard/threat-intel',  module: MODULES.ASSETS_THREAT_INTEL },
-  { icon: Play,            label: 'SOAR Playbooks',        path: '/dashboard/soar',          module: MODULES.SOAR_PLAYBOOKS },
-  { icon: Crosshair,       label: 'Red Team',              path: '/dashboard/red-team',      module: MODULES.SOAR_PLAYBOOKS },
-  { icon: Server,          label: 'Endpoints & Network',   path: '/dashboard/endpoints',     module: MODULES.ASSETS_THREAT_INTEL },
-  { icon: Shield,          label: 'Compliance & Audit',    path: '/dashboard/compliance',    module: MODULES.REPORTS_COMPLIANCE },
-  { icon: FileText,        label: 'Reports',               path: '/dashboard/reports',       module: MODULES.REPORTS_COMPLIANCE },
-  { icon: Sparkles,        label: 'AI Analyst',            path: '/dashboard/ai-analyst',    module: MODULES.ALERTS_CORRELATION },
-  { icon: Settings,        label: 'Settings',              path: '/dashboard/settings',      module: MODULES.SETTINGS },
-]
+import { usePermissionsStore } from '../store/permissionsStore'
 
 export default function Sidebar() {
   const [collapsed, setCollapsed] = useState(false)

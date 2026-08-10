@@ -23,7 +23,11 @@ function formatTimeAgo(isoString: string): string {
   }
 }
 
-export default function TopBar() {
+interface TopBarProps {
+  onOpenPalette: () => void
+}
+
+export default function TopBar({ onOpenPalette }: TopBarProps) {
   const { user, clearAuth } = useAuthStore()
   const { 
     notifications, unreadCount, filter, setFilter, 
@@ -64,19 +68,19 @@ export default function TopBar() {
           Security Operations Center
         </h2>
 
-        {/* Search Bar */}
-        <div className="relative group min-w-[300px]">
-          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted group-focus-within:text-accent transition-colors" />
-          <input
-            type="text"
-            placeholder="Search ACIS Intel..."
-            className="input-field py-2 pl-10 pr-12 text-small"
-          />
-          <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-1 px-1.5 py-0.5 bg-surface-3 border border-fire-border rounded">
+        {/* Command Palette Trigger — real ⌘K search across nav + entities (see CommandPalette.tsx), not the previously-decorative input this replaced */}
+        <button
+          type="button"
+          onClick={onOpenPalette}
+          className="group flex items-center gap-2.5 min-w-[300px] input-field py-2 pl-3.5 pr-3 text-small text-left text-text-muted hover:border-accent/40 transition-colors"
+        >
+          <Search className="w-4 h-4 text-text-muted group-hover:text-accent transition-colors flex-shrink-0" />
+          <span className="flex-1">Search ACIS Intel...</span>
+          <span className="flex items-center gap-1 px-1.5 py-0.5 bg-surface-3 border border-fire-border rounded flex-shrink-0">
             <Command className="w-3 h-3 text-text-muted" />
             <span className="text-label text-text-muted">K</span>
-          </div>
-        </div>
+          </span>
+        </button>
       </div>
 
       <div className="flex items-center gap-4" ref={dropdownRef}>

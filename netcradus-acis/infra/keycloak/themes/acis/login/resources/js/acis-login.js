@@ -12,12 +12,18 @@
   function $(sel, root) { return (root || document).querySelector(sel); }
 
   function svgAcisLogo() {
+    // Fill colors reference the same CSS custom properties acis-login.css
+    // defines (light values by default, swapped under prefers-color-scheme:
+    // dark) — valid since this SVG is inline in the document, not loaded as
+    // a standalone external asset, so CSS variable inheritance applies.
+    // Was hardcoded #0a0a0a/#F96302 (orange), unrelated to the app's real
+    // accent tokens.
     return (
       '<svg class="acis-logo-mark" viewBox="0 0 160 50" fill="none" xmlns="http://www.w3.org/2000/svg">' +
-      '<path d="M18 42L33 6H43L28 42H18Z" fill="#0a0a0a"/>' +
-      '<path d="M29 16L40 42H50L35 6L29 16Z" fill="#F96302"/>' +
-      '<text x="56" y="40" fill="#F96302" font-weight="800" font-size="36" font-family="Inter, system-ui, sans-serif" letter-spacing="-0.03em">CIS</text>' +
-      '<text x="122" y="18" fill="#0a0a0a" font-weight="700" font-size="8" font-family="Inter, system-ui, sans-serif">TM</text>' +
+      '<path d="M18 42L33 6H43L28 42H18Z" fill="var(--klogin-wordmark-net)"/>' +
+      '<path d="M29 16L40 42H50L35 6L29 16Z" fill="var(--klogin-accent)"/>' +
+      '<text x="56" y="40" fill="var(--klogin-accent)" font-weight="800" font-size="36" font-family="Inter, system-ui, sans-serif" letter-spacing="-0.03em">CIS</text>' +
+      '<text x="122" y="18" fill="var(--klogin-wordmark-net)" font-weight="700" font-size="8" font-family="Inter, system-ui, sans-serif">TM</text>' +
       '</svg>'
     );
   }

@@ -23,6 +23,7 @@ public class LogIngestionService {
     private final org.springframework.messaging.simp.SimpMessagingTemplate messagingTemplate;
     private final com.netcradus.acis.log.client.EnrichmentClient enrichmentClient;
     private final org.springframework.kafka.core.KafkaTemplate<String, Object> kafkaTemplate;
+    private final IngestMetricsService ingestMetricsService;
 
     @KafkaListener(topics = "acis-logs", groupId = "${spring.kafka.consumer.group-id}")
     public void consume(LogDocument logDocument) {
@@ -66,6 +67,11 @@ public class LogIngestionService {
         
         // Always broadcast to WebSocket for real-time UI
         messagingTemplate.convertAndSend("/topic/logs", logDocument);
+
+        // Real end-to-end pipeline lag (ingest-receipt -> fully processed,
+        // including the enrichment calls above) — feeds the Dashboard's
+        // ingest-lag sparkline. See IngestMetricsService.
+        ingestMetricsService.recordLag(logDocument.getTimestamp());
 
         // --- Publish to acis.raw.events for Correlation Engine ---
         String tenantId = logDocument.getTenantId() != null ? logDocument.getTenantId() : DEMO_TENANT_ID;

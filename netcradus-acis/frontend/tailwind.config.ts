@@ -33,6 +33,14 @@ const config: Config = {
         info:    'rgb(var(--info-rgb) / <alpha-value>)',
         'severity-high':   'rgb(var(--severity-high-rgb) / <alpha-value>)',
         'severity-medium': 'rgb(var(--severity-medium-rgb) / <alpha-value>)',
+        // Completes the Critical/High/Medium/Low/Info severity ramp.
+        'severity-critical': 'rgb(var(--severity-critical-rgb) / <alpha-value>)',
+        'severity-low':      'rgb(var(--severity-low-rgb) / <alpha-value>)',
+        'severity-info':     'rgb(var(--severity-info-rgb) / <alpha-value>)',
+        // Elevation ramp: inset (recessed data-dense zones) / overlay (popovers,
+        // command palette, context menus) — sit below/above surface-3.
+        'surface-inset':   'rgb(var(--surface-inset-rgb) / <alpha-value>)',
+        'surface-overlay': 'rgb(var(--surface-overlay-rgb) / <alpha-value>)',
         'fire-border':  'rgb(var(--border-rgb) / <alpha-value>)',
       },
       fontFamily: {
@@ -57,15 +65,37 @@ const config: Config = {
         'accent-glow': 'var(--shadow-accent-glow)',
         'success-glow': 'var(--shadow-success-glow)',
         'card':        'var(--shadow-card)',
+        'overlay':     'var(--shadow-overlay)',
+      },
+      // Data-dense spacing (table rows, filter bars, AG Grid contexts) and
+      // motion timing — theme-independent CSS vars declared once in
+      // index.css's base :root, referenced here so Tailwind utilities
+      // (p-dense, duration-fast, ease-standard) stay in sync with them.
+      spacing: {
+        dense:   'var(--space-dense)',
+        compact: 'var(--space-compact)',
+      },
+      transitionTimingFunction: {
+        standard: 'var(--ease-standard)',
+      },
+      transitionDuration: {
+        fast: 'var(--duration-fast)',
+        base: 'var(--duration-base)',
       },
       animation: {
         'pulse-slow': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
         'fade-in':    'fadeIn 0.2s ease-out',
         'slide-in':   'slideIn 0.25s ease-out',
+        // Was referenced as "animate-scale-in" across ~9 existing modal/dialog
+        // files (ConfirmDialog, SoarPage, CorrelationPage, etc.) but never
+        // actually defined — a silent no-op class. Defined here using the new
+        // motion tokens so modal/palette entrances finally animate.
+        'scale-in':   'scaleIn var(--duration-base) var(--ease-standard)',
       },
       keyframes: {
         fadeIn:  { '0%': { opacity: '0' },                  '100%': { opacity: '1' } },
         slideIn: { '0%': { transform: 'translateX(-8px)', opacity: '0' }, '100%': { transform: 'translateX(0)', opacity: '1' } },
+        scaleIn: { '0%': { transform: 'scale(0.96)', opacity: '0' }, '100%': { transform: 'scale(1)', opacity: '1' } },
       },
     },
   },
