@@ -1,5 +1,6 @@
 package com.netcradus.acis.alerts.controller;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.netcradus.acis.alerts.model.Alert;
 import com.netcradus.acis.alerts.repository.AlertRepository;
 import com.netcradus.acis.alerts.service.AlertService;
@@ -7,18 +8,33 @@ import com.netcradus.acis.common.audit.AuditEventPublisher;
 import com.netcradus.acis.common.dto.AlertDto;
 import com.netcradus.acis.common.exception.NotFoundException;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.web.bind.annotation.*;
 
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.client.HttpStatusCodeException;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
+@Slf4j
 @RestController
 @RequestMapping("/api/alerts")
 @RequiredArgsConstructor
@@ -27,6 +43,7 @@ public class AlertController {
     private final AlertService alertService;
     private final AlertRepository alertRepository;
     private final AuditEventPublisher auditEventPublisher;
+    private final ObjectMapper objectMapper;
 
     @Value("${acis.ai-service.url}")
     private String aiServiceUrl;
@@ -88,20 +105,168 @@ public class AlertController {
     }
 
     private final RestTemplate restTemplate = new RestTemplate();
+    // Plain JDK client (not RestTemplate) so the SSE relay below can consume
+    // ai-service's streamed response line-by-line instead of buffering the
+    // whole body — RestTemplate has no first-class streaming-read support.
+    private final HttpClient sseHttpClient = HttpClient.newBuilder()
+            .connectTimeout(Duration.ofSeconds(10))
+            // Force HTTP/1.1 — the JDK client's default HTTP_2 policy sends
+            // an "Upgrade: h2c" cleartext-upgrade header on plain http://
+            // requests, which uvicorn (ai-service's ASGI server) doesn't
+            // support and rejects with "Unsupported upgrade request" /
+            // "Invalid HTTP request received", surfacing as a 422 here.
+            .version(HttpClient.Version.HTTP_1_1)
+            .build();
+
+    /**
+     * Builds the same {raw_alert: {...}} shape ai-service's AlertRequest
+     * expects, from the tenant's own stored Alert record — real fields,
+     * not whatever a caller feels like sending. rawEvent is stored as a
+     * JSON string; embedded as a parsed object when possible so the LLM
+     * sees structured data instead of a doubly-escaped string.
+     */
+    private Map<String, Object> buildRawAlertPayload(Alert alert) {
+        Map<String, Object> rawAlert = new LinkedHashMap<>();
+        rawAlert.put("id", alert.getId());
+        rawAlert.put("title", alert.getTitle());
+        rawAlert.put("severity", alert.getSeverity());
+        rawAlert.put("source", alert.getSource());
+        rawAlert.put("status", alert.getStatus());
+        if (alert.getRawEvent() != null) {
+            try {
+                rawAlert.put("rawEvent", objectMapper.readValue(alert.getRawEvent(), Map.class));
+            } catch (Exception e) {
+                rawAlert.put("rawEvent", alert.getRawEvent());
+            }
+        }
+        return rawAlert;
+    }
+
+    /**
+     * Best-effort parse of ai-service's real JSON error body (e.g.
+     * {"success":false,"mode":"unavailable","error":"..."}) into a Map so
+     * it can be forwarded as-is rather than re-wrapped or replaced with a
+     * generic message — the frontend needs the real reason, not a guess.
+     */
+    private Map<String, Object> parseAiErrorBody(String body) {
+        try {
+            return objectMapper.readValue(body, Map.class);
+        } catch (Exception e) {
+            return Map.of("success", false, "mode", "unavailable", "error", "AI service is temporarily unavailable");
+        }
+    }
 
     @PostMapping("/{id}/explain")
-    public ResponseEntity<Map> explainAlert(@PathVariable String id, @RequestBody Map<String, Object> payload) {
+    public ResponseEntity<Map> explainAlert(@PathVariable String id, @RequestHeader("X-Tenant-ID") String tenantId) {
+        Alert alert = alertRepository.findByIdAndTenantId(id, tenantId)
+                .orElseThrow(() -> new NotFoundException("Alert not found"));
+
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
-        HttpEntity<Map<String, Object>> request = new HttpEntity<>(payload, headers);
-        
+        HttpEntity<Map<String, Object>> request = new HttpEntity<>(Map.of("raw_alert", buildRawAlertPayload(alert)), headers);
+
+        long startedAt = System.currentTimeMillis();
+        log.info("AI_REQUEST_STARTED feature=explain alertId={}", id);
         try {
             ResponseEntity<Map> response = restTemplate.postForEntity(aiServiceUrl + "/ai/explain", request, Map.class);
+            log.info("AI_REQUEST_SUCCESS feature=explain alertId={} durationMs={}", id, System.currentTimeMillis() - startedAt);
             return ResponseEntity.status(response.getStatusCode())
                                  .headers(response.getHeaders())
                                  .body(response.getBody());
+        } catch (HttpStatusCodeException e) {
+            // ai-service returned a real, structured "AI unavailable" error
+            // (e.g. 503 not-configured, 502 provider failure) — RestTemplate
+            // throws on any non-2xx, so this must be caught explicitly and
+            // forwarded verbatim; a blanket catch(Exception) below would
+            // otherwise collapse it into a generic 500 and lose the real
+            // reason.
+            log.warn("AI_REQUEST_FAILED feature=explain alertId={} status={} durationMs={}",
+                    id, e.getStatusCode().value(), System.currentTimeMillis() - startedAt);
+            return ResponseEntity.status(e.getStatusCode())
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .body(parseAiErrorBody(e.getResponseBodyAsString()));
         } catch (Exception e) {
-            return ResponseEntity.internalServerError().body(Map.of("error", e.getMessage()));
+            log.warn("AI_REQUEST_FAILED feature=explain alertId={} error={} durationMs={}",
+                    id, e.getClass().getSimpleName(), System.currentTimeMillis() - startedAt);
+            return ResponseEntity.status(HttpStatus.BAD_GATEWAY)
+                    .body(Map.of("success", false, "mode", "unavailable", "error", "AI service is temporarily unavailable"));
         }
+    }
+
+    /**
+     * SSE passthrough to ai-service's /ai/explain/stream — relays each
+     * "data: ..." line to the browser as it arrives, so the real OpenRouter
+     * completion appears token-by-token in the UI instead of only after the
+     * whole thing finishes. Uses SseEmitter (plain Spring MVC, no WebFlux
+     * dependency needed) fed from a background thread reading the JDK
+     * HttpClient's streamed response line-by-line.
+     */
+    @GetMapping(value = "/{id}/explain/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    public SseEmitter explainAlertStream(@PathVariable String id, @RequestHeader("X-Tenant-ID") String tenantId) {
+        SseEmitter emitter = new SseEmitter(60_000L);
+        Alert alert = alertRepository.findByIdAndTenantId(id, tenantId)
+                .orElseThrow(() -> new NotFoundException("Alert not found"));
+
+        String body;
+        try {
+            body = objectMapper.writeValueAsString(Map.of("raw_alert", buildRawAlertPayload(alert)));
+        } catch (Exception e) {
+            emitter.completeWithError(e);
+            return emitter;
+        }
+
+        long startedAt = System.currentTimeMillis();
+        log.info("AI_STREAM_STARTED feature=explain_stream alertId={}", id);
+
+        Thread.ofVirtual().start(() -> {
+            try {
+                HttpRequest httpRequest = HttpRequest.newBuilder()
+                        .uri(URI.create(aiServiceUrl + "/ai/explain/stream"))
+                        .header("Content-Type", "application/json")
+                        .timeout(Duration.ofSeconds(45))
+                        .POST(HttpRequest.BodyPublishers.ofString(body, StandardCharsets.UTF_8))
+                        .build();
+
+                HttpResponse<java.io.InputStream> response = sseHttpClient.send(httpRequest, HttpResponse.BodyHandlers.ofInputStream());
+                if (response.statusCode() != 200) {
+                    // ai-service pre-flight-rejected the request (e.g. 503
+                    // "no provider configured") before opening the SSE
+                    // stream at all — forward its real JSON error body
+                    // verbatim rather than a synthetic message.
+                    String errorBody = new String(response.body().readAllBytes(), StandardCharsets.UTF_8);
+                    log.warn("AI_STREAM_FAILED feature=explain_stream alertId={} status={} durationMs={}",
+                            id, response.statusCode(), System.currentTimeMillis() - startedAt);
+                    emitter.send(SseEmitter.event().data(
+                            errorBody.isBlank()
+                                    ? "{\"success\":false,\"mode\":\"unavailable\",\"error\":\"AI service is temporarily unavailable\"}"
+                                    : errorBody));
+                    emitter.complete();
+                    return;
+                }
+
+                try (BufferedReader reader = new BufferedReader(new InputStreamReader(response.body(), StandardCharsets.UTF_8))) {
+                    String line;
+                    while ((line = reader.readLine()) != null) {
+                        if (line.startsWith("data:")) {
+                            emitter.send(SseEmitter.event().data(line.substring("data:".length()).trim()));
+                        }
+                    }
+                }
+                log.info("AI_STREAM_COMPLETED feature=explain_stream alertId={} durationMs={}",
+                        id, System.currentTimeMillis() - startedAt);
+                emitter.complete();
+            } catch (IOException | InterruptedException e) {
+                log.warn("AI_STREAM_FAILED feature=explain_stream alertId={} error={} durationMs={}",
+                        id, e.getClass().getSimpleName(), System.currentTimeMillis() - startedAt);
+                emitter.completeWithError(e);
+            } catch (Exception e) {
+                log.warn("AI_STREAM_FAILED feature=explain_stream alertId={} error={} durationMs={}",
+                        id, e.getClass().getSimpleName(), System.currentTimeMillis() - startedAt);
+                emitter.completeWithError(e);
+            }
+        });
+
+        emitter.onTimeout(emitter::complete);
+        return emitter;
     }
 }

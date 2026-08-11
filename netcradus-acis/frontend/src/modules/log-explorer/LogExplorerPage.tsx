@@ -108,7 +108,11 @@ export default function LogExplorerPage() {
   const [gridApi, setGridApi] = useState<any>(null)
 
   const [isTranslating, setIsTranslating] = useState(false)
-  const [demoMode, setDemoMode] = useState(false)
+  // Set only from a real failure response (no provider configured, or every
+  // configured provider failed) — ai-service never returns a 200 with
+  // fabricated SPL, so there is no "demo mode" state to represent here,
+  // only "translation genuinely didn't happen."
+  const [aiTranslateError, setAiTranslateError] = useState<string | null>(null)
   const [aiStatus, setAiStatus] = useState<'checking' | 'ready' | 'offline'>('checking')
   const [savedSearches, setSavedSearches] = useState<string[]>([])
   const { pivotTo } = useEntityPivot()
@@ -213,17 +217,19 @@ export default function LogExplorerPage() {
   const handleTranslate = async () => {
     if (!query) return
     setIsTranslating(true)
-    setDemoMode(false)
+    setAiTranslateError(null)
     try {
       const response = await apiClient.post('/api/logs/translate', { query })
       if (response.data.spl) {
         setQuery(response.data.spl)
+      } else {
+        setAiTranslateError('AI translation unavailable. Please try again.')
       }
-      if (response.headers['x-acis-ai-mode'] === 'mock') {
-        setDemoMode(true)
-      }
-    } catch (e) {
+    } catch (e: any) {
       console.error('NLP Translation failed', e)
+      // ai-service's real error contract is {success:false, error:"..."} —
+      // read it directly rather than trusting axios's generic message.
+      setAiTranslateError(e?.response?.data?.error || 'AI translation unavailable. Please try again.')
     } finally {
       setIsTranslating(false)
     }
@@ -388,10 +394,10 @@ export default function LogExplorerPage() {
           </div>
         </div>
 
-        {demoMode && (
-          <div className="bg-warning/10 border border-warning/30 text-warning px-4 py-2 rounded-lg text-small font-semibold flex items-center justify-center gap-2 mb-4">
+        {aiTranslateError && (
+          <div className="bg-danger/10 border border-danger/30 text-danger px-4 py-2 rounded-lg text-small font-semibold flex items-center justify-center gap-2 mb-4">
             <ShieldCheck size={16} />
-            Demo Mode — AI key not configured. Displaying simulated SPL.
+            AI Unavailable — {aiTranslateError}
           </div>
         )}
 

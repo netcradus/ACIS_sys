@@ -70,11 +70,25 @@ services:
       context: ./ai-service
       dockerfile: Dockerfile
     environment:
-      # Primary LLM backend for /ai/explain and /ai/query — Groq's official
-      # free tier. Tried first; falls back to Kiro (if configured), then to
-      # the honest mock templates.
+      # Real AI providers only (see ai-service/app/providers.py) — every
+      # LLM-backed feature tries these in order and stops at the first one
+      # that's configured and succeeds. If none are configured, or every
+      # configured one fails, the feature returns a real "AI unavailable"
+      # error. There is no mock/fake fallback in this deployment.
+      #
+      # Primary — NVIDIA NIM. Tried first, and the only backend
+      # /ai/explain/stream streams token-by-token from unless it fails
+      # before yielding anything.
+      NVIDIA_API_KEY: ${NVIDIA_API_KEY:-}
+      NVIDIA_MODEL: ${NVIDIA_MODEL:-meta/llama-3.1-8b-instruct}
+      NVIDIA_BASE_URL: ${NVIDIA_BASE_URL:-https://integrate.api.nvidia.com/v1}
+      # Real fallback #1
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
+      OPENROUTER_MODEL: ${OPENROUTER_MODEL:-openai/gpt-4o-mini}
+      # Real fallback #2
       GROQ_API_KEY: ${GROQ_API_KEY:-}
       GROQ_MODEL: ${GROQ_MODEL:-llama-3.3-70b-versatile}
+      # Real fallback #3
       KIRO_GATEWAY_URL: ${KIRO_GATEWAY_URL:-}
       KIRO_GATEWAY_API_KEY: ${KIRO_GATEWAY_API_KEY:-}
       KIRO_MODEL: ${KIRO_MODEL:-claude-sonnet-4-5}

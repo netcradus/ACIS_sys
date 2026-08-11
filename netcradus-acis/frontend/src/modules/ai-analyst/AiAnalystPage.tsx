@@ -53,7 +53,12 @@ export default function AiAnalystPage() {
   const [isGenerating, setIsGenerating] = useState(false)
   const [splResult, setSplResult] = useState('')
   const [hasRun, setHasRun] = useState(false)
-  const [demoMode, setDemoMode] = useState(false)
+  // Set only from a real failure response (no provider configured, or every
+  // configured provider failed) — ai-service never returns a 200 with a
+  // fabricated SPL translation, so there is no "demo mode" to represent
+  // here, only "translation genuinely didn't happen" (the raw query text
+  // is still searched for real, below).
+  const [aiTranslateError, setAiTranslateError] = useState<string | null>(null)
   const [errorMsg, setErrorMsg] = useState<string | null>(null)
   const [results, setResults] = useState<LogEntry[]>([])
   const [playbooks, setPlaybooks] = useState<Playbook[]>([])
@@ -74,7 +79,7 @@ export default function AiAnalystPage() {
   const handleGenerate = async (searchQuery: string) => {
     if (!searchQuery.trim()) return
     setIsGenerating(true)
-    setDemoMode(false)
+    setAiTranslateError(null)
     setErrorMsg(null)
     setQuery(searchQuery)
 
@@ -83,12 +88,16 @@ export default function AiAnalystPage() {
       const translateRes = await apiClient.post('/api/logs/translate', { query: searchQuery })
       if (translateRes.data?.spl) {
         spl = translateRes.data.spl
+      } else {
+        setAiTranslateError('AI translation unavailable. Please try again.')
       }
-      if (translateRes.headers['x-acis-ai-mode'] === 'mock') {
-        setDemoMode(true)
-      }
-    } catch (e) {
+    } catch (e: any) {
+      // ai-service's real error contract is {success:false, error:"..."} —
+      // read it directly rather than trusting axios's generic message.
+      // The search below still runs for real against the raw query text —
+      // this only means the query wasn't AI-translated to SPL first.
       console.error('SPL translation failed, falling back to raw query text:', e)
+      setAiTranslateError(e?.response?.data?.error || 'AI translation unavailable. Please try again.')
     }
     setSplResult(spl)
 
@@ -138,15 +147,20 @@ export default function AiAnalystPage() {
         <h1 className="text-h1 text-text-primary flex items-center gap-2">
           <Sparkles className="w-5 h-5 text-accent" /> AI Analyst
         </h1>
-        <span className="text-label bg-accent/10 text-accent border border-accent/20 px-2.5 py-1 rounded-full uppercase">
-          {demoMode ? 'Demo Mode' : 'AI Analyst'}
+        <span className={clsx(
+          "text-label border px-2.5 py-1 rounded-full uppercase",
+          aiTranslateError
+            ? "bg-danger/10 text-danger border-danger/20"
+            : "bg-accent/10 text-accent border-accent/20"
+        )}>
+          {aiTranslateError ? 'AI Unavailable' : 'AI Analyst'}
         </span>
       </div>
 
-      {demoMode && (
-        <div className="bg-warning/10 border border-warning/30 text-warning px-4 py-3 rounded-lg text-small font-semibold flex items-center justify-center gap-2">
+      {aiTranslateError && (
+        <div className="bg-danger/10 border border-danger/30 text-danger px-4 py-3 rounded-lg text-small font-semibold flex items-center justify-center gap-2">
           <AlertTriangle size={16} />
-          Demo Mode — AI key not configured. SPL translation is a naive fallback, not real NL understanding. Search results below are real.
+          AI Unavailable — {aiTranslateError} Search results below are still real.
         </div>
       )}
 
@@ -315,11 +329,9 @@ export default function AiAnalystPage() {
               )}
             </div>
 
-            {!demoMode && (
-              <div className="flex items-center gap-1.5 text-label text-text-muted uppercase justify-center mt-auto pt-2">
-                <ShieldCheck className="w-3 h-3" /> Live data — acis-log-service
-              </div>
-            )}
+            <div className="flex items-center gap-1.5 text-label text-text-muted uppercase justify-center mt-auto pt-2">
+              <ShieldCheck className="w-3 h-3" /> Live data — acis-log-service
+            </div>
           </div>
         </div>
       )}

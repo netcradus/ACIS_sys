@@ -1,7 +1,8 @@
-import React, { useState, useEffect, useMemo } from 'react'
-import { AlertTriangle, ShieldAlert, Bell, Clock, User, Filter, RefreshCw, X, ChevronRight, Zap, Target, Search } from 'lucide-react'
+import React, { useState, useEffect, useMemo, useRef } from 'react'
+import { AlertTriangle, ShieldAlert, Bell, Clock, User, Filter, RefreshCw, X, ChevronRight, Zap, Target, Search, Sparkles } from 'lucide-react'
 import apiClient from '@/lib/apiClient'
 import wsClient from '@/lib/wsClient'
+import keycloak from '@/lib/keycloak'
 import { useAuthStore } from '@/store/authStore'
 import { useCanWrite, MODULES } from '@/store/permissionsStore'
 import { usePivotSeed, useEntityPivot } from '@/hooks/useEntityPivot'
@@ -54,6 +55,32 @@ export default function AlertsPage() {
   // confirmation at all; now gated behind a real confirm dialog.
   const [confirmingPlaybookAlertId, setConfirmingPlaybookAlertId] = useState<string | null>(null)
   const [playbookBusy, setPlaybookBusy] = useState(false)
+
+  // Real-time AI Explain — streams a live completion token-by-token via SSE
+  // (see AlertController.explainAlertStream / ai-service's
+  // /ai/explain/stream). aiExplainMode reflects exactly what the stream
+  // reported: 'live' only after a real provider actually returned real
+  // content, 'unavailable' when no provider is configured or every
+  // configured provider failed. There is no third "simulated"/mock state —
+  // ai-service never fabricates a response, so the UI never has one to show.
+  const [aiExplainText, setAiExplainText] = useState('')
+  const [aiExplainMode, setAiExplainMode] = useState<'live' | 'unavailable' | null>(null)
+  const [aiExplainStreaming, setAiExplainStreaming] = useState(false)
+  const [aiExplainError, setAiExplainError] = useState<string | null>(null)
+  // Aborts the in-flight fetch/reader loop when the analyst switches to a
+  // different alert (or the component unmounts) mid-stream — without this,
+  // a slow stream for a previously-selected alert could keep writing into
+  // state after the UI has already moved on to a different one.
+  const aiExplainAbortRef = useRef<AbortController | null>(null)
+
+  useEffect(() => {
+    aiExplainAbortRef.current?.abort()
+    setAiExplainText('')
+    setAiExplainMode(null)
+    setAiExplainStreaming(false)
+    setAiExplainError(null)
+    return () => aiExplainAbortRef.current?.abort()
+  }, [selectedAlert?.id])
 
   // Seeds the severity filter when arriving via a Dashboard KPI drill-down
   // (e.g. "View All Criticals" -> pivotTo('/dashboard/alerts', {type:
@@ -215,6 +242,76 @@ export default function AlertsPage() {
     } finally {
       setPlaybookBusy(false)
       setConfirmingPlaybookAlertId(null)
+    }
+  }
+
+  // Streams a real AI explanation from ai-service's OpenRouter-backed
+  // /ai/explain/stream via AlertController's SSE passthrough. Uses fetch +
+  // a manual ReadableStream reader (not EventSource) since it needs an
+  // Authorization header, which EventSource can't send.
+  const handleAiExplain = async (alertId: string) => {
+    aiExplainAbortRef.current?.abort()
+    const controller = new AbortController()
+    aiExplainAbortRef.current = controller
+
+    setAiExplainText('')
+    setAiExplainMode(null)
+    setAiExplainError(null)
+    setAiExplainStreaming(true)
+
+    try {
+      const tenantId = (keycloak.tokenParsed as Record<string, unknown> | undefined)?.tenant_id as string | undefined
+      const response = await fetch(`/api/alerts/${alertId}/explain/stream`, {
+        headers: {
+          Authorization: `Bearer ${keycloak.token}`,
+          ...(tenantId ? { 'X-Tenant-ID': tenantId } : {}),
+        },
+        signal: controller.signal,
+      })
+      if (!response.ok || !response.body) {
+        throw new Error(`AI explain request failed (HTTP ${response.status})`)
+      }
+
+      const reader = response.body.getReader()
+      const decoder = new TextDecoder()
+      let buffer = ''
+
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+        buffer += decoder.decode(value, { stream: true })
+
+        const events = buffer.split('\n\n')
+        buffer = events.pop() || ''
+        for (const rawEvent of events) {
+          const line = rawEvent.split('\n').find(l => l.startsWith('data:'))
+          if (!line) continue
+          let payload: { mode?: 'live' | 'unavailable'; delta?: string; error?: string; success?: false; done?: boolean }
+          try {
+            payload = JSON.parse(line.slice('data:'.length).trim())
+          } catch {
+            continue
+          }
+          if (payload.mode) setAiExplainMode(payload.mode)
+          if (payload.delta) setAiExplainText(prev => prev + payload.delta)
+          // ai-service's pre-flight-rejected case (no provider configured)
+          // arrives as a plain {success:false, error} JSON body with no
+          // "mode" field at all — treat its presence as unavailable too.
+          if (payload.error) {
+            setAiExplainError(payload.error)
+            setAiExplainMode('unavailable')
+          }
+        }
+      }
+    } catch (e: any) {
+      // A deliberate cancellation (alert switched, component unmounted) —
+      // not a real failure, so don't show an error for it.
+      if (e?.name === 'AbortError') return
+      console.error('AI explain stream failed:', e)
+      setAiExplainError('AI explanation unavailable. Please try again.')
+      setAiExplainMode('unavailable')
+    } finally {
+      if (!controller.signal.aborted) setAiExplainStreaming(false)
     }
   }
 
@@ -565,6 +662,65 @@ export default function AlertsPage() {
                     </div>
                   ))}
                 </div>
+              </div>
+
+              {/* AI Analysis — real-time OpenRouter completion streamed via SSE */}
+              <div className="mt-6 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-label uppercase text-text-muted block">AI Analysis</span>
+                  {aiExplainMode && (
+                    <span className={clsx(
+                      "text-label uppercase px-2 py-0.5 rounded-full border",
+                      aiExplainMode === 'live'
+                        ? "border-success/30 bg-success/10 text-success"
+                        : "border-danger/30 bg-danger/10 text-danger"
+                    )}>
+                      {aiExplainMode === 'live' ? 'Live' : 'AI Unavailable'}
+                    </span>
+                  )}
+                </div>
+
+                {!aiExplainText && !aiExplainStreaming && !aiExplainError && (
+                  <button
+                    onClick={() => handleAiExplain(selectedAlert.id)}
+                    className="btn-mission w-full justify-center"
+                  >
+                    <Sparkles className="w-3.5 h-3.5 text-accent" /> Explain with AI
+                  </button>
+                )}
+
+                {aiExplainError && (
+                  <div className="space-y-2">
+                    <div className="p-3 bg-danger/10 border border-danger/30 rounded-lg text-danger text-small">
+                      {aiExplainError}
+                    </div>
+                    <button
+                      onClick={() => handleAiExplain(selectedAlert.id)}
+                      disabled={aiExplainStreaming}
+                      className="btn-mission w-full justify-center disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      <Sparkles className="w-3.5 h-3.5 text-accent" /> Retry
+                    </button>
+                  </div>
+                )}
+
+                {(aiExplainText || aiExplainStreaming) && (
+                  <div className="bg-surface-2 border border-fire-border rounded-lg p-4 text-small text-text-secondary leading-relaxed border-l-2 border-l-accent">
+                    {aiExplainText}
+                    {aiExplainStreaming && (
+                      <span className="inline-block w-1.5 h-3.5 ml-0.5 bg-accent animate-pulse align-text-bottom" />
+                    )}
+                  </div>
+                )}
+
+                {aiExplainText && !aiExplainStreaming && (
+                  <button
+                    onClick={() => handleAiExplain(selectedAlert.id)}
+                    className="text-label text-text-muted hover:text-accent transition-colors uppercase"
+                  >
+                    Regenerate
+                  </button>
+                )}
               </div>
 
               {/* Raw Event */}

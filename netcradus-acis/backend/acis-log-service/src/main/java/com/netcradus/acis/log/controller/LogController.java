@@ -17,10 +17,13 @@ import java.util.Map;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import org.springframework.web.client.RestTemplate;
+import org.springframework.web.client.HttpStatusCodeException;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 @Slf4j
 @RestController
@@ -30,6 +33,7 @@ public class LogController {
 
     private final LogRepository logRepository;
     private final com.netcradus.acis.log.service.IngestMetricsService ingestMetricsService;
+    private final ObjectMapper objectMapper;
 
     @Value("${acis.ai-service.url}")
     private String aiServiceUrl;
@@ -101,20 +105,49 @@ public class LogController {
 
     private final RestTemplate restTemplate = new RestTemplate();
 
+    /**
+     * Best-effort parse of ai-service's real JSON error body (e.g.
+     * {"success":false,"mode":"unavailable","error":"..."}) so it can be
+     * forwarded as-is instead of being replaced with a generic message.
+     */
+    private Map<String, Object> parseAiErrorBody(String body) {
+        try {
+            return objectMapper.readValue(body, Map.class);
+        } catch (Exception e) {
+            return Map.of("success", false, "mode", "unavailable", "error", "AI service is temporarily unavailable");
+        }
+    }
+
     @PostMapping("/translate")
     public ResponseEntity<Map> translateToSpl(@RequestBody Map<String, String> payload) {
         String query = payload.get("query");
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
         HttpEntity<Map<String, String>> request = new HttpEntity<>(Map.of("query", query), headers);
-        
+
+        long startedAt = System.currentTimeMillis();
+        log.info("AI_REQUEST_STARTED feature=query");
         try {
             ResponseEntity<Map> response = restTemplate.postForEntity(aiServiceUrl + "/ai/query", request, Map.class);
+            log.info("AI_REQUEST_SUCCESS feature=query durationMs={}", System.currentTimeMillis() - startedAt);
             return ResponseEntity.status(response.getStatusCode())
                                  .headers(response.getHeaders())
                                  .body(response.getBody());
+        } catch (HttpStatusCodeException e) {
+            // ai-service returned a real, structured "AI unavailable" error
+            // — RestTemplate throws on any non-2xx, so this must be caught
+            // explicitly and forwarded verbatim rather than collapsed into
+            // a generic 500 by the catch-all below.
+            log.warn("AI_REQUEST_FAILED feature=query status={} durationMs={}",
+                    e.getStatusCode().value(), System.currentTimeMillis() - startedAt);
+            return ResponseEntity.status(e.getStatusCode())
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .body(parseAiErrorBody(e.getResponseBodyAsString()));
         } catch (Exception e) {
-            return ResponseEntity.internalServerError().body(Map.of("error", e.getMessage()));
+            log.warn("AI_REQUEST_FAILED feature=query error={} durationMs={}",
+                    e.getClass().getSimpleName(), System.currentTimeMillis() - startedAt);
+            return ResponseEntity.status(HttpStatus.BAD_GATEWAY)
+                    .body(Map.of("success", false, "mode", "unavailable", "error", "AI service is temporarily unavailable"));
         }
     }
 
@@ -136,10 +169,15 @@ public class LogController {
     public ResponseEntity<Map<String, String>> checkAiHealth() {
         try {
             Map response = restTemplate.getForObject(aiServiceUrl + "/ai/health", Map.class);
-            if (response != null && "ok".equals(response.get("status"))) {
-                return ResponseEntity.ok(Map.of("status", "UP"));
-            }
-            return ResponseEntity.ok(Map.of("status", "DOWN"));
+            // "status":"ok" only means the ai-service process is reachable
+            // — it says nothing about whether an LLM feature can actually
+            // produce a real response. "llmProviderConfigured" (from
+            // ai-service's own provider chain) is what the frontend's "AI
+            // Agent Ready"/"Offline" pill should really reflect, so this
+            // never reports Ready when every real provider is unconfigured.
+            boolean serviceUp = response != null && "ok".equals(response.get("status"));
+            boolean llmConfigured = serviceUp && Boolean.TRUE.equals(response.get("llm_provider_configured"));
+            return ResponseEntity.ok(Map.of("status", llmConfigured ? "UP" : "DOWN"));
         } catch (Exception e) {
             return ResponseEntity.ok(Map.of("status", "DOWN"));
         }
