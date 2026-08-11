@@ -1,3 +1,5 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
+
 /* ACIS branded login theme — CSS + a small DOM-injection script
    (js/acis-login.js) layered on top of Keycloak's built-in "keycloak"
    (classic) theme. No template/FTL changes: Keycloak's own form element,
@@ -40,10 +42,19 @@
   --klogin-toggle-border: rgba(148, 163, 184, 0.14);
   --klogin-toggle-hover-bg: rgba(255, 255, 255, 0.04);
   --klogin-toggle-hover-text: #D4D4D8;
-  --klogin-badge-bg: rgba(255, 255, 255, 0.02);
+  --klogin-badge-bg: rgba(13, 17, 30, 0.8);
+  --klogin-badge-border: rgba(255, 255, 255, 0.15);
   --klogin-toolbtn-bg: rgba(255, 255, 255, 0.06);
   --klogin-toolbtn-border: rgba(148, 163, 184, 0.18);
   --klogin-toolbtn-hover-bg: rgba(255, 255, 255, 0.1);
+
+  --klogin-globe-stroke-1: rgba(96, 165, 250, 0.18);
+  --klogin-globe-stroke-2: rgba(96, 165, 250, 0.14);
+  --klogin-globe-stroke-3: rgba(96, 165, 250, 0.1);
+  --klogin-globe-stroke-4: rgba(96, 165, 250, 0.08);
+  --klogin-globe-stroke-5: rgba(167, 139, 250, 0.22);
+  --klogin-globe-stroke-6: rgba(59, 130, 246, 0.2);
+  --klogin-globe-radial: rgba(59, 130, 246, 0.2);
 
   /* Mirrors frontend/src/index.css's :root (dark) --accent/--accent-dark/--accent-pa */
   --klogin-accent: #3B82F6;
@@ -78,10 +89,19 @@
   --klogin-toggle-border: #F0F0F2;
   --klogin-toggle-hover-bg: #F7F7F8;
   --klogin-toggle-hover-text: #52525B;
-  --klogin-badge-bg: #ffffff;
+  --klogin-badge-bg: rgba(15, 23, 42, 0.05);
+  --klogin-badge-border: rgba(15, 23, 42, 0.15);
   --klogin-toolbtn-bg: #ffffff;
   --klogin-toolbtn-border: #E4E4E9;
   --klogin-toolbtn-hover-bg: #F4F5F7;
+
+  --klogin-globe-stroke-1: rgba(37, 99, 235, 0.12);
+  --klogin-globe-stroke-2: rgba(37, 99, 235, 0.08);
+  --klogin-globe-stroke-3: rgba(37, 99, 235, 0.06);
+  --klogin-globe-stroke-4: rgba(37, 99, 235, 0.04);
+  --klogin-globe-stroke-5: rgba(109, 40, 217, 0.12);
+  --klogin-globe-stroke-6: rgba(37, 99, 235, 0.1);
+  --klogin-globe-radial: rgba(37, 99, 235, 0.06);
 
   /* Mirrors frontend/src/index.css's :root[data-theme="light"] --accent/--accent-dark/--accent-pa */
   --klogin-accent: #2563EB;
@@ -178,7 +198,9 @@ body,
   #kc-form input[type="password"],
   #kc-form input[type="email"],
   .pf-c-input-group,
+  .pf-v5-c-input-group,
   .pf-c-input-group .pf-c-button.pf-m-control,
+  .pf-v5-c-input-group .pf-v5-c-button.pf-m-control,
   #kc-form-options input[type="checkbox"],
   #kc-form-buttons input[type="submit"],
   .acis-signup-link,
@@ -255,6 +277,51 @@ body,
   .acis-shell {
     flex-direction: column;
   }
+  .acis-card-col {
+    padding: 40px 16px 60px !important;
+    min-height: auto !important;
+  }
+  .acis-globe {
+    width: 90vw !important;
+    height: 90vw !important;
+    max-width: 400px !important;
+    max-height: 400px !important;
+    aspect-ratio: 1 / 1 !important;
+  }
+  .card-pf,
+  .acis-card-col .card-pf {
+    padding: 32px 20px !important;
+    border-radius: 20px !important;
+    max-width: 100% !important;
+  }
+  .acis-hud-top {
+    position: relative !important;
+    top: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    width: 100% !important;
+    margin-bottom: 24px;
+    padding-bottom: 12px;
+  }
+  .acis-hero {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    padding: 32px 20px 48px !important;
+  }
+  .acis-hero-content {
+    max-width: 100% !important;
+  }
+}
+
+@media (max-width: 520px) {
+  .acis-hud-left,
+  .acis-hud-right {
+    display: none !important;
+  }
+  .acis-hud-center {
+    width: 100% !important;
+    text-align: center !important;
+  }
 }
 
 /* ---------------------------------------------------------------------
@@ -312,7 +379,7 @@ body,
 .acis-hero-title {
   color: #ffffff;
   font-weight: 800;
-  font-size: 3.2rem;
+  font-size: 3.5rem;
   line-height: 1.08;
   letter-spacing: -0.02em;
   margin: 0;
@@ -321,7 +388,7 @@ body,
 
 @media (max-width: 1200px) {
   .acis-hero-title {
-    font-size: 2.5rem;
+    font-size: 2.8rem;
   }
 }
 
@@ -338,6 +405,21 @@ body,
   font-weight: 500;
   letter-spacing: 0.01em;
   line-height: 1.9;
+}
+
+.acis-hero-bottom-outline {
+  position: absolute;
+  bottom: 24px;
+  left: 56px;
+  font-family: 'Inter', sans-serif;
+  font-size: 3.2rem;
+  font-weight: 900;
+  color: transparent;
+  -webkit-text-stroke: 1px rgba(255, 255, 255, 0.05);
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+  pointer-events: none;
+  z-index: 1;
 }
 
 .acis-hero-lines p {
@@ -365,27 +447,58 @@ body,
 .acis-hero-lines svg.acis-icon-purple { color: #A78BFA; }
 .acis-hero-lines svg.acis-icon-blue { color: #3B82F6; }
 
-.acis-stat-grid {
-  margin-top: 40px;
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 14px;
+.acis-hero-visuals {
+  display: flex;
+  align-items: stretch;
+  gap: 16px;
+  margin-top: 36px;
+  width: 100%;
   max-width: 520px;
 }
 
+.acis-stat-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  width: 100%;
+}
+
 @media (max-width: 640px) {
+  .acis-hero-visuals {
+    flex-direction: column;
+  }
   .acis-stat-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
 .acis-stat-card {
-  background: rgba(8, 12, 26, 0.6);
-  backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 255, 255, 0.07);
-  border-radius: 16px;
-  padding: 16px;
+  background: rgba(8, 12, 26, 0.45);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 14px;
+  padding: 14px;
+  transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
 }
+
+.acis-stat-card:hover {
+  transform: translateY(-2px);
+}
+
+.acis-stat-grid .acis-stat-card:nth-child(1) { border-color: rgba(96, 165, 250, 0.25); box-shadow: 0 0 15px rgba(96, 165, 250, 0.05); }
+.acis-stat-grid .acis-stat-card:nth-child(2) { border-color: rgba(167, 139, 250, 0.25); box-shadow: 0 0 15px rgba(167, 139, 250, 0.05); }
+.acis-stat-grid .acis-stat-card:nth-child(3) { border-color: rgba(59, 130, 246, 0.25); box-shadow: 0 0 15px rgba(59, 130, 246, 0.05); }
+.acis-stat-grid .acis-stat-card:nth-child(4) { border-color: rgba(167, 139, 250, 0.14); }
+.acis-stat-grid .acis-stat-card:nth-child(5) { border-color: rgba(59, 130, 246, 0.14); }
+.acis-stat-grid .acis-stat-card:nth-child(6) { border-color: rgba(167, 139, 250, 0.14); }
+
+.acis-stat-grid .acis-stat-card:nth-child(1):hover { border-color: rgba(96, 165, 250, 0.45); box-shadow: 0 0 20px rgba(96, 165, 250, 0.12); }
+.acis-stat-grid .acis-stat-card:nth-child(2):hover { border-color: rgba(167, 139, 250, 0.45); box-shadow: 0 0 20px rgba(167, 139, 250, 0.12); }
+.acis-stat-grid .acis-stat-card:nth-child(3):hover { border-color: rgba(59, 130, 246, 0.45); box-shadow: 0 0 20px rgba(59, 130, 246, 0.12); }
+.acis-stat-grid .acis-stat-card:nth-child(4):hover { border-color: rgba(167, 139, 250, 0.35); }
+.acis-stat-grid .acis-stat-card:nth-child(5):hover { border-color: rgba(59, 130, 246, 0.35); }
+.acis-stat-grid .acis-stat-card:nth-child(6):hover { border-color: rgba(167, 139, 250, 0.35); }
 
 .acis-stat-icon {
   width: 30px;
@@ -405,18 +518,19 @@ body,
 
 .acis-stat-label {
   color: #94a3b8;
-  font-size: 0.68rem;
+  font-size: 0.65rem;
   font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 0.03em;
+  letter-spacing: 0.04em;
   margin-bottom: 4px;
 }
 
 .acis-stat-value {
   color: #ffffff;
-  font-size: 1.5rem;
+  font-size: 1.4rem;
   font-weight: 800;
   line-height: 1.1;
+  font-family: 'JetBrains Mono', monospace;
 }
 
 .acis-stat-trend {
@@ -424,7 +538,7 @@ body,
   display: flex;
   align-items: center;
   gap: 4px;
-  font-size: 0.68rem;
+  font-size: 0.65rem;
   font-weight: 700;
 }
 
@@ -468,8 +582,9 @@ body,
    muddy/washed-out on a light one, so light mode skips them entirely in
    favor of a clean, minimal surface (same "quiet" treatment Stripe/
    Linear-style light-mode auth pages use). */
-:root[data-theme="light"] .acis-card-bg {
-  display: none;
+:root[data-theme="light"] .acis-starfield,
+:root[data-theme="light"] .acis-card-glow {
+  display: none !important;
 }
 
 /* Layered starfield — three passes of small radial-gradient dots at
@@ -500,53 +615,209 @@ body,
   border-radius: 50%;
 }
 
-/* Wireframe globe — a stack of concentric + tilted rings around a soft
-   sphere-volume glow, centered behind the logo/badge stack. */
+/* Globe styles */
 .acis-globe {
   position: absolute;
   top: 4%;
   left: 50%;
-  width: 460px;
-  height: 460px;
+  width: 480px;
+  height: 480px;
+  max-width: 90vw;
+  max-height: 90vw;
+  aspect-ratio: 1 / 1;
   transform: translateX(-50%);
+  z-index: 0;
+  opacity: 0.85;
 }
 
-.acis-globe-sphere {
+.acis-globe-svg {
+  width: 100%;
+  height: 100%;
+}
+
+.acis-globe-pulse-node {
+  animation: acis-node-pulse 2.5s ease-in-out infinite;
+}
+
+@keyframes acis-node-pulse {
+  0%, 100% { opacity: 0.4; r: 2.5px; }
+  50% { opacity: 1; r: 4px; filter: drop-shadow(0 0 6px rgba(96, 165, 250, 0.8)); }
+}
+
+/* HUD Top Bar */
+.acis-hud-top {
   position: absolute;
-  inset: 22%;
-  border-radius: 50%;
-  background: radial-gradient(circle at 38% 32%, rgba(96, 165, 250, 0.16), rgba(10, 14, 26, 0.05) 60%, transparent 75%);
-  border: 1px solid rgba(96, 165, 250, 0.18);
+  top: 24px;
+  left: 56px;
+  right: 56px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  padding-bottom: 16px;
+  z-index: 10;
 }
 
-.acis-globe-ring {
-  position: absolute;
-  border: 1px solid rgba(96, 165, 250, 0.22);
-  border-radius: 50%;
+.acis-hud-left {
+  display: flex;
+  align-items: center;
 }
 
-.acis-globe-ring--lat1 { inset: 30%; transform: scaleY(0.34); animation: acis-globe-spin 30s linear infinite; }
-.acis-globe-ring--lat2 { inset: 22%; transform: scaleY(0.56); animation: acis-globe-spin 24s linear infinite reverse; }
-.acis-globe-ring--lat3 { inset: 22%; transform: rotate(62deg) scaleY(0.56); border-color: rgba(167, 139, 250, 0.2); animation: acis-globe-spin 38s linear infinite; }
-.acis-globe-ring--merid { inset: 22%; animation: acis-globe-spin 46s linear infinite; }
-
-@keyframes acis-globe-spin {
-  from { transform: var(--acis-rot-from, rotate(0deg)) scaleY(var(--acis-scale-y, 1)); }
-  to   { transform: var(--acis-rot-to, rotate(360deg)) scaleY(var(--acis-scale-y, 1)); }
+.acis-hud-box {
+  background: rgba(8, 12, 26, 0.5);
+  border: 1px solid rgba(96, 165, 250, 0.2);
+  border-radius: 6px;
+  padding: 6px 12px;
+  font-size: 0.65rem;
+  font-weight: 700;
+  color: #94a3b8;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
 }
 
-.acis-globe-dot {
-  position: absolute;
-  width: 5px;
-  height: 5px;
-  border-radius: 50%;
-  background: #60A5FA;
-  box-shadow: 0 0 8px 2px rgba(96, 165, 250, 0.7);
+.acis-hud-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
-.acis-globe-dot--1 { top: 30%; left: 24%; }
-.acis-globe-dot--2 { top: 62%; left: 70%; background: #A78BFA; box-shadow: 0 0 8px 2px rgba(167, 139, 250, 0.7); }
-.acis-globe-dot--3 { top: 48%; left: 44%; width: 3px; height: 3px; }
+.acis-hud-label {
+  opacity: 0.8;
+  font-family: 'Inter', sans-serif;
+}
+
+.acis-hud-status {
+  padding: 1px 4px;
+  border-radius: 3px;
+  font-size: 0.6rem;
+  background: rgba(52, 211, 153, 0.15);
+  color: #34d399;
+}
+
+.acis-hud-bar-bg {
+  width: 60px;
+  height: 4px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.acis-hud-bar-fill {
+  height: 100%;
+  background: #34d399;
+}
+
+.acis-hud-center {
+  text-align: center;
+}
+
+.acis-hud-title {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 1rem;
+  font-weight: 800;
+  color: #ffffff;
+  letter-spacing: 0.15em;
+}
+
+.acis-hud-subtitle {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.6rem;
+  font-weight: 500;
+  color: #60a5fa;
+  letter-spacing: 0.3em;
+  margin-top: 2px;
+}
+
+.acis-hud-right {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.acis-hud-time-container {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+}
+
+.acis-hud-time {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #ffffff;
+}
+
+.acis-hud-date {
+  font-size: 0.6rem;
+  font-weight: 600;
+  color: #94a3b8;
+  margin-top: 1px;
+}
+
+.acis-hud-sys-icons {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: rgba(255, 255, 255, 0.35);
+}
+
+.acis-hud-sys-icons svg {
+  width: 14px;
+  height: 14px;
+}
+
+.acis-green {
+  color: #34d399;
+}
+
+/* Map Card */
+.acis-map-card {
+  flex: 1 1 30%;
+  background: rgba(8, 12, 26, 0.45);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 14px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  min-height: 120px;
+}
+
+.acis-map-card-body {
+  flex: 1 1 auto;
+  padding: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.acis-world-map-svg {
+  width: 100%;
+  height: auto;
+  opacity: 0.8;
+}
+
+.acis-map-card-footer {
+  background: rgba(10, 15, 30, 0.6);
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  padding: 6px 12px;
+  text-align: center;
+  font-size: 0.62rem;
+  font-weight: 700;
+  color: var(--klogin-text-secondary);
+  letter-spacing: 0.06em;
+}
+
+.acis-map-arc {
+  stroke-dasharray: 4;
+  animation: acis-arc-flow 3s linear infinite;
+}
+
+@keyframes acis-arc-flow {
+  to { stroke-dashoffset: -20; }
+}
 
 .acis-sparkle {
   position: absolute;
@@ -603,12 +874,27 @@ body,
   color: var(--klogin-accent-light);
 }
 
+.acis-powered-by-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 18px 0 10px;
+  width: 100%;
+}
+
+.acis-powered-by-line {
+  flex-grow: 1;
+  height: 1px;
+  background: rgba(255, 255, 255, 0.08);
+  max-width: 60px;
+}
+
 .acis-powered-by-label {
-  margin: 22px 0 10px;
+  margin: 0 12px;
   color: var(--klogin-text-muted);
-  font-size: 0.6rem;
+  font-size: 0.58rem;
   font-weight: 700;
-  letter-spacing: 0.2em;
+  letter-spacing: 0.22em;
   text-transform: uppercase;
 }
 
@@ -616,16 +902,17 @@ body,
   display: inline-flex;
   align-items: baseline;
   gap: 2px;
-  padding: 8px 20px;
-  border: 1px solid var(--klogin-card-border);
+  padding: 6px 18px;
+  border: 1px solid var(--klogin-badge-border);
   border-radius: 999px;
   background: var(--klogin-badge-bg);
   font-weight: 900;
-  font-size: 0.95rem;
-  letter-spacing: 0.06em;
+  font-size: 0.85rem;
+  letter-spacing: 0.08em;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.04);
 }
 
-.acis-netcradus-badge .net { color: var(--klogin-wordmark-net); }
+.acis-netcradus-badge .net { color: var(--klogin-text-primary); }
 .acis-netcradus-badge .cradus { color: var(--klogin-accent-light); }
 .acis-netcradus-badge sup { color: var(--klogin-accent-light); font-size: 0.55rem; }
 
@@ -724,10 +1011,14 @@ label,
    with an icon (data-acis-wrapped) — fields it doesn't touch (e.g. a
    password-reset flow's password-new/password-confirm) must not get a
    hollow, icon-less gap on the left. */
-#kc-form input[type="text"][data-acis-wrapped="true"],
-#kc-form input[type="password"][data-acis-wrapped="true"],
-#kc-form input[type="email"][data-acis-wrapped="true"] {
+#kc-form input[type="text"][data-acis-icon-injected="true"],
+#kc-form input[type="email"][data-acis-icon-injected="true"] {
   padding-left: 40px !important;
+}
+
+#kc-form input[type="password"][data-acis-icon-injected="true"] {
+  padding-left: 40px !important;
+  padding-right: 44px !important;
 }
 
 #kc-form input[type="text"]::placeholder,
@@ -751,10 +1042,11 @@ label,
   outline: none !important;
 }
 
-/* The password field's native `.pf-c-input-group` (input + real show/hide
+/* The password field's native `.pf-c-input-group` / `.pf-v5-c-input-group` (input + real show/hide
    toggle button) becomes the single bordered "box" instead of the input
    itself, so the two pieces read as one seamless control. */
-.pf-c-input-group {
+.pf-c-input-group,
+.pf-v5-c-input-group {
   display: flex !important;
   align-items: stretch;
   background: var(--klogin-input-bg);
@@ -764,19 +1056,25 @@ label,
   transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
-.pf-c-input-group:hover {
+.pf-c-input-group:hover,
+.pf-v5-c-input-group:hover {
   border-color: var(--klogin-input-border-hover);
 }
 
-.pf-c-input-group:focus-within {
+.pf-c-input-group:focus-within,
+.pf-v5-c-input-group:focus-within {
   border-color: var(--klogin-accent);
   box-shadow: 0 0 0 3px var(--klogin-focus-ring);
 }
 
 #kc-form .pf-c-input-group input[type="password"],
 #kc-form .pf-c-input-group input[type="text"],
+#kc-form .pf-v5-c-input-group input[type="password"],
+#kc-form .pf-v5-c-input-group input[type="text"],
 .login-pf-page .pf-c-input-group input[type="password"],
-.login-pf-page .pf-c-input-group input[type="text"] {
+.login-pf-page .pf-c-input-group input[type="text"],
+.login-pf-page .pf-v5-c-input-group input[type="password"],
+.login-pf-page .pf-v5-c-input-group input[type="text"] {
   border: none !important;
   border-radius: 0 !important;
   box-shadow: none !important;
@@ -788,38 +1086,80 @@ label,
 #kc-form .pf-c-input-group input[type="password"]:hover,
 #kc-form .pf-c-input-group input[type="password"]:focus,
 #kc-form .pf-c-input-group input[type="text"]:hover,
-#kc-form .pf-c-input-group input[type="text"]:focus {
+#kc-form .pf-c-input-group input[type="text"]:focus,
+#kc-form .pf-v5-c-input-group input[type="password"]:hover,
+#kc-form .pf-v5-c-input-group input[type="password"]:focus,
+#kc-form .pf-v5-c-input-group input[type="text"]:hover,
+#kc-form .pf-v5-c-input-group input[type="text"]:focus {
   border: none !important;
   box-shadow: none !important;
 }
 
-.pf-c-input-group .pf-c-button.pf-m-control {
+.pf-c-input-group .pf-c-button.pf-m-control,
+.pf-v5-c-input-group .pf-v5-c-button.pf-m-control {
   flex: 0 0 auto;
-  width: 44px;
-  border: none;
-  border-left: 1px solid var(--klogin-toggle-border);
+  width: 48px;
+  position: absolute !important;
+  right: 0 !important;
+  top: 0 !important;
+  bottom: 0 !important;
+  width: 48px !important;
+  height: 100% !important;
+  margin: 0 !important;
+  border: none !important;
   background: transparent !important;
   color: var(--klogin-text-muted);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 0 !important;
   cursor: pointer;
-  transition: color 0.15s ease, background 0.15s ease;
+  box-shadow: none !important;
+  outline: none !important;
+  transition: color 0.15s ease;
+  z-index: 10 !important;
+  box-sizing: border-box !important;
 }
 
-.pf-c-input-group .pf-c-button.pf-m-control:hover {
-  color: var(--klogin-toggle-hover-text);
-  background: var(--klogin-toggle-hover-bg) !important;
+.pf-c-input-group .pf-c-button.pf-m-control::before,
+.pf-c-input-group .pf-c-button.pf-m-control::after,
+.pf-v5-c-input-group .pf-v5-c-button.pf-m-control::before,
+.pf-v5-c-input-group .pf-v5-c-button.pf-m-control::after {
+  display: none !important;
+  content: none !important;
+  border: none !important;
+  box-shadow: none !important;
 }
 
-.pf-c-input-group .pf-c-button.pf-m-control:focus {
-  outline: none;
+.pf-c-input-group .pf-c-button.pf-m-control:hover,
+.pf-v5-c-input-group .pf-v5-c-button.pf-m-control:hover {
+  color: var(--klogin-text-primary);
+  background: transparent !important;
+}
+
+.pf-c-input-group .pf-c-button.pf-m-control:focus,
+.pf-v5-c-input-group .pf-v5-c-button.pf-m-control:focus {
+  outline: none !important;
   color: var(--klogin-accent);
 }
 
-.pf-c-input-group .pf-c-button.pf-m-control i {
-  font-size: 0.9rem;
+.pf-c-input-group .pf-c-button.pf-m-control i,
+.pf-v5-c-input-group .pf-v5-c-button.pf-m-control i {
+  display: none !important;
+}
+
+.acis-eye-svg-wrap {
+  width: 18px;
+  height: 18px;
+  color: var(--klogin-text-muted);
+  display: none;
+  pointer-events: none;
+}
+
+.acis-eye-svg-wrap svg {
+  width: 18px;
+  height: 18px;
+  display: block;
 }
 
 #kc-form-options {
