@@ -102,14 +102,71 @@
       );
     }).join('');
 
+    var mapSvgHtml = 
+      '<svg class="acis-world-map-svg" viewBox="0 0 200 110" fill="none" xmlns="http://www.w3.org/2000/svg">' +
+        '<!-- Grid Background -->' +
+        '<path d="M 0,20 L 200,20 M 0,40 L 200,40 M 0,60 L 200,60 M 0,80 L 200,80" stroke="rgba(255,255,255,0.03)" stroke-width="0.5"/>' +
+        '<path d="M 40,0 L 40,110 M 80,0 L 80,110 M 120,0 L 120,110 M 160,0 L 160,110" stroke="rgba(255,255,255,0.03)" stroke-width="0.5"/>' +
+        '<!-- North America -->' +
+        '<path d="M 15 15 C 25 12, 35 15, 45 25 C 42 35, 38 42, 28 40 C 22 35, 12 30, 15 15 Z" fill="rgba(96, 165, 250, 0.05)" stroke="rgba(96, 165, 250, 0.15)" stroke-width="0.6"/>' +
+        '<!-- South America -->' +
+        '<path d="M 32 45 C 38 48, 40 55, 36 75 C 32 80, 28 85, 26 80 C 24 70, 28 55, 32 45 Z" fill="rgba(96, 165, 250, 0.05)" stroke="rgba(96, 165, 250, 0.15)" stroke-width="0.6"/>' +
+        '<!-- Africa -->' +
+        '<path d="M 80 42 C 95 38, 102 45, 105 58 C 100 70, 92 78, 85 75 C 78 68, 75 52, 80 42 Z" fill="rgba(96, 165, 250, 0.05)" stroke="rgba(96, 165, 250, 0.15)" stroke-width="0.6"/>' +
+        '<!-- Eurasia -->' +
+        '<path d="M 75 22 C 90 12, 115 15, 145 15 C 160 22, 155 35, 140 42 C 128 38, 110 45, 95 40 C 85 30, 78 28, 75 22 Z" fill="rgba(96, 165, 250, 0.05)" stroke="rgba(96, 165, 250, 0.15)" stroke-width="0.6"/>' +
+        '<!-- Australia -->' +
+        '<path d="M 148 65 C 158 62, 165 68, 160 75 C 150 78, 142 72, 148 65 Z" fill="rgba(96, 165, 250, 0.05)" stroke="rgba(96, 165, 250, 0.15)" stroke-width="0.6"/>' +
+        '<!-- Cyber attack lines -->' +
+        '<path d="M 28 28 Q 60 15 95 25" stroke="#60a5fa" stroke-width="0.8" fill="none" stroke-dasharray="2,2" class="acis-map-arc"/>' +
+        '<path d="M 95 25 Q 120 45 152 70" stroke="#a78bfa" stroke-width="0.8" fill="none" stroke-dasharray="2,2" class="acis-map-arc"/>' +
+        '<path d="M 36 60 Q 60 55 90 58" stroke="#3b82f6" stroke-width="0.8" fill="none" stroke-dasharray="2,2" class="acis-map-arc"/>' +
+        '<!-- Cyber attack nodes -->' +
+        '<circle cx="28" cy="28" r="1.5" fill="#60a5fa"/>' +
+        '<circle cx="95" cy="25" r="1.5" fill="#a78bfa"/>' +
+        '<circle cx="152" cy="70" r="1.5" fill="#3b82f6"/>' +
+        '<circle cx="36" cy="60" r="1.5" fill="#60a5fa"/>' +
+        '<circle cx="90" cy="58" r="1.5" fill="#3b82f6"/>' +
+      '</svg>';
+
     var visualsHtml =
       '<div class="acis-hero-visuals">' +
         '<div class="acis-stat-grid">' + statsHtml + '</div>' +
+        '<div class="acis-map-card">' +
+          '<div class="acis-map-card-body">' + mapSvgHtml + '</div>' +
+          '<div class="acis-map-card-footer">' +
+            '<span>ACTIVE NODES: 2,450</span>' +
+          '</div>' +
+        '</div>' +
       '</div>';
 
     hero.innerHTML =
       '<div class="acis-hero-bg"></div>' +
       
+      '<!-- HUD Top Bar -->' +
+      '<div class="acis-hud-top">' +
+        '<div class="acis-hud-left">' +
+          '<div class="acis-hud-box">' +
+            '<div class="acis-hud-row"><span class="acis-hud-label">GLOBAL THREAT LEVEL:</span> <span class="acis-hud-status acis-green">STABLE</span></div>' +
+            '<div class="acis-hud-row"><span class="acis-hud-label">WORK INTEGRITY:</span> <div class="acis-hud-bar-bg"><div class="acis-hud-bar-fill" style="width: 99.8%"></div></div> <span class="acis-green font-mono">99.8%</span></div>' +
+          '</div>' +
+        '</div>' +
+        '<div class="acis-hud-center">' +
+          '<div class="acis-hud-title">CYBER DEFENSE</div>' +
+          '<div class="acis-hud-subtitle">COMMAND CENTER</div>' +
+        '</div>' +
+        '<div class="acis-hud-right">' +
+          '<div class="acis-hud-time-container">' +
+            '<span class="acis-hud-time" id="acis-live-time">22:15:06</span>' +
+            '<span class="acis-hud-date" id="acis-live-date">14 OCT</span>' +
+          '</div>' +
+          '<div class="acis-hud-sys-icons">' +
+            '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="3" width="7" height="9"/><rect x="14" y="3" width="7" height="5"/><rect x="14" y="12" width="7" height="9"/><rect x="3" y="16" width="7" height="5"/></svg>' +
+            '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>' +
+          '</div>' +
+        '</div>' +
+      '</div>' +
+
       '<div class="acis-hero-content">' +
         '<h1 class="acis-hero-title">Autonomous<br/>Cyber Immune<br/>System</h1>' +
         '<div class="acis-hero-underline"></div>' +
@@ -119,7 +176,10 @@
           '<p>' + ICONS.shield.replace('<svg ', '<svg class="acis-icon-blue" ') + 'Continuous <span class="acis-blue">Protection.</span></p>' +
         '</div>' +
         visualsHtml +
-      '</div>';
+      '</div>' +
+      
+      '<!-- Bottom Outlined Heading -->' +
+      '<div class="acis-hero-bottom-outline">CYBER DEFENSE COMMAND CENTER</div>';
 
     return hero;
   }
@@ -213,8 +273,10 @@
   }
 
   function init() {
+    if (document.body.dataset.acisThemeApplied) return;
     var loginCard = $('.card-pf');
     if (!loginCard) return;
+    document.body.dataset.acisThemeApplied = 'true';
 
     var shell = document.createElement('div');
     shell.className = 'acis-shell';
@@ -235,9 +297,23 @@
     }
     cardCol.appendChild(loginCard);
     shell.appendChild(cardCol);
-
-
-
+    // Dynamic Live Clock in HUD
+    function updateClock() {
+      var d = new Date();
+      var hh = String(d.getHours()).padStart(2, '0');
+      var mm = String(d.getMinutes()).padStart(2, '0');
+      var ss = String(d.getSeconds()).padStart(2, '0');
+      var months = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
+      var day = String(d.getDate()).padStart(2, '0');
+      var month = months[d.getMonth()];
+      
+      var timeEl = document.getElementById('acis-live-time');
+      var dateEl = document.getElementById('acis-live-date');
+      if (timeEl) timeEl.textContent = hh + ':' + mm + ':' + ss;
+      if (dateEl) dateEl.textContent = day + ' ' + month;
+    }
+    updateClock();
+    setInterval(updateClock, 1000);
     if (header) {
       header.innerHTML =
         '<div class="acis-logo-row">' + svgAcisShield() + svgAcisWordmark() + '</div>' +
