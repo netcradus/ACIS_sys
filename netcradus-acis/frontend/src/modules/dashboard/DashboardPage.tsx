@@ -283,19 +283,19 @@ export default function DashboardPage() {
   ], [])
 
   return (
-    <div className="space-y-6 animate-fade-in relative min-h-screen text-[#e7ecf7]">
+    <div className="space-y-6 animate-fade-in relative min-h-screen text-[var(--soc-text)]">
       
       {/* acis-hero row */}
       <div className="acis-hero">
         <div className="acis-brand">
           <svg className="acis-shield" viewBox="0 0 24 24" fill="none">
-            <path d="M12 2 L21 5 V11 C21 16.5 17 20.5 12 22 C7 20.5 3 16.5 3 11 V5 Z" fill="url(#gg)" stroke="#5b9dff" strokeWidth="1"/>
+            <path d="M12 2 L21 5 V11 C21 16.5 17 20.5 12 22 C7 20.5 3 16.5 3 11 V5 Z" fill="url(#gg)" stroke="var(--soc-blue)" strokeWidth="1"/>
             <circle cx="12" cy="11" r="4" stroke="#fff" strokeWidth="1.4" fill="none"/>
             <line x1="15" y1="14" x2="18" y2="17" stroke="#fff" strokeWidth="1.4"/>
             <defs>
               <linearGradient id="gg" x1="0" y1="0" x2="1" y2="1">
-                <stop offset="0" stopColor="#3b5b9c"/>
-                <stop offset="1" stopColor="#12203f"/>
+                <stop offset="0" stopColor="var(--soc-shield-stop-0)"/>
+                <stop offset="1" stopColor="var(--soc-shield-stop-1)"/>
               </linearGradient>
             </defs>
           </svg>
@@ -498,7 +498,7 @@ export default function DashboardPage() {
 
               <div className="globe-box" id="globeBox">
                 <svg viewBox="0 0 400 400" id="globeSvg">
-                  <circle cx={200} cy={200} r={150} fill="none" stroke="rgba(110,150,220,0.35)" />
+                  <circle cx={200} cy={200} r={150} fill="none" stroke="var(--soc-globe-outer-stroke)" />
                   
                   {/* Lat Lines */}
                   {Array.from({ length: 4 }).map((_, i) => {
@@ -513,7 +513,7 @@ export default function DashboardPage() {
                         rx={rxVal}
                         ry={6}
                         fill="none"
-                        stroke="rgba(110,150,220,0.15)"
+                        stroke="var(--soc-globe-lat-stroke)"
                       />
                     );
                   })}
@@ -530,7 +530,7 @@ export default function DashboardPage() {
                         rx={rxVal}
                         ry={150}
                         fill="none"
-                        stroke="rgba(110,150,220,0.12)"
+                        stroke="var(--soc-globe-long-stroke)"
                       />
                     );
                   })}
@@ -549,7 +549,7 @@ export default function DashboardPage() {
                     <g key={`heat-${idx}`}>
                       <defs>
                         <radialGradient id={`g-heat-${idx}`} cx="50%" cy="50%" r="50%">
-                          <stop offset="0%" stopColor={pt.c} stopOpacity={0.8} />
+                          <stop offset="0%" stopColor={pt.c} stopOpacity="var(--soc-globe-heat-opacity)" />
                           <stop offset="100%" stopColor={pt.c} stopOpacity={0} />
                         </radialGradient>
                       </defs>
@@ -571,7 +571,7 @@ export default function DashboardPage() {
                         key={`arc-${idx}`}
                         d={`M${arc.x1},${arc.y1} Q${mx},${my} ${arc.x2},${arc.y2}`}
                         fill="none"
-                        stroke="rgba(120,170,255,0.5)"
+                        stroke="var(--soc-globe-arc-stroke)"
                         strokeWidth={1}
                       />
                     );
@@ -622,7 +622,7 @@ export default function DashboardPage() {
                       <polyline 
                         points={sparklinesPoints[i % sparklinesPoints.length]} 
                         fill="none" 
-                        stroke={inc.severity === 'Critical' ? '#ef4444' : '#3b82f6'} 
+                        stroke={inc.severity === 'Critical' ? 'var(--soc-red)' : 'var(--soc-blue)'} 
                         strokeWidth="2"
                       />
                     </svg>
@@ -633,16 +633,16 @@ export default function DashboardPage() {
 
             {/* Performance Radar */}
             <div className="card-panel">
-              <h3 style={{ fontSize: '14.5px', fontWeight: 800, marginBottom: '4px', color: '#fff' }}>
+              <h3 style={{ fontSize: '14.5px', fontWeight: 800, marginBottom: '4px', color: 'var(--soc-threat-head-color)' }}>
                 Real-Time AI Model Performance
               </h3>
               <div className="radar-wrap">
                 <svg viewBox="0 0 220 220">
-                  <polygon points="110,20 200,110 110,200 20,110" fill="none" stroke="#1c2540" strokeWidth="1"/>
-                  <polygon points="110,55 175,110 110,165 55,110" fill="none" stroke="#1c2540" strokeWidth="1"/>
-                  <line x1="110" y1="10" x2="110" y2="210" stroke="#1c2540"/>
-                  <line x1="10" y1="110" x2="210" y2="110" stroke="#1c2540"/>
-                  <polygon points="110,32 168,105 122,178 48,118" fill="rgba(59,130,246,0.25)" stroke="#3b82f6" strokeWidth="2"/>
+                  <polygon points="110,20 200,110 110,200 20,110" fill="none" stroke="var(--soc-radar-grid-stroke)" strokeWidth="1"/>
+                  <polygon points="110,55 175,110 110,165 55,110" fill="none" stroke="var(--soc-radar-grid-stroke)" strokeWidth="1"/>
+                  <line x1="110" y1="10" x2="110" y2="210" stroke="var(--soc-radar-axis-stroke)"/>
+                  <line x1="10" y1="110" x2="210" y2="110" stroke="var(--soc-radar-axis-stroke)"/>
+                  <polygon points="110,32 168,105 122,178 48,118" fill="var(--soc-radar-area-fill)" stroke="var(--soc-blue)" strokeWidth="2"/>
                 </svg>
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', fontSize: '10.5px', color: 'var(--soc-muted)', fontWeight: 700, textAlign: 'center', rowGap: '6px' }}>
@@ -655,7 +655,7 @@ export default function DashboardPage() {
 
             {/* SOC Operative Status */}
             <div className="card-panel">
-              <h3 style={{ fontSize: '14.5px', fontWeight: 800, marginBottom: '2px', color: '#fff' }}>
+              <h3 style={{ fontSize: '14.5px', fontWeight: 800, marginBottom: '2px', color: 'var(--soc-threat-head-color)' }}>
                 SOC Operative Status
               </h3>
               <div className="op-list">
