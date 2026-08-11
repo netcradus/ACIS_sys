@@ -217,7 +217,8 @@ html, body {
   min-height: 100vh;
   width: 100%;
   background: var(--scene-bg);
-  overflow: hidden;
+  overflow-y: auto;
+  overflow-x: hidden;
 }
 
 /* top thin bar */
@@ -414,9 +415,10 @@ html, body {
 
 /* Right side layout */
 .right {
-  position: absolute; top: 0; right: 0; bottom: 0; width: 56%;
+  position: absolute; top: 0; right: 0; min-height: 100vh; width: 56%;
   display: flex; align-items: center; justify-content: flex-end;
   z-index: 2;
+  padding: 40px 0;
 }
 .globe-wrap {
   position: absolute; right: -10%; top: 50%; transform: translateY(-50%);
