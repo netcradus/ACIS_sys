@@ -44,9 +44,54 @@ export default function DashboardPage() {
   const navigate = useNavigate()
   const { pivotTo } = useEntityPivot()
   const canReadSoarPlaybooks = useCanRead(MODULES.SOAR_PLAYBOOKS)
+
+  // Memoized elements for SOC Operational View
+  const miniBarsHeights = useMemo(() => Array.from({ length: 14 }, () => 8 + Math.random() * 18), [])
+  
+  const globeEllipsesLat = useMemo(() => {
+    return Array.from({ length: 6 }).map((_, i) => {
+      const yy = 200 - 190 + (i + 1) * (2 * 190 / 7)
+      const rx = Math.sqrt(Math.max(190 * 190 - Math.pow(200 - yy, 2), 0))
+      return { yy, rx }
+    })
+  }, [])
+
+  const globeEllipsesLong = useMemo(() => {
+    return Array.from({ length: 8 }).map((_, i) => {
+      const ang = i * 22.5
+      const rx = Math.abs(190 * Math.cos(ang * Math.PI / 180)) + 2
+      return { rx }
+    })
+  }, [])
+
+  const globeDots = useMemo(() => {
+    return Array.from({ length: 200 }).map(() => {
+      const a = Math.random() * Math.PI * 2
+      const rad = Math.sqrt(Math.random()) * 190 * 0.9
+      const cx = 200 + Math.cos(a) * rad
+      const cy = 200 + Math.sin(a) * rad * 0.9
+      const rVal = Math.random() < 0.2 ? 1.3 : 0.7
+      return { cx, cy, rVal }
+    })
+  }, [])
+
+  const netNodes = useMemo(() => [
+    { x: 130, y: 100, type: 'main' },
+    { x: 70, y: 60, type: 'sub' },
+    { x: 190, y: 60, type: 'sub' },
+    { x: 50, y: 140, type: 'sub' },
+    { x: 130, y: 40, type: 'sub' },
+    { x: 210, y: 140, type: 'sub' },
+    { x: 90, y: 180, type: 'sub' },
+    { x: 170, y: 180, type: 'sub' }
+  ], [])
+
+  const netEdges = useMemo(() => [
+    [0, 1], [0, 2], [0, 3], [0, 4], [0, 5], [0, 6], [0, 7]
+  ], [])
   
   // Tabs: architecture (Immune Architecture) vs overview (SOC Operational View)
-  const [activeTab, setActiveTab] = useState<'architecture' | 'overview'>('architecture')
+  const [activeTab, setActiveTab] = useState<'architecture' | 'overview'>('overview')
   
   // Telemetry metric states
   const [stats, setStats] = useState<DashboardStats | null>(null)
@@ -281,6 +326,29 @@ export default function DashboardPage() {
     "0,14 8,6 16,12 24,4 32,10 40,16 48,8 56,4",
     "0,8 8,14 16,4 24,10 32,16 40,6 48,12 56,8"
   ], [])
+
+  // Donut chart calculations
+  const donutTotal = (severityCounts?.critical ?? 25) + (severityCounts?.high ?? 27) + (severityCounts?.medium ?? 16) + (severityCounts?.low ?? 10)
+  const donutCirc = 259
+  const donutCritDash = Math.round(((severityCounts?.critical ?? 25) / donutTotal) * donutCirc)
+  const donutHighDash = Math.round(((severityCounts?.high ?? 27) / donutTotal) * donutCirc)
+  const donutMedDash = Math.round(((severityCounts?.medium ?? 16) / donutTotal) * donutCirc)
+  const donutLowDash = Math.round(((severityCounts?.low ?? 10) / donutTotal) * donutCirc)
+
+  const donutHighOffset = -donutCritDash
+  const donutMedOffset = -(donutCritDash + donutHighDash)
+  const donutLowOffset = -(donutCritDash + donutHighDash + donutMedDash)
+
+  // Timeline dots calculations
+  const timelineDots = useMemo(() => {
+    return incidents.slice(0, 7).map((inc, i) => {
+      const percentage = 5 + i * 14
+      const isWarning = inc.severity === 'Critical' || inc.severity === 'High'
+      const color = inc.severity === 'Critical' ? 'var(--soc-red)' : inc.severity === 'High' ? 'var(--soc-amber)' : 'var(--soc-blue)'
+      const symbol = isWarning ? '⚠' : '⚙'
+      return { percentage, color, symbol }
+    })
+  }, [incidents])
 
   return (
     <div className="space-y-6 animate-fade-in relative min-h-screen text-[var(--soc-text)]">
@@ -704,125 +772,251 @@ export default function DashboardPage() {
 
         </div>
       ) : (
-        <div className="space-y-8 animate-fade-in relative">
+        <div className="space-y-8 animate-fade-in relative text-[var(--soc-text)]">
           
-          {/* Original SOC Operational Overview Tab */}
-          <div className="relative overflow-hidden rounded-2xl border border-fire-border bg-surface-2 p-8 shadow-card">
-            <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,color-mix(in_srgb,var(--accent)_10%,transparent),transparent_28%),radial-gradient(circle_at_bottom_right,color-mix(in_srgb,var(--info)_8%,transparent),transparent_30%)] pointer-events-none" />
-            <div className="relative z-10 grid gap-6 lg:grid-cols-[1.4fr_0.6fr]">
-              <div className="space-y-4">
-                <p className="text-label uppercase text-accent">Command Center</p>
-                <h1 className="text-display text-text-primary">Secure operations at the speed of threat.</h1>
-                <p className="max-w-2xl text-body text-text-secondary">
-                  Monitor live alerts, correlate threats, and act on critical incidents with a unified cyber defense console built for advanced SOC workflows.
-                </p>
-              </div>
+          {/* ================ HERO / COMMAND CENTER ================ */}
+          <div className="hero-wrap">
+            <div className="hero-globe">
+              <svg viewBox="0 0 400 400" id="globeSvg">
+                <circle cx={200} cy={200} r={190} fill="none" stroke="rgba(120,160,230,0.3)" />
+                {globeEllipsesLat.map((e, idx) => (
+                  <ellipse key={`lat-${idx}`} cx={200} cy={e.yy} rx={e.rx} ry={5} fill="none" stroke="rgba(120,160,230,0.15)" />
+                ))}
+                {globeEllipsesLong.map((e, idx) => (
+                  <ellipse key={`long-${idx}`} cx={200} cy={200} rx={e.rx} ry={190} fill="none" stroke="rgba(120,160,230,0.1)" />
+                ))}
+                {globeDots.map((dot, idx) => (
+                  <circle key={`dot-${idx}`} cx={dot.cx} cy={dot.cy} r={dot.rVal} fill="rgba(140,175,235,0.3)" />
+                ))}
+              </svg>
+            </div>
 
-              <div className="grid grid-cols-1 gap-4">
-                <div className="card-mission bg-glass-surface border-fire-border/50 p-5">
-                  <p className="text-label uppercase text-text-muted mb-2">Response Readiness</p>
-                  <p className="text-display text-text-primary">
+            <div className="command-panel">
+              <div className="command-left">
+                <div className="eyebrow">COMMAND CENTER</div>
+                <h1>Secure operations at the speed of threat.</h1>
+                <p>Monitor live alerts, correlate threats, and act on critical incidents with a unified cyber defense console built for advanced SOC workflows.</p>
+              </div>
+              <div className="command-right">
+                <div className="readiness">
+                  <div className="lbl">OPERATIONAL READINESS</div>
+                  <div className="big">
                     {isLoading || responseReadiness === null ? '—' : `${responseReadiness}%`}
-                  </p>
-                  <p className="text-small text-text-secondary mt-2">Share of open alerts with an assigned owner, ready for response.</p>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div className="flex items-end justify-between mb-2">
-            <div>
-              <h1 className="text-h1 text-text-primary">Operational Overview</h1>
-              <p className="text-small text-text-secondary mt-1">Mission-critical infrastructure health</p>
-            </div>
-            <div className="flex items-center gap-4 bg-surface-2 border border-fire-border px-4 py-2.5 rounded-lg">
-              <div className="flex flex-col items-end">
-                <span className="text-label uppercase text-text-muted leading-none mb-1">Grid Status</span>
-                <span className={`text-small font-semibold tabular-nums ${ (stats?.criticalAlerts ?? 0) > 0 ? "text-danger" : "text-success" }`}>
-                  {isLoading ? '—' : (stats?.criticalAlerts ?? 0) > 0 ? `${stats!.criticalAlerts} Critical Active` : 'Secure'}
-                </span>
-              </div>
-            </div>
-          </div>
-
-          {/* KPI Row */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            <KpiTile
-              title="Events (24h)"
-              value={isLoading ? '—' : stats?.events24h ?? null}
-              loading={isLoading}
-              trend={stats?.events24h != null ? { label: 'Live Feed', direction: 'up' } : undefined}
-              onClick={() => navigate('/dashboard/logs')}
-            />
-            <KpiTile
-              title="Notable Events"
-              value={isLoading ? '—' : stats?.totalAlerts ?? null}
-              loading={isLoading}
-              trend={stats?.totalAlerts != null ? { label: 'Live Feed', direction: 'up' } : undefined}
-              onClick={() => navigate('/dashboard/alerts')}
-            />
-            <KpiTile title="Mean Time to Detect" value={null} />
-            <KpiTile title="Mean Time to Respond" value={null} />
-          </div>
-
-          {/* Charts Section */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            
-            <div className="lg:col-span-2 card-mission bg-surface-2 border-fire-border/60 p-6 rounded-2xl">
-              <div className="flex items-center justify-between mb-8">
-                <div>
-                  <h3 className="text-h3 text-text-primary">Ingest Volume vs Errors</h3>
-                  <p className="text-small text-text-secondary mt-1">Global collection nodes telemetry — last 8 hours</p>
-                </div>
-              </div>
-
-              <div className="h-[340px] w-full mt-4 flex items-center justify-center border border-dashed border-fire-border/60 rounded-xl relative">
-                <div className="absolute inset-0 flex flex-col items-center justify-center opacity-50">
-                  <span className="text-small font-semibold text-text-secondary">Still in development</span>
-                  <span className="text-small text-text-muted mt-1">Real-time chart metric feed pending</span>
-                </div>
-              </div>
-            </div>
-
-            <div className="card-mission bg-surface-2 border-fire-border/60 p-6 rounded-2xl">
-              <h3 className="text-h3 text-text-primary mb-8 text-center">Alert Severity Mix</h3>
-              <div className="h-64 w-full flex items-center justify-center relative">
-                <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Pie
-                      data={[
-                        { name: 'Critical', value: severityCounts?.critical ?? 0, color: chartColors.danger },
-                        { name: 'High', value: severityCounts?.high ?? 0, color: chartColors.severityHigh },
-                        { name: 'Medium', value: severityCounts?.medium ?? 0, color: chartColors.severityMedium },
-                        { name: 'Low', value: severityCounts?.low ?? 0, color: chartColors.info },
-                      ]}
-                      cx="50%"
-                      cy="50%"
-                      innerRadius={75}
-                      outerRadius={100}
-                      paddingAngle={6}
-                      dataKey="value"
-                      stroke="none"
-                    >
-                      {[
-                        { color: chartColors.danger },
-                        { color: chartColors.severityHigh },
-                        { color: chartColors.severityMedium },
-                        { color: chartColors.info },
-                      ].map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={entry.color} />
+                    <div className="mini-bars">
+                      {miniBarsHeights.map((h, i) => (
+                        <div key={i} style={{ height: `${h}px` }} />
                       ))}
-                    </Pie>
-                    <Tooltip />
-                  </PieChart>
-                </ResponsiveContainer>
-                <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                  <span className="text-h1 text-text-primary leading-none">{stats?.totalAlerts ?? 0}</span>
-                  <span className="text-label uppercase text-text-secondary mt-1">Alerts</span>
+                    </div>
+                  </div>
+                  <div className="desc">Systems fully operational across all monitored zones.</div>
+                </div>
+                <div className="owner">
+                  <div className="lbl">OWNER BREAKDOWN</div>
+                  <div className="owner-row">
+                    <span className="d cyan"></span>Open
+                    <b>{stats ? `${Math.round(((stats.totalAlerts - stats.criticalAlerts) / Math.max(1, stats.totalAlerts)) * 100)}%` : '55%'}</b>
+                  </div>
+                  <div className="owner-row">
+                    <span className="d blue"></span>Assigned
+                    <b>{stats ? `${Math.round((stats.criticalAlerts / Math.max(1, stats.totalAlerts)) * 100)}%` : '25%'}</b>
+                  </div>
+                  <div className="desc">Share of open alerts with an assigned alertees, ready for response.</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* ================ OPERATIONAL OVERVIEW ================ */}
+          <div>
+            <div className="ov-head">
+              <div>
+                <h2>Operational Overview</h2>
+                <p>Mission-critical infrastructure health</p>
+              </div>
+              <div className="grid-status-pill">
+                <div className="l">GRID STATUS</div>
+                <div className="v">
+                  {isLoading ? '—' : (stats?.criticalAlerts ?? 0) > 0 ? `${stats!.criticalAlerts} Critical` : 'Secure'}
                 </div>
               </div>
             </div>
 
+            <div className="ov-grid">
+              {/* Ingest Volume vs Errors */}
+              <div className="ov-card card-cyan">
+                <h3>Ingest Volume vs Errors <span className="zoom-btn">Zoom ⌄</span></h3>
+                <div className="zoom-tabs"><span className="on">1H</span><span>1D</span></div>
+                <svg viewBox="0 0 300 160" width="100%" height="150">
+                  <polyline points="0,90 20,70 40,80 60,50 80,65 100,40 120,55 140,35 160,50 180,30 200,45 220,25 240,40 260,20 280,35 300,15" fill="none" stroke="#22d3ee" strokeWidth="2"/>
+                  <polygon points="0,90 20,70 40,80 60,50 80,65 100,40 120,55 140,35 160,50 180,30 200,45 220,25 240,40 260,20 280,35 300,15 300,160 0,160" fill="rgba(34,211,238,0.15)"/>
+                  <polyline points="0,130 20,120 40,125 60,110 80,118 100,105 120,112 140,100 160,110 180,95 200,105 220,90 240,100 260,85 280,95 300,80" fill="none" stroke="#a855f7" strokeWidth="2"/>
+                  <polyline points="0,150 20,148 40,150 60,145 80,148 100,142 120,146 140,140 160,144 180,138 200,142 220,135 240,140 260,132 280,137 300,128" fill="none" stroke="#f59e0b" strokeWidth="1.5"/>
+                </svg>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '9.5px', color: 'var(--soc-dim)', marginTop: '2px' }}>
+                  <span>14:00</span><span>14:20</span><span>14:30</span><span>19:30</span><span>20:00</span>
+                </div>
+              </div>
+
+              {/* Notable Events */}
+              <div className="ov-card card-purple">
+                <h3>Notable Events <span className="chev-r">›</span></h3>
+                <div className="big-num">{stats?.totalAlerts ?? 0}</div>
+                <div className="live-feed-link" onClick={() => navigate('/dashboard/alerts')}>↗ Live Feed</div>
+                <div className="notable-list">
+                  {incidents.slice(0, 5).map((inc, i) => (
+                    <div key={inc.id || i}>{inc.title || 'CVE detection log'}</div>
+                  ))}
+                  {incidents.length === 0 && <div>No active notable alerts.</div>}
+                </div>
+              </div>
+
+              {/* Mean Time to Detect */}
+              <div className="ov-card card-teal">
+                <h3>Mean Time to Detect</h3>
+                <div className="gauge-wrap">
+                  <svg viewBox="0 0 200 120">
+                    <path d="M20,110 A80,80 0 0 1 180,110" fill="none" stroke="var(--soc-gauge-bg)" strokeWidth="14"/>
+                    <path d="M20,110 A80,80 0 0 1 180,110" fill="none" stroke="url(#gaugeGrad)" strokeWidth="14" strokeDasharray="200 251" strokeLinecap="round"/>
+                    <defs>
+                      <linearGradient id="gaugeGrad" x1="0" y1="0" x2="1" y2="0">
+                        <stop offset="0" stopColor="#22d3ee"/><stop offset="1" stopColor="#5eead4"/>
+                      </linearGradient>
+                    </defs>
+                    <line x1="100" y1="105" x2="150" y2="55" stroke="var(--soc-text)" strokeWidth="3" strokeLinecap="round"/>
+                    <circle cx="100" cy="105" r="5" fill="var(--soc-text)"/>
+                    <text x="26" y="108" font-size="10" fill="var(--soc-muted)">0</text>
+                    <text x="42" y="70" font-size="10" fill="var(--soc-muted)">20</text>
+                    <text x="75" y="42" font-size="10" fill="var(--soc-muted)">40</text>
+                    <text x="112" y="35" font-size="10" fill="var(--soc-muted)">60 80</text>
+                    <text x="160" y="70" font-size="10" fill="var(--soc-muted)">100</text>
+                    <text x="170" y="108" font-size="10" fill="var(--soc-muted)">120</text>
+                  </svg>
+                  <div className="gauge-val">90s</div>
+                </div>
+              </div>
+
+              {/* Mean Time to Respond */}
+              <div className="ov-card card-teal">
+                <h3>Mean Time to Respond <span className="chev-r">›</span></h3>
+                <svg viewBox="0 0 300 160" width="100%" height="140">
+                  <polyline points="0,50 40,20 80,35 120,55 160,45 200,65 240,50 280,70" fill="none" stroke="#22d3ee" strokeWidth="2"/>
+                  <polyline points="0,90 40,105 80,95 120,80 160,90 200,95 240,80 280,90" fill="none" stroke="#f97316" strokeWidth="2"/>
+                </svg>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '9.5px', color: 'var(--soc-dim)' }}>
+                  <span>14:00</span><span>14:20</span><span>14:30</span><span>19:30</span><span>20:00</span>
+                </div>
+                <div className="mtr-legend">
+                  <span><span className="d" style={{ background: '#22d3ee' }}></span>Phishing</span>
+                  <span><span className="d" style={{ background: '#f97316' }}></span>Lateral</span>
+                </div>
+              </div>
+
+              {/* Alert Severity Mix */}
+              <div className="ov-card card-amber">
+                <h3>Alert Severity Mix</h3>
+                <div className="donut-wrap">
+                  <svg viewBox="0 0 140 140" width="120" height="120">
+                    <circle cx="70" cy="70" r="55" fill="none" stroke="var(--soc-border-soft)" strokeWidth="20"/>
+                    <circle cx="70" cy="70" r="55" fill="none" stroke="#ef4444" strokeWidth="20" strokeDasharray={`${donutCritDash} 259`} strokeDashoffset="0" transform="rotate(-90 70 70)"/>
+                    <circle cx="70" cy="70" r="55" fill="none" stroke="#f97316" strokeWidth="20" strokeDasharray={`${donutHighDash} 259`} strokeDashoffset={donutHighOffset} transform="rotate(-90 70 70)"/>
+                    <circle cx="70" cy="70" r="55" fill="none" stroke="#facc15" strokeWidth="20" strokeDasharray={`${donutMedDash} 259`} strokeDashoffset={donutMedOffset} transform="rotate(-90 70 70)"/>
+                    <circle cx="70" cy="70" r="55" fill="none" stroke="#4ade80" stroke-width="20" strokeDasharray={`${donutLowDash} 259`} strokeDashoffset={donutLowOffset} transform="rotate(-90 70 70)"/>
+                  </svg>
+                  <div className="donut-legend">
+                    <div><span className="d" style={{ background: '#ef4444' }}></span>Critical<span className="n">{severityCounts?.critical ?? 25}</span></div>
+                    <div><span className="d" style={{ background: '#f97316' }}></span>High<span className="n">{severityCounts?.high ?? 27}</span></div>
+                    <div><span className="d" style={{ background: '#facc15' }}></span>Medium<span className="n">{severityCounts?.medium ?? 16}</span></div>
+                    <div><span className="d" style={{ background: '#4ade80' }}></span>Low<span className="n">{severityCounts?.low ?? 10}</span></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* ================ BOTTOM GRID ================ */}
+          <div className="bottom-grid">
+            <div className="bottom-card">
+              <h3>Incident Timeline (Past 24h)</h3>
+              <div className="timeline">
+                <div style={{ position: 'relative', height: '2px', background: 'var(--soc-border-soft)', margin: '10px 6px 0' }}>
+                  {timelineDots.map((dot, i) => (
+                    <div key={i}>
+                      <div className="tl-dot" style={{ left: `${dot.percentage}%`, background: dot.color }} />
+                      <div className="tl-icon" style={{ left: `${dot.percentage}%`, top: i % 2 === 0 ? '-52px' : '32px', background: `${dot.color}2e`, color: dot.color }}>
+                        {dot.symbol}
+                      </div>
+                    </div>
+                  ))}
+                  {timelineDots.length === 0 && (
+                    <div className="text-center text-small text-text-muted mt-4">No recent incident signals.</div>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            <div className="bottom-card">
+              <h3>Grid Status</h3>
+              <div className="network-wrap">
+                <svg viewBox="0 0 260 220" id="netSvg">
+                  {netEdges.map(([a, b], idx) => (
+                    <line
+                      key={idx}
+                      x1={netNodes[a].x}
+                      y1={netNodes[a].y}
+                      x2={netNodes[b].x}
+                      y2={netNodes[b].y}
+                      stroke="var(--soc-border-soft)"
+                      strokeWidth="1.4"
+                    />
+                  ))}
+                  {netNodes.map((node, i) => {
+                    const isProbing = simState === 'simulating' && gridNodes[i % gridNodes.length] === 'probing'
+                    const isCompromised = simState === 'simulating' && gridNodes[i % gridNodes.length] === 'compromised'
+                    const isContained = simState === 'simulating' && gridNodes[i % gridNodes.length] === 'contained'
+                    
+                    const fill = isCompromised ? 'var(--soc-red)' : isContained ? 'var(--soc-green)' : isProbing ? 'var(--soc-amber)' : (node.type === 'main' || i % 3 === 0 ? '#0e2a3a' : '#0d1526')
+                    const stroke = isCompromised ? 'var(--soc-red)' : isContained ? 'var(--soc-green)' : isProbing ? 'var(--soc-amber)' : (node.type === 'main' || i % 3 === 0 ? 'var(--soc-cyan)' : '#3b4568')
+                    const radius = node.type === 'main' ? 16 : (i % 2 === 0 ? 7 : 5.5)
+                    
+                    return (
+                      <circle
+                        key={i}
+                        cx={node.x}
+                        cy={node.y}
+                        r={radius}
+                        fill={fill}
+                        stroke={stroke}
+                        strokeWidth="1.4"
+                      />
+                    )
+                  })}
+                </svg>
+              </div>
+            </div>
+
+            <div className="bottom-card">
+              <h3>Closed-Loop Remediation Logs</h3>
+              <div className="log-list">
+                {simLogs.slice(0, 6).map((log, i) => {
+                  const isFail = log.toLowerCase().includes('fail')
+                  return (
+                    <div key={i} className="log-row">
+                      <div className={`log-tag ${isFail ? 'fail' : 'ok'}`}>
+                        {isFail ? 'Success/Failure' : 'Success/Success'}
+                      </div>
+                      <div className="log-desc">{log}</div>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          </div>
+
+          {/* ================ TICKER ================ */}
+          <div className="ticker">
+            <span className="live"><span className="dot"></span>LIVE THREAT FEED</span>
+            <span className="msg">SCANNING NETWORK TELEMETRY… NO ACTIVE THREATS MATCHING CORRELATION RULES… SYSTEM STATUS NOMINAL…</span>
+            <span className="grid-r">GRID STATUS: NOMINAL &nbsp;·&nbsp; T2: IBT</span>
           </div>
 
         </div>
