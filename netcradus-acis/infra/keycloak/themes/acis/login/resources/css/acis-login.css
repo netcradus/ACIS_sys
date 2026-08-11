@@ -1,225 +1,357 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
-
-/* ACIS branded login theme — CSS + a small DOM-injection script
-   (js/acis-login.js) layered on top of Keycloak's built-in "keycloak"
-   (classic) theme. No template/FTL changes: Keycloak's own form element,
-   its inputs, CSRF token, and submission handling are never re-created,
-   only wrapped/restyled — every security-critical behavior is untouched.
-
-   Dark is the default/primary look ("SOC command-center at night"), with a
-   full light-mode counterpart toggled via `data-theme` on <html> (set by
-   acis-login.js, before first paint — see the top of that file). Palette
-   for BOTH modes mirrors the real app's tokens
-   (frontend/src/index.css's :root / :root[data-theme="light"]) so the
-   login page and the app agree; there's no build step reading that file,
-   so keep these in sync by hand if the app's tokens ever change.
-
-   The left hero panel is a deliberate exception: it's built from a real
-   background image (world-network.png) that only exists as dark
-   cyber-space artwork, so it stays fixed-dark in both themes — same as
-   how Stripe/Linear-style marketing panels commonly stay dark regardless
-   of the rest of the page. Only the card column (right) — its background,
-   the card, inputs, buttons, text, icons, borders, and glow effects —
-   actually switches. */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
 
 :root,
 :root[data-theme="dark"] {
+  --bg: #0a0e1a;
+  --panel: linear-gradient(160deg, rgba(16,22,38,0.92), rgba(9,13,24,0.92));
+  --panel-border: #263153;
+  --blue: #3b82f6;
+  --cyan: #22d3ee;
+  --purple: #a855f7;
+  --pink: #ec4899;
+  --green: #22c55e;
+  --red: #ef4444;
+  --text: #e6ebf5;
+  --muted: #8b95ac;
+  --accent: #2b3555;
+  
   color-scheme: dark;
-
-  --klogin-bg: #02050e;
-  --klogin-card-col-bg: #03060f;
-  --klogin-card-bg: rgba(13, 17, 30, 0.72);
-  --klogin-card-border: rgba(96, 165, 250, 0.16);
-  --klogin-card-shadow: 0 30px 80px rgba(0, 0, 0, 0.6), 0 0 60px rgba(37, 99, 235, 0.08);
-  --klogin-text-primary: #FAFAFA;
-  --klogin-text-secondary: #A1A1AA;
-  --klogin-text-muted: #71717A;
-  --klogin-label: #D4D4D8;
-  --klogin-input-bg: rgba(255, 255, 255, 0.03);
-  --klogin-input-border: rgba(148, 163, 184, 0.18);
-  --klogin-input-border-hover: rgba(148, 163, 184, 0.32);
-  --klogin-divider: rgba(148, 163, 184, 0.14);
-  --klogin-toggle-border: rgba(148, 163, 184, 0.14);
-  --klogin-toggle-hover-bg: rgba(255, 255, 255, 0.04);
-  --klogin-toggle-hover-text: #D4D4D8;
-  --klogin-badge-bg: rgba(13, 17, 30, 0.8);
-  --klogin-badge-border: rgba(255, 255, 255, 0.15);
-  --klogin-toolbtn-bg: rgba(255, 255, 255, 0.06);
-  --klogin-toolbtn-border: rgba(148, 163, 184, 0.18);
-  --klogin-toolbtn-hover-bg: rgba(255, 255, 255, 0.1);
-
-  --klogin-globe-stroke-1: rgba(96, 165, 250, 0.18);
-  --klogin-globe-stroke-2: rgba(96, 165, 250, 0.14);
-  --klogin-globe-stroke-3: rgba(96, 165, 250, 0.1);
-  --klogin-globe-stroke-4: rgba(96, 165, 250, 0.08);
-  --klogin-globe-stroke-5: rgba(167, 139, 250, 0.22);
-  --klogin-globe-stroke-6: rgba(59, 130, 246, 0.2);
-  --klogin-globe-radial: rgba(59, 130, 246, 0.2);
-
-  /* Mirrors frontend/src/index.css's :root (dark) --accent/--accent-dark/--accent-pa */
-  --klogin-accent: #3B82F6;
-  --klogin-accent-dark: #2563EB;
-  --klogin-accent-light: #60A5FA;
-  --klogin-accent-pa: #7C3AED;
-  --klogin-focus-ring: rgba(59, 130, 246, 0.24);
-  --klogin-btn-shadow: rgba(37, 99, 235, 0.35);
-
-  --klogin-wordmark-net: #FAFAFA;
-  --klogin-error-bg: rgba(239, 68, 68, 0.12);
-  --klogin-error-border: rgba(239, 68, 68, 0.35);
-  --klogin-error-text: #FCA5A5;
 }
 
 :root[data-theme="light"] {
+  --bg: #F3F4F6;
+  --panel: #ffffff;
+  --panel-border: #e5e7eb;
+  --blue: #2563eb;
+  --cyan: #06b6d4;
+  --purple: #9333ea;
+  --pink: #db2777;
+  --green: #16a34a;
+  --red: #dc2626;
+  --text: #1f2937;
+  --muted: #4b5563;
+  --accent: #d1d5db;
+  
   color-scheme: light;
-
-  --klogin-bg: #02050e;
-  --klogin-card-col-bg: #F8F9FB;
-  --klogin-card-bg: #ffffff;
-  --klogin-card-border: rgba(15, 23, 42, 0.06);
-  --klogin-card-shadow: 0 25px 60px rgba(15, 23, 42, 0.1);
-  --klogin-text-primary: #18181B;
-  --klogin-text-secondary: #52525B;
-  --klogin-text-muted: #8A8A93;
-  --klogin-label: #3F3F46;
-  --klogin-input-bg: #ffffff;
-  --klogin-input-border: #E4E4E9;
-  --klogin-input-border-hover: #D4D4D8;
-  --klogin-divider: #E4E4E9;
-  --klogin-toggle-border: #F0F0F2;
-  --klogin-toggle-hover-bg: #F7F7F8;
-  --klogin-toggle-hover-text: #52525B;
-  --klogin-badge-bg: rgba(15, 23, 42, 0.05);
-  --klogin-badge-border: rgba(15, 23, 42, 0.15);
-  --klogin-toolbtn-bg: #ffffff;
-  --klogin-toolbtn-border: #E4E4E9;
-  --klogin-toolbtn-hover-bg: #F4F5F7;
-
-  --klogin-globe-stroke-1: rgba(37, 99, 235, 0.12);
-  --klogin-globe-stroke-2: rgba(37, 99, 235, 0.08);
-  --klogin-globe-stroke-3: rgba(37, 99, 235, 0.06);
-  --klogin-globe-stroke-4: rgba(37, 99, 235, 0.04);
-  --klogin-globe-stroke-5: rgba(109, 40, 217, 0.12);
-  --klogin-globe-stroke-6: rgba(37, 99, 235, 0.1);
-  --klogin-globe-radial: rgba(37, 99, 235, 0.06);
-
-  /* Mirrors frontend/src/index.css's :root[data-theme="light"] --accent/--accent-dark/--accent-pa */
-  --klogin-accent: #2563EB;
-  --klogin-accent-dark: #1D4ED8;
-  --klogin-accent-light: #3B82F6;
-  --klogin-accent-pa: #6D28D9;
-  --klogin-focus-ring: rgba(37, 99, 235, 0.14);
-  --klogin-btn-shadow: rgba(37, 99, 235, 0.28);
-
-  --klogin-wordmark-net: #18181B;
-  --klogin-error-bg: rgba(220, 38, 38, 0.06);
-  --klogin-error-border: rgba(220, 38, 38, 0.25);
-  --klogin-error-text: #B91C1C;
-}
-
-/* Belt-and-suspenders fallback for the rare case JS doesn't run (acis-
-   login.js normally sets data-theme synchronously before first paint) —
-   mirrors the app's own equivalent guard in index.css. */
-@media (prefers-color-scheme: light) {
-  :root:not([data-theme="dark"]):not([data-theme="light"]) {
-    color-scheme: light;
-    --klogin-card-col-bg: #F8F9FB;
-    --klogin-card-bg: #ffffff;
-    --klogin-card-border: rgba(15, 23, 42, 0.06);
-    --klogin-card-shadow: 0 25px 60px rgba(15, 23, 42, 0.1);
-    --klogin-text-primary: #18181B;
-    --klogin-text-secondary: #52525B;
-    --klogin-text-muted: #8A8A93;
-    --klogin-label: #3F3F46;
-    --klogin-input-bg: #ffffff;
-    --klogin-input-border: #E4E4E9;
-    --klogin-input-border-hover: #D4D4D8;
-    --klogin-divider: #E4E4E9;
-    --klogin-toggle-border: #F0F0F2;
-    --klogin-toggle-hover-bg: #F7F7F8;
-    --klogin-toggle-hover-text: #52525B;
-    --klogin-badge-bg: #ffffff;
-    --klogin-toolbtn-bg: #ffffff;
-    --klogin-toolbtn-border: #E4E4E9;
-    --klogin-toolbtn-hover-bg: #F4F5F7;
-    --klogin-accent: #2563EB;
-    --klogin-accent-dark: #1D4ED8;
-    --klogin-accent-light: #3B82F6;
-    --klogin-accent-pa: #6D28D9;
-    --klogin-focus-ring: rgba(37, 99, 235, 0.14);
-    --klogin-btn-shadow: rgba(37, 99, 235, 0.28);
-    --klogin-wordmark-net: #18181B;
-    --klogin-error-bg: rgba(220, 38, 38, 0.06);
-    --klogin-error-border: rgba(220, 38, 38, 0.25);
-    --klogin-error-text: #B91C1C;
-  }
 }
 
 * {
   box-sizing: border-box;
-}
-
-html,
-body,
-.login-pf,
-.login-pf body {
-  background: var(--klogin-bg) !important;
-  min-height: 100vh;
   margin: 0;
   padding: 0;
-  font-family: 'Inter', system-ui, -apple-system, sans-serif;
 }
 
-/* acis-login.js relocates #kc-header-wrapper's content into the card
-   column, leaving this original wrapper empty at the top of the page. */
+html, body {
+  background: var(--bg) !important;
+  color: var(--text) !important;
+  font-family: 'Inter', sans-serif;
+  width: 100%;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* Keycloak container resets */
 .login-pf-page-header {
   display: none !important;
 }
-
 .login-pf-page {
   display: block !important;
   min-height: 100vh;
-  padding: 0;
+  padding: 0 !important;
+}
+#kc-header,
+#kc-content,
+#kc-content-wrapper,
+#kc-form,
+#kc-form-wrapper {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  max-width: none !important;
 }
 
-/* Smooth cross-fade for every color-bearing property when the theme
-   toggles — gated behind prefers-reduced-motion like the main app
-   (frontend/src/index.css). Scoped to the elements that actually carry
-   theme tokens rather than a blanket `*` selector, so it doesn't also
-   soften hover/focus micro-interactions that should feel instant. */
-@media (prefers-reduced-motion: no-preference) {
-  body,
-  .acis-card-col,
-  .acis-card-bg,
-  .card-pf,
-  .acis-netcradus-badge,
-  .acis-theme-toggle,
-  #kc-form input[type="text"],
-  #kc-form input[type="password"],
-  #kc-form input[type="email"],
-  .pf-c-input-group,
-  .pf-v5-c-input-group,
-  .pf-c-input-group .pf-c-button.pf-m-control,
-  .pf-v5-c-input-group .pf-v5-c-button.pf-m-control,
-  #kc-form-options input[type="checkbox"],
-  #kc-form-buttons input[type="submit"],
-  .acis-signup-link,
-  .acis-footer,
-  #kc-page-title,
-  .acis-subtitle,
-  label,
-  a {
-    transition: background-color 0.25s ease, border-color 0.25s ease, color 0.25s ease, box-shadow 0.25s ease, opacity 0.25s ease;
-  }
+.scene {
+  position: relative;
+  min-height: 100vh;
+  width: 100%;
+  background:
+    radial-gradient(ellipse at 75% 30%, rgba(59,130,246,0.10), transparent 55%),
+    radial-gradient(ellipse at 10% 80%, rgba(168,85,247,0.08), transparent 50%),
+    var(--bg);
+  overflow: hidden;
 }
 
-/* ---------------------------------------------------------------------
-   Theme toggle button — fixed top-right, always reachable regardless of
-   scroll. Simple two-state (light/dark) icon button, not a dropdown — see
-   acis-login.js's top-of-file note on why this page uses a plain toggle
-   instead of the main app's light/dark/system menu.
-   --------------------------------------------------------------------- */
+/* top thin bar */
+.topbar {
+  position: absolute; top: 0; left: 0; right: 0; height: 6px;
+  background: linear-gradient(90deg, #1a2740, #223258 40%, #1a2740);
+  z-index: 10;
+}
 
+/* dotted world map background */
+.worldmap {
+  position: absolute;
+  top: 8%; left: 2%; width: 78%; height: 75%;
+  background-image: radial-gradient(circle, rgba(120,150,200,0.35) 1px, transparent 1px);
+  background-size: 14px 14px;
+  opacity: 0.5;
+  mask-image: radial-gradient(ellipse 60% 60% at 40% 45%, black 40%, transparent 75%);
+  -webkit-mask-image: radial-gradient(ellipse 60% 60% at 40% 45%, black 40%, transparent 75%);
+  pointer-events: none;
+  z-index: 1;
+}
+
+.header-title {
+  position: absolute;
+  top: 11%; left: 36%;
+  text-align: center;
+  font-weight: 800;
+  font-size: 34px;
+  letter-spacing: 2px;
+  color: rgba(150,190,230,0.35);
+  line-height: 1.15;
+  text-transform: uppercase;
+  pointer-events: none;
+  z-index: 1;
+}
+.header-title.bottom {
+  top: auto; bottom: 2%;
+}
+
+.clock-lock {
+  position: absolute; top: 5%; right: 41%;
+  display: flex; align-items: center; gap: 18px;
+  font-size: 13px; color: var(--muted); font-weight: 600;
+  z-index: 2;
+}
+.clock-lock .time { text-align: right; color: var(--text); font-size: 15px; font-weight: 700; }
+.clock-lock .icon {
+  width: 30px; height: 30px; border: 1px solid var(--panel-border); border-radius: 6px;
+  display: flex; align-items: center; justify-content: center; color: var(--muted); font-size: 14px;
+}
+
+/* top-left status */
+.status-box {
+  position: absolute; top: 4%; left: 0;
+  width: 290px;
+  background: linear-gradient(135deg, rgba(20,28,48,0.7), rgba(15,20,36,0.4));
+  border: 1px solid var(--panel-border);
+  border-left: none;
+  padding: 16px 20px 16px 20px;
+  z-index: 2;
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  clip-path: polygon(0 0, 100% 0, 92% 100%, 0 100%);
+}
+.status-row { margin-bottom: 14px; }
+.status-row:last-child { margin-bottom: 0; }
+.status-label {
+  font-size: 11px; letter-spacing: 1px; color: var(--muted); font-weight: 600; margin-bottom: 6px;
+  text-transform: uppercase;
+}
+.status-label b { color: var(--text); font-weight: 800; }
+.bar-track { width: 85%; height: 5px; background: #1c2540; border-radius: 3px; overflow: hidden; }
+.bar-fill { height: 100%; border-radius: 3px; }
+.bar-fill.cyan { background: linear-gradient(90deg,#22d3ee,#3b82f6); width: 70%; }
+.bar-fill.purple { background: linear-gradient(90deg,#a855f7,#3b82f6); width: 98%; }
+
+/* Hero left content */
+.hero {
+  position: absolute;
+  top: 20%; left: 3.5%;
+  width: 44%;
+  z-index: 3;
+}
+.hero h1 {
+  font-size: 56px;
+  font-weight: 800;
+  line-height: 1.05;
+  color: var(--text);
+  text-shadow: 0 0 30px rgba(120,160,255,0.25);
+  letter-spacing: -1px;
+}
+.underline {
+  margin-top: 22px;
+  width: 130px; height: 4px;
+  border-radius: 2px;
+  background: linear-gradient(90deg,#3b82f6,#a855f7);
+}
+
+.feature-list {
+  margin-top: 34px;
+  display: flex; flex-direction: column; gap: 16px;
+}
+.feature-list div {
+  display: flex; align-items: center; gap: 12px;
+  font-size: 19px; font-weight: 600; color: var(--text);
+}
+.feature-list span { color: var(--blue); font-weight: 700; }
+.ficon {
+  width: 26px; height: 26px; flex: none;
+  display: flex; align-items: center; justify-content: center;
+  color: var(--blue);
+}
+
+/* stat cards */
+.stats {
+  margin-top: 38px;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  width: 100%;
+  max-width: 640px;
+}
+.card {
+  background: linear-gradient(160deg, rgba(22,28,46,0.85), rgba(14,18,32,0.7));
+  border: 1px solid var(--panel-border);
+  border-radius: 10px;
+  padding: 16px 18px;
+  position: relative;
+  overflow: hidden;
+}
+.card::before {
+  content: "";
+  position: absolute; inset: 0;
+  border-radius: 10px;
+  padding: 1px;
+  background: linear-gradient(140deg, var(--accent), transparent 60%);
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+}
+.card.teal { --accent: #22d3ee; box-shadow: 0 0 24px -8px rgba(34,211,238,0.35); }
+.card.purple { --accent: #c084fc; box-shadow: 0 0 24px -8px rgba(192,132,252,0.3); }
+.card.blue { --accent: #60a5fa; box-shadow: 0 0 24px -8px rgba(96,165,250,0.3); }
+.card.plain { --accent: #333f61; }
+
+.card-icon {
+  width: 36px; height: 36px;
+  border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 17px;
+  margin-bottom: 12px;
+}
+.card.teal .card-icon { background: rgba(34,211,238,0.15); color: #22d3ee; }
+.card.purple .card-icon { background: rgba(192,132,252,0.15); color: #c084fc; }
+.card.blue .card-icon { background: rgba(96,165,250,0.15); color: #60a5fa; }
+.card.plain .card-icon { background: rgba(120,140,180,0.12); color: #8fa0c4; }
+
+.card-label {
+  font-size: 11px; letter-spacing: 0.5px; color: var(--muted); text-transform: uppercase; font-weight: 700;
+  margin-bottom: 6px;
+}
+.card-value { font-size: 28px; font-weight: 800; color: var(--text); margin-bottom: 6px; }
+.card-delta { font-size: 12px; font-weight: 700; }
+.card-delta.up { color: #4ade80; }
+.card-delta.down { color: #f87171; }
+
+/* mini world map card */
+.mini-map {
+  position: absolute;
+  left: 41%; top: 69%;
+  width: 280px; height: 150px;
+  background: #0c1120;
+  border: 1px solid var(--panel-border);
+  border-radius: 10px;
+  overflow: hidden;
+  z-index: 3;
+}
+.mini-map svg { width: 100%; height: 100%; }
+
+.active-nodes {
+  position: absolute; left: 41%; top: 96%;
+  width: 280px;
+  font-size: 12px; color: var(--muted); font-weight: 600;
+  z-index: 3;
+}
+.active-nodes b { color: var(--text); }
+.nodes-bar { margin-top: 6px; width: 100%; height: 4px; background: #1c2540; border-radius: 2px; overflow: hidden; }
+.nodes-bar div { width: 55%; height: 100%; background: linear-gradient(90deg,#a855f7,#3b82f6); }
+
+/* Right side layout */
+.right {
+  position: absolute; top: 0; right: 0; bottom: 0; width: 56%;
+  display: flex; align-items: center; justify-content: flex-end;
+  z-index: 2;
+}
+.globe-wrap {
+  position: absolute; right: -10%; top: 50%; transform: translateY(-50%);
+  width: 1100px; height: 1100px;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 38% 32%, rgba(90,140,220,0.20), transparent 45%),
+    radial-gradient(circle at 60% 65%, rgba(60,90,160,0.12), transparent 55%);
+  border: 1px solid rgba(110,150,220,0.25);
+  box-shadow:
+    inset 0 0 120px rgba(80,130,220,0.15),
+    0 0 160px rgba(50,90,180,0.15);
+}
+.globe-wrap::before {
+  content: "";
+  position: absolute; inset: 0; border-radius: 50%;
+  background-image: repeating-linear-gradient(0deg, transparent 0 26px, rgba(120,160,220,0.10) 27px 28px);
+  mask-image: radial-gradient(circle, black 60%, transparent 75%);
+  -webkit-mask-image: radial-gradient(circle, black 60%, transparent 75%);
+}
+.globe-wrap::after {
+  content: "";
+  position: absolute; inset: 0; border-radius: 50%;
+  background-image: repeating-linear-gradient(90deg, transparent 0 40px, rgba(120,160,220,0.08) 41px 42px);
+  mask-image: radial-gradient(circle, black 55%, transparent 72%);
+  -webkit-mask-image: radial-gradient(circle, black 55%, transparent 72%);
+}
+
+.brand {
+  position: relative;
+  z-index: 5;
+  text-align: center;
+  margin-bottom: 26px;
+  margin-right: 6%;
+}
+.brand-row {
+  display: flex; align-items: center; justify-content: center; gap: 14px;
+}
+.shield {
+  width: 56px; height: 56px;
+  display: flex; align-items: center; justify-content: center;
+}
+.brand-name {
+  font-size: 44px; font-weight: 900; letter-spacing: 2px; color: var(--text);
+}
+.brand-name .tm { font-size: 16px; vertical-align: super; color: #9db4e8; }
+.brand-sub {
+  margin-top: 6px;
+  font-size: 13px; letter-spacing: 3px; font-weight: 700; color: var(--muted);
+  text-transform: uppercase;
+}
+.brand-sub .accent { color: var(--blue); }
+
+.powered {
+  margin-top: 22px;
+  text-align: center;
+}
+.powered-label {
+  font-size: 11px; letter-spacing: 3px; color: var(--muted); margin-bottom: 10px;
+  display: flex; align-items: center; gap: 10px; justify-content: center;
+  text-transform: uppercase;
+}
+.powered-label::before, .powered-label::after {
+  content: ""; width: 40px; height: 1px; background: var(--panel-border);
+}
+.powered-badge {
+  display: inline-block;
+  padding: 10px 26px;
+  border: 1px solid var(--panel-border);
+  border-radius: 8px;
+  background: rgba(20, 26, 44, 0.6);
+  font-size: 16px; font-weight: 800; letter-spacing: 0.5px; color: var(--text);
+}
+.powered-badge b { color: var(--blue); font-weight: 800; }
+
+/* Theme toggle */
 .acis-theme-toggle {
   position: fixed;
   top: 24px;
@@ -231,1092 +363,215 @@ body,
   align-items: center;
   justify-content: center;
   border-radius: 50%;
-  border: 1px solid var(--klogin-toolbtn-border);
-  background: var(--klogin-toolbtn-bg);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-  color: var(--klogin-text-secondary);
+  border: 1px solid var(--panel-border);
+  background: var(--panel);
+  color: var(--muted);
   cursor: pointer;
-  padding: 0;
 }
-
 .acis-theme-toggle:hover {
-  background: var(--klogin-toolbtn-hover-bg);
-  color: var(--klogin-text-primary);
-}
-
-.acis-theme-toggle:focus-visible {
-  outline: 2px solid var(--klogin-focus-ring);
-  outline-offset: 2px;
-}
-
-.acis-theme-toggle svg {
-  width: 18px;
-  height: 18px;
-  display: block;
-}
-
-@media (max-width: 960px) {
-  .acis-theme-toggle {
-    top: 16px;
-    right: 16px;
-  }
-}
-
-/* ---------------------------------------------------------------------
-   Two-column shell (built by acis-login.js around the real Keycloak card)
-   --------------------------------------------------------------------- */
-
-.acis-shell {
-  display: flex;
-  min-height: 100vh;
-  width: 100%;
-}
-
-@media (max-width: 960px) {
-  .acis-shell {
-    flex-direction: column;
-  }
-  .acis-card-col {
-    padding: 40px 16px 60px !important;
-    min-height: auto !important;
-  }
-  .acis-globe {
-    width: 90vw !important;
-    height: 90vw !important;
-    max-width: 400px !important;
-    max-height: 400px !important;
-    aspect-ratio: 1 / 1 !important;
-  }
-  .card-pf,
-  .acis-card-col .card-pf {
-    padding: 32px 20px !important;
-    border-radius: 20px !important;
-    max-width: 100% !important;
-  }
-  .acis-hud-top {
-    position: relative !important;
-    top: 0 !important;
-    left: 0 !important;
-    right: 0 !important;
-    width: 100% !important;
-    margin-bottom: 24px;
-    padding-bottom: 12px;
-  }
-  .acis-hero {
-    flex-direction: column !important;
-    align-items: stretch !important;
-    padding: 32px 20px 48px !important;
-  }
-  .acis-hero-content {
-    max-width: 100% !important;
-  }
-}
-
-@media (max-width: 520px) {
-  .acis-hud-left,
-  .acis-hud-right {
-    display: none !important;
-  }
-  .acis-hud-center {
-    width: 100% !important;
-    text-align: center !important;
-  }
-}
-
-/* ---------------------------------------------------------------------
-   Left: hero panel — fixed dark in both themes (see top-of-file note).
-   The real world-network.png HUD graphic shown at near-full strength
-   (not washed out), with the title/stat overlay sitting in the
-   vertical-center band, over its map artwork.
-   --------------------------------------------------------------------- */
-
-.acis-hero {
-  position: relative;
-  flex: 1 1 50%;
-  min-height: 100vh;
-  overflow: hidden;
-  display: flex;
-  align-items: center;
-  padding: 64px 56px;
-  background: var(--klogin-bg);
-}
-
-@media (max-width: 960px) {
-  .acis-hero {
-    min-height: auto;
-    padding: 48px 32px 32px;
-  }
-}
-
-.acis-hero-bg {
-  position: absolute;
-  inset: 0;
-  background-image: url('../img/world-network.png');
-  background-size: cover;
-  background-position: center;
+  color: var(--text);
   opacity: 0.9;
-  pointer-events: none;
 }
+.acis-theme-toggle svg { width: 18px; height: 18px; display: block; }
 
-.acis-hero-bg::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  /* Gentle vignette so the overlaid title/stat cards stay legible against
-     the busy map artwork without hiding it outright. */
-  background:
-    linear-gradient(180deg, rgba(2, 5, 14, 0.15) 0%, rgba(2, 5, 14, 0.55) 38%, rgba(2, 5, 14, 0.72) 62%, rgba(2, 5, 14, 0.3) 100%),
-    radial-gradient(circle at 85% 85%, rgba(2, 5, 14, 0.35), transparent 45%);
-}
-
-.acis-hero-content {
+/* Login card */
+.login-card {
   position: relative;
-  z-index: 2;
-  max-width: 560px;
-}
-
-.acis-hero-title {
-  color: #ffffff;
-  font-weight: 800;
-  font-size: 3.5rem;
-  line-height: 1.08;
-  letter-spacing: -0.02em;
-  margin: 0;
-  text-shadow: 0 4px 30px rgba(0, 0, 0, 0.5);
-}
-
-@media (max-width: 1200px) {
-  .acis-hero-title {
-    font-size: 2.8rem;
-  }
-}
-
-.acis-hero-underline {
-  width: 72px;
-  height: 4px;
-  border-radius: 2px;
-  margin: 20px 0 24px;
-  background: linear-gradient(to right, #3B82F6, #7C3AED);
-}
-
-.acis-hero-lines {
-  font-size: 1.15rem;
-  font-weight: 500;
-  letter-spacing: 0.01em;
-  line-height: 1.9;
-}
-
-.acis-hero-bottom-outline {
-  position: absolute;
-  bottom: 24px;
-  left: 56px;
-  font-family: 'Inter', sans-serif;
-  font-size: 3.2rem;
-  font-weight: 900;
-  color: transparent;
-  -webkit-text-stroke: 1px rgba(255, 255, 255, 0.05);
-  text-transform: uppercase;
-  letter-spacing: 0.15em;
-  pointer-events: none;
-  z-index: 1;
-}
-
-.acis-hero-lines p {
-  margin: 0;
-  color: #cbd5e1;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.acis-hero-lines svg {
-  width: 18px;
-  height: 18px;
-  flex-shrink: 0;
-}
-
-/* Blue/violet — the same two accents the app itself uses for its two
-   consoles, instead of the old unrelated cyan/purple/blue trio. Fixed
-   values (not tokens): the hero stays dark-only, so these never need to
-   adapt to the light theme. */
-.acis-cyan { color: #60A5FA; font-weight: 700; }
-.acis-purple { color: #A78BFA; font-weight: 700; }
-.acis-blue { color: #3B82F6; font-weight: 700; }
-.acis-hero-lines svg.acis-icon-cyan { color: #60A5FA; }
-.acis-hero-lines svg.acis-icon-purple { color: #A78BFA; }
-.acis-hero-lines svg.acis-icon-blue { color: #3B82F6; }
-
-.acis-hero-visuals {
-  display: flex;
-  align-items: stretch;
-  gap: 16px;
-  margin-top: 36px;
-  width: 100%;
-  max-width: 900px;
-}
-
-.acis-stat-grid {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 12px;
-  flex: 1 1 58%;
-}
-
-@media (max-width: 640px) {
-  .acis-hero-visuals {
-    flex-direction: column;
-  }
-  .acis-stat-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-}
-
-.acis-stat-card {
-  background: rgba(8, 12, 26, 0.45);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  border-radius: 14px;
-  padding: 14px;
-  transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
-}
-
-.acis-stat-card:hover {
-  transform: translateY(-2px);
-}
-
-.acis-stat-grid .acis-stat-card:nth-child(1) { border-color: rgba(96, 165, 250, 0.25); box-shadow: 0 0 15px rgba(96, 165, 250, 0.05); }
-.acis-stat-grid .acis-stat-card:nth-child(2) { border-color: rgba(167, 139, 250, 0.25); box-shadow: 0 0 15px rgba(167, 139, 250, 0.05); }
-.acis-stat-grid .acis-stat-card:nth-child(3) { border-color: rgba(59, 130, 246, 0.25); box-shadow: 0 0 15px rgba(59, 130, 246, 0.05); }
-.acis-stat-grid .acis-stat-card:nth-child(4) { border-color: rgba(167, 139, 250, 0.14); }
-.acis-stat-grid .acis-stat-card:nth-child(5) { border-color: rgba(59, 130, 246, 0.14); }
-.acis-stat-grid .acis-stat-card:nth-child(6) { border-color: rgba(167, 139, 250, 0.14); }
-
-.acis-stat-grid .acis-stat-card:nth-child(1):hover { border-color: rgba(96, 165, 250, 0.45); box-shadow: 0 0 20px rgba(96, 165, 250, 0.12); }
-.acis-stat-grid .acis-stat-card:nth-child(2):hover { border-color: rgba(167, 139, 250, 0.45); box-shadow: 0 0 20px rgba(167, 139, 250, 0.12); }
-.acis-stat-grid .acis-stat-card:nth-child(3):hover { border-color: rgba(59, 130, 246, 0.45); box-shadow: 0 0 20px rgba(59, 130, 246, 0.12); }
-.acis-stat-grid .acis-stat-card:nth-child(4):hover { border-color: rgba(167, 139, 250, 0.35); }
-.acis-stat-grid .acis-stat-card:nth-child(5):hover { border-color: rgba(59, 130, 246, 0.35); }
-.acis-stat-grid .acis-stat-card:nth-child(6):hover { border-color: rgba(167, 139, 250, 0.35); }
-
-.acis-stat-icon {
-  width: 30px;
-  height: 30px;
-  border-radius: 10px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin-bottom: 10px;
-}
-
-.acis-stat-icon svg { width: 16px; height: 16px; }
-
-.acis-stat-icon--cyan   { background: rgba(96, 165, 250, 0.14); color: #60A5FA; }
-.acis-stat-icon--purple { background: rgba(167, 139, 250, 0.16); color: #A78BFA; }
-.acis-stat-icon--blue   { background: rgba(59, 130, 246, 0.14); color: #60A5FA; }
-
-.acis-stat-label {
-  color: #94a3b8;
-  font-size: 0.65rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  margin-bottom: 4px;
-}
-
-.acis-stat-value {
-  color: #ffffff;
-  font-size: 1.4rem;
-  font-weight: 800;
-  line-height: 1.1;
-  font-family: 'JetBrains Mono', monospace;
-}
-
-.acis-stat-trend {
-  margin-top: 6px;
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  font-size: 0.65rem;
-  font-weight: 700;
-}
-
-.acis-stat-trend svg { width: 10px; height: 10px; }
-
-.acis-stat-trend--up   { color: #34d399; }
-.acis-stat-trend--down { color: #f87171; }
-
-@media (prefers-reduced-motion: reduce) {
-  .acis-globe-ring { animation: none !important; }
-}
-
-/* ---------------------------------------------------------------------
-   Right: card column — dark cosmic backdrop (starfield + CSS-drawn
-   wireframe globe accent) in dark mode; a clean flat surface in light
-   mode (the starfield/globe motif is dark-only — see rule further down).
-   --------------------------------------------------------------------- */
-
-.acis-card-col {
-  position: relative;
-  flex: 1 1 50%;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 48px 32px;
-  background: var(--klogin-card-col-bg);
-  overflow: hidden;
-}
-
-.acis-card-bg {
-  position: absolute;
-  inset: 0;
-  z-index: 0;
-  pointer-events: none;
-  overflow: hidden;
-}
-
-/* Dark-only decorative backdrop — a starfield + glowing wireframe globe
-   read as "SOC command-center at night" on a near-black surface, but turn
-   muddy/washed-out on a light one, so light mode skips them entirely in
-   favor of a clean, minimal surface (same "quiet" treatment Stripe/
-   Linear-style light-mode auth pages use). */
-:root[data-theme="light"] .acis-starfield,
-:root[data-theme="light"] .acis-card-glow {
-  display: none !important;
-}
-
-/* Layered starfield — three passes of small radial-gradient dots at
-   different densities/sizes read as depth without needing an image asset. */
-.acis-starfield {
-  position: absolute;
-  inset: -10%;
-  background-image:
-    radial-gradient(1.5px 1.5px at 20px 30px, rgba(255,255,255,0.9), transparent),
-    radial-gradient(1px 1px at 90px 120px, rgba(255,255,255,0.6), transparent),
-    radial-gradient(1.5px 1.5px at 160px 60px, rgba(255,255,255,0.7), transparent),
-    radial-gradient(1px 1px at 210px 180px, rgba(255,255,255,0.5), transparent),
-    radial-gradient(1.5px 1.5px at 260px 20px, rgba(255,255,255,0.8), transparent),
-    radial-gradient(1px 1px at 40px 200px, rgba(255,255,255,0.55), transparent);
-  background-repeat: repeat;
-  background-size: 280px 220px;
-  opacity: 0.7;
-}
-
-.acis-card-glow {
-  position: absolute;
-  top: 6%;
-  left: 50%;
-  width: 640px;
-  height: 640px;
-  transform: translateX(-50%);
-  background: radial-gradient(circle, rgba(59, 130, 246, 0.16), rgba(124, 58, 237, 0.08) 45%, transparent 70%);
-  border-radius: 50%;
-}
-
-/* Globe styles */
-.acis-globe {
-  position: absolute;
-  top: 4%;
-  left: 50%;
-  width: 480px;
-  height: 480px;
-  max-width: 90vw;
-  max-height: 90vw;
-  aspect-ratio: 1 / 1;
-  transform: translateX(-50%);
-  z-index: 0;
-  opacity: 0.85;
-}
-
-.acis-globe-svg {
-  width: 100%;
-  height: 100%;
-}
-
-.acis-globe-pulse-node {
-  animation: acis-node-pulse 2.5s ease-in-out infinite;
-}
-
-@keyframes acis-node-pulse {
-  0%, 100% { opacity: 0.4; r: 2.5px; }
-  50% { opacity: 1; r: 4px; filter: drop-shadow(0 0 6px rgba(96, 165, 250, 0.8)); }
-}
-
-/* HUD Top Bar */
-.acis-hud-top {
-  position: absolute;
-  top: 24px;
-  left: 56px;
-  right: 56px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
-  padding-bottom: 16px;
-  z-index: 10;
-}
-
-.acis-hud-left {
-  display: flex;
-  align-items: center;
-}
-
-.acis-hud-box {
-  background: rgba(8, 12, 26, 0.5);
-  border: 1px solid rgba(96, 165, 250, 0.2);
-  border-radius: 6px;
-  padding: 6px 12px;
-  font-size: 0.65rem;
-  font-weight: 700;
-  color: #94a3b8;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.acis-hud-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.acis-hud-label {
-  opacity: 0.8;
-  font-family: 'Inter', sans-serif;
-}
-
-.acis-hud-status {
-  padding: 1px 4px;
-  border-radius: 3px;
-  font-size: 0.6rem;
-  background: rgba(52, 211, 153, 0.15);
-  color: #34d399;
-}
-
-.acis-hud-bar-bg {
-  width: 60px;
-  height: 4px;
-  background: rgba(255, 255, 255, 0.1);
-  border-radius: 2px;
-  overflow: hidden;
-}
-
-.acis-hud-bar-fill {
-  height: 100%;
-  background: #34d399;
-}
-
-.acis-hud-center {
-  text-align: center;
-}
-
-.acis-hud-title {
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 1rem;
-  font-weight: 800;
-  color: #ffffff;
-  letter-spacing: 0.15em;
-}
-
-.acis-hud-subtitle {
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 0.6rem;
-  font-weight: 500;
-  color: #60a5fa;
-  letter-spacing: 0.3em;
-  margin-top: 2px;
-}
-
-.acis-hud-right {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-}
-
-.acis-hud-time-container {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-}
-
-.acis-hud-time {
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 0.95rem;
-  font-weight: 700;
-  color: #ffffff;
-}
-
-.acis-hud-date {
-  font-size: 0.6rem;
-  font-weight: 600;
-  color: #94a3b8;
-  margin-top: 1px;
-}
-
-.acis-hud-sys-icons {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  color: rgba(255, 255, 255, 0.35);
-}
-
-.acis-hud-sys-icons svg {
-  width: 14px;
-  height: 14px;
-}
-
-.acis-green {
-  color: #34d399;
-}
-
-/* Map Card */
-.acis-map-card {
-  flex: 1 1 30%;
-  background: rgba(8, 12, 26, 0.45);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  border-radius: 14px;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-  min-height: 120px;
-}
-
-.acis-map-card-body {
-  flex: 1 1 auto;
-  padding: 8px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.acis-world-map-svg {
-  width: 100%;
-  height: auto;
-  opacity: 0.8;
-}
-
-.acis-map-card-footer {
-  background: rgba(10, 15, 30, 0.6);
-  border-top: 1px solid rgba(255, 255, 255, 0.06);
-  padding: 6px 12px;
-  text-align: center;
-  font-size: 0.62rem;
-  font-weight: 700;
-  color: var(--klogin-text-secondary);
-  letter-spacing: 0.06em;
-}
-
-.acis-map-arc {
-  stroke-dasharray: 4;
-  animation: acis-arc-flow 3s linear infinite;
-}
-
-@keyframes acis-arc-flow {
-  to { stroke-dashoffset: -20; }
-}
-
-.acis-sparkle {
-  position: absolute;
-  color: var(--klogin-text-muted);
-  opacity: 0.6;
-  z-index: 1;
-}
-
-.acis-sparkle svg { width: 20px; height: 20px; display: block; }
-.acis-sparkle--card { right: 22px; bottom: 18px; }
-
-/* ---------------------------------------------------------------------
-   Card + branding header content
-   --------------------------------------------------------------------- */
-
-.acis-brand {
-  position: relative;
-  z-index: 1;
-  text-align: center;
-  margin-bottom: 28px;
-}
-
-.acis-logo-row {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 10px;
-}
-
-.acis-logo-shield {
-  width: 40px;
-  height: 40px;
-  flex-shrink: 0;
-  filter: drop-shadow(0 0 10px rgba(59, 130, 246, 0.35));
-}
-
-.acis-logo-wordmark {
-  height: 30px;
-  width: auto;
-  display: block;
-}
-
-.acis-tagline {
-  display: block;
-  margin-top: 10px;
-  color: var(--klogin-text-secondary);
-  font-size: 0.62rem;
-  font-weight: 700;
-  letter-spacing: 0.28em;
-  text-transform: uppercase;
-}
-
-.acis-tagline-accent {
-  color: var(--klogin-accent-light);
-}
-
-.acis-powered-by-container {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin: 18px 0 10px;
-  width: 100%;
-}
-
-.acis-powered-by-line {
-  flex-grow: 1;
-  height: 1px;
-  background: rgba(255, 255, 255, 0.08);
-  max-width: 60px;
-}
-
-.acis-powered-by-label {
-  margin: 0 12px;
-  color: var(--klogin-text-muted);
-  font-size: 0.58rem;
-  font-weight: 700;
-  letter-spacing: 0.22em;
-  text-transform: uppercase;
-}
-
-.acis-netcradus-badge {
-  display: inline-flex;
-  align-items: baseline;
-  gap: 2px;
-  padding: 6px 18px;
-  border: 1px solid var(--klogin-badge-border);
-  border-radius: 999px;
-  background: var(--klogin-badge-bg);
-  font-weight: 900;
-  font-size: 0.85rem;
-  letter-spacing: 0.08em;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.04);
-}
-
-.acis-netcradus-badge .net { color: var(--klogin-text-primary); }
-.acis-netcradus-badge .cradus { color: var(--klogin-accent-light); }
-.acis-netcradus-badge sup { color: var(--klogin-accent-light); font-size: 0.55rem; }
-
-.card-pf,
-#kc-login,
-.acis-card-col .card-pf {
-  position: relative;
-  z-index: 1;
-  background: var(--klogin-card-bg) !important;
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border-radius: 28px !important;
-  box-shadow: var(--klogin-card-shadow) !important;
-  border: 1px solid var(--klogin-card-border) !important;
-  padding: 40px !important;
-  width: 100%;
-  max-width: 440px;
-}
-
-#kc-page-title,
-.login-pf-header h1,
-.login-pf-header h2 {
-  color: var(--klogin-text-primary);
-  font-weight: 800;
-  font-size: 1.5rem;
-  text-align: center;
-  letter-spacing: -0.01em;
-  margin-bottom: 4px;
-}
-
-.acis-subtitle {
-  text-align: center;
-  color: var(--klogin-text-secondary);
-  font-size: 0.85rem;
-  margin: 0 0 26px;
-}
-
-label,
-.control-label {
-  color: var(--klogin-label) !important;
-  font-weight: 700 !important;
-  font-size: 0.75rem !important;
-}
-
-#kc-form-options label {
-  color: var(--klogin-text-secondary) !important;
-  font-weight: 500 !important;
-}
-
-/* Input icon wrapper (built by acis-login.js). Keycloak's real password
-   field is natively wrapped in a `.pf-c-input-group` flex row alongside a
-   real, functional "show/hide password" button (`.pf-c-button.pf-m-control`
-   containing a fontawesome eye icon) — our wrap sits INSIDE that group as
-   one flex item next to the untouched toggle button, so it must grow to
-   fill the row rather than size to its own content. */
-.acis-input-wrap {
-  position: relative;
-  display: block;
-  flex: 1 1 auto;
-  min-width: 0;
-}
-
-.acis-input-icon {
-  position: absolute;
-  left: 14px;
-  top: 50%;
-  transform: translateY(-50%);
-  color: var(--klogin-text-muted);
-  width: 16px;
-  height: 16px;
-  pointer-events: none;
-  z-index: 1;
-}
-
-.acis-input-icon svg { width: 16px; height: 16px; display: block; }
-
-#kc-form input[type="text"],
-#kc-form input[type="password"],
-#kc-form input[type="email"],
-.login-pf-page input[type="text"],
-.login-pf-page input[type="password"],
-.login-pf-page input[type="email"] {
-  background: var(--klogin-input-bg) !important;
-  border: 1px solid var(--klogin-input-border) !important;
-  border-radius: 12px !important;
-  padding: 12px 16px !important;
-  font-size: 0.9rem !important;
-  color: var(--klogin-text-primary) !important;
-  box-shadow: none !important;
-  height: auto !important;
-  width: 100%;
+  z-index: 5;
+  width: 420px;
+  margin-right: 6%;
+  background: var(--panel) !important;
+  border: 1px solid var(--panel-border) !important;
+  border-radius: 22px !important;
+  padding: 38px 34px 32px !important;
+  box-shadow: 0 30px 80px -20px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.02) !important;
+  backdrop-filter: blur(6px) !important;
+  -webkit-backdrop-filter: blur(6px) !important;
+}
+.login-head { text-align: center; margin-bottom: 26px; }
+.login-head h2 { font-size: 26px; font-weight: 800; color: var(--text); margin-bottom: 6px; }
+.login-head p { font-size: 14px; color: var(--muted); }
+
+/* Field input layouts */
+.login-card .pf-c-form-group,
+.login-card .pf-v5-c-form-group {
+  margin-bottom: 20px !important;
+}
+.login-card label {
+  display: block !important;
+  font-size: 13px !important;
+  font-weight: 600 !important;
+  color: var(--text) !important;
+  margin-bottom: 8px !important;
+}
+
+.input-wrap {
+  display: flex !important;
+  align-items: center !important;
+  gap: 10px !important;
+  border: 1.5px solid var(--panel-border) !important;
+  border-radius: 10px !important;
+  padding: 0 14px !important;
+  height: 48px !important;
+  background: rgba(255,255,255,0.02) !important;
+  position: relative !important;
   transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
-
-/* Left padding is only reserved on inputs acis-login.js actually wrapped
-   with an icon (data-acis-wrapped) — fields it doesn't touch (e.g. a
-   password-reset flow's password-new/password-confirm) must not get a
-   hollow, icon-less gap on the left. */
-#kc-form input[type="text"][data-acis-icon-injected="true"],
-#kc-form input[type="email"][data-acis-icon-injected="true"] {
-  padding-left: 40px !important;
+.input-wrap.focused {
+  border-color: var(--blue) !important;
+  box-shadow: 0 0 0 3px rgba(59,130,246,0.15) !important;
 }
-
-#kc-form input[type="password"][data-acis-icon-injected="true"] {
-  padding-left: 40px !important;
-  padding-right: 44px !important;
+.input-wrap svg {
+  flex: none;
+  color: var(--muted) !important;
+  pointer-events: none;
 }
-
-#kc-form input[type="text"]::placeholder,
-#kc-form input[type="password"]::placeholder,
-#kc-form input[type="email"]::placeholder {
-  color: var(--klogin-text-muted);
+.input-wrap input {
+  border: none !important;
+  background: transparent !important;
+  outline: none !important;
+  color: var(--text) !important;
+  font-size: 14px !important;
+  width: 100% !important;
+  height: 100% !important;
+  box-shadow: none !important;
+}
+.input-wrap input::placeholder {
+  color: #5a6584 !important;
   opacity: 1;
 }
 
-#kc-form input[type="text"]:hover,
-#kc-form input[type="password"]:hover,
-#kc-form input[type="email"]:hover {
-  border-color: var(--klogin-input-border-hover) !important;
-}
-
-#kc-form input[type="text"]:focus,
-#kc-form input[type="password"]:focus,
-#kc-form input[type="email"]:focus {
-  border-color: var(--klogin-accent) !important;
-  box-shadow: 0 0 0 3px var(--klogin-focus-ring) !important;
-  outline: none !important;
-}
-
-/* The password field's native `.pf-c-input-group` / `.pf-v5-c-input-group` (input + real show/hide
-   toggle button) becomes the single bordered "box" instead of the input
-   itself, so the two pieces read as one seamless control. */
-.pf-c-input-group,
-.pf-v5-c-input-group {
-  display: flex !important;
-  align-items: stretch;
-  background: var(--klogin-input-bg);
-  border: 1px solid var(--klogin-input-border);
-  border-radius: 12px;
-  overflow: hidden;
-  transition: border-color 0.15s ease, box-shadow 0.15s ease;
-}
-
-.pf-c-input-group:hover,
-.pf-v5-c-input-group:hover {
-  border-color: var(--klogin-input-border-hover);
-}
-
-.pf-c-input-group:focus-within,
-.pf-v5-c-input-group:focus-within {
-  border-color: var(--klogin-accent);
-  box-shadow: 0 0 0 3px var(--klogin-focus-ring);
-}
-
-#kc-form .pf-c-input-group input[type="password"],
-#kc-form .pf-c-input-group input[type="text"],
-#kc-form .pf-v5-c-input-group input[type="password"],
-#kc-form .pf-v5-c-input-group input[type="text"],
-.login-pf-page .pf-c-input-group input[type="password"],
-.login-pf-page .pf-c-input-group input[type="text"],
-.login-pf-page .pf-v5-c-input-group input[type="password"],
-.login-pf-page .pf-v5-c-input-group input[type="text"] {
-  border: none !important;
-  border-radius: 0 !important;
-  box-shadow: none !important;
-  background: transparent !important;
-}
-
-/* The group wrapper owns the visible border/focus ring now — suppress the
-   input's own hover/focus border so it doesn't show through underneath. */
-#kc-form .pf-c-input-group input[type="password"]:hover,
-#kc-form .pf-c-input-group input[type="password"]:focus,
-#kc-form .pf-c-input-group input[type="text"]:hover,
-#kc-form .pf-c-input-group input[type="text"]:focus,
-#kc-form .pf-v5-c-input-group input[type="password"]:hover,
-#kc-form .pf-v5-c-input-group input[type="password"]:focus,
-#kc-form .pf-v5-c-input-group input[type="text"]:hover,
-#kc-form .pf-v5-c-input-group input[type="text"]:focus {
-  border: none !important;
-  box-shadow: none !important;
-}
-
-.pf-c-input-group .pf-c-button.pf-m-control,
-.pf-v5-c-input-group .pf-v5-c-button.pf-m-control {
-  flex: 0 0 auto;
-  width: 48px;
-  position: absolute !important;
-  right: 0 !important;
-  top: 0 !important;
-  bottom: 0 !important;
-  width: 48px !important;
-  height: 100% !important;
-  margin: 0 !important;
+/* Keycloak eye toggle btn placement */
+.input-wrap .pf-c-button.pf-m-control,
+.input-wrap .pf-v5-c-button.pf-m-control {
   border: none !important;
   background: transparent !important;
-  color: var(--klogin-text-muted);
+  color: var(--muted) !important;
+  cursor: pointer !important;
+  padding: 0 !important;
   display: flex !important;
   align-items: center !important;
   justify-content: center !important;
-  padding: 0 !important;
-  cursor: pointer;
-  box-shadow: none !important;
+  height: 100% !important;
+  width: 32px !important;
   outline: none !important;
-  transition: color 0.15s ease;
-  z-index: 10 !important;
-  box-sizing: border-box !important;
-}
-
-.pf-c-input-group .pf-c-button.pf-m-control::before,
-.pf-c-input-group .pf-c-button.pf-m-control::after,
-.pf-v5-c-input-group .pf-v5-c-button.pf-m-control::before,
-.pf-v5-c-input-group .pf-v5-c-button.pf-m-control::after {
-  display: none !important;
-  content: none !important;
-  border: none !important;
   box-shadow: none !important;
+  position: relative !important;
 }
-
-.pf-c-input-group .pf-c-button.pf-m-control:hover,
-.pf-v5-c-input-group .pf-v5-c-button.pf-m-control:hover {
-  color: var(--klogin-text-primary);
-  background: transparent !important;
-}
-
-.pf-c-input-group .pf-c-button.pf-m-control:focus,
-.pf-v5-c-input-group .pf-v5-c-button.pf-m-control:focus {
-  outline: none !important;
-  color: var(--klogin-accent);
-}
-
-.pf-c-input-group .pf-c-button.pf-m-control i,
-.pf-v5-c-input-group .pf-v5-c-button.pf-m-control i {
+.input-wrap .pf-c-button.pf-m-control::before,
+.input-wrap .pf-c-button.pf-m-control::after,
+.input-wrap .pf-v5-c-button.pf-m-control::before,
+.input-wrap .pf-v5-c-button.pf-m-control::after {
   display: none !important;
 }
-
 .acis-eye-svg-wrap {
   width: 18px;
   height: 18px;
-  color: var(--klogin-text-muted);
-  display: none;
   pointer-events: none;
 }
-
 .acis-eye-svg-wrap svg {
-  width: 18px;
-  height: 18px;
+  width: 100%;
+  height: 100%;
   display: block;
 }
 
+.row-between,
 #kc-form-options {
-  font-size: 0.78rem;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin: 14px 0 20px;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  margin: 4px 0 26px !important;
+  font-size: 13px !important;
 }
-
-/* Native checkbox restyled into a small square with a blue check
-   state — the real `#rememberMe` input, never replaced, only skinned. */
-#kc-form-options input[type="checkbox"] {
-  appearance: none;
-  -webkit-appearance: none;
-  width: 16px;
-  height: 16px;
-  margin: 0 6px 0 0;
-  border: 1px solid var(--klogin-input-border);
-  border-radius: 4px;
-  background: var(--klogin-input-bg);
-  vertical-align: -3px;
+.remember,
+.checkbox {
+  display: flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+  color: var(--text) !important;
+}
+.remember input,
+.checkbox input[type="checkbox"] {
+  width: 15px !important;
+  height: 15px !important;
+  accent-color: var(--blue) !important;
   cursor: pointer;
-  position: relative;
-  transition: background 0.15s ease, border-color 0.15s ease;
+}
+.forgot,
+#kc-form-options a {
+  color: var(--blue) !important;
+  font-weight: 600 !important;
+  text-decoration: none !important;
+}
+.forgot:hover,
+#kc-form-options a:hover {
+  text-decoration: underline !important;
 }
 
-#kc-form-options input[type="checkbox"]:hover {
-  border-color: var(--klogin-input-border-hover);
-}
-
-#kc-form-options input[type="checkbox"]:checked {
-  background: var(--klogin-accent);
-  border-color: var(--klogin-accent);
-}
-
-#kc-form-options input[type="checkbox"]:checked::after {
-  content: '';
-  position: absolute;
-  left: 4px;
-  top: 1px;
-  width: 4px;
-  height: 8px;
-  border: solid #ffffff;
-  border-width: 0 2px 2px 0;
-  transform: rotate(45deg);
-}
-
-#kc-form-options input[type="checkbox"]:focus-visible {
-  outline: 2px solid var(--klogin-focus-ring);
-  outline-offset: 2px;
-}
-
-#kc-form-buttons {
-  position: relative;
-}
-
+.login-btn,
 #kc-form-buttons input[type="submit"],
-.login-pf-page .btn-primary,
-#kc-login button[type="submit"],
-#kc-form-login button[type="submit"] {
-  background: linear-gradient(to right, var(--klogin-accent), var(--klogin-accent-dark)) !important;
-  background-image: linear-gradient(to right, var(--klogin-accent), var(--klogin-accent-dark)) !important;
+#kc-form-buttons button[type="submit"] {
+  width: 100% !important;
+  padding: 15px !important;
   border: none !important;
-  border-radius: 12px !important;
+  border-radius: 10px !important;
+  background: linear-gradient(90deg, var(--blue), #4f8cf7) !important;
+  color: #fff !important;
+  font-size: 16px !important;
   font-weight: 700 !important;
-  text-transform: none !important;
-  padding: 13px 20px !important;
-  width: 100%;
-  box-shadow: 0 10px 25px var(--klogin-btn-shadow) !important;
-  transition: filter 0.15s ease;
-  position: relative;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 10px !important;
+  cursor: pointer !important;
+  box-shadow: 0 12px 30px -10px rgba(59,130,246,0.6) !important;
+  transition: transform .15s ease, box-shadow .15s ease !important;
 }
-
+.login-btn:hover,
 #kc-form-buttons input[type="submit"]:hover,
-.login-pf-page .btn-primary:hover {
-  filter: brightness(1.08);
+#kc-form-buttons button[type="submit"]:hover {
+  transform: translateY(-1px) !important;
+  box-shadow: 0 16px 34px -8px rgba(59,130,246,0.7) !important;
 }
 
-.acis-btn-arrow {
-  position: absolute;
-  z-index: 2;
-  right: 26px;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 16px;
-  height: 16px;
-  color: #ffffff;
-  pointer-events: none;
-}
-
-.acis-btn-arrow svg { width: 16px; height: 16px; display: block; }
-
-a,
-#kc-form a,
-.login-pf-page a {
-  color: var(--klogin-accent-light) !important;
-  font-weight: 600;
-  text-decoration: none;
-}
-
-a:hover {
-  text-decoration: underline;
-}
-
-.alert-error,
-#kc-error-message,
-.pf-c-alert.pf-m-danger {
-  background: var(--klogin-error-bg) !important;
-  border: 1px solid var(--klogin-error-border) !important;
-  color: var(--klogin-error-text) !important;
-  border-radius: 12px !important;
-  padding: 12px 16px !important;
-  margin-bottom: 16px;
-}
-
-#kc-registration,
-#kc-info,
-.login-pf-signup {
-  text-align: center;
-  color: var(--klogin-text-secondary);
-  font-size: 0.8rem;
-  margin-top: 20px;
-}
-
-/* ---------------------------------------------------------------------
-   Sign-up link (built by acis-login.js) — routes to the real ACIS app's
-   /signup page, not Keycloak's own registration flow (see acis-login.js
-   for why: self-service signup here provisions a whole new tenant, which
-   Keycloak's bare registration form has no way to do).
-   --------------------------------------------------------------------- */
-
+.signup,
 .acis-signup-link {
-  text-align: center;
-  margin-top: 22px;
-  padding-top: 18px;
-  border-top: 1px solid var(--klogin-divider);
-  font-size: 0.85rem;
-  color: var(--klogin-text-secondary);
+  text-align: center !important;
+  margin-top: 22px !important;
+  font-size: 13px !important;
+  color: var(--muted) !important;
 }
-
+.signup a,
 .acis-signup-link a {
-  font-weight: 700;
-  margin-left: 4px;
+  color: var(--blue) !important;
+  font-weight: 700 !important;
+  text-decoration: none !important;
+}
+.signup a:hover,
+.acis-signup-link a:hover {
+  text-decoration: underline !important;
 }
 
-.acis-footer {
-  position: relative;
-  z-index: 1;
-  text-align: center;
-  margin-top: 24px;
-  color: var(--klogin-text-muted);
-  font-size: 0.68rem;
-  line-height: 1.6;
+/* Error/Alert overrides */
+.alert,
+.alert-error,
+.pf-c-alert,
+.pf-v5-c-alert {
+  background: rgba(239, 68, 68, 0.12) !important;
+  border: 1px solid rgba(239, 68, 68, 0.35) !important;
+  border-radius: 10px !important;
+  color: #fca5a5 !important;
+  padding: 12px !important;
+  font-size: 0.85rem !important;
+  margin-bottom: 20px !important;
 }
 
-.acis-footer p { margin: 0; }
-
-/* OTP / required-action screens reuse the same card + button styling
-   above automatically since they share the same IDs/classes. */
+@media (max-width:1000px){
+  .right { width:100% !important; position:static !important; padding:60px 20px !important; justify-content:center !important; }
+  .hero { position:static !important; width:100% !important; padding:40px 20px !important; }
+  .status-box, .mini-map, .active-nodes, .worldmap, .header-title, .clock-lock { display:none !important; }
+  .stats { max-width:100% !important; }
+  .globe-wrap { display:none !important; }
+  .login-card { margin:0 !important; }
+  .scene { height:auto !important; }
+}
