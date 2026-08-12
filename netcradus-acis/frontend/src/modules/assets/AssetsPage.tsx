@@ -60,14 +60,6 @@ function alertsForAsset(asset: Asset, alerts: RealAlert[]): RealAlert[] {
   })
 }
 
-function seedRandom(seed: number) {
-  let s = seed
-  return function() {
-    s = (s * 9301 + 49297) % 233280
-    return s / 233280
-  }
-}
-
 export default function AssetsPage() {
   const canWrite = useCanWrite(MODULES.ASSETS_THREAT_INTEL)
   const [assets, setAssets] = useState<Asset[]>([])
@@ -285,9 +277,6 @@ export default function AssetsPage() {
       else if (type === 'CLOUD_INSTANCE' || type === 'NETWORK_DEVICE') intel++
       else other++
     })
-    if (assets.length === 0) {
-      rules = 105; ad = 70; intel = 55; other = 45
-    }
     const total = rules + ad + intel + other || 1
     const circ = 2 * Math.PI * 52 // ~326.72
 
@@ -309,56 +298,34 @@ export default function AssetsPage() {
     }
   }, [assets])
 
-  // Asset Criticality Breakdown Bar Stack logic
+  // Asset Criticality Breakdown — real current counts only, no fabricated history
   const critData = useMemo(() => {
     const critical = assets.filter(a => a.criticality === 'HIGH').length
     const high = assets.filter(a => a.criticality === 'MEDIUM').length
     const medium = assets.filter(a => a.criticality === 'LOW').length
     const low = assets.filter(a => a.status === 'INACTIVE').length
-    // Draw 5 columns to match mockup aesthetic but place real stats in the last column
-    return [
-      { stack: [60, 120, 90, 40] },
-      { stack: [50, 110, 95, 35] },
-      { stack: [70, 130, 85, 45] },
-      { stack: [55, 115, 100, 38] },
-      { stack: [critical || 65, high || 125, medium || 88, low || 42] }
-    ]
+    return { critical, high, medium, low, max: Math.max(critical, high, medium, low, 1) }
   }, [assets])
-
-  // Global Asset Map dotted world data generator
-  const mapData = useMemo(() => {
-    const spots = [[90,90],[180,70],[300,80],[320,120],[60,130],[200,110]]
-    const arcs = [[90,90,180,70],[180,70,300,80],[300,80,320,120],[60,130,180,70],[200,110,300,80]]
-    
-    // Simple stable random world outline
-    const dots = []
-    const rng = seedRandom(1234)
-    for (let i = 0; i < 500; i++) {
-      const x = rng() * 400
-      const y = 20 + rng() * 180
-      const inLand = (x>20&&x<110&&y>60&&y<160) || (x>140&&x<230&&y>30&&y<150) || (x>250&&x<390&&y>40&&y<170)
-      if (inLand && rng() < 0.35) {
-        dots.push({ x, y })
-      }
-    }
-    return { dots, spots, arcs }
-  }, [])
 
   // Bottom row live asset tickers
   const tickerItems = useMemo(() => {
-    const recent = assets.slice(0, 3)
-    if (recent.length > 0) {
-      return recent.map(a => ({
-        name: a.name,
-        owner: a.owner
-      }))
-    }
-    return [
-      { name: 'EndPoint Node-45', owner: 'S. Skallenora' },
-      { name: 'EndPoint Node-46', owner: 'S. Skallenora' },
-      { name: 'EndPoint Node-47', owner: 'S. Skallenora' }
-    ]
+    return assets.slice(0, 3).map(a => ({
+      name: a.name,
+      owner: a.owner
+    }))
   }, [assets])
+
+  // Real flagged-identity feed
+  const identityConflicts = useMemo(() => {
+    return identities
+      .filter(i => i.flagged)
+      .slice(0, 5)
+      .map(i => ({
+        id: i.id,
+        username: i.username,
+        assetName: assets.find(a => a.id === i.assetId)?.name || 'Unknown asset',
+      }))
+  }, [identities, assets])
 
   const SortHeader = ({ label, sortKeyName, className }: { label: string; sortKeyName: 'name' | 'owner' | 'criticality'; className?: string }) => (
     <th className={className}>
@@ -535,9 +502,11 @@ export default function AssetsPage() {
 
           {/* Right Side: Asset Details Drawer */}
           {selectedAsset && (
-            <div className="md:col-span-4 bottom-card flex flex-col justify-between space-y-5 animate-slide-in">
+            <div className="md:col-span-4 bottom-card flex flex-col justify-between space-y-5 animate-slide-in relative overflow-hidden">
+              <div className="absolute top-0 left-0 right-0 h-1" style={{ background: 'linear-gradient(90deg, var(--cyan), var(--blue))', zIndex: 10 }} />
               <div>
-                <div className="flex items-center justify-between border-b border-border-soft pb-3">
+                <div className="flex items-center justify-between border-b border-border-soft pb-3 pt-1">
+
                   <div className="flex items-center gap-2.5 flex-wrap">
                     <h3 className="text-h3 text-heading-color font-bold">{selectedAsset.name}</h3>
                     <SeverityBadge severity={toSeverity(selectedAsset.criticality)} label={selectedAsset.criticality} size="sm" />
@@ -722,90 +691,34 @@ export default function AssetsPage() {
             <h3>Asset Criticality Breakdown</h3>
             <div className="chart-legend-row">
               <div style={{ flex: 1 }}>
-                <div className="axis-y" style={{ float: 'left', marginRight: '8px' }}>
-                  <span>200</span><span>150</span><span>100</span><span>50</span><span>0</span>
-                </div>
-                <div className="bars-simple" style={{ marginLeft: '36px' }}>
-                  {critData.map((item, idx) => (
-                    <div key={idx} className="bcol" style={{ position: 'relative' }}>
-                      <div style={{ display: 'flex', flexDirection: 'column-reverse', width: '55%', height: '100%', gap: '2px' }}>
-                        {item.stack.map((v, sIdx) => {
-                          const colors = ['#ef4444', '#f97316', '#facc15', '#22c55e']
-                          return (
-                            <div
-                              key={sIdx}
-                              style={{
-                                height: `${(v / 200) * 100}%`,
-                                background: colors[sIdx % 4],
-                                borderRadius: '2px',
-                                transition: 'height 0.3s ease'
-                              }}
-                            />
-                          )
-                        })}
+                <div className="bars-simple" style={{ marginLeft: '4px' }}>
+                  {([
+                    ['Critical', critData.critical, '#ef4444'],
+                    ['High', critData.high, '#f97316'],
+                    ['Medium', critData.medium, '#facc15'],
+                    ['Low', critData.low, '#22c55e'],
+                  ] as const).map(([label, count, color]) => (
+                    <div key={label} className="bcol" style={{ position: 'relative' }}>
+                      <div style={{ display: 'flex', flexDirection: 'column-reverse', width: '55%', height: '100%', margin: '0 auto' }}>
+                        <div
+                          style={{
+                            height: `${(count / critData.max) * 100}%`,
+                            background: color,
+                            borderRadius: '2px',
+                            transition: 'height 0.3s ease'
+                          }}
+                        />
                       </div>
                     </div>
                   ))}
                 </div>
-                <div style={{ display: 'flex', gap: '12px', marginLeft: '36px', marginTop: '6px' }}>
-                  <span className="lbl" style={{ flex: 1, textAlign: 'center' }}>09 Jan</span>
-                  <span className="lbl" style={{ flex: 1, textAlign: 'center' }}>12 Jan</span>
-                  <span className="lbl" style={{ flex: 1, textAlign: 'center' }}>16 Jan</span>
-                  <span className="lbl" style={{ flex: 1, textAlign: 'center' }}>20 Jan</span>
-                  <span className="lbl" style={{ flex: 1, textAlign: 'center' }}>24 Dec</span>
-                </div>
               </div>
               <div className="legend-list">
-                <div><span className="d" style={{ background: '#ef4444' }}></span>Critical</div>
-                <div><span className="d" style={{ background: '#f97316' }}></span>High</div>
-                <div><span className="d" style={{ background: '#facc15' }}></span>Medium</div>
-                <div><span className="d" style={{ background: '#22c55e' }}></span>Low</div>
+                <div><span className="d" style={{ background: '#ef4444' }}></span>Critical <span className="text-[10px] text-text-muted ml-1">({critData.critical})</span></div>
+                <div><span className="d" style={{ background: '#f97316' }}></span>High <span className="text-[10px] text-text-muted ml-1">({critData.high})</span></div>
+                <div><span className="d" style={{ background: '#facc15' }}></span>Medium <span className="text-[10px] text-text-muted ml-1">({critData.medium})</span></div>
+                <div><span className="d" style={{ background: '#22c55e' }}></span>Low <span className="text-[10px] text-text-muted ml-1">({critData.low})</span></div>
               </div>
-            </div>
-          </div>
-
-          {/* Global Asset Map */}
-          <div className="mid-card">
-            <h3>🌐 Global Asset Map <span style={{ marginLeft: 'auto', fontSize: '11px', color: 'var(--dim)', cursor: 'pointer' }}>⤢ ⚙ ⛶</span></h3>
-            <div className="map-box">
-              <svg viewBox="0 0 400 220">
-                {/* World outline dots */}
-                {mapData.dots.map((dot, idx) => (
-                  <circle key={idx} cx={dot.x} cy={dot.y} r={0.8} fill="rgba(120,160,230,0.35)" />
-                ))}
-                
-                {/* Arcs */}
-                {mapData.arcs.map(([x1, y1, x2, y2], idx) => {
-                  const mx = (x1 + x2) / 2
-                  const my = (y1 + y2) / 2 - 20
-                  return (
-                    <path
-                      key={idx}
-                      d={`M${x1},${y1} Q${mx},${my} ${x2},${y2}`}
-                      fill="none"
-                      stroke="rgba(94,234,212,0.5)"
-                      strokeWidth="1"
-                    />
-                  )
-                })}
-
-                {/* Hotspots */}
-                {mapData.spots.map(([x, y], idx) => {
-                  const gradId = `mg-${idx}`
-                  return (
-                    <g key={idx}>
-                      <defs>
-                        <radialGradient id={gradId}>
-                          <stop offset="0%" stopColor="#5eead4" stopOpacity="0.9" />
-                          <stop offset="100%" stopColor="#5eead4" stopOpacity="0" />
-                        </radialGradient>
-                      </defs>
-                      <circle cx={x} cy={y} r={14} fill={`url(#${gradId})`} />
-                      <circle cx={x} cy={y} r={2.5} fill="#5eead4" />
-                    </g>
-                  )
-                })}
-              </svg>
             </div>
           </div>
         </div>
@@ -829,13 +742,14 @@ export default function AssetsPage() {
 
           <div className="bottom-card">
             <h3>Identity Conflict Feed <span style={{ color: 'var(--dim)', fontSize: '12px', cursor: 'pointer' }}>⌄</span></h3>
-            <div className="ticker-top">
-              on credential check by <span className="lnk">Active Directory Stitching</span>…
-            </div>
             <div className="ticker-list">
-              <div className="ticker-item">• <b>Flagged access:</b> S. Skallenora on EndPoint Node-45 | Multi-Role Conflict</div>
-              <div className="ticker-item">• <b>Stitching alert:</b> Anomalous session token on Node-42</div>
-              <div className="ticker-item">• <b>Directory check:</b> 8 concurrent active logins identified</div>
+              {identityConflicts.length === 0 ? (
+                <div className="ticker-item" style={{ color: 'var(--dim)' }}>No flagged identities detected.</div>
+              ) : (
+                identityConflicts.map((item) => (
+                  <div key={item.id} className="ticker-item">• <b>Flagged access:</b> {item.username} on {item.assetName}</div>
+                ))
+              )}
             </div>
           </div>
 

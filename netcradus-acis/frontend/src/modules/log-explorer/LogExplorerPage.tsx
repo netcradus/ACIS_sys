@@ -291,19 +291,9 @@ export default function LogExplorerPage() {
       .map(([time, count]) => ({ time, count }))
   }, [logs])
 
-  const values = useMemo(() => {
-    if (trendData.length > 0) {
-      return trendData.map(d => d.count)
-    }
-    return [55, 68, 95, 80, 55, 105, 50, 70, 88, 45, 150, 90, 190, 120, 110, 95, 138, 60, 150, 142, 90, 42, 55, 75]
-  }, [trendData])
+  const values = useMemo(() => trendData.map(d => d.count), [trendData])
 
-  const times = useMemo(() => {
-    if (trendData.length > 0) {
-      return trendData.map((d, i) => (i % 4 === 0 ? d.time : ''))
-    }
-    return ['14:20', '', '14:25', '', '14:30', '', '16:15', '', '14:20', '', '14:35', '', '14:25', '', '14:30', '', '15:45', '', '20:00', '', '', '', '', '']
-  }, [trendData])
+  const times = useMemo(() => trendData.map((d, i) => (i % 4 === 0 ? d.time : '')), [trendData])
 
   const maxV = useMemo(() => {
     const peak = Math.max(...values, 0)
@@ -320,29 +310,14 @@ export default function LogExplorerPage() {
     ]
   }, [maxV])
 
-  const hasTooltip = (idx: number) => {
-    if (hoveredIndex === idx) return true
-    if (hoveredIndex === null && trendData.length === 0) {
-      return idx === 4 || idx === 12
-    }
-    return false
+  const hasTooltip = (idx: number) => hoveredIndex === idx
+
+  const getTooltipText = (idx: number) => {
+    if (hoveredIndex !== idx || !trendData[idx]) return ''
+    return `${trendData[idx].time} - ${trendData[idx].count} Events`
   }
 
-  const getTooltipText = (idx: number, val: number) => {
-    if (hoveredIndex === idx) {
-      if (trendData.length > 0) {
-        return `${trendData[idx].time} - ${trendData[idx].count} Events`
-      }
-      return `${times[idx] || '14:23'} - ${val} Events`
-    }
-    if (idx === 4) return '14:23 - 10 Events'
-    if (idx === 12) return '14:23 - 10 Events'
-    return ''
-  }
-
-  const displayEventsCount = useMemo(() => {
-    return logs.length > 0 ? logs.length : 245
-  }, [logs])
+  const displayEventsCount = logs.length
 
   // Sorting
   const handleSort = (field: string) => {
@@ -522,7 +497,7 @@ export default function LogExplorerPage() {
                         <div className="bar" style={{ height: `${heightPercent}%` }} />
                         {hasTooltip(idx) && (
                           <div className="tooltip" style={{ left: '50%', top: '0' }}>
-                            {getTooltipText(idx, v)}
+                            {getTooltipText(idx)}
                           </div>
                         )}
                       </div>

@@ -53,14 +53,6 @@ interface Execution {
   stepLogs: string // JSON string
 }
 
-function seedRandom(seed: number) {
-  let s = seed
-  return function() {
-    s = (s * 9301 + 49297) % 233280
-    return s / 233280
-  }
-}
-
 export default function SoarPage() {
   const canWrite = useCanWrite(MODULES.SOAR_PLAYBOOKS)
   const [playbooks, setPlaybooks] = useState<Playbook[]>([])
@@ -239,23 +231,6 @@ export default function SoarPage() {
 
   const selectedExecution = executions.find(e => e.id === selectedExecutionId)
 
-  // Map Data generator
-  const mapData = useMemo(() => {
-    const spots = [[90, 140], [190, 120], [280, 110], [340, 150], [380, 190]]
-    const arcs = [[90, 140, 190, 120], [190, 120, 280, 110], [280, 110, 340, 150], [340, 150, 380, 190]]
-    const dots = []
-    const rng = seedRandom(5678)
-    for (let i = 0; i < 600; i++) {
-      const x = rng() * 400
-      const y = 20 + rng() * 220
-      const inLand = (x > 20 && x < 110 && y > 70 && y < 190) || (x > 140 && x < 230 && y > 40 && y < 180) || (x > 250 && x < 390 && y > 50 && y < 200)
-      if (inLand && rng() < 0.4) {
-        dots.push({ x, y })
-      }
-    }
-    return { dots, spots, arcs }
-  }, [])
-
   // Node dependencies map data generator
   const nodePositions = [
     { x: 500, y: 150, type: 'center', r: 24, label: 'Playbook Dependencies' },
@@ -369,7 +344,7 @@ export default function SoarPage() {
                   <tr key={pb.id}>
                     <td className="font-semibold">{pb.name}</td>
                     <td>{pb.description}</td>
-                    <td className="owner-name">S. Skallenora</td>
+                    <td className="owner-name">—</td>
                     <td>{pb.lastRunAt ? formatTimeElapsed(pb.lastRunAt) : '—'}</td>
                     <td>
                       <span className={clsx("priority-dot", isHigh ? "high" : "medium")} />
@@ -481,23 +456,18 @@ export default function SoarPage() {
           </div>
         </div>
 
-        {/* Recent Executions & Action maps layout */}
-        <div style={{ position: 'relative' }}>
-          
+        {/* Recent Executions */}
+        <div>
           <div className="recent-panel">
             <h3>Recent Executions</h3>
             <table>
               <thead>
                 <tr>
-                  <th>TIMESTAMP ↑</th>
-                  <th>INDICATOR</th>
+                  <th>STARTED ↑</th>
+                  <th>PLAYBOOK</th>
                   <th>TYPE</th>
-                  <th>ENRICHMENT SOURCE</th>
+                  <th>TRIGGERED BY</th>
                   <th>STATUS</th>
-                  <th>Critical</th>
-                  <th>High</th>
-                  <th>AbuseIPDB</th>
-                  <th>Vendor</th>
                 </tr>
               </thead>
               <tbody>
@@ -523,105 +493,11 @@ export default function SoarPage() {
                            exec.status === 'failed' ? 'Failed' : 'In Progress'}
                         </span>
                       </td>
-                      <td>13 <span className="wbadge">W</span></td>
-                      <td>5 <span className="wbadge">W</span></td>
-                      <td>
-                        0 &nbsp;
-                        <svg width="30" height="14" viewBox="0 0 30 14" style={{ display: 'inline' }}>
-                          <polyline points="0,10 8,4 16,8 24,2 30,6" fill="none" stroke="#fbbf24" strokeWidth="1.5" />
-                        </svg>
-                      </td>
-                      <td>0</td>
                     </tr>
                   )
                 })}
               </tbody>
             </table>
-          </div>
-
-          {/* Floating SOAR Action Flow Map */}
-          <div className="map-float">
-            <div className="map-float-head">
-              <h3>📷 SOAR Action Flow Map</h3>
-              <div className="map-icons">⤢ ⚙</div>
-            </div>
-            <div className="map-box">
-              <svg viewBox="0 0 400 260">
-                {/* Silhouette map dots */}
-                {mapData.dots.map((dot, idx) => (
-                  <circle key={idx} cx={dot.x} cy={dot.y} r={0.8} fill="var(--map-dot-color)" />
-                ))}
-
-                {/* Arc paths */}
-                {mapData.arcs.map(([x1, y1, x2, y2], idx) => {
-                  const mx = (x1 + x2) / 2
-                  const my = (y1 + y2) / 2 - 30
-                  return (
-                    <path
-                      key={idx}
-                      d={`M${x1},${y1} Q${mx},${my} ${x2},${y2}`}
-                      fill="none"
-                      stroke="var(--map-path-color)"
-                      strokeWidth="1.4"
-                    />
-                  )
-                })}
-
-                {/* Radar spots */}
-                {mapData.spots.map(([x, y], idx) => {
-                  const gradId = `ng-soar-map-${idx}`
-                  return (
-                    <g key={idx}>
-                      <defs>
-                        <radialGradient id={gradId}>
-                          <stop offset="0%" stopColor="var(--map-hotspot-color)" stopOpacity="0.4" />
-                          <stop offset="100%" stopColor="var(--map-hotspot-color)" stopOpacity="0" />
-                        </radialGradient>
-                      </defs>
-                      <circle cx={x} cy={y} r={16} fill={`url(#${gradId})`} />
-                      <circle
-                        cx={x}
-                        cy={y}
-                        r={idx === 2 ? 11 : 7}
-                        fill="var(--map-dot-center-color)"
-                        stroke="var(--map-dot-stroke)"
-                        strokeWidth="1.5"
-                      />
-                      <polygon
-                        points={`${x - (idx === 2 ? 5 : 3.5)},${y - (idx === 2 ? 5 : 3.5)} ${x - (idx === 2 ? 5 : 3.5)},${y + (idx === 2 ? 5 : 3.5)} ${x + (idx === 2 ? 5 : 3.5)},${y}`}
-                        fill="var(--map-play-fill)"
-                      />
-                    </g>
-                  )
-                })}
-              </svg>
-            </div>
-          </div>
-
-          {/* Floating Threat Intel Ticker */}
-          <div className="ticker-float">
-            <h3>Threat intel Ticker <span style={{ color: 'var(--dim)', fontSize: '12px' }}>⌃</span></h3>
-            <div className="tf-item">
-              <span className="d"></span>
-              <div>
-                <b>Ransomware Threat</b> has an oncomment triggered …
-                <span className="sub">Automated SOAR response Status</span>
-              </div>
-            </div>
-            <div className="tf-item">
-              <span className="d"></span>
-              <div>
-                <b>Ransomware Threat</b> has an oncomment triggered …
-                <span className="sub">Automated SOAR response Status</span>
-              </div>
-            </div>
-            <div className="tf-item">
-              <span className="d"></span>
-              <div>
-                <b>Ransomware Threat</b> has a automaticilly person …
-                <span className="sub">Automated SOAR response Status</span>
-              </div>
-            </div>
           </div>
         </div>
 

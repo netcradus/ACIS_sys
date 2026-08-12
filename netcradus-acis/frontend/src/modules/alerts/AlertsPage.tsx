@@ -348,18 +348,14 @@ export default function AlertsPage() {
   // Top Alert Sources donut calculations
   const sources = useMemo(() => {
     let explorer = 0, expCorr = 0, corr = 0, asset = 0, other = 0
-    if (alerts.length > 0) {
-      alerts.forEach(a => {
-        const src = (a.source || '').toLowerCase()
-        if (src.includes('explorer') && src.includes('correlation')) expCorr++
-        else if (src.includes('explorer') || src.includes('spl')) explorer++
-        else if (src.includes('correlation') || src.includes('rule')) corr++
-        else if (src.includes('asset') || src.includes('intel') || src.includes('cmdb')) asset++
-        else other++
-      })
-    } else {
-      explorer = 130; expCorr = 60; corr = 45; asset = 22; other = 16
-    }
+    alerts.forEach(a => {
+      const src = (a.source || '').toLowerCase()
+      if (src.includes('explorer') && src.includes('correlation')) expCorr++
+      else if (src.includes('explorer') || src.includes('spl')) explorer++
+      else if (src.includes('correlation') || src.includes('rule')) corr++
+      else if (src.includes('asset') || src.includes('intel') || src.includes('cmdb')) asset++
+      else other++
+    })
     return { explorer, expCorr, corr, asset, other }
   }, [alerts])
 
@@ -393,27 +389,20 @@ export default function AlertsPage() {
     const max = Math.max(triage, progress, fp, remediated, 1)
     
     return {
-      triage: triage > 0 ? (triage / max) * 100 : 78,
-      progress: progress > 0 ? (progress / max) * 100 : 65,
-      fp: fp > 0 ? (fp / max) * 100 : 34,
-      remediated: remediated > 0 ? (remediated / max) * 100 : 24
+      triage: (triage / max) * 100,
+      progress: (progress / max) * 100,
+      fp: (fp / max) * 100,
+      remediated: (remediated / max) * 100
     }
   }, [alerts])
 
   // Recent alerts ticker calculations
   const tickerAlerts = useMemo(() => {
-    const recent = alerts.slice(0, 3)
-    if (recent.length > 0) {
-      return recent.map(a => ({
-        id: a.id,
-        title: a.title,
-        desc: a.rawEvent ? (a.rawEvent.length > 180 ? a.rawEvent.slice(0, 180) + '…' : a.rawEvent) : `Notable event with source ${a.source} escalated in system.`
-      }))
-    }
-    return [
-      { id: '10924', title: 'Potential Data Exfiltration - Endpoint Node-41', desc: 'Init screening automation network arc - Endpoint Node-41 courting a dat enterprise from Pastrodnom…' },
-      { id: '10901', title: 'Potential Data Exfiltration - Endpoint Node-42', desc: 'Potential Data exfiltrative adjvst at nanonntic chances it in the Log correlation rules. Connected chaws temper corectied as on trapbortron adonmal…' }
-    ]
+    return alerts.slice(0, 3).map(a => ({
+      id: a.id,
+      title: a.title,
+      desc: a.rawEvent ? (a.rawEvent.length > 180 ? a.rawEvent.slice(0, 180) + '…' : a.rawEvent) : `Notable event with source ${a.source} escalated in system.`
+    }))
   }, [alerts])
 
   return (
@@ -439,10 +428,10 @@ export default function AlertsPage() {
 
           <div className="summary-bar">
             <span className="lbl">Quick Summary</span>
-            <span className="sev-critical">CRITICAL · {criticalCount || 14}</span>
-            <span className="sev-high">HIGH · {highCount || 28}</span>
-            <span className="sev-med">MED · {medCount || 41}</span>
-            <span className="sev-low">LOW {lowCount > 0 && `· ${lowCount}`}</span>
+            <span className="sev-critical">CRITICAL · {criticalCount}</span>
+            <span className="sev-high">HIGH · {highCount}</span>
+            <span className="sev-med">MED · {medCount}</span>
+            <span className="sev-low">LOW · {lowCount}</span>
           </div>
         </div>
 
@@ -612,9 +601,11 @@ export default function AlertsPage() {
 
           {/* Right Side: Alert Response Detail Drawer */}
           {activeTab === 'ALERTS' && selectedAlert && (
-            <div className="md:col-span-4 bottom-card flex flex-col justify-between space-y-5 animate-slide-in">
+            <div className="md:col-span-4 bottom-card flex flex-col justify-between space-y-5 animate-slide-in relative overflow-hidden">
+              <div className="absolute top-0 left-0 right-0 h-1" style={{ background: 'linear-gradient(90deg, var(--red), var(--amber))', zIndex: 10 }} />
               <div>
-                <div className="flex items-center justify-between border-b border-border-soft pb-3">
+                <div className="flex items-center justify-between border-b border-border-soft pb-3 pt-1">
+
                   <div className="flex items-center gap-2.5">
                     <span className="font-mono text-small font-bold text-red">{selectedAlert.id}</span>
                     <SeverityBadge severity={toSeverity(selectedAlert.severity)} label={selectedAlert.severity} size="sm" />
@@ -765,9 +756,11 @@ export default function AlertsPage() {
 
           {/* Right Side: Incident Details Drawer */}
           {activeTab === 'INCIDENTS' && selectedIncident && (
-            <div className="md:col-span-4 bottom-card flex flex-col justify-between space-y-5 animate-slide-in">
+            <div className="md:col-span-4 bottom-card flex flex-col justify-between space-y-5 animate-slide-in relative overflow-hidden">
+              <div className="absolute top-0 left-0 right-0 h-1" style={{ background: 'linear-gradient(90deg, var(--purple), var(--blue))', zIndex: 10 }} />
               <div>
-                <div className="flex items-center justify-between border-b border-border-soft pb-3">
+                <div className="flex items-center justify-between border-b border-border-soft pb-3 pt-1">
+
                   <div className="flex items-center gap-2.5">
                     <span className="font-mono text-small font-bold text-red">{selectedIncident.id}</span>
                     <SeverityBadge severity={toSeverity(selectedIncident.severity)} label={selectedIncident.severity} size="sm" />

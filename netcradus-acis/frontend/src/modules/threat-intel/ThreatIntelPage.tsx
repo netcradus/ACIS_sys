@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react'
-import { Globe, ShieldAlert, Skull, AlertTriangle, ShieldCheck, Database, Clock } from 'lucide-react'
-import { clsx } from 'clsx'
+import { ShieldAlert, AlertTriangle, ShieldCheck, Database } from 'lucide-react'
 import apiClient from '@/lib/apiClient'
 import SeverityBadge, { toSeverity } from '@/components/viz/SeverityBadge'
 import PivotChip from '@/components/ui/PivotChip'
@@ -12,14 +11,6 @@ function detectIocType(value: string): string {
   if (/^[a-fA-F0-9]{32}$|^[a-fA-F0-9]{40}$|^[a-fA-F0-9]{64}$/.test(v)) return 'HASH'
   if (/^[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(v)) return 'DOMAIN'
   return 'UNKNOWN'
-}
-
-function seedRandom(seed: number) {
-  let s = seed
-  return function() {
-    s = (s * 9301 + 49297) % 233280
-    return s / 233280
-  }
 }
 
 export default function ThreatIntelPage() {
@@ -89,9 +80,6 @@ export default function ThreatIntelPage() {
       else if (src.includes('abuse')) abuse++
       else other++
     })
-    if (indicators.length === 0) {
-      vt = 30; abuse = 13; other = 0
-    }
     const total = vt + abuse + other || 1
     const circ = 2 * Math.PI * 48 // ~301.59
 
@@ -110,38 +98,15 @@ export default function ThreatIntelPage() {
     }
   }, [indicators])
 
-  // Severity stacked bar chart heights
+  // Severity bar chart heights — real current counts only, no fabricated history
   const sevBarsData = useMemo(() => {
     const crit = severityBreakdown.CRITICAL || 0
     const high = severityBreakdown.HIGH || 0
     const med = severityBreakdown.MEDIUM || 0
     const low = severityBreakdown.LOW || 0
-    
-    // Fall back to mockup ratios if no data is present
-    return [
-      { stack: [30, 50, 55, 25] },
-      { stack: [35, 55, 60, 30] },
-      { stack: [28, 48, 52, 26] },
-      { stack: [crit > 0 ? crit : 25, high > 0 ? high : 45, med > 0 ? med : 50, low > 0 ? low : 20] }
-    ]
+    const max = Math.max(crit, high, med, low, 1)
+    return { crit, high, med, low, max }
   }, [severityBreakdown])
-
-  // Threat Actor Map coordinates outline
-  const mapData = useMemo(() => {
-    const spots = [[90,100],[180,80],[300,90],[330,140],[60,150],[210,130],[350,180],[70,190]]
-    const arcs = [[90,100,180,80],[180,80,300,90],[300,90,330,140],[60,150,180,80],[210,130,300,90],[70,190,210,130]]
-    const dots = []
-    const rng = seedRandom(1234)
-    for (let i = 0; i < 600; i++) {
-      const x = rng() * 400
-      const y = 20 + rng() * 220
-      const inLand = (x>20&&x<110&&y>70&&y<190) || (x>140&&x<230&&y>40&&y<180) || (x>250&&x<390&&y>50&&y<200)
-      if (inLand && rng() < 0.4) {
-        dots.push({ x, y })
-      }
-    }
-    return { dots, spots, arcs }
-  }, [])
 
   return (
     <div className="threat-intel-page">
@@ -189,60 +154,38 @@ export default function ThreatIntelPage() {
             <h3>Indicator Tracking</h3>
             <div className="ioc-boxes">
               <div className="ioc-box"><div className="n">{indicators.length}</div><div className="l">Total IOCs</div></div>
-              <div className="ioc-box"><div className="n">0</div><div className="l">Quarantined</div></div>
-              <div className="ioc-box"><div className="n">0</div><div className="l">Conflicts</div></div>
-            </div>
-            <div className="ioc-mini">
-              <div className="ioc-mini-left">
-                <div className="n">{indicators.length}</div>
-                <div className="l">Total IOCs</div>
-              </div>
-              <div className="spark-wrap">
-                <svg viewBox="0 0 70 30" width="70" height="26">
-                  <polyline points="0,24 15,20 30,22 45,12 60,4 70,6" fill="none" stroke="var(--blue)" strokeWidth="2" />
-                </svg>
-                <span className="n">3</span>
-              </div>
-              <div className="ioc-mini-right">
-                <div className="n">3</div>
-              </div>
+              <div className="ioc-box"><div className="n">{distinctSources.length}</div><div className="l">Sources</div></div>
+              <div className="ioc-box"><div className="n">{severityBreakdown.CRITICAL + severityBreakdown.HIGH}</div><div className="l">Critical + High</div></div>
             </div>
           </div>
 
           <div className="panel">
             <h3>Severity Breakdown</h3>
             <div className="sev-axis">
-              <div className="axis-y">
-                <span>200</span><span>150</span><span>100</span><span>50</span><span>0</span>
-              </div>
               <div className="stack-bars">
-                {sevBarsData.map((item, idx) => (
-                  <div key={idx} className="stack-col">
-                    {item.stack.map((v, sIdx) => {
-                      const colors = ['#22d3ee', '#3b82f6', '#ea580c', '#dc2626']
-                      return (
-                        <div
-                          key={sIdx}
-                          className="stack-seg"
-                          style={{
-                            height: `${(v / 200) * 160}px`,
-                            background: colors[sIdx % 4]
-                          }}
-                        />
-                      )
-                    })}
+                {([
+                  ['Critical', sevBarsData.crit, '#dc2626'],
+                  ['High', sevBarsData.high, '#ea580c'],
+                  ['Medium', sevBarsData.med, '#3b82f6'],
+                  ['Low', sevBarsData.low, '#22d3ee'],
+                ] as const).map(([label, count, color]) => (
+                  <div key={label} className="stack-col">
+                    <div
+                      className="stack-seg"
+                      style={{
+                        height: `${(count / sevBarsData.max) * 160}px`,
+                        background: color
+                      }}
+                    />
                   </div>
                 ))}
               </div>
               <div className="sev-legend">
-                <div><span className="d" style={{ background: '#dc2626' }}></span>Critical</div>
-                <div><span className="d" style={{ background: '#ea580c' }}></span>High</div>
-                <div><span className="d" style={{ background: '#3b82f6' }}></span>Medium</div>
-                <div><span className="d" style={{ background: '#22d3ee' }}></span>Low</div>
+                <div><span className="d" style={{ background: '#dc2626' }}></span>Critical <span className="n">{sevBarsData.crit}</span></div>
+                <div><span className="d" style={{ background: '#ea580c' }}></span>High <span className="n">{sevBarsData.high}</span></div>
+                <div><span className="d" style={{ background: '#3b82f6' }}></span>Medium <span className="n">{sevBarsData.med}</span></div>
+                <div><span className="d" style={{ background: '#22d3ee' }}></span>Low <span className="n">{sevBarsData.low}</span></div>
               </div>
-            </div>
-            <div className="stack-lbls">
-              <span>09 Jan</span><span>12 Jan</span><span>16 Jan</span><span>24 Dec</span>
             </div>
           </div>
 
@@ -362,10 +305,8 @@ export default function ThreatIntelPage() {
           </div>
         )}
 
-        {/* Recent Indicators + World Map Grid */}
-        <div style={{ position: 'relative' }}>
-          
-          {/* Main indicators table */}
+        {/* Recent Indicators */}
+        <div>
           <div className="recent-panel">
             <h3>Recent Indicators</h3>
             <table>
@@ -385,7 +326,7 @@ export default function ThreatIntelPage() {
                 {!indicatorsLoading && indicators.length === 0 && (
                   <tr className="empty-row">
                     <td colSpan={5}>
-                      <span className="hl">Potential Data Exfiltration</span> · enrich one above to get started.
+                      No indicators enriched yet — paste an IOC above to get started.
                     </td>
                   </tr>
                 )}
@@ -408,159 +349,7 @@ export default function ThreatIntelPage() {
                 ))}
               </tbody>
             </table>
-
-            {/* Custom threat vendor scores table from mockup */}
-            <table style={{ marginTop: '24px' }}>
-              <thead>
-                <tr>
-                  <th>TIMESTAMP ↑</th>
-                  <th>INDICATOR</th>
-                  <th>TYPE</th>
-                  <th>ENRICHMENT SOURCE</th>
-                  <th>STATUS</th>
-                  <th colSpan={4}>THREAT SCORE<br /><span style={{ fontWeight: 600 }}>Critical &nbsp; High &nbsp; AbuseIPDB &nbsp; Vendor</span></th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr>
-                  <td>2022-07-18:16…</td>
-                  <td className="font-mono">Locallecnite7…</td>
-                  <td>Hash</td>
-                  <td className="owner-name">S. Skallenorora.com</td>
-                  <td>Active</td>
-                  <td>13 <span className="wbadge">W</span></td>
-                  <td>5 <span className="wbadge">W</span></td>
-                  <td>
-                    0 &nbsp;
-                    <svg width="30" height="14" viewBox="0 0 30 14" style={{ display: 'inline' }}>
-                      <polyline points="0,10 8,4 16,8 24,2 30,6" fill="none" stroke="var(--cyan)" strokeWidth="1.5" />
-                    </svg>
-                  </td>
-                  <td>
-                    0 &nbsp;
-                    <svg width="30" height="14" viewBox="0 0 30 14" style={{ display: 'inline' }}>
-                      <polyline points="0,10 8,4 16,8 24,2 30,6" fill="none" stroke="var(--cyan)" strokeWidth="1.5" />
-                    </svg>
-                  </td>
-                </tr>
-                <tr>
-                  <td>2022-07-18:16…</td>
-                  <td className="font-mono">Locallestom5…</td>
-                  <td>Domain</td>
-                  <td>AbuseIPDB</td>
-                  <td>Active</td>
-                  <td>42 <span className="wbadge">W</span></td>
-                  <td>5 <span className="wbadge">W</span></td>
-                  <td>
-                    0 &nbsp;
-                    <svg width="30" height="14" viewBox="0 0 30 14" style={{ display: 'inline' }}>
-                      <polyline points="0,4 8,10 16,4 24,8 30,2" fill="none" stroke="var(--cyan)" strokeWidth="1.5" />
-                    </svg>
-                  </td>
-                  <td>0</td>
-                </tr>
-              </tbody>
-            </table>
           </div>
-
-          {/* Floating Threat Actor Map */}
-          <div className="map-float">
-            <div className="map-float-head">
-              <h3>🗺 Threat Actor Map</h3>
-              <div className="map-icons">⤢ ⚙ ⛶</div>
-            </div>
-            <div className="map-box">
-              <svg viewBox="0 0 400 260">
-                {/* Silhouette map dots */}
-                {mapData.dots.map((dot, idx) => (
-                  <circle key={idx} cx={dot.x} cy={dot.y} r={0.8} fill="var(--map-dot-color)" />
-                ))}
-
-                {/* Arc connections */}
-                {mapData.arcs.map(([x1, y1, x2, y2], idx) => {
-                  const mx = (x1 + x2) / 2
-                  const my = (y1 + y2) / 2 - 24
-                  return (
-                    <path
-                      key={idx}
-                      d={`M${x1},${y1} Q${mx},${my} ${x2},${y2}`}
-                      fill="none"
-                      stroke="var(--map-path-color)"
-                      strokeWidth="1.1"
-                    />
-                  )
-                })}
-
-                {/* Radar spots */}
-                {mapData.spots.map(([x, y], idx) => {
-                  const gradId = `mg-intel-dark-${idx}`
-                  return (
-                    <g key={idx}>
-                      <defs>
-                        <radialGradient id={gradId}>
-                          <stop offset="0%" stopColor="var(--map-hotspot-color)" stopOpacity="0.9" />
-                          <stop offset="100%" stopColor="var(--map-hotspot-color)" stopOpacity="0" />
-                        </radialGradient>
-                      </defs>
-                      <circle cx={x} cy={y} r={16} fill={`url(#${gradId})`} />
-                      <circle cx={x} cy={y} r={3} fill="var(--map-dot-center-color)" />
-                    </g>
-                  )
-                })}
-              </svg>
-            </div>
-          </div>
-        </div>
-
-        {/* Bottom widgets columns */}
-        <div className="bottom-cols">
-          
-          <div className="feed-panel">
-            <div className="feed-head">
-              <h3>Threat intel Feed</h3>
-              <span style={{ color: 'var(--dim)', cursor: 'pointer' }}>⌃</span>
-            </div>
-            <div className="feed-flow">
-              <div className="feed-step"><div className="feed-icon">👤</div><div className="feed-lbl">Assignment seen</div></div>
-              <div className="feed-arrow">→</div>
-              <div className="feed-step"><div className="feed-icon active">🎯</div><div className="feed-lbl">Invsged Diagnose</div></div>
-              <div className="feed-arrow">→</div>
-              <div className="feed-step"><div className="feed-icon">$</div><div className="feed-lbl">Enverged Diagnose</div></div>
-              <div className="feed-arrow">→</div>
-              <div className="feed-step"><div className="feed-icon">①</div><div className="feed-lbl">Severned Diagnose</div></div>
-              <div className="feed-arrow">→</div>
-              <div className="feed-step"><div className="feed-icon">↻</div><div className="feed-lbl">Conflicts</div></div>
-              <div className="feed-arrow">→</div>
-              <div className="feed-step"><div className="feed-icon">!</div><div className="feed-lbl">Conflicts</div></div>
-              <div className="feed-arrow">→</div>
-              <div className="feed-step"><div className="feed-icon">⚗</div><div className="feed-lbl">Corolfilist seen</div></div>
-              <div className="feed-arrow">→</div>
-              <div className="feed-step"><div className="feed-icon">⚙</div><div className="feed-lbl">Threat intel Feed</div></div>
-            </div>
-          </div>
-
-          <div className="wordcloud-panel">
-            <h3>Emerging Threats Word Cloud</h3>
-            <div className="cloud">
-              <span style={{ fontSize: '14px', color: '#7c8ba3' }}>Tirotet</span> &nbsp;
-              <span style={{ fontSize: '20px', color: '#f97316' }}>Ransomware</span> &nbsp;
-              <span style={{ fontSize: '12px', color: '#94a3b8' }}>APTwars</span> &nbsp;
-              <span style={{ fontSize: '17px', color: '#5b9dff' }}>Malware</span> &nbsp;
-              <span style={{ fontSize: '19px', color: '#c7d1ea' }}>Familittare</span> &nbsp;
-              <span style={{ fontSize: '12px', color: '#94a3b8' }}>Ransomware</span><br />
-              <span style={{ fontSize: '13px', color: '#7c8ba3' }}>Hardware</span> &nbsp;
-              <span style={{ fontSize: '30px', color: '#f97316', fontWeight: 900 }}>Emotet</span> &nbsp;
-              <span style={{ fontSize: '11px', color: '#94a3b8' }}>Supply Chain Attack</span><br />
-              <span style={{ fontSize: '12px', color: '#94a3b8' }}>Ransomwarwarmware</span> &nbsp;
-              <span style={{ fontSize: '28px', color: '#c084fc' }}>APT28</span> &nbsp;
-              <span style={{ fontSize: '30px', color: '#ef4444', fontWeight: 900 }}>Ransomware</span> &nbsp;
-              <span style={{ fontSize: '12px', color: '#94a3b8' }}>ForrestDroures</span><br />
-              <span style={{ fontSize: '16px', color: '#c7d1ea' }}>Emoret</span> &nbsp;
-              <span style={{ fontSize: '19px', color: '#5b9dff' }}>Supply Chain Attack</span> &nbsp;
-              <span style={{ fontSize: '12px', color: '#94a3b8' }}>Tiestram</span>
-            </div>
-          </div>
-
         </div>
       </div>
     </div>

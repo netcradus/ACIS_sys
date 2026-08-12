@@ -16,7 +16,6 @@ import {
 } from 'lucide-react'
 import { clsx } from 'clsx'
 import { useCanWrite, MODULES } from '@/store/permissionsStore'
-import { useThemeStore } from '@/store/themeStore'
 import apiClient from '@/lib/apiClient'
 import { useNavigate } from 'react-router-dom'
 import HeatmapGrid from '@/components/viz/HeatmapGrid'
@@ -125,18 +124,8 @@ function formatDuration(startedAt: string | null, completedAt: string | null) {
   return seconds < 60 ? `${seconds}s` : `${Math.round(seconds / 60)}m`
 }
 
-function seedRandom(seed: number) {
-  let s = seed
-  return function() {
-    s = (s * 9301 + 49297) % 233280
-    return s / 233280
-  }
-}
-
 export default function RedTeamPage() {
   const canWrite = useCanWrite(MODULES.SOAR_PLAYBOOKS)
-  const { resolvedTheme } = useThemeStore()
-  const isLight = resolvedTheme === 'light'
 
   const [simulations, setSimulations] = useState<Simulation[]>([])
   const [executions, setExecutions] = useState<ExecutionView[]>([])
@@ -281,56 +270,6 @@ export default function RedTeamPage() {
 
   const selectedExecution = executions.find((e) => e.id === selectedExecutionId)
     || (executionHistory.length > 0 ? executions.find((e) => e.id === executionHistory[0].id) : undefined)
-
-  // Map Data generator
-  const mapData = useMemo(() => {
-    const spots = [[90,140],[170,110],[230,130],[300,120],[340,170],[240,220],[130,230],[350,240]]
-    const arcs = [[90,140,170,110],[170,110,230,130],[230,130,300,120],[300,120,340,170],[130,230,240,220],[240,220,350,240]]
-    const dots = []
-    const rng = seedRandom(9999)
-    for (let i = 0; i < 600; i++) {
-      const x = rng() * 400
-      const y = 20 + rng() * 300
-      const inLand = (x>20&&x<110&&y>90&&y<250) || (x>140&&x<230&&y>50&&y<240) || (x>250&&x<390&&y>70&&y<270)
-      if (inLand && rng() < 0.4) {
-        dots.push({ x, y })
-      }
-    }
-    return { dots, spots, arcs }
-  }, [])
-
-  // MITRE coverage map grid SVG generator
-  const mitreGridData = useMemo(() => {
-    const rows = 5, cols = 6
-    const colors = isLight
-      ? ['#f97316','#d97706','#facc15','#94a3b8','#64748b']
-      : ['#f97316','#f59e0b','#facc15','#94a3b8','#64748b']
-
-    const nodePos = []
-    for(let r=0;r<rows;r++){
-      const y = 40 + r*70
-      const rowNodes = []
-      for(let c=0;c<cols;c++){
-        const x = 40 + c*62 + (r%2===0?0:20)
-        rowNodes.push({ x, y, color: colors[r] })
-      }
-      nodePos.push(rowNodes)
-    }
-
-    const lines = []
-    const rng = seedRandom(4444)
-    for (let r = 0; r < rows - 1; r++) {
-      nodePos[r].forEach((n1) => {
-        nodePos[r+1].forEach((n2) => {
-          if (rng() < 0.22) {
-            lines.push({ x1: n1.x, y1: n1.y, x2: n2.x, y2: n2.y })
-          }
-        })
-      })
-    }
-
-    return { lines, nodes: nodePos.flat() }
-  }, [isLight])
 
   return (
     <div className="red-team-page">
@@ -562,32 +501,24 @@ export default function RedTeamPage() {
                 <h3>MITRE ATT&amp;CK Coverage</h3>
                 <div className="sub">Techniques declared across this tenant's simulation library</div>
                 <div className="mitre-box">
-                  <svg viewBox="0 0 400 400">
-                    {/* Connection lines */}
-                    {mitreGridData.lines.map((line, idx) => (
-                      <line
-                        key={idx}
-                        x1={line.x1}
-                        y1={line.y1}
-                        x2={line.x2}
-                        y2={line.y2}
-                        stroke="var(--mitre-edge-color)"
-                        strokeWidth="1"
-                      />
-                    ))}
-
-                    {/* Nodes */}
-                    {mitreGridData.nodes.map((node, idx) => (
-                      <circle
-                        key={idx}
-                        cx={node.x}
-                        cy={node.y}
-                        r={9}
-                        fill={node.color}
-                        opacity="0.85"
-                      />
-                    ))}
-                  </svg>
+                  {matrixCells.length === 0 ? (
+                    <div style={{ padding: '24px 0', textAlign: 'center', color: 'var(--dim)' }}>
+                      No MITRE techniques declared yet.
+                    </div>
+                  ) : (
+                    <div className="mitre-chip-grid">
+                      {matrixCells.map((cell) => (
+                        <span key={cell.id} className={clsx('mitre-chip', cell.state)}>
+                          {cell.label}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                  <div className="mitre-legend">
+                    <span><span className="d running" />Running</span>
+                    <span><span className="d executed" />Executed</span>
+                    <span><span className="d declared" />Declared only</span>
+                  </div>
                 </div>
               </div>
 
@@ -625,63 +556,6 @@ export default function RedTeamPage() {
                     </div>
                   )}
                 </div>
-
-                {/* Floating Campaign hot-spot map */}
-                <div className="map-float">
-                  <div className="map-float-head">
-                    <h3>📷 Global Attack Visualization Map</h3>
-                    <div className="map-icons">⤢ ⚙ ⛶</div>
-                  </div>
-                  <div className="map-box">
-                    <svg viewBox="0 0 400 340">
-                      {/* Silhouette dots */}
-                      {mapData.dots.map((dot, idx) => (
-                        <circle key={idx} cx={dot.x} cy={dot.y} r={0.8} fill="var(--map-dot-color)" />
-                      ))}
-
-                      {/* Connection pathways */}
-                      {mapData.arcs.map(([x1, y1, x2, y2], idx) => {
-                        const mx = (x1 + x2) / 2
-                        const my = (y1 + y2) / 2 - 30
-                        return (
-                          <path
-                            key={idx}
-                            d={`M${x1},${y1} Q${mx},${my} ${x2},${y2}`}
-                            fill="none"
-                            stroke="var(--map-path-color)"
-                            strokeWidth="1.3"
-                          />
-                        )
-                      })}
-
-                      {/* Hotspots */}
-                      {mapData.spots.map(([x, y], idx) => {
-                        const gradId = `ng-red-map-${idx}`
-                        if (isLight) {
-                          return (
-                            <g key={idx}>
-                              <circle cx={x} cy={y} r={9} fill="#fde3b8" stroke="#d97706" strokeWidth={1.5} />
-                              <circle cx={x} cy={y} r={2.8} fill="#b45309" />
-                            </g>
-                          )
-                        }
-                        return (
-                          <g key={idx}>
-                            <defs>
-                              <radialGradient id={gradId}>
-                                <stop offset="0%" stopColor="var(--map-hotspot-color)" stopOpacity="0.85" />
-                                <stop offset="100%" stopColor="var(--map-hotspot-color)" stopOpacity="0" />
-                              </radialGradient>
-                            </defs>
-                            <circle cx={x} cy={y} r={16} fill={`url(#${gradId})`} />
-                            <circle cx={x} cy={y} r={2.8} fill="var(--map-dot-center-color)" />
-                          </g>
-                        )
-                      })}
-                    </svg>
-                  </div>
-                </div>
-
               </div>
 
             </div>

@@ -743,3 +743,79 @@
   color: var(--dim);
   font-size: 18px;
 }
+
+/* Drawer UI Enhancements */
+.alerts-page .bottom-card {
+  background: var(--card-bg) !important;
+  border-radius: 16px;
+  border: 1px solid var(--border-soft);
+  box-shadow: 0 12px 36px -10px rgba(0, 0, 0, 0.4), var(--box-shadow);
+  padding: 24px;
+  transition: all 0.3s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+:root[data-theme="light"] .alerts-page .bottom-card,
+[data-theme="light"] .alerts-page .bottom-card {
+  box-shadow: 0 12px 30px -12px rgba(30, 50, 110, 0.2), var(--box-shadow);
+}
+
+.alerts-page .bottom-card .bg-input-bg {
+  border-color: var(--border-soft) !important;
+}
+
+.alerts-page .bottom-card .border-l-red {
+  border-left-color: var(--red) !important;
+}
+
+.alerts-page .bottom-card .border-l-amber {
+  border-left-color: var(--amber) !important;
+}
+
+.alerts-page .bottom-card .border-l-blue {
+  border-left-color: var(--blue) !important;
+}
+
+.alerts-page .bottom-card .bg-blue {
+  background: linear-gradient(90deg, #3b82f6, #2563eb) !important;
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.25) !important;
+  border: none !important;
+}
+
+.alerts-page .bottom-card .bg-blue:hover {
+  opacity: 0.9 !important;
+}
+
+.alerts-page .bottom-card .select-pill {
+  background: var(--input-bg) !important;
+  border: 1px solid var(--border-soft) !important;
+  color: var(--text) !important;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  border-radius: 8px !important;
+  padding: 10px 16px !important;
+}
+
+.alerts-page .bottom-card .select-pill:hover {
+  border-color: var(--blue) !important;
+  background: var(--tr-hover) !important;
+}
+
+.alerts-page .bottom-card .new-rule-btn {
+  background: linear-gradient(90deg, #9333ea, #a855f7) !important;
+  color: #ffffff !important;
+  box-shadow: 0 4px 12px rgba(168, 85, 247, 0.25) !important;
+  border: none !important;
+  font-weight: 700 !important;
+  border-radius: 8px !important;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.alerts-page .bottom-card .new-rule-btn:hover {
+  opacity: 0.9 !important;
+}
+

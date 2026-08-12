@@ -276,61 +276,9 @@
   text-transform: uppercase;
 }
 
-.threat-intel-page .ioc-mini {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
-.threat-intel-page .ioc-mini-left .n {
-  font-size: 22px;
-  font-weight: 900;
-  color: var(--heading-color);
-}
-
-.threat-intel-page .ioc-mini-left .l {
-  font-size: 9.5px;
-  font-weight: 700;
-  color: var(--dim);
-  margin-top: 4px;
-  text-transform: uppercase;
-}
-
-.threat-intel-page .spark-wrap {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.threat-intel-page .spark-wrap .n {
-  font-size: 14px;
-  font-weight: 800;
-  color: var(--heading-color);
-}
-
-.threat-intel-page .ioc-mini-right {
-  text-align: right;
-}
-
-.threat-intel-page .ioc-mini-right .n {
-  font-size: 22px;
-  font-weight: 900;
-  color: var(--heading-color);
-}
-
 .threat-intel-page .sev-axis {
   display: flex;
   gap: 14px;
-}
-
-.threat-intel-page .axis-y {
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  font-size: 10px;
-  color: var(--dim);
-  font-weight: 700;
-  height: 160px;
 }
 
 .threat-intel-page .stack-bars {
@@ -354,21 +302,6 @@
   transition: height 0.3s ease;
 }
 
-.threat-intel-page .stack-lbls {
-  display: flex;
-  gap: 18px;
-  margin-top: 8px;
-  padding-left: 24px;
-}
-
-.threat-intel-page .stack-lbls span {
-  flex: 1;
-  text-align: center;
-  font-size: 10.5px;
-  color: var(--dim);
-  font-weight: 700;
-}
-
 .threat-intel-page .sev-legend {
   display: flex;
   flex-direction: column;
@@ -389,6 +322,12 @@
   width: 8px;
   height: 8px;
   border-radius: 50%;
+}
+
+.threat-intel-page .sev-legend .n {
+  margin-left: auto;
+  color: var(--dim);
+  font-weight: 800;
 }
 
 .threat-intel-page .src-row {
@@ -540,216 +479,3 @@
   font-weight: 700;
 }
 
-.threat-intel-page .owner-name {
-  color: #7dd3fc;
-  font-weight: 600;
-}
-
-:root[data-theme="light"] .threat-intel-page .owner-name,
-[data-theme="light"] .threat-intel-page .owner-name {
-  color: #2563eb;
-}
-
-.threat-intel-page .wbadge {
-  font-size: 10px;
-  font-weight: 800;
-  padding: 2px 5px;
-  border-radius: 4px;
-  background: rgba(245, 158, 11, 0.15);
-  color: #fbbf24;
-  margin-left: 2px;
-}
-
-/* threat actor map floating card */
-.threat-intel-page .map-float {
-  position: absolute;
-  right: 0;
-  top: 250px;
-  width: 44%;
-  background: var(--card-bg);
-  border: 1px solid var(--border-soft);
-  border-radius: 16px;
-  box-shadow: 0 24px 60px -18px rgba(0, 0, 0, 0.7);
-  padding: 18px 20px;
-  z-index: 10;
-  transition: all 0.3s ease;
-}
-
-@media (max-width: 1280px) {
-  .threat-intel-page .map-float {
-    position: relative;
-    top: auto;
-    right: auto;
-    width: 100%;
-    margin-bottom: 20px;
-  }
-}
-
-.threat-intel-page .map-float-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 12px;
-}
-
-.threat-intel-page .map-float-head h3 {
-  font-size: 15px;
-  font-weight: 800;
-  color: var(--heading-color);
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.threat-intel-page .map-icons {
-  display: flex;
-  gap: 10px;
-  color: var(--dim);
-  font-size: 13px;
-}
-
-.threat-intel-page .map-box {
-  position: relative;
-  border-radius: 10px;
-  overflow: hidden;
-  height: 280px;
-  background: #081018;
-}
-
-:root[data-theme="light"] .threat-intel-page .map-box,
-[data-theme="light"] .threat-intel-page .map-box {
-  background: #eef1f8;
-  border: 1px solid var(--border-soft);
-}
-
-.threat-intel-page .map-box svg {
-  width: 100%;
-  height: 100%;
-}
-
-/* threat intel feed timeline */
-.threat-intel-page .feed-panel {
-  background: var(--card-bg);
-  border: 1px solid var(--border-soft);
-  border-radius: 14px;
-  padding: 22px 24px;
-  margin-bottom: 20px;
-  box-shadow: var(--box-shadow);
-}
-
-.threat-intel-page .feed-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 20px;
-}
-
-.threat-intel-page .feed-head h3 {
-  font-size: 17px;
-  font-weight: 800;
-  color: var(--heading-color);
-}
-
-.threat-intel-page .feed-flow {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 6px;
-  overflow-x: auto;
-  padding-bottom: 6px;
-}
-
-.threat-intel-page .feed-step {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 10px;
-  flex: 1;
-  min-width: 80px;
-}
-
-.threat-intel-page .feed-icon {
-  width: 44px;
-  height: 44px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 18px;
-  background: rgba(120, 90, 60, 0.2);
-  color: #c99a6b;
-  border: 2px solid rgba(120, 90, 60, 0.4);
-}
-
-:root[data-theme="light"] .threat-intel-page .feed-icon,
-[data-theme="light"] .threat-intel-page .feed-icon {
-  background: #eef1f9;
-  color: #5c6684;
-  border: 2px solid var(--border-soft);
-}
-
-.threat-intel-page .feed-icon.active {
-  background: rgba(34, 211, 238, 0.15);
-  color: #22d3ee;
-  border-color: rgba(34, 211, 238, 0.5);
-  box-shadow: 0 0 18px -4px rgba(34, 211, 238, 0.6);
-}
-
-:root[data-theme="light"] .threat-intel-page .feed-icon.active,
-[data-theme="light"] .threat-intel-page .feed-icon.active {
-  background: #dbe6fd;
-  color: #1d4fd8;
-  border-color: #bcd3fb;
-  box-shadow: none;
-}
-
-.threat-intel-page .feed-lbl {
-  font-size: 10.5px;
-  font-weight: 700;
-  color: var(--text);
-  text-align: center;
-}
-
-.threat-intel-page .feed-arrow {
-  color: var(--dim);
-  font-size: 16px;
-  padding-top: 12px;
-}
-
-/* word cloud */
-.threat-intel-page .wordcloud-panel {
-  background: var(--card-bg);
-  border: 1px solid var(--border-soft);
-  border-radius: 14px;
-  padding: 22px 24px;
-  box-shadow: var(--box-shadow);
-}
-
-.threat-intel-page .wordcloud-panel h3 {
-  font-size: 17px;
-  font-weight: 800;
-  color: var(--heading-color);
-  margin-bottom: 16px;
-}
-
-.threat-intel-page .cloud {
-  line-height: 2.2;
-}
-
-.threat-intel-page .cloud span {
-  margin-right: 14px;
-  display: inline-block;
-  font-weight: 700;
-}
-
-.threat-intel-page .bottom-cols {
-  display: grid;
-  grid-template-columns: 1fr 380px;
-  gap: 20px;
-}
-
-@media (max-width: 1024px) {
-  .threat-intel-page .bottom-cols {
-    grid-template-columns: 1fr;
-  }
-}

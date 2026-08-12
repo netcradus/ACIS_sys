@@ -401,15 +401,10 @@ export default function CorrelationPage() {
   }
 
   // Dynamic disabled rules display
-  const disabledRuleNames = useMemo(() => {
-    const disabled = rules.filter(r => !r.enabled).map(r => r.name)
-    return disabled.length > 0
-      ? disabled
-      : ['Brute Force Attempt', 'Lateral Movement Detect', 'Lateral Movement Detect-Attempt']
-  }, [rules])
+  const disabledRuleNames = useMemo(() => rules.filter(r => !r.enabled).map(r => r.name), [rules])
 
   // Gauge risk score coordinate calculations
-  const avgRisk = stats?.avgRiskScore ?? 85
+  const avgRisk = stats?.avgRiskScore ?? 0
   const needleAngle = useMemo(() => {
     const score = Math.min(Math.max(avgRisk, 0), 100)
     return 180 - (score / 100) * 180
@@ -427,25 +422,21 @@ export default function CorrelationPage() {
   // Category donut charts calculations (Search Efficiency)
   const categories = useMemo(() => {
     let auth = 0, malware = 0, access = 0, persistence = 0, other = 0
-    if (rules.length > 0) {
-      rules.forEach(r => {
-        const name = r.name.toLowerCase()
-        const spl = r.splQuery.toLowerCase()
-        if (name.includes('auth') || name.includes('login') || spl.includes('auth') || spl.includes('login') || name.includes('brute')) {
-          auth++
-        } else if (name.includes('malware') || name.includes('virus') || name.includes('ransom') || name.includes('trojan')) {
-          malware++
-        } else if (name.includes('access') || name.includes('port') || name.includes('privilege') || name.includes('bypass')) {
-          access++
-        } else if (name.includes('persist') || name.includes('cron') || name.includes('registry') || name.includes('startup')) {
-          persistence++
-        } else {
-          other++
-        }
-      })
-    } else {
-      auth = 19; malware = 27; access = 16; persistence = 18; other = 9
-    }
+    rules.forEach(r => {
+      const name = r.name.toLowerCase()
+      const spl = r.splQuery.toLowerCase()
+      if (name.includes('auth') || name.includes('login') || spl.includes('auth') || spl.includes('login') || name.includes('brute')) {
+        auth++
+      } else if (name.includes('malware') || name.includes('virus') || name.includes('ransom') || name.includes('trojan')) {
+        malware++
+      } else if (name.includes('access') || name.includes('port') || name.includes('privilege') || name.includes('bypass')) {
+        access++
+      } else if (name.includes('persist') || name.includes('cron') || name.includes('registry') || name.includes('startup')) {
+        persistence++
+      } else {
+        other++
+      }
+    })
     return { auth, malware, access, persistence, other }
   }, [rules])
 
@@ -476,16 +467,7 @@ export default function CorrelationPage() {
     }
   }, [categories])
 
-  // Events Processed last 10 min
-  const now = new Date()
-  const tenMinAgo = new Date(now.getTime() - 10 * 60 * 1000)
-  const formatTimeHM = (d: Date) => d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })
-
-  const eventsSeries = useMemo(() => {
-    return stats?.eventsSeries && stats.eventsSeries.length > 0
-      ? stats.eventsSeries
-      : [80, 60, 85, 150, 50, 90, 95, 110, 80, 130, 90, 100, 140, 105, 95]
-  }, [stats])
+  const eventsSeries = stats?.eventsSeries ?? []
 
   return (
     <div className="correlation-page">
@@ -511,7 +493,7 @@ export default function CorrelationPage() {
         <div className="stat-row">
           <div className="stat-card amber">
             <div className="l">Active Rules</div>
-            <div className="v">{stats?.activeRules ?? 28}</div>
+            <div className="v">{stats?.activeRules ?? 0}</div>
             <svg viewBox="0 0 220 70" width="100%" height="60">
               <polyline
                 points="0,50 30,35 60,42 90,20 120,32 150,10 180,25 220,15"
@@ -527,37 +509,24 @@ export default function CorrelationPage() {
 
           <div className="stat-card blue">
             <div className="l">Alerts Fired Today</div>
-            <div className="v">{alertsToday || 14}</div>
+            <div className="v">{alertsToday}</div>
             <svg viewBox="0 0 220 60" width="100%" height="55">
               <g fill="var(--alerts-bar-fill)">
-                <rect x="0" y="46" width="8" height="8" />
-                <rect x="12" y="40" width="8" height="14" />
-                <rect x="24" y="34" width="8" height="20" />
-                <rect x="36" y="30" width="8" height="24" />
-                <rect x="48" y="28" width="8" height="26" />
-                <rect x="60" y="20" width="8" height="34" />
-                <rect x="72" y="10" width="8" height="44" />
-                <rect x="84" y="18" width="8" height="36" />
-                <rect x="96" y="24" width="8" height="30" />
-                <rect x="108" y="28" width="8" height="26" />
-                <rect x="120" y="22" width="8" height="32" />
-                <rect x="132" y="16" width="8" height="38" />
-                <rect x="144" y="8" width="8" height="46" />
-                <rect x="156" y="20" width="8" height="34" />
-                <rect x="168" y="30" width="8" height="24" />
-                <rect x="180" y="26" width="8" height="28" />
-                <rect x="192" y="34" width="8" height="20" />
-                <rect x="204" y="30" width="8" height="24" />
+                {eventsSeries.map((v, i) => {
+                  const max = Math.max(...eventsSeries, 1)
+                  const h = Math.max(2, (v / max) * 46)
+                  return <rect key={i} x={i * (220 / eventsSeries.length)} y={54 - h} width={220 / eventsSeries.length - 4} height={h} />
+                })}
               </g>
             </svg>
-            <div style={{ display: 'flex', justifySelf: 'stretch', justifyContent: 'space-between', fontSize: '9.5px', color: 'var(--dim)', fontWeight: 700, marginTop: '2px' }}>
-              <span>00</span><span>01</span><span>02</span><span>03</span><span>04</span><span>06</span><span>08</span><span>10</span><span>12</span><span>14</span><span>16</span><span>18</span>
+            <div style={{ fontSize: '9.5px', color: 'var(--dim)', fontWeight: 700, marginTop: '2px' }}>
+              LAST ~80S EVENT VOLUME
             </div>
           </div>
 
           <div className="stat-card red">
             <div className="l">Rules Disabled</div>
-            <div className="v">{stats?.disabledRules ?? 3}</div>
+            <div className="v">{stats?.disabledRules ?? 0}</div>
             <div className="rule-list">
               {disabledRuleNames.map((name, idx) => (
                 <div key={idx} className="truncate">{name}</div>
@@ -805,43 +774,24 @@ export default function CorrelationPage() {
               <h3>Rule Match Activity</h3>
               <span className="live-badge">LIVE</span>
             </div>
-            <div className="match-sub">EVENT PROCESSING</div>
-            <div className="match-line">
-              {[
-                { left: 2, top: 0, color: 'var(--dim)', size: 5 },
-                { left: 15, top: 0, color: '#3b82f6', size: 7 },
-                { left: 26, top: 0, color: '#3b82f6', size: 7 },
-                { left: 35, top: 0, color: 'var(--dim)', size: 5 },
-                { left: 42, top: -14, color: '#60a5fa', size: 6 },
-                { left: 48, top: 0, color: 'var(--dim)', size: 5 },
-                { left: 55, top: -16, color: '#1e40af', size: 7 },
-                { left: 60, top: -14, color: '#1e40af', size: 7 },
-                { left: 67, top: 14, color: 'var(--dim)', size: 5 },
-                { left: 71, top: 14, color: 'var(--dim)', size: 5 },
-                { left: 76, top: 14, color: 'var(--dim)', size: 5 },
-                { left: 84, top: -14, color: '#1e40af', size: 7 },
-                { left: 89, top: -16, color: '#1e40af', size: 7 },
-                { left: 95, top: 0, color: '#60a5fa', size: 6 },
-                { left: 99, top: 14, color: 'var(--dim)', size: 5 }
-              ].map((dot, idx) => (
-                <div
-                  key={idx}
-                  className="match-dot"
-                  style={{
-                    left: `${dot.left}%`,
-                    top: `calc(50% + ${dot.top}px)`,
-                    background: dot.color,
-                    width: `${dot.size}px`,
-                    height: `${dot.size}px`,
-                    transform: 'translate(-50%,-50%)'
-                  }}
-                />
-              ))}
-            </div>
-            <div className="match-time">
-              <span>{formatTimeHM(tenMinAgo)}</span>
-              <span>{formatTimeHM(now)}</span>
-            </div>
+            <div className="match-sub">MATCHES SINCE ENGINE START</div>
+            {(!stats?.ruleActivity || stats.ruleActivity.length === 0) ? (
+              <div style={{ padding: '24px 0', textAlign: 'center', color: 'var(--dim)' }}>
+                No rule activity recorded yet.
+              </div>
+            ) : (
+              <div className="rule-list" style={{ marginTop: '10px' }}>
+                {[...stats.ruleActivity]
+                  .sort((a, b) => b.matchCount - a.matchCount)
+                  .slice(0, 6)
+                  .map((r) => (
+                    <div key={r.ruleId} className="truncate" style={{ display: 'flex', justifyContent: 'space-between', gap: '8px' }}>
+                      <span className="truncate">{r.name}</span>
+                      <span style={{ color: 'var(--dim)', fontWeight: 700 }}>{r.matchCount}</span>
+                    </div>
+                  ))}
+              </div>
+            )}
           </div>
 
           <div className="mid-card">
