@@ -90,7 +90,7 @@ export default function ThreatIntelPage() {
       else other++
     })
     if (indicators.length === 0) {
-      vt = 20; abuse = 13; other = 0
+      vt = 30; abuse = 13; other = 0
     }
     const total = vt + abuse + other || 1
     const circ = 2 * Math.PI * 48 // ~301.59
@@ -119,10 +119,10 @@ export default function ThreatIntelPage() {
     
     // Fall back to mockup ratios if no data is present
     return [
-      { stack: [40, 55, 45, 20] },
-      { stack: [50, 60, 50, 25] },
-      { stack: [42, 58, 48, 22] },
-      { stack: [crit > 0 ? crit : 38, high > 0 ? high : 52, med > 0 ? med : 46, low > 0 ? low : 18] }
+      { stack: [30, 50, 55, 25] },
+      { stack: [35, 55, 60, 30] },
+      { stack: [28, 48, 52, 26] },
+      { stack: [crit > 0 ? crit : 25, high > 0 ? high : 45, med > 0 ? med : 50, low > 0 ? low : 20] }
     ]
   }, [severityBreakdown])
 
@@ -145,6 +145,14 @@ export default function ThreatIntelPage() {
 
   return (
     <div className="threat-intel-page">
+      {/* Atmospheric Background for Dark Mode */}
+      <div className="bg-fixed">
+        <div className="nebula1" />
+        <div className="nebula2" />
+        <div className="nebula3" />
+        <div className="stars" />
+      </div>
+
       <div className="content">
         <div className="page-head">
           <div>
@@ -191,12 +199,12 @@ export default function ThreatIntelPage() {
               </div>
               <div className="spark-wrap">
                 <svg viewBox="0 0 70 30" width="70" height="26">
-                  <polyline points="0,24 15,20 30,22 45,12 60,4 70,6" fill="none" stroke="#16a34a" strokeWidth="2" />
+                  <polyline points="0,24 15,20 30,22 45,12 60,4 70,6" fill="none" stroke="var(--blue)" strokeWidth="2" />
                 </svg>
                 <span className="n">3</span>
               </div>
               <div className="ioc-mini-right">
-                <div className="n">142</div>
+                <div className="n">3</div>
               </div>
             </div>
           </div>
@@ -211,7 +219,7 @@ export default function ThreatIntelPage() {
                 {sevBarsData.map((item, idx) => (
                   <div key={idx} className="stack-col">
                     {item.stack.map((v, sIdx) => {
-                      const colors = ['#94a3b8', '#f59e0b', '#ea580c', '#dc2626']
+                      const colors = ['#22d3ee', '#3b82f6', '#ea580c', '#dc2626']
                       return (
                         <div
                           key={sIdx}
@@ -229,8 +237,8 @@ export default function ThreatIntelPage() {
               <div className="sev-legend">
                 <div><span className="d" style={{ background: '#dc2626' }}></span>Critical</div>
                 <div><span className="d" style={{ background: '#ea580c' }}></span>High</div>
-                <div><span className="d" style={{ background: '#f59e0b' }}></span>Medium</div>
-                <div><span className="d" style={{ background: '#94a3b8' }}></span>Low</div>
+                <div><span className="d" style={{ background: '#3b82f6' }}></span>Medium</div>
+                <div><span className="d" style={{ background: '#22d3ee' }}></span>Low</div>
               </div>
             </div>
             <div className="stack-lbls">
@@ -242,14 +250,14 @@ export default function ThreatIntelPage() {
             <h3>Source Breakdown</h3>
             <div className="src-row">
               <div className="src-list">
-                <div><span className="d" style={{ background: '#1e3a8a' }}></span>VirusTotal <span className="n">{sourceBreakdown.vtCount}</span></div>
-                <div><span className="d" style={{ background: '#334155' }}></span>AbuseIPDB <span className="n">{sourceBreakdown.abuseCount}</span></div>
-                <div><span className="d" style={{ background: '#d97706' }}></span>Others <span className="n">{sourceBreakdown.otherCount}</span></div>
+                <div><span className="d" style={{ background: 'var(--src-donut-vt)' }}></span>VirusTotal <span className="n">{sourceBreakdown.vtCount}</span></div>
+                <div><span className="d" style={{ background: 'var(--src-donut-abuse)' }}></span>AbuseIPDB <span className="n">{sourceBreakdown.abuseCount}</span></div>
+                <div><span className="d" style={{ background: 'var(--src-donut-other)' }}></span>Others <span className="n">{sourceBreakdown.otherCount}</span></div>
               </div>
               <svg viewBox="0 0 130 130" width="120" height="120" style={{ transform: 'rotate(-90deg)' }}>
-                <circle cx="65" cy="65" r="48" fill="none" stroke="#1e3a8a" strokeWidth="22" strokeDasharray={`${sourceBreakdown.vt.dash} ${sourceBreakdown.circ - sourceBreakdown.vt.dash}`} strokeDashoffset={sourceBreakdown.vt.offset} />
-                <circle cx="65" cy="65" r="48" fill="none" stroke="#334155" strokeWidth="22" strokeDasharray={`${sourceBreakdown.abuse.dash} ${sourceBreakdown.circ - sourceBreakdown.abuse.dash}`} strokeDashoffset={sourceBreakdown.abuse.offset} />
-                <circle cx="65" cy="65" r="48" fill="none" stroke="#d97706" strokeWidth="22" strokeDasharray={`${sourceBreakdown.other.dash} ${sourceBreakdown.circ - sourceBreakdown.other.dash}`} strokeDashoffset={sourceBreakdown.other.offset} />
+                <circle cx="65" cy="65" r="48" fill="none" stroke="var(--src-donut-vt)" strokeWidth="22" strokeDasharray={`${sourceBreakdown.vt.dash} ${sourceBreakdown.circ - sourceBreakdown.vt.dash}`} strokeDashoffset={sourceBreakdown.vt.offset} />
+                <circle cx="65" cy="65" r="48" fill="none" stroke="var(--src-donut-abuse)" strokeWidth="22" strokeDasharray={`${sourceBreakdown.abuse.dash} ${sourceBreakdown.circ - sourceBreakdown.abuse.dash}`} strokeDashoffset={sourceBreakdown.abuse.offset} />
+                <circle cx="65" cy="65" r="48" fill="none" stroke="var(--src-donut-other)" strokeWidth="22" strokeDasharray={`${sourceBreakdown.other.dash} ${sourceBreakdown.circ - sourceBreakdown.other.dash}`} strokeDashoffset={sourceBreakdown.other.offset} />
               </svg>
             </div>
           </div>
@@ -375,7 +383,11 @@ export default function ThreatIntelPage() {
                   <tr><td colSpan={5} className="text-center text-text-muted py-6">Loading...</td></tr>
                 )}
                 {!indicatorsLoading && indicators.length === 0 && (
-                  <tr className="empty-row"><td colSpan={5}>No indicators tracked yet — enrich one above to get started.</td></tr>
+                  <tr className="empty-row">
+                    <td colSpan={5}>
+                      <span className="hl">Potential Data Exfiltration</span> · enrich one above to get started.
+                    </td>
+                  </tr>
                 )}
                 {!indicatorsLoading && indicators.slice(0, 20).map((ind) => (
                   <tr key={ind.id}>
@@ -412,7 +424,7 @@ export default function ThreatIntelPage() {
               <tbody>
                 <tr>
                   <td>2022-07-18:16…</td>
-                  <td className="font-mono">Locallocnite7…</td>
+                  <td className="font-mono">Locallecnite7…</td>
                   <td>Hash</td>
                   <td className="owner-name">S. Skallenorora.com</td>
                   <td>Active</td>
@@ -421,13 +433,13 @@ export default function ThreatIntelPage() {
                   <td>
                     0 &nbsp;
                     <svg width="30" height="14" viewBox="0 0 30 14" style={{ display: 'inline' }}>
-                      <polyline points="0,10 8,4 16,8 24,2 30,6" fill="none" stroke="#16a34a" strokeWidth="1.5" />
+                      <polyline points="0,10 8,4 16,8 24,2 30,6" fill="none" stroke="var(--cyan)" strokeWidth="1.5" />
                     </svg>
                   </td>
                   <td>
                     0 &nbsp;
                     <svg width="30" height="14" viewBox="0 0 30 14" style={{ display: 'inline' }}>
-                      <polyline points="0,10 8,4 16,8 24,2 30,6" fill="none" stroke="#16a34a" strokeWidth="1.5" />
+                      <polyline points="0,10 8,4 16,8 24,2 30,6" fill="none" stroke="var(--cyan)" strokeWidth="1.5" />
                     </svg>
                   </td>
                 </tr>
@@ -442,7 +454,7 @@ export default function ThreatIntelPage() {
                   <td>
                     0 &nbsp;
                     <svg width="30" height="14" viewBox="0 0 30 14" style={{ display: 'inline' }}>
-                      <polyline points="0,4 8,10 16,4 24,8 30,2" fill="none" stroke="#16a34a" strokeWidth="1.5" />
+                      <polyline points="0,4 8,10 16,4 24,8 30,2" fill="none" stroke="var(--cyan)" strokeWidth="1.5" />
                     </svg>
                   </td>
                   <td>0</td>
@@ -461,7 +473,7 @@ export default function ThreatIntelPage() {
               <svg viewBox="0 0 400 260">
                 {/* Silhouette map dots */}
                 {mapData.dots.map((dot, idx) => (
-                  <circle key={idx} cx={dot.x} cy={dot.y} r={0.8} fill="rgba(30,58,90,0.35)" />
+                  <circle key={idx} cx={dot.x} cy={dot.y} r={0.8} fill="var(--map-dot-color)" />
                 ))}
 
                 {/* Arc connections */}
@@ -473,25 +485,25 @@ export default function ThreatIntelPage() {
                       key={idx}
                       d={`M${x1},${y1} Q${mx},${my} ${x2},${y2}`}
                       fill="none"
-                      stroke="rgba(30,58,90,0.5)"
-                      strokeWidth="1"
+                      stroke="var(--map-path-color)"
+                      strokeWidth="1.1"
                     />
                   )
                 })}
 
                 {/* Radar spots */}
                 {mapData.spots.map(([x, y], idx) => {
-                  const gradId = `mg-intel-${idx}`
+                  const gradId = `mg-intel-dark-${idx}`
                   return (
                     <g key={idx}>
                       <defs>
                         <radialGradient id={gradId}>
-                          <stop offset="0%" stopColor="#1e3a5f" stopOpacity="0.6" />
-                          <stop offset="100%" stopColor="#1e3a5f" stopOpacity="0" />
+                          <stop offset="0%" stopColor="var(--map-hotspot-color)" stopOpacity="0.9" />
+                          <stop offset="100%" stopColor="var(--map-hotspot-color)" stopOpacity="0" />
                         </radialGradient>
                       </defs>
                       <circle cx={x} cy={y} r={16} fill={`url(#${gradId})`} />
-                      <circle cx={x} cy={y} r={3} fill="#1e3a5f" />
+                      <circle cx={x} cy={y} r={3} fill="var(--map-dot-center-color)" />
                     </g>
                   )
                 })}
@@ -511,15 +523,19 @@ export default function ThreatIntelPage() {
             <div className="feed-flow">
               <div className="feed-step"><div className="feed-icon">👤</div><div className="feed-lbl">Assignment seen</div></div>
               <div className="feed-arrow">→</div>
-              <div className="feed-step"><div className="feed-icon active">🎯</div><div className="feed-lbl">Inviaged Diagnose</div></div>
+              <div className="feed-step"><div className="feed-icon active">🎯</div><div className="feed-lbl">Invsged Diagnose</div></div>
               <div className="feed-arrow">→</div>
-              <div className="feed-step"><div className="feed-icon">↺</div><div className="feed-lbl">Enverged Diagnose</div></div>
+              <div className="feed-step"><div className="feed-icon">$</div><div className="feed-lbl">Enverged Diagnose</div></div>
               <div className="feed-arrow">→</div>
               <div className="feed-step"><div className="feed-icon">①</div><div className="feed-lbl">Severned Diagnose</div></div>
               <div className="feed-arrow">→</div>
               <div className="feed-step"><div className="feed-icon">↻</div><div className="feed-lbl">Conflicts</div></div>
               <div className="feed-arrow">→</div>
-              <div className="feed-step"><div className="feed-icon">⚗</div><div className="feed-lbl">Feed active</div></div>
+              <div className="feed-step"><div className="feed-icon">!</div><div className="feed-lbl">Conflicts</div></div>
+              <div className="feed-arrow">→</div>
+              <div className="feed-step"><div className="feed-icon">⚗</div><div className="feed-lbl">Corolfilist seen</div></div>
+              <div className="feed-arrow">→</div>
+              <div className="feed-step"><div className="feed-icon">⚙</div><div className="feed-lbl">Threat intel Feed</div></div>
             </div>
           </div>
 
@@ -527,21 +543,21 @@ export default function ThreatIntelPage() {
             <h3>Emerging Threats Word Cloud</h3>
             <div className="cloud">
               <span style={{ fontSize: '14px', color: '#7c8ba3' }}>Tirotet</span> &nbsp;
-              <span style={{ fontSize: '20px', color: '#dc2626' }}>Ransomware</span> &nbsp;
-              <span style={{ fontSize: '12px', color: '#94a3b8' }}>APToore</span> &nbsp;
-              <span style={{ fontSize: '17px', color: '#2563eb' }}>Malware</span> &nbsp;
-              <span style={{ fontSize: '19px', color: '#334155' }}>Familiitars</span> &nbsp;
+              <span style={{ fontSize: '20px', color: '#f97316' }}>Ransomware</span> &nbsp;
+              <span style={{ fontSize: '12px', color: '#94a3b8' }}>APTwars</span> &nbsp;
+              <span style={{ fontSize: '17px', color: '#5b9dff' }}>Malware</span> &nbsp;
+              <span style={{ fontSize: '19px', color: '#c7d1ea' }}>Familittare</span> &nbsp;
               <span style={{ fontSize: '12px', color: '#94a3b8' }}>Ransomware</span><br />
               <span style={{ fontSize: '13px', color: '#7c8ba3' }}>Hardware</span> &nbsp;
-              <span style={{ fontSize: '30px', color: '#dc2626', fontWeight: 900 }}>Emotet</span> &nbsp;
+              <span style={{ fontSize: '30px', color: '#f97316', fontWeight: 900 }}>Emotet</span> &nbsp;
               <span style={{ fontSize: '11px', color: '#94a3b8' }}>Supply Chain Attack</span><br />
-              <span style={{ fontSize: '12px', color: '#94a3b8' }}>Ransomwareiware</span> &nbsp;
-              <span style={{ fontSize: '28px', color: '#7c3aed' }}>APT28</span> &nbsp;
-              <span style={{ fontSize: '30px', color: '#dc2626', fontWeight: 900 }}>Ransomware</span> &nbsp;
-              <span style={{ fontSize: '12px', color: '#94a3b8' }}>FansetDroures</span><br />
-              <span style={{ fontSize: '16px', color: '#334155' }}>Emoret</span> &nbsp;
-              <span style={{ fontSize: '19px', color: '#2563eb' }}>Supply Chain Attack</span> &nbsp;
-              <span style={{ fontSize: '12px', color: '#94a3b8' }}>Tiesham</span>
+              <span style={{ fontSize: '12px', color: '#94a3b8' }}>Ransomwarwarmware</span> &nbsp;
+              <span style={{ fontSize: '28px', color: '#c084fc' }}>APT28</span> &nbsp;
+              <span style={{ fontSize: '30px', color: '#ef4444', fontWeight: 900 }}>Ransomware</span> &nbsp;
+              <span style={{ fontSize: '12px', color: '#94a3b8' }}>ForrestDroures</span><br />
+              <span style={{ fontSize: '16px', color: '#c7d1ea' }}>Emoret</span> &nbsp;
+              <span style={{ fontSize: '19px', color: '#5b9dff' }}>Supply Chain Attack</span> &nbsp;
+              <span style={{ fontSize: '12px', color: '#94a3b8' }}>Tiestram</span>
             </div>
           </div>
 
