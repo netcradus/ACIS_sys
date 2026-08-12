@@ -1,0 +1,207 @@
+/* ================= SETTINGS PAGE ================= */
+.settings-page {
+  /* Default Dark Mode Theme */
+  --bg: #070b14;
+  --border-soft: #1b2540;
+  --text: #e7ecf7;
+  --muted: #7c88a8;
+  --dim: #54617f;
+  --blue: #3b82f6;
+  --cyan: #22d3ee;
+  --purple: #a855f7;
+  --green: #22c55e;
+  --amber: #f59e0b;
+  --red: #ef4444;
+
+  /* Card and Panel Backgrounds */
+  --card-bg: linear-gradient(160deg, rgba(16, 23, 40, 0.85), rgba(9, 13, 24, 0.9));
+  --panel-bg: linear-gradient(160deg, rgba(16, 23, 40, 0.85), rgba(9, 13, 24, 0.9));
+  --input-bg: #0e1526;
+  --th-bg: transparent;
+  --tr-hover: rgba(255, 255, 255, 0.02);
+  --tr-border: #171f36;
+  --heading-color: #ffffff;
+  --box-shadow: 0 10px 26px -18px rgba(0, 0, 0, 0.6);
+
+  background: var(--bg) !important;
+  color: var(--text) !important;
+  font-family: 'Inter', sans-serif;
+  min-height: calc(100vh - 160px);
+  position: relative;
+  font-size: 13px;
+  transition: background 0.3s ease, color 0.3s ease;
+}
+
+/* Light Mode Theme Overrides */
+:root[data-theme="light"] .settings-page,
+[data-theme="light"] .settings-page {
+  --bg: #f4f6fa;
+  --border-soft: #e2e7f1;
+  --text: #12182b;
+  --muted: #66708c;
+  --dim: #96a0ba;
+  --blue: #2563eb;
+  --cyan: #0891b2;
+  --purple: #9333ea;
+  --green: #16a34a;
+  --amber: #d97706;
+  --red: #dc2626;
+
+  /* Card and Panel Backgrounds for Light Mode */
+  --card-bg: #ffffff;
+  --panel-bg: #ffffff;
+  --input-bg: #f8faff;
+  --th-bg: #eef1fb;
+  --tr-hover: #f7f9fe;
+  --tr-border: #eef1f9;
+  --heading-color: #0e1526;
+  --box-shadow: 0 8px 20px -16px rgba(30, 50, 110, 0.16);
+}
+
+/* Atmospheric Background */
+.settings-page .bg-fixed {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  overflow: hidden;
+  opacity: 1;
+  transition: opacity 0.3s ease;
+}
+
+:root[data-theme="light"] .settings-page .bg-fixed,
+[data-theme="light"] .settings-page .bg-fixed {
+  opacity: 0;
+}
+
+.settings-page .bg-fixed .nebula1 {
+  position: absolute;
+  top: -10%;
+  left: 20%;
+  width: 1000px;
+  height: 800px;
+  background: radial-gradient(ellipse at center, rgba(96, 90, 220, 0.14), transparent 65%);
+}
+
+.settings-page .bg-fixed .nebula2 {
+  position: absolute;
+  top: 5%;
+  left: 55%;
+  width: 900px;
+  height: 700px;
+  background: radial-gradient(ellipse at center, rgba(59, 130, 246, 0.12), transparent 65%);
+}
+
+.settings-page .bg-fixed .nebula3 {
+  position: absolute;
+  top: 40%;
+  left: 5%;
+  width: 700px;
+  height: 600px;
+  background: radial-gradient(ellipse at center, rgba(168, 85, 247, 0.09), transparent 65%);
+}
+
+.settings-page .bg-fixed .stars {
+  position: absolute;
+  inset: 0;
+  background-image:
+    radial-gradient(1.4px 1.4px at 20px 30px, rgba(255, 255, 255, 0.5), transparent),
+    radial-gradient(1px 1px at 90px 120px, rgba(255, 255, 255, 0.35), transparent),
+    radial-gradient(1.4px 1.4px at 160px 60px, rgba(255, 255, 255, 0.45), transparent),
+    radial-gradient(1px 1px at 230px 180px, rgba(255, 255, 255, 0.3), transparent),
+    radial-gradient(1.4px 1.4px at 300px 40px, rgba(255, 255, 255, 0.45), transparent);
+  background-repeat: repeat;
+  background-size: 400px 300px;
+  opacity: 0.5;
+}
+
+/* Scoped Overrides to Map Tailwind CSS Utility Classes to ACIS Theme Custom Properties */
+.settings-page .border-fire-border {
+  border-color: var(--border-soft) !important;
+}
+
+.settings-page .bg-surface,
+.settings-page .bg-surface-2,
+.settings-page .card-mission {
+  background: var(--card-bg) !important;
+}
+
+.settings-page .bg-surface-3 {
+  background: var(--input-bg) !important;
+}
+
+.settings-page .input-field {
+  background: var(--input-bg) !important;
+  border-color: var(--border-soft) !important;
+  color: var(--text) !important;
+}
+
+.settings-page select.input-field {
+  background-color: var(--input-bg) !important;
+}
+
+.settings-page select.input-field option {
+  background: var(--bg) !important;
+  color: var(--text) !important;
+}
+
+.settings-page .text-text-primary,
+.settings-page h1,
+.settings-page h2,
+.settings-page h3,
+.settings-page h4 {
+  color: var(--heading-color) !important;
+}
+
+.settings-page .text-text-secondary {
+  color: var(--text) !important;
+}
+
+.settings-page .text-text-muted,
+.settings-page .text-label {
+  color: var(--muted) !important;
+}
+
+.settings-page .text-accent {
+  color: var(--cyan) !important;
+}
+
+.settings-page .bg-accent\/5 {
+  background-color: rgba(34, 211, 238, 0.08) !important;
+  border: 1px solid rgba(34, 211, 238, 0.3) !important;
+}
+
+:root[data-theme="light"] .settings-page .bg-accent\/5,
+[data-theme="light"] .settings-page .bg-accent\/5 {
+  background-color: rgba(8, 145, 178, 0.08) !important;
+  border-color: rgba(8, 145, 178, 0.3) !important;
+}
+
+/* Sidebar tab item active background */
+.settings-page aside .text-accent {
+  color: var(--cyan) !important;
+}
+
+.settings-page aside .bg-accent\/5 {
+  background: rgba(34, 211, 238, 0.08) !important;
+  border-color: rgba(34, 211, 238, 0.3) !important;
+}
+
+:root[data-theme="light"] .settings-page aside .bg-accent\/5,
+[data-theme="light"] .settings-page aside .bg-accent\/5 {
+  background: rgba(8, 145, 178, 0.08) !important;
+  border-color: rgba(8, 145, 178, 0.3) !important;
+}
+
+.settings-page table.table-enterprise {
+  border-collapse: collapse;
+}
+
+.settings-page table.table-enterprise thead th {
+  border-bottom: 1px solid var(--border-soft) !important;
+}
+
+.settings-page table.table-enterprise tbody td {
+  border-bottom: 1px solid var(--border-soft) !important;
+  color: var(--text) !important;
+}

@@ -13,6 +13,8 @@ import InDevelopment from '@/components/InDevelopment'
 import { useAuthStore } from '@/store/authStore'
 import { useCanWrite, useCanAdmin, MODULES } from '@/store/permissionsStore'
 import keycloak from '@/lib/keycloak'
+import './SettingsPage.css'
+
 
 interface ApiKey {
   id: string
@@ -1522,7 +1524,15 @@ export default function SettingsPage() {
   }
 
   return (
-    <div className="flex bg-background text-text-secondary min-h-screen">
+    <div className="settings-page flex bg-background text-text-secondary min-h-screen relative">
+      {/* Atmospheric Background for Dark Mode */}
+      <div className="bg-fixed">
+        <div className="nebula1" />
+        <div className="nebula2" />
+        <div className="nebula3" />
+        <div className="stars" />
+      </div>
+
       
       {/* Settings Sub-Sidebar */}
       <aside className="w-56 border-r border-fire-border pr-4 pt-2 space-y-6 shrink-0 hidden md:block">

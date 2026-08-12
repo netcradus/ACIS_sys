@@ -12,14 +12,26 @@
   --green: #22c55e;
   --amber: #f59e0b;
   --red: #ef4444;
+
+  /* Card and Panel Backgrounds */
+  --card-bg: linear-gradient(160deg, rgba(16, 23, 40, 0.85), rgba(9, 13, 24, 0.9));
+  --panel-bg: linear-gradient(160deg, rgba(16, 23, 40, 0.85), rgba(9, 13, 24, 0.9));
+  --input-bg: #0e1526;
+  --th-bg: transparent;
+  --tr-hover: rgba(255, 255, 255, 0.02);
+  --tr-border: #171f36;
   --heading-color: #ffffff;
+  --box-shadow: 0 10px 26px -18px rgba(0, 0, 0, 0.6);
+
+  /* compliance progress tracks */
+  --track-bg: #171f36;
 
   background: var(--bg);
   color: var(--text);
   font-family: 'Inter', sans-serif;
-  font-size: 13px;
-  min-height: 100%;
+  min-height: calc(100vh - 160px);
   position: relative;
+  font-size: 13px;
   transition: background 0.3s ease, color 0.3s ease;
 }
 
@@ -37,10 +49,22 @@
   --green: #16a34a;
   --amber: #d97706;
   --red: #dc2626;
+
+  /* Card and Panel Backgrounds for Light Mode */
+  --card-bg: #ffffff;
+  --panel-bg: #ffffff;
+  --input-bg: #f8faff;
+  --th-bg: #eef1fb;
+  --tr-hover: #f7f9fe;
+  --tr-border: #eef1f9;
   --heading-color: #0e1526;
+  --box-shadow: 0 8px 20px -16px rgba(30, 50, 110, 0.16);
+
+  /* compliance progress tracks for Light Mode */
+  --track-bg: #eef1f9;
 }
 
-/* Atmospheric Background (same as Threat Intel) */
+/* Atmospheric Background */
 .compliance-page .bg-fixed {
   position: absolute;
   inset: 0;
@@ -143,16 +167,12 @@
   display: flex;
   align-items: center;
   gap: 9px;
+  cursor: pointer;
   transition: all 0.2s ease;
 }
 
 .compliance-page .generate-btn:hover {
   opacity: 0.9;
-}
-
-.compliance-page .generate-btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
 }
 
 /* compliance cards row */
@@ -163,43 +183,35 @@
   margin-bottom: 22px;
 }
 
-@media (max-width: 1100px) {
+@media (max-width: 1024px) {
   .compliance-page .comp-row {
     grid-template-columns: 1fr;
   }
 }
 
 .compliance-page .comp-card {
-  background: linear-gradient(160deg, rgba(16, 23, 40, 0.85), rgba(9, 13, 24, 0.9));
+  background: var(--card-bg);
   border: 1px solid var(--border-soft);
   border-radius: 16px;
   padding: 24px 26px;
-  transition: border-color 0.3s ease;
+  box-shadow: var(--box-shadow);
+  transition: all 0.3s ease;
 }
 
-.compliance-page .comp-card:hover {
-  border-color: rgba(59, 130, 246, 0.35);
-}
-
-:root[data-theme="light"] .compliance-page .comp-card,
-[data-theme="light"] .compliance-page .comp-card {
-  background: #ffffff;
-}
-
-.compliance-page .comp-head {
+.compliance-page .comp-subrow {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  margin-bottom: 6px;
+  margin-bottom: 16px;
 }
 
-.compliance-page .comp-head h3 {
+.compliance-page .comp-subrow h3 {
   font-size: 19px;
   font-weight: 800;
   color: var(--heading-color);
 }
 
-.compliance-page .comp-head .pct {
+.compliance-page .comp-subrow .pct {
   font-size: 26px;
   font-weight: 900;
   color: var(--heading-color);
@@ -212,24 +224,18 @@
   letter-spacing: 0.4px;
   color: var(--dim);
   text-transform: uppercase;
+  margin-top: 4px;
 }
 
 .compliance-page .comp-sub.right {
   text-align: right;
 }
 
-.compliance-page .comp-subrow {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  margin-bottom: 16px;
-}
-
 .compliance-page .bar-track {
   width: 100%;
   height: 6px;
   border-radius: 4px;
-  background: #171f36;
+  background: var(--track-bg);
   overflow: hidden;
   margin-bottom: 20px;
 }
@@ -246,6 +252,11 @@
   justify-content: space-between;
   padding: 10px 0;
   gap: 10px;
+  border-bottom: 1px solid var(--tr-border);
+}
+
+.compliance-page .comp-item:last-of-type {
+  border-bottom: none;
 }
 
 .compliance-page .comp-item .left {
@@ -270,9 +281,19 @@
   color: #4ade80;
 }
 
+:root[data-theme="light"] .compliance-page .comp-item .ic.ok,
+[data-theme="light"] .compliance-page .comp-item .ic.ok {
+  color: #16a34a;
+}
+
 .compliance-page .comp-item .ic.dot {
   color: #f87171;
   font-size: 10px;
+}
+
+:root[data-theme="light"] .compliance-page .comp-item .ic.dot,
+[data-theme="light"] .compliance-page .comp-item .ic.dot {
+  color: #dc2626;
 }
 
 .compliance-page .comp-item .mid {
@@ -291,7 +312,6 @@
   border-radius: 6px;
   letter-spacing: 0.3px;
   flex: none;
-  white-space: nowrap;
 }
 
 .compliance-page .badge.compliant {
@@ -300,10 +320,11 @@
   border: 1px solid rgba(34, 197, 94, 0.35);
 }
 
-.compliance-page .badge.inprogress {
-  background: rgba(245, 158, 11, 0.12);
-  color: #fbbf24;
-  border: 1px solid rgba(245, 158, 11, 0.3);
+:root[data-theme="light"] .compliance-page .badge.compliant,
+[data-theme="light"] .compliance-page .badge.compliant {
+  background: rgba(22, 163, 74, 0.12);
+  color: #16a34a;
+  border-color: rgba(22, 163, 74, 0.35);
 }
 
 .compliance-page .badge.nodata {
@@ -312,16 +333,24 @@
   border: 1px solid rgba(239, 68, 68, 0.3);
 }
 
+:root[data-theme="light"] .compliance-page .badge.nodata,
+[data-theme="light"] .compliance-page .badge.nodata {
+  background: rgba(220, 38, 38, 0.12);
+  color: #dc2626;
+  border-color: rgba(220, 38, 38, 0.3);
+}
+
 .compliance-page .badge.nottracked {
   background: rgba(239, 68, 68, 0.12);
   color: #f87171;
   border: 1px solid rgba(239, 68, 68, 0.3);
 }
 
-.compliance-page .badge.attention {
-  background: rgba(239, 68, 68, 0.12);
-  color: #f87171;
-  border: 1px solid rgba(239, 68, 68, 0.3);
+:root[data-theme="light"] .compliance-page .badge.nottracked,
+[data-theme="light"] .compliance-page .badge.nottracked {
+  background: rgba(220, 38, 38, 0.12);
+  color: #dc2626;
+  border-color: rgba(220, 38, 38, 0.3);
 }
 
 .compliance-page .comp-footer {
@@ -330,7 +359,7 @@
   justify-content: space-between;
   margin-top: 16px;
   padding-top: 16px;
-  border-top: 1px solid #171f36;
+  border-top: 1px solid var(--tr-border);
 }
 
 .compliance-page .comp-footer .l {
@@ -349,29 +378,20 @@
   align-items: center;
   gap: 5px;
   cursor: pointer;
-  background: none;
-  border: none;
-  padding: 0;
-  font-family: inherit;
-  transition: color 0.15s ease;
 }
 
-.compliance-page .comp-footer .r:hover {
-  color: #7fb3ff;
+:root[data-theme="light"] .compliance-page .comp-footer .r,
+[data-theme="light"] .compliance-page .comp-footer .r {
+  color: #2563eb;
 }
 
 /* audit trail panel */
 .compliance-page .audit-panel {
-  background: linear-gradient(160deg, rgba(16, 23, 40, 0.85), rgba(9, 13, 24, 0.9));
+  background: var(--card-bg);
   border: 1px solid var(--border-soft);
   border-radius: 16px;
   padding: 26px 28px;
-  overflow-x: auto;
-}
-
-:root[data-theme="light"] .compliance-page .audit-panel,
-[data-theme="light"] .compliance-page .audit-panel {
-  background: #ffffff;
+  box-shadow: var(--box-shadow);
 }
 
 .compliance-page .audit-head {
@@ -408,10 +428,16 @@
   color: #22d3ee;
 }
 
+:root[data-theme="light"] .compliance-page .monitor-pill,
+[data-theme="light"] .compliance-page .monitor-pill {
+  border-color: rgba(8, 145, 178, 0.35);
+  background: rgba(8, 145, 178, 0.08);
+  color: #0891b2;
+}
+
 .compliance-page table.audit-table {
   width: 100%;
   border-collapse: collapse;
-  min-width: 820px;
 }
 
 .compliance-page table.audit-table thead th {
@@ -428,7 +454,7 @@
   padding: 16px 12px;
   font-size: 12.5px;
   color: var(--text);
-  border-bottom: 1px solid #171f36;
+  border-bottom: 1px solid var(--tr-border);
   vertical-align: top;
 }
 
@@ -459,12 +485,20 @@
   white-space: nowrap;
 }
 
+:root[data-theme="light"] .compliance-page .action-badge,
+[data-theme="light"] .compliance-page .action-badge {
+  background: rgba(37, 99, 235, 0.12);
+  color: #2563eb;
+  border-color: rgba(37, 99, 235, 0.3);
+}
+
 .compliance-page .resource-cell {
   font-family: 'JetBrains Mono', monospace;
   font-size: 11.5px;
   color: var(--text);
   line-height: 1.5;
   word-break: break-all;
+  opacity: 0.85;
 }
 
 .compliance-page .integrity-badge {
@@ -477,4 +511,11 @@
   color: #fbbf24;
   border: 1px solid rgba(245, 158, 11, 0.3);
   white-space: nowrap;
+}
+
+:root[data-theme="light"] .compliance-page .integrity-badge,
+[data-theme="light"] .compliance-page .integrity-badge {
+  background: rgba(217, 119, 6, 0.12);
+  color: #d97706;
+  border-color: rgba(217, 119, 6, 0.3);
 }

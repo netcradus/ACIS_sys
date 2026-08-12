@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react'
-import { Download } from 'lucide-react'
+import { Shield, CheckCircle2, AlertTriangle, Download, ChevronRight, Activity } from 'lucide-react'
 import { clsx } from 'clsx'
 import apiClient from '@/lib/apiClient'
 import { useCanWrite, MODULES } from '@/store/permissionsStore'
@@ -15,6 +15,8 @@ interface ComplianceFramework {
   name: string
   description: string
   percentage: number
+  color: string
+  barColor: string
   controls: ComplianceControl[]
 }
 
@@ -28,34 +30,11 @@ interface AuditTrailEntry {
   status: string
 }
 
-const BAR_GRADIENTS: Record<string, string> = {
-  'NIS2': 'linear-gradient(90deg,#16a34a,#22c55e)',
-  'GDPR': 'linear-gradient(90deg,#d97706,#f59e0b)',
-  'ISO 27001': 'linear-gradient(90deg,#3b82f6,#60a5fa)',
-}
-
-const DEFAULT_BAR = 'linear-gradient(90deg,#3b82f6,#60a5fa)'
-
-function controlBadge(status: string): { badge: string; label: string; dot: 'ok' | 'dot' | null } {
-  switch (status) {
-    case 'Compliant':
-      return { badge: 'compliant', label: 'COMPLIANT', dot: 'ok' }
-    case 'In Progress':
-      return { badge: 'inprogress', label: 'IN PROGRESS', dot: 'dot' }
-    case 'Needs Attention':
-      return { badge: 'attention', label: 'NEEDS ATTENTION', dot: 'dot' }
-    case 'No Data':
-      return { badge: 'nodata', label: 'NO DATA', dot: 'dot' }
-    case 'Not Tracked':
-      return { badge: 'nottracked', label: 'NOT TRACKED', dot: 'dot' }
-    default:
-      return { badge: 'nodata', label: status.toUpperCase(), dot: 'dot' }
-  }
-}
-
-function integrityLabel(entry: AuditTrailEntry): string {
-  const base = (entry.status || 'Logged').toUpperCase()
-  return entry.ip ? `${base} · ${entry.ip}` : base
+const getBarGradient = (barColor: string) => {
+  const c = (barColor || '').toLowerCase()
+  if (c.includes('success') || c.includes('green')) return 'linear-gradient(90deg, #16a34a, #22c55e)'
+  if (c.includes('warning') || c.includes('amber') || c.includes('medium')) return 'linear-gradient(90deg, #d97706, #f59e0b)'
+  return 'linear-gradient(90deg, #3b82f6, #60a5fa)'
 }
 
 export default function CompliancePage() {
@@ -118,21 +97,23 @@ export default function CompliancePage() {
             <p>Regulatory posture, audit trails, and reporting evidence</p>
           </div>
           <button
-            className="generate-btn"
             onClick={handleGenerateReport}
             disabled={isReportLoading || !canWrite}
-            title={!canWrite ? "Your role doesn't have write access to Reports & Compliance" : undefined}
+            className="generate-btn"
           >
-            {isReportLoading ? 'Generating Report...' : 'Generate Report'}
-            <Download className="w-4 h-4" />
+            {isReportLoading ? 'Queuing Report...' : 'Generate Report'} ⬇
           </button>
         </div>
 
-        {/* compliance cards */}
+        {/* frameworks cards posture list */}
         <div className="comp-row">
           {isLoading ? (
             Array.from({ length: 3 }).map((_, index) => (
-              <div key={index} className="comp-card animate-pulse" style={{ height: 380 }} />
+              <div
+                key={index}
+                className="comp-card animate-pulse"
+                style={{ height: '320px' }}
+              />
             ))
           ) : (
             frameworks.map((fw) => (
@@ -153,41 +134,49 @@ export default function CompliancePage() {
                     className="bar-fill"
                     style={{
                       width: `${fw.percentage}%`,
-                      background: BAR_GRADIENTS[fw.name] || DEFAULT_BAR,
+                      background: getBarGradient(fw.barColor),
                     }}
                   />
                 </div>
 
-                {fw.controls.map((control) => {
-                  const badge = controlBadge(control.status)
-                  return (
-                    <div key={control.name} className="comp-item">
-                      <div className="left">
-                        {badge.dot === 'ok' ? (
-                          <span className="ic ok">✓</span>
-                        ) : (
-                          <span className="ic dot">●</span>
-                        )}
-                        {control.name}
+                <div>
+                  {fw.controls.map((control) => {
+                    const isCompliant = control.status.toLowerCase() === 'compliant'
+                    const badgeTone = isCompliant
+                      ? 'compliant'
+                      : control.status.toLowerCase() === 'in progress'
+                        ? 'nodata'
+                        : 'nottracked'
+
+                    return (
+                      <div key={control.name} className="comp-item">
+                        <div className="left">
+                          {isCompliant ? (
+                            <span className="ic ok">✓</span>
+                          ) : (
+                            <span className="ic dot">●</span>
+                          )}
+                          <span>{control.name}</span>
+                        </div>
+                        <span className="mid">{control.count}</span>
+                        <span className={clsx('badge', badgeTone)}>
+                          {control.status.toUpperCase()}
+                        </span>
                       </div>
-                      <span className="mid">{control.count}</span>
-                      <span className={clsx('badge', badge.badge)}>{badge.label}</span>
-                    </div>
-                  )
-                })}
+                    )
+                  })}
+                </div>
 
                 <div className="comp-footer">
                   <span className="l">Continuously Monitored</span>
-                  <button className="r" type="button">
-                    View Details <span aria-hidden="true">›</span>
-                  </button>
+                  <span className="r">View Details ›</span>
                 </div>
               </div>
             ))
           )}
         </div>
 
-        {/* Audit Trail panel */}
+        {/* Audit immutable logs trail */}
         <div className="audit-panel">
           <div className="audit-head">
             <div>
@@ -197,46 +186,54 @@ export default function CompliancePage() {
             <div className="monitor-pill">📈 Real-Time Monitoring</div>
           </div>
 
-          <table className="audit-table">
-            <thead>
-              <tr>
-                <th>TIMESTAMP</th>
-                <th>IDENTITY</th>
-                <th>ACTION</th>
-                <th>RESOURCE</th>
-                <th>INTEGRITY</th>
-              </tr>
-            </thead>
-            <tbody>
-              {isLoading ? (
-                Array.from({ length: 5 }).map((_, index) => (
-                  <tr key={index} className="animate-pulse">
-                    <td className="h-8" colSpan={5} />
-                  </tr>
-                ))
-              ) : auditTrail.length === 0 ? (
+          <div style={{ overflowX: 'auto' }}>
+            <table className="audit-table">
+              <thead>
                 <tr>
-                  <td colSpan={5} className="text-center text-muted py-8">
-                    No audit entries found for your tenant.
-                  </td>
+                  <th>TIMESTAMP</th>
+                  <th>IDENTITY</th>
+                  <th>ACTION</th>
+                  <th>RESOURCE</th>
+                  <th>ORIGIN IP</th>
+                  <th style={{ textAlign: 'right' }}>INTEGRITY</th>
                 </tr>
-              ) : (
-                auditTrail.map((log) => (
-                  <tr key={log.id}>
-                    <td className="mono">{new Date(log.timestamp).toLocaleString()}</td>
-                    <td className="identity-cell">{log.user}</td>
-                    <td>
-                      <span className="action-badge">{log.action}</span>
-                    </td>
-                    <td className="resource-cell">{log.resource}</td>
-                    <td>
-                      <span className="integrity-badge">{integrityLabel(log)}</span>
+              </thead>
+              <tbody>
+                {isLoading ? (
+                  Array.from({ length: 5 }).map((_, index) => (
+                    <tr key={index} className="animate-pulse">
+                      <td colSpan={6} style={{ height: '50px', background: 'var(--tr-border)' }} />
+                    </tr>
+                  ))
+                ) : auditTrail.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className="py-8 text-center text-text-muted">
+                      No audit entries found for your tenant.
                     </td>
                   </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+                ) : (
+                  auditTrail.map((log) => (
+                    <tr key={log.id}>
+                      <td className="mono" style={{ fontSize: '11px', opacity: 0.85 }}>
+                        {new Date(log.timestamp).toLocaleString()}
+                      </td>
+                      <td className="identity-cell">{log.user}</td>
+                      <td>
+                        <span className="action-badge">{log.action}</span>
+                      </td>
+                      <td className="resource-cell">{log.resource}</td>
+                      <td className="mono" style={{ fontSize: '11.5px', opacity: 0.85 }}>
+                        {log.ip}
+                      </td>
+                      <td style={{ textAlign: 'right' }}>
+                        <span className="integrity-badge">{log.status}</span>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
     </div>
