@@ -16,6 +16,7 @@ import {
 } from 'lucide-react'
 import { clsx } from 'clsx'
 import { useCanWrite, MODULES } from '@/store/permissionsStore'
+import { useThemeStore } from '@/store/themeStore'
 import apiClient from '@/lib/apiClient'
 import { useNavigate } from 'react-router-dom'
 import HeatmapGrid from '@/components/viz/HeatmapGrid'
@@ -134,6 +135,9 @@ function seedRandom(seed: number) {
 
 export default function RedTeamPage() {
   const canWrite = useCanWrite(MODULES.SOAR_PLAYBOOKS)
+  const { resolvedTheme } = useThemeStore()
+  const isLight = resolvedTheme === 'light'
+
   const [simulations, setSimulations] = useState<Simulation[]>([])
   const [executions, setExecutions] = useState<ExecutionView[]>([])
   const [loading, setLoading] = useState(true)
@@ -298,7 +302,10 @@ export default function RedTeamPage() {
   // MITRE coverage map grid SVG generator
   const mitreGridData = useMemo(() => {
     const rows = 5, cols = 6
-    const colors = ['#f97316','#f59e0b','#facc15','#94a3b8','#64748b']
+    const colors = isLight
+      ? ['#f97316','#d97706','#facc15','#94a3b8','#64748b']
+      : ['#f97316','#f59e0b','#facc15','#94a3b8','#64748b']
+
     const nodePos = []
     for(let r=0;r<rows;r++){
       const y = 40 + r*70
@@ -323,7 +330,7 @@ export default function RedTeamPage() {
     }
 
     return { lines, nodes: nodePos.flat() }
-  }, [])
+  }, [isLight])
 
   return (
     <div className="red-team-page">
@@ -650,6 +657,14 @@ export default function RedTeamPage() {
                       {/* Hotspots */}
                       {mapData.spots.map(([x, y], idx) => {
                         const gradId = `ng-red-map-${idx}`
+                        if (isLight) {
+                          return (
+                            <g key={idx}>
+                              <circle cx={x} cy={y} r={9} fill="#fde3b8" stroke="#d97706" strokeWidth={1.5} />
+                              <circle cx={x} cy={y} r={2.8} fill="#b45309" />
+                            </g>
+                          )
+                        }
                         return (
                           <g key={idx}>
                             <defs>
