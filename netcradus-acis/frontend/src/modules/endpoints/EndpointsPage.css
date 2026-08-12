@@ -66,8 +66,8 @@
   --box-shadow: 0 8px 20px -16px rgba(30, 50, 110, 0.16);
 
   /* Global Map color variables for Light Mode */
-  --map-dot-color: rgba(30, 58, 90, 0.35);
-  --map-path-color: rgba(30, 58, 90, 0.5);
+  --map-dot-color: rgba(37, 99, 235, 0.25);
+  --map-path-color: rgba(217, 119, 6, 0.5);
   --map-hotspot-color: #1e3a5f;
   --map-dot-center-color: #1e3a5f;
 }
@@ -226,8 +226,8 @@
 
 :root[data-theme="light"] .endpoints-page .stat-card.highlight,
 [data-theme="light"] .endpoints-page .stat-card.highlight {
-  border-color: var(--border-soft);
-  box-shadow: none;
+  border-color: rgba(8, 145, 178, 0.35);
+  box-shadow: 0 0 24px -16px rgba(8, 145, 178, 0.4), 0 8px 20px -18px rgba(30, 50, 110, 0.18);
 }
 
 .endpoints-page .stat-num {
@@ -413,7 +413,7 @@
 
 :root[data-theme="light"] .endpoints-page .ep-status,
 [data-theme="light"] .endpoints-page .ep-status {
-  color: #2563eb;
+  color: #0891b2;
 }
 
 .endpoints-page .ep-actions {
@@ -499,8 +499,8 @@
 
 :root[data-theme="light"] .endpoints-page .map-marker,
 [data-theme="light"] .endpoints-page .map-marker {
-  background: rgba(8, 145, 178, 0.15);
-  border-color: rgba(8, 145, 178, 0.5);
+  background: rgba(8, 145, 178, 0.1);
+  border-color: rgba(8, 145, 178, 0.4);
   color: #0891b2;
 }
 
