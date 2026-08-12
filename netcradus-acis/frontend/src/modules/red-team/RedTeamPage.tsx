@@ -2,22 +2,17 @@ import React, { useEffect, useMemo, useState } from 'react'
 import {
   Activity,
   ArrowUpRight,
-  Bell,
   CheckCircle2,
   Clock3,
   Crosshair,
-  FileText,
   Flame,
-  Gauge,
   LayoutGrid,
-  Play,
   Radar,
   Search,
   ShieldAlert,
   Skull,
   Target,
   TriangleAlert,
-  Zap,
 } from 'lucide-react'
 import { clsx } from 'clsx'
 import { useCanWrite, MODULES } from '@/store/permissionsStore'
@@ -26,6 +21,7 @@ import { useNavigate } from 'react-router-dom'
 import HeatmapGrid from '@/components/viz/HeatmapGrid'
 import StepExecutionTimeline, { type ExecutionStep, type StepStatus } from '@/components/viz/StepExecutionTimeline'
 import ConfirmDialog from '@/components/ui/ConfirmDialog'
+import './RedTeamPage.css'
 
 interface Simulation {
   id: string
@@ -74,7 +70,6 @@ function parseStepLogs(stepLogsJson: string): StepLogEntry[] {
   }
 }
 
-/** Maps RedTeamService's real status strings (lowercase "success"/"failed"/etc.) to StepExecutionTimeline's normalized union — a different shape/casing than SOAR's stepLogs, so normalized separately. */
 function normalizeRedTeamStatus(raw: string): StepStatus {
   const s = (raw || '').toLowerCase()
   if (s === 'success' || s === 'completed') return 'success'
@@ -129,6 +124,14 @@ function formatDuration(startedAt: string | null, completedAt: string | null) {
   return seconds < 60 ? `${seconds}s` : `${Math.round(seconds / 60)}m`
 }
 
+function seedRandom(seed: number) {
+  let s = seed
+  return function() {
+    s = (s * 9301 + 49297) % 233280
+    return s / 233280
+  }
+}
+
 export default function RedTeamPage() {
   const canWrite = useCanWrite(MODULES.SOAR_PLAYBOOKS)
   const [simulations, setSimulations] = useState<Simulation[]>([])
@@ -137,9 +140,6 @@ export default function RedTeamPage() {
   const [query, setQuery] = useState('')
   const [startingId, setStartingId] = useState<string | null>(null)
   const [selectedExecutionId, setSelectedExecutionId] = useState<string | null>(null)
-  // Starting a simulation genuinely triggers real attack emulation against
-  // live targets — gated behind a confirm dialog instead of firing on the
-  // first click, matching the pattern used for Run Playbook in SoarPage.
   const [confirmingStartId, setConfirmingStartId] = useState<string | null>(null)
   const navigate = useNavigate()
 
@@ -204,8 +204,6 @@ export default function RedTeamPage() {
     })
   }, [query, simulations])
 
-  /** Most recent execution per simulation, keyed by simulationId — executions
-   * arrive newest-first from the backend, so the first match per key wins. */
   const latestExecutionBySimulation = useMemo(() => {
     const map = new Map<string, ExecutionView>()
     for (const execution of executions) {
@@ -216,9 +214,6 @@ export default function RedTeamPage() {
     return map
   }, [executions])
 
-  /** A MITRE technique counts as "executed" only once a real run has logged
-   * a step tagged with it — declaring a technique on a simulation that has
-   * never been run does not count as coverage. */
   const executedTechniques = useMemo(() => {
     const set = new Set<string>()
     for (const execution of executions) {
@@ -283,338 +278,414 @@ export default function RedTeamPage() {
   const selectedExecution = executions.find((e) => e.id === selectedExecutionId)
     || (executionHistory.length > 0 ? executions.find((e) => e.id === executionHistory[0].id) : undefined)
 
+  // Map Data generator
+  const mapData = useMemo(() => {
+    const spots = [[90,140],[170,110],[230,130],[300,120],[340,170],[240,220],[130,230],[350,240]]
+    const arcs = [[90,140,170,110],[170,110,230,130],[230,130,300,120],[300,120,340,170],[130,230,240,220],[240,220,350,240]]
+    const dots = []
+    const rng = seedRandom(9999)
+    for (let i = 0; i < 600; i++) {
+      const x = rng() * 400
+      const y = 20 + rng() * 300
+      const inLand = (x>20&&x<110&&y>90&&y<250) || (x>140&&x<230&&y>50&&y<240) || (x>250&&x<390&&y>70&&y<270)
+      if (inLand && rng() < 0.4) {
+        dots.push({ x, y })
+      }
+    }
+    return { dots, spots, arcs }
+  }, [])
+
+  // MITRE coverage map grid SVG generator
+  const mitreGridData = useMemo(() => {
+    const rows = 5, cols = 6
+    const colors = ['#f97316','#f59e0b','#facc15','#94a3b8','#64748b']
+    const nodePos = []
+    for(let r=0;r<rows;r++){
+      const y = 40 + r*70
+      const rowNodes = []
+      for(let c=0;c<cols;c++){
+        const x = 40 + c*62 + (r%2===0?0:20)
+        rowNodes.push({ x, y, color: colors[r] })
+      }
+      nodePos.push(rowNodes)
+    }
+
+    const lines = []
+    const rng = seedRandom(4444)
+    for (let r = 0; r < rows - 1; r++) {
+      nodePos[r].forEach((n1) => {
+        nodePos[r+1].forEach((n2) => {
+          if (rng() < 0.22) {
+            lines.push({ x1: n1.x, y1: n1.y, x2: n2.x, y2: n2.y })
+          }
+        })
+      })
+    }
+
+    return { lines, nodes: nodePos.flat() }
+  }, [])
+
   return (
-    <div className="space-y-6 animate-fade-in pb-12">
-      <section className="relative overflow-hidden rounded-2xl border border-fire-border bg-surface-2">
-        <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-accent/60 to-transparent" />
-        <div className="relative z-10 p-6 sm:p-8">
-          <div className="flex flex-col gap-6 xl:flex-row xl:items-end xl:justify-between">
-            <div className="space-y-3">
-              <div className="flex flex-wrap items-center gap-2 text-label text-text-muted uppercase">
-                <span className="inline-flex items-center gap-2 rounded-full border border-fire-border bg-background px-3 py-1 text-success">
-                  <Radar className="h-3.5 w-3.5" /> Red Team Simulator
-                </span>
-                <span className="inline-flex items-center gap-2 rounded-full border border-fire-border bg-background px-3 py-1">
-                  <Activity className="h-3.5 w-3.5 text-info" /> Continuous attack emulation
-                </span>
-              </div>
-              <div className="space-y-2">
-                <h1 className="text-display text-text-primary">
-                  Mission Control for Attack Validation
-                </h1>
-                <p className="max-w-3xl text-small text-text-secondary">
-                  Simulations, coverage, and execution telemetry for the ACIS red team lab.
-                </p>
-              </div>
-            </div>
+    <div className="red-team-page">
+      {/* Atmospheric Background for Dark Mode */}
+      <div className="bg-fixed">
+        <div className="nebula1" />
+        <div className="nebula2" />
+        <div className="nebula3" />
+        <div className="grid" />
+        <div className="stars" />
+      </div>
 
-            <div className="grid gap-3 sm:grid-cols-2 xl:w-[420px]">
-              <label className="group flex items-center gap-3 rounded-lg border border-fire-border bg-background px-4 py-3 transition-colors focus-within:border-accent focus-within:ring-4 focus-within:ring-accent/10">
-                <Search className="h-4 w-4 text-text-muted transition-colors group-focus-within:text-accent" />
-                <input
-                  value={query}
-                  onChange={(event) => setQuery(event.target.value)}
-                  placeholder="Search simulations..."
-                  className="w-full bg-transparent text-small font-medium text-text-primary placeholder:text-text-muted outline-none"
-                />
-              </label>
-
-              <button
-                onClick={() => navigate('/dashboard/reports')}
-                className="btn-mission justify-center py-3 text-small"
-              >
-                View Reports <ArrowUpRight className="h-4 w-4" />
-              </button>
+      <div className="content">
+        {/* hero panel */}
+        <div className="hero-panel">
+          <div className="hero-left">
+            <div className="hero-tags">
+              <span className="hero-tag cyan">⊚ RED TEAM SIMULATOR</span>
+              <span className="hero-tag blue">⚡ CONTINUOUS ATTACK EMULATION</span>
             </div>
+            <h1>Mission Control for Validation</h1>
+            <p>Simulations, coverage, and execution telemetry for the ACIS red team lab.</p>
           </div>
-        </div>
-      </section>
-
-      <section className="grid gap-4 xl:grid-cols-3">
-        <StatCard
-          icon={LayoutGrid}
-          accent="border-l-info"
-          label="Simulations Available"
-          value={summary.simulationsAvailable.toString()}
-          helper={`${Math.max(summary.simulationsAvailable, 1)} active templates loaded`}
-        />
-        <StatCard
-          icon={Target}
-          accent="border-l-success"
-          label="MITRE Techniques Executed"
-          value={summary.techniquesCovered.toString()}
-          helper="Techniques with at least one completed run"
-        />
-        <StatCard
-          icon={Gauge}
-          accent="border-l-info"
-          label="Active Simulations Running"
-          value={summary.activeSimulations.toString()}
-          helper={summary.activeSimulations > 0 ? "Live execution jobs in progress" : "No live execution jobs in progress"}
-        />
-        <StatCard
-          icon={TriangleAlert}
-          accent="border-l-warning"
-          label="Techniques Not Yet Validated"
-          value={summary.techniquesNotYetValidated.toString()}
-          helper="Declared on a simulation but never run to completion"
-        />
-      </section>
-
-      {loading && simulations.length === 0 ? (
-        <div className="rounded-xl border border-fire-border bg-surface-2 p-8 text-small font-mono text-text-muted">
-          Loading red team telemetry...
-        </div>
-      ) : (
-        <>
-          <section className="grid gap-5 xl:grid-cols-3">
-            {filteredSimulations.map((simulation) => {
-              const stepCount = parseSteps(simulation.steps)
-              const lastRunLabel = formatWhen(simulation.lastRunAt)
-              const latestExecution = latestExecutionBySimulation.get(simulation.id)
-              const executedSteps = latestExecution ? parseStepLogs(latestExecution.stepLogs).length : 0
-              const runTone = !latestExecution
-                ? 'text-text-muted'
-                : latestExecution.status === 'completed'
-                  ? 'text-success'
-                  : latestExecution.status === 'failed'
-                    ? 'text-danger'
-                    : 'text-info'
-              const detectionLabel = !latestExecution
-                ? 'Not yet run'
-                : latestExecution.status === 'completed'
-                  ? `Completed — ${executedSteps} of ${stepCount} steps logged`
-                  : latestExecution.status === 'failed'
-                    ? `Failed after ${executedSteps} of ${stepCount} steps`
-                    : `Running — ${executedSteps} of ${stepCount} steps logged so far`
-
-              return (
-                <article
-                  key={simulation.id}
-                  className="group relative overflow-hidden rounded-xl border border-fire-border bg-surface-2 p-5 shadow-card transition-colors hover:border-accent/40"
-                >
-                  <div className="absolute -right-6 top-4 opacity-[0.05] transition-opacity group-hover:opacity-[0.1]">
-                    <Skull className="h-24 w-24 text-danger" />
-                  </div>
-
-                  <div className="relative z-10 space-y-4">
-                    <div className="flex items-start justify-between gap-4">
-                      <div className="space-y-2">
-                        <div className="flex flex-wrap gap-2">
-                          <span className="badge-mission border-accent/70 bg-accent/10 text-accent">MITRE ATT&CK</span>
-                          <span className="badge-mission border-fire-border bg-background text-text-muted">{simulation.mitreTactics?.[0] || 'Uncategorized'}</span>
-                        </div>
-                        <h2 className="text-h2 text-text-primary">{simulation.name}</h2>
-                      </div>
-                      <div className="rounded-lg border border-fire-border bg-background px-3 py-1.5 text-label text-accent uppercase whitespace-nowrap">
-                        {stepCount} Stages
-                      </div>
-                    </div>
-
-                    <p className="text-small text-text-secondary">
-                      {simulation.description}
-                    </p>
-
-                    <div className="space-y-2">
-                      <div className="flex items-center justify-between text-label text-text-muted uppercase">
-                        <span>Last run result</span>
-                        {latestExecution && (
-                          <span className={runTone}>{latestExecution.status}</span>
-                        )}
-                      </div>
-                      <div className="rounded-lg border border-fire-border bg-surface-3 p-4">
-                        <div className={clsx('text-small font-semibold', runTone)}>
-                          {detectionLabel}
-                        </div>
-                        <div className="mt-1 text-label text-text-muted uppercase">
-                          {stepCount} steps · last run: {lastRunLabel}
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-3">
-                      <InfoPill icon={Clock3} label="Last Run" value={lastRunLabel} />
-                      <InfoPill icon={Flame} label="Run Count" value={simulation.runCount.toString()} />
-                    </div>
-
-                    <div className="rounded-lg border border-fire-border bg-background p-3">
-                      <div className="mb-3 flex items-center justify-between text-label text-text-muted uppercase">
-                        <span>Technique Trail</span>
-                        <span>{simulation.mitreTechniques?.length || 0} mapped</span>
-                      </div>
-                      <div className="flex flex-wrap gap-2">
-                        {(simulation.mitreTechniques || []).slice(0, 4).map((technique) => (
-                          <span
-                            key={technique}
-                            className="rounded-md border border-danger/30 bg-danger/10 px-2 py-1 text-label text-danger uppercase"
-                          >
-                            {technique}
-                          </span>
-                        ))}
-                        {(simulation.mitreTactics || []).slice(0, 2).map((tactic) => (
-                          <span
-                            key={tactic}
-                            className="rounded-md border border-fire-border bg-surface-3 px-2 py-1 text-label text-text-muted uppercase"
-                          >
-                            {tactic}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-3 pt-1">
-                      <button
-                        onClick={() => setConfirmingStartId(simulation.id)}
-                        disabled={startingId === simulation.id || !canWrite}
-                        title={!canWrite ? "Your role doesn't have write access to SOAR Playbooks" : undefined}
-                        className="btn-fire justify-center py-3 text-small disabled:cursor-wait disabled:opacity-50 disabled:cursor-not-allowed"
-                      >
-                        <Crosshair className="h-4 w-4" />
-                        {startingId === simulation.id ? 'Starting...' : 'Start'}
-                      </button>
-                      <button
-                        onClick={() => navigate('/dashboard/reports')}
-                        className="btn-mission justify-center py-3 text-small"
-                      >
-                        View Report
-                      </button>
-                    </div>
-                  </div>
-                </article>
-              )
-            })}
-          </section>
-
-          <section className="grid gap-5 xl:grid-cols-[1.2fr_0.8fr]">
-            <div className="card-mission">
-              <div className="mb-5 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
-                <div>
-                  <h3 className="text-h3 text-text-primary">
-                    MITRE ATT&CK Coverage — Enterprise Matrix
-                  </h3>
-                  <p className="mt-1 text-label text-text-muted uppercase">
-                    Techniques declared across this tenant's simulation library
-                  </p>
-                </div>
-                <div className="flex items-center gap-2 text-label text-text-muted uppercase">
-                  <span className="inline-flex items-center gap-2 rounded-full border border-success/30 bg-success/10 px-3 py-1 text-success">
-                    <CheckCircle2 className="h-3.5 w-3.5" /> Executed
-                  </span>
-                  <span className="inline-flex items-center gap-2 rounded-full border border-warning/30 bg-warning/10 px-3 py-1 text-warning">
-                    <ShieldAlert className="h-3.5 w-3.5" /> Declared only
-                  </span>
-                </div>
-              </div>
-
-              {matrixCells.length === 0 ? (
-                <div className="col-span-full py-6 text-center text-label text-text-muted uppercase">
-                  No MITRE techniques declared on any simulation yet
-                </div>
-              ) : (
-                <HeatmapGrid
-                  items={matrixCells}
-                  getId={(cell) => cell.id}
-                  getLabel={(cell) => cell.label}
-                  getTooltip={(cell) => `${cell.label} — ${cell.state === 'executed' ? 'Executed' : cell.state === 'running' ? 'Running' : 'Declared'}`}
-                  getColorClass={(cell) =>
-                    clsx(
-                      'min-h-[88px] flex flex-col justify-end',
-                      cell.state === 'executed'
-                        ? 'border-success/30 bg-success/15 text-success'
-                        : cell.state === 'running'
-                          ? 'border-info/30 bg-info/15 text-info'
-                          : 'border-warning/30 bg-warning/15 text-warning'
-                    )
-                  }
-                  columns={5}
-                />
-              )}
-            </div>
-
-            <div className="card-mission">
-              <div className="mb-5 flex items-start justify-between gap-4">
-                <div>
-                  <h3 className="text-h3 text-text-primary">Execution History</h3>
-                  <p className="mt-1 text-label text-text-muted uppercase">
-                    Latest campaign telemetry from the simulator
-                  </p>
-                </div>
-                <div className="rounded-full border border-fire-border bg-background px-3 py-1 text-label text-success uppercase whitespace-nowrap">
-                  Live feed
-                </div>
-              </div>
-
-              <div className="overflow-x-auto">
-                <table className="table-enterprise">
-                  <thead>
-                    <tr>
-                      <th>Simulation</th>
-                      <th>Status</th>
-                      <th>Duration</th>
-                      <th>Detected</th>
-                      <th>Date</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {executionHistory.map((row) => (
-                      <tr
-                        key={row.id}
-                        onClick={() => setSelectedExecutionId(row.id)}
-                        className={clsx('cursor-pointer', selectedExecutionId === row.id ? 'bg-surface-3' : '')}
-                      >
-                        <td className="font-semibold text-text-primary">{row.simulation}</td>
-                        <td>
-                          <span
-                            className={clsx(
-                              'inline-flex items-center gap-2 rounded-md border px-2.5 py-1 text-label uppercase',
-                              row.status === 'completed'
-                                ? 'border-success/30 bg-success/10 text-success'
-                                : row.status === 'failed'
-                                  ? 'border-danger/30 bg-danger/10 text-danger'
-                                  : 'border-info/30 bg-info/10 text-info'
-                            )}
-                          >
-                            {row.status === 'completed' ? <CheckCircle2 className="h-3.5 w-3.5" /> : row.status === 'failed' ? <TriangleAlert className="h-3.5 w-3.5" /> : <Activity className="h-3.5 w-3.5" />}
-                            {row.status}
-                          </span>
-                        </td>
-                        <td className="font-mono text-text-secondary">{row.duration}</td>
-                        <td className={clsx('font-mono font-semibold', row.accent)}>{row.detected}</td>
-                        <td className="font-mono text-text-secondary">{row.date}</td>
-                      </tr>
-                    ))}
-                    {executionHistory.length === 0 && (
-                      <tr>
-                        <td colSpan={5} className="py-8 text-center text-label text-text-muted uppercase">
-                          No executions recorded yet
-                        </td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </section>
-
-          {selectedExecution && (
-            <div className="card-mission space-y-3">
-              <h4 className="text-label text-text-muted uppercase">
-                Execution Detail — {selectedExecution.simulationName} ({formatWhen(selectedExecution.startedAt)})
-              </h4>
-              <StepExecutionTimeline
-                steps={parseExecutionSteps(selectedExecution.stepLogs)}
-                mode={selectedExecution.status === 'running' ? 'live' : 'historical'}
+          <div className="hero-right">
+            <div className="hero-search">
+              <Search className="w-4.5 h-4.5 shrink-0" />
+              <input
+                type="text"
+                placeholder="Search simulations…"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
               />
             </div>
-          )}
-        </>
-      )}
-
-      {filteredSimulations.length === 0 && !loading && (
-        <div className="rounded-xl border border-dashed border-fire-border bg-surface-2 p-8 text-center text-label text-text-muted uppercase">
-          No simulations match the current search.
+            <button
+              onClick={() => navigate('/dashboard/reports')}
+              className="view-reports-btn"
+            >
+              View Reports ↗
+            </button>
+          </div>
         </div>
-      )}
+
+        {/* stats cards row */}
+        <div className="stat-row">
+          <div className="stat-card highlight">
+            <div className="stat-left">
+              <div className="lbl">SIMULATIONS AVAILABLE</div>
+              <div className="v">{summary.simulationsAvailable}</div>
+              <div className="desc">{Math.max(summary.simulationsAvailable, 1)} active templates loaded</div>
+            </div>
+            <div className="stat-icon-box">▦</div>
+          </div>
+          <div className="stat-card highlight">
+            <div className="stat-left">
+              <div className="lbl">MITRE TECHNIQUES EXECUTED</div>
+              <div className="v">{summary.techniquesCovered}</div>
+              <div className="desc">Techniques with at least one completed run</div>
+            </div>
+            <div className="stat-icon-box">◎</div>
+          </div>
+          <div className="stat-card highlight">
+            <div className="stat-left">
+              <div className="lbl">ACTIVE SIMULATIONS RUNNING</div>
+              <div className="v">{summary.activeSimulations}</div>
+              <div className="desc">{summary.activeSimulations > 0 ? "Live execution jobs in progress" : "No live execution jobs in progress"}</div>
+            </div>
+            <div className="stat-icon-box">↻</div>
+          </div>
+        </div>
+
+        <div className="stat-row" style={{ gridTemplateColumns: '1fr 2.15fr' }}>
+          <div className="stat-card warn-card">
+            <div className="stat-left">
+              <div className="lbl">TECHNIQUES NOT YET VALIDATED</div>
+              <div className="v">{summary.techniquesNotYetValidated}</div>
+              <div className="desc">Declared in a simulation but never run to completion</div>
+            </div>
+            <div className="stat-icon-box">⚠</div>
+          </div>
+          <div />
+        </div>
+
+        {loading && simulations.length === 0 ? (
+          <div style={{ background: 'var(--card-bg)', border: '1px solid var(--border-soft)', padding: '20px', borderRadius: '14px', fontStyle: 'italic', color: 'var(--dim)' }}>
+            Loading red team telemetry...
+          </div>
+        ) : (
+          <>
+            {/* Simulations grid lists */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mb-5">
+              {filteredSimulations.map((simulation) => {
+                const stepCount = parseSteps(simulation.steps)
+                const lastRunLabel = formatWhen(simulation.lastRunAt)
+                const latestExecution = latestExecutionBySimulation.get(simulation.id)
+                const executedSteps = latestExecution ? parseStepLogs(latestExecution.stepLogs).length : 0
+                const runTone = !latestExecution
+                  ? 'text-text-muted'
+                  : latestExecution.status === 'completed'
+                    ? 'text-success'
+                    : latestExecution.status === 'failed'
+                      ? 'text-danger'
+                      : 'text-info'
+                const detectionLabel = !latestExecution
+                  ? 'Not yet run'
+                  : latestExecution.status === 'completed'
+                    ? `Completed — ${executedSteps} of ${stepCount} steps logged`
+                    : latestExecution.status === 'failed'
+                      ? `Failed after ${executedSteps} of ${stepCount} steps`
+                      : `Running — ${executedSteps} of ${stepCount} steps logged so far`
+
+                return (
+                  <article
+                    key={simulation.id}
+                    style={{
+                      background: 'var(--card-bg)',
+                      border: '1px solid var(--border-soft)',
+                      borderRadius: '12px',
+                      padding: '20px',
+                      position: 'relative',
+                      overflow: 'hidden',
+                      boxShadow: 'var(--box-shadow)'
+                    }}
+                  >
+                    <div style={{ position: 'absolute', right: '-12px', top: '16px', opacity: 0.05 }}>
+                      <Skull className="h-24 w-24 text-danger" />
+                    </div>
+
+                    <div style={{ position: 'relative', zIndex: 1 }} className="space-y-4">
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="space-y-2">
+                          <div className="flex flex-wrap gap-2">
+                            <span className="badge-mission border-accent/70 bg-accent/10 text-accent">MITRE ATT&CK</span>
+                            <span className="badge-mission border-fire-border bg-background text-text-muted">{simulation.mitreTactics?.[0] || 'Uncategorized'}</span>
+                          </div>
+                          <h2 className="text-h2 text-text-primary">{simulation.name}</h2>
+                        </div>
+                        <div className="rounded-lg border border-fire-border bg-background px-3 py-1.5 text-label text-accent uppercase whitespace-nowrap">
+                          {stepCount} Stages
+                        </div>
+                      </div>
+
+                      <p className="text-small text-text-secondary">
+                        {simulation.description}
+                      </p>
+
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between text-label text-text-muted uppercase">
+                          <span>Last run result</span>
+                          {latestExecution && (
+                            <span className={runTone}>{latestExecution.status}</span>
+                          )}
+                        </div>
+                        <div className="rounded-lg border border-fire-border bg-surface-3 p-4">
+                          <div className={clsx('text-small font-semibold', runTone)}>
+                            {detectionLabel}
+                          </div>
+                          <div className="mt-1 text-label text-text-muted uppercase">
+                            {stepCount} steps · last run: {lastRunLabel}
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="rounded-lg border border-fire-border bg-background px-3 py-2">
+                          <div className="text-label text-text-muted uppercase flex items-center gap-1.5">
+                            <Clock3 className="h-3.5 w-3.5 text-accent" /> Last Run
+                          </div>
+                          <div className="mt-1 text-small font-semibold text-text-primary">{lastRunLabel}</div>
+                        </div>
+                        <div className="rounded-lg border border-fire-border bg-background px-3 py-2">
+                          <div className="text-label text-text-muted uppercase flex items-center gap-1.5">
+                            <Flame className="h-3.5 w-3.5 text-accent" /> Run Count
+                          </div>
+                          <div className="mt-1 text-small font-semibold text-text-primary">{simulation.runCount}</div>
+                        </div>
+                      </div>
+
+                      <div className="rounded-lg border border-fire-border bg-background p-3">
+                        <div className="mb-3 flex items-center justify-between text-label text-text-muted uppercase">
+                          <span>Technique Trail</span>
+                          <span>{simulation.mitreTechniques?.length || 0} mapped</span>
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                          {(simulation.mitreTechniques || []).slice(0, 4).map((technique) => (
+                            <span
+                              key={technique}
+                              className="rounded-md border border-danger/30 bg-danger/10 px-2 py-1 text-label text-danger uppercase"
+                            >
+                              {technique}
+                            </span>
+                          ))}
+                          {(simulation.mitreTactics || []).slice(0, 2).map((tactic) => (
+                            <span
+                              key={tactic}
+                              className="rounded-md border border-fire-border bg-surface-3 px-2 py-1 text-label text-text-muted uppercase"
+                            >
+                              {tactic}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-3 pt-1">
+                        <button
+                          onClick={() => setConfirmingStartId(simulation.id)}
+                          disabled={startingId === simulation.id || !canWrite}
+                          className="btn-fire justify-center py-3 text-small disabled:cursor-wait disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          <Crosshair className="h-4 w-4" />
+                          {startingId === simulation.id ? 'Starting...' : 'Start'}
+                        </button>
+                        <button
+                          onClick={() => navigate('/dashboard/reports')}
+                          className="btn-mission justify-center py-3 text-small"
+                        >
+                          View Report
+                        </button>
+                      </div>
+                    </div>
+                  </article>
+                )
+              })}
+            </div>
+
+            {/* MITRE Coverage + Execution history table columns */}
+            <div className="two-col">
+              
+              <div className="mitre-panel">
+                <h3>MITRE ATT&amp;CK Coverage</h3>
+                <div className="sub">Techniques declared across this tenant's simulation library</div>
+                <div className="mitre-box">
+                  <svg viewBox="0 0 400 400">
+                    {/* Connection lines */}
+                    {mitreGridData.lines.map((line, idx) => (
+                      <line
+                        key={idx}
+                        x1={line.x1}
+                        y1={line.y1}
+                        x2={line.x2}
+                        y2={line.y2}
+                        stroke="var(--mitre-edge-color)"
+                        strokeWidth="1"
+                      />
+                    ))}
+
+                    {/* Nodes */}
+                    {mitreGridData.nodes.map((node, idx) => (
+                      <circle
+                        key={idx}
+                        cx={node.x}
+                        cy={node.y}
+                        r={9}
+                        fill={node.color}
+                        opacity="0.85"
+                      />
+                    ))}
+                  </svg>
+                </div>
+              </div>
+
+              <div style={{ position: 'relative' }}>
+                <div className="exec-panel">
+                  <h3>Execution History</h3>
+                  <div className="exec-head-row">
+                    <span>SIMULATION</span>
+                    <span>STATUS</span>
+                  </div>
+
+                  {executionHistory.map((row) => (
+                    <div
+                      key={row.id}
+                      onClick={() => setSelectedExecutionId(row.id)}
+                      className={clsx("exec-row cursor-pointer", selectedExecutionId === row.id && "bg-slate-800/20")}
+                    >
+                      <div className="exec-left">
+                        <div className="exec-icon blue">⚙</div>
+                        <div>
+                          <div className="exec-title">{row.simulation}</div>
+                          <div className="exec-sub">{row.detected}</div>
+                        </div>
+                      </div>
+                      <div className={clsx("exec-status", row.accent)}>
+                        {row.status === 'completed' ? 'Success' :
+                         row.status === 'failed' ? 'Failed' : 'Running'}
+                      </div>
+                    </div>
+                  ))}
+
+                  {executionHistory.length === 0 && (
+                    <div style={{ padding: '24px 0', textAllign: 'center', color: 'var(--dim)' }}>
+                      No executions recorded yet.
+                    </div>
+                  )}
+                </div>
+
+                {/* Floating Campaign hot-spot map */}
+                <div className="map-float">
+                  <div className="map-float-head">
+                    <h3>📷 Global Attack Visualization Map</h3>
+                    <div className="map-icons">⤢ ⚙ ⛶</div>
+                  </div>
+                  <div className="map-box">
+                    <svg viewBox="0 0 400 340">
+                      {/* Silhouette dots */}
+                      {mapData.dots.map((dot, idx) => (
+                        <circle key={idx} cx={dot.x} cy={dot.y} r={0.8} fill="var(--map-dot-color)" />
+                      ))}
+
+                      {/* Connection pathways */}
+                      {mapData.arcs.map(([x1, y1, x2, y2], idx) => {
+                        const mx = (x1 + x2) / 2
+                        const my = (y1 + y2) / 2 - 30
+                        return (
+                          <path
+                            key={idx}
+                            d={`M${x1},${y1} Q${mx},${my} ${x2},${y2}`}
+                            fill="none"
+                            stroke="var(--map-path-color)"
+                            strokeWidth="1.3"
+                          />
+                        )
+                      })}
+
+                      {/* Hotspots */}
+                      {mapData.spots.map(([x, y], idx) => {
+                        const gradId = `ng-red-map-${idx}`
+                        return (
+                          <g key={idx}>
+                            <defs>
+                              <radialGradient id={gradId}>
+                                <stop offset="0%" stopColor="var(--map-hotspot-color)" stopOpacity="0.85" />
+                                <stop offset="100%" stopColor="var(--map-hotspot-color)" stopOpacity="0" />
+                              </radialGradient>
+                            </defs>
+                            <circle cx={x} cy={y} r={16} fill={`url(#${gradId})`} />
+                            <circle cx={x} cy={y} r={2.8} fill="var(--map-dot-center-color)" />
+                          </g>
+                        )
+                      })}
+                    </svg>
+                  </div>
+                </div>
+
+              </div>
+
+            </div>
+
+            {/* Timelines block if selected execution is active */}
+            {selectedExecution && (
+              <div style={{ marginTop: '24px', background: 'var(--card-bg)', border: '1px solid var(--border-soft)', padding: '20px', borderRadius: '14px', boxShadow: 'var(--box-shadow)' }}>
+                <h4 className="text-label text-text-muted uppercase mb-3">
+                  Execution Detail — {selectedExecution.simulationName} ({formatWhen(selectedExecution.startedAt)})
+                </h4>
+                <StepExecutionTimeline
+                  steps={parseExecutionSteps(selectedExecution.stepLogs)}
+                  mode={selectedExecution.status === 'running' ? 'live' : 'historical'}
+                />
+              </div>
+            )}
+          </>
+        )}
+      </div>
 
       <ConfirmDialog
         open={!!confirmingStartId}
@@ -625,55 +696,6 @@ export default function RedTeamPage() {
         onConfirm={() => confirmingStartId && startSimulation(confirmingStartId)}
         onCancel={() => setConfirmingStartId(null)}
       />
-    </div>
-  )
-}
-
-function StatCard({
-  icon: Icon,
-  accent,
-  label,
-  value,
-  helper,
-}: {
-  icon: React.ComponentType<{ className?: string }>
-  accent: string
-  label: string
-  value: string
-  helper: string
-}) {
-  return (
-    <div className={clsx('relative overflow-hidden rounded-xl border border-l-4 border-fire-border bg-surface-2 px-5 py-4 shadow-sm', accent)}>
-      <div className="relative z-10 flex items-start justify-between gap-4">
-        <div className="space-y-2">
-          <div className="text-label text-text-muted uppercase">{label}</div>
-          <div className="text-h1 text-text-primary">{value}</div>
-          <div className="max-w-[220px] text-small text-text-secondary font-medium">{helper}</div>
-        </div>
-        <div className="rounded-lg border border-fire-border bg-background p-3 text-text-primary">
-          <Icon className="h-5 w-5" />
-        </div>
-      </div>
-    </div>
-  )
-}
-
-function InfoPill({
-  icon: Icon,
-  label,
-  value,
-}: {
-  icon: React.ComponentType<{ className?: string }>
-  label: string
-  value: string
-}) {
-  return (
-    <div className="rounded-lg border border-fire-border bg-background px-3 py-2.5">
-      <div className="flex items-center gap-2 text-label text-text-muted uppercase">
-        <Icon className="h-3.5 w-3.5 text-accent" />
-        {label}
-      </div>
-      <div className="mt-1 text-small font-semibold text-text-primary">{value}</div>
     </div>
   )
 }
