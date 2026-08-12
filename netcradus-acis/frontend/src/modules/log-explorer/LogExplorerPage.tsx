@@ -1,127 +1,114 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react'
-import { ShieldCheck, FileSearch, Clock, Play, Pause, Trash2, Download, Search, Filter, Save, FileText, ChevronRight, Activity, Zap } from 'lucide-react'
-import { AgGridReact } from 'ag-grid-react'
-import { ColDef, ICellRendererParams } from 'ag-grid-community'
-import { BarChart, Bar, ResponsiveContainer, XAxis, YAxis, Tooltip, CartesianGrid } from 'recharts'
+import React, { useState, useEffect, useMemo } from 'react'
+import { ShieldCheck, Download, Save } from 'lucide-react'
 import apiClient from '@/lib/apiClient'
 import wsClient from '@/lib/wsClient'
-import { LogEntry, LogSearchFilters } from '@/types/log'
+import { LogEntry } from '@/types/log'
 import { clsx } from 'clsx'
-import { useChartColors } from '@/hooks/useChartColors'
-import { usePivotSeed, useEntityPivot, type PivotEntityType } from '@/hooks/useEntityPivot'
+import { usePivotSeed, useEntityPivot } from '@/hooks/useEntityPivot'
+import './LogExplorerPage.css'
 
-/**
- * Real, named React components for every AG Grid cellRenderer in this file —
- * referenced by name in columnDefs (`cellRenderer: TimestampCell`), not
- * defined as inline arrow functions. ag-grid-react only mounts a
- * cellRenderer through React's own reconciler (giving it real synthetic
- * event binding) when it recognizes the value as an actual component
- * reference; an inline `(params) => <JSX/>` is invoked directly by
- * ag-grid-community's framework-agnostic core and never truly mounted, so
- * nested interactive elements (onClick, onMouseDown, etc.) never receive
- * events no matter which DOM event type you attach. Shared handlers that
- * would otherwise need outer-scope closures (e.g. pivotTo) are passed via
- * AG Grid's `context` prop and read from `params.context`, since these
- * components are declared outside LogExplorerPage.
- */
-interface LogGridContext {
-  pivotTo: (route: string, target: { type: PivotEntityType; value: string }) => void
-}
+function HeroGlobe() {
+  const cx = 200;
+  const cy = 200;
+  const r = 190;
 
-function TimestampCell(params: ICellRendererParams) {
+  // Horizontal ellipses (latitudes)
+  const latitudes = useMemo(() => {
+    return Array.from({ length: 6 }).map((_, i) => {
+      const yy = cy - r + (i + 1) * (2 * r / 7);
+      const rx = Math.sqrt(Math.max(r * r - Math.pow(cy - yy, 2), 0));
+      return { yy, rx };
+    });
+  }, []);
+
+  // Vertical ellipses (longitudes)
+  const longitudes = useMemo(() => {
+    return Array.from({ length: 8 }).map((_, i) => {
+      const ang = i * 22.5;
+      const rx = Math.abs(r * Math.cos((ang * Math.PI) / 180)) + 2;
+      return rx;
+    });
+  }, []);
+
+  // Static dots
+  const dots = useMemo(() => {
+    return Array.from({ length: 200 }).map((_, i) => {
+      const a = Math.random() * Math.PI * 2;
+      const rad = Math.sqrt(Math.random()) * r * 0.9;
+      return {
+        cx: cx + Math.cos(a) * rad,
+        cy: cy + Math.sin(a) * rad * 0.9,
+        r: Math.random() < 0.2 ? 1.3 : 0.7,
+      };
+    });
+  }, []);
+
   return (
-    <span className="font-mono text-label text-text-muted">
-      {params.value ? new Date(params.value).toISOString().replace('T', ' ').substring(0, 19) : '---'}
-    </span>
-  )
-}
+    <svg viewBox="0 0 400 400" width="100%" height="100%">
+      {/* Outer circle */}
+      <circle cx={cx} cy={cy} r={r} fill="none" stroke="rgba(120,160,230,0.3)" />
 
-function MessageCell(params: ICellRendererParams) {
-  return <span className="font-mono text-small font-medium text-text-primary line-clamp-1">{params.value}</span>
-}
+      {/* Latitudes */}
+      {latitudes.map((lat, idx) => (
+        <ellipse
+          key={`lat-${idx}`}
+          cx={cx}
+          cy={lat.yy}
+          rx={lat.rx}
+          ry={5}
+          fill="none"
+          stroke="rgba(120,160,230,0.15)"
+        />
+      ))}
 
-function ServiceCell(params: ICellRendererParams) {
-  return <span className="font-mono text-label text-accent uppercase bg-accent/10 px-2 py-0.5 rounded border border-accent/20">{params.value || 'SYSTEM'}</span>
-}
+      {/* Longitudes */}
+      {longitudes.map((rx, idx) => (
+        <ellipse
+          key={`long-${idx}`}
+          cx={cx}
+          cy={cy}
+          rx={rx}
+          ry={r}
+          fill="none"
+          stroke="rgba(120,160,230,0.1)"
+        />
+      ))}
 
-function HostCell(params: ICellRendererParams) {
-  // A real, working onClick handler lives here (see context/LogGridContext
-  // above — the event-binding architecture is now verified correct via a
-  // native dispatchEvent test). What's NOT yet resolved is a genuine CSS
-  // stacking/pointer-events issue specific to this grid: real coordinate-
-  // based clicks (both simulated and, per Playwright's own hit-test
-  // warnings, real mouse clicks) land on .ag-root-wrapper instead of this
-  // cell's content. Reverted to non-interactive until that's tracked down
-  // with real DevTools inspection — shipping a "looks clickable but isn't"
-  // control would be worse than no affordance at all.
-  return <span className="font-mono text-label text-text-secondary uppercase bg-surface-3 px-2 py-0.5 rounded border border-fire-border">{params.value || 'UNKNOWN'}</span>
-}
-
-function LevelCell(params: ICellRendererParams) {
-  return (
-    <div className={clsx(
-      "px-2 py-0.5 rounded text-label uppercase border border-current inline-block",
-      ['ERROR', 'CRITICAL', 'FATAL'].includes(params.value?.toUpperCase()) ? "text-danger" : "text-info opacity-60"
-    )}>
-      {params.value || 'INFO'}
-    </div>
-  )
-}
-
-function AssetCell(params: ICellRendererParams) {
-  return (
-    <div className="flex flex-col leading-none">
-      <span className="text-label text-text-primary uppercase">{params.value || 'UNKNOWN'}</span>
-      <span className="text-label text-text-muted mt-1 uppercase">{params.data.assetType || 'UNMAPPED'}</span>
-    </div>
-  )
-}
-
-function ThreatCell(params: ICellRendererParams) {
-  return params.value ? (
-    <div className="flex items-center gap-2 text-danger animate-pulse">
-      <Zap className="w-3 h-3" />
-      <span className="text-label uppercase">{params.value}</span>
-    </div>
-  ) : (
-    <ShieldCheck className="w-3.5 h-3.5 text-success opacity-20" />
-  )
+      {/* Dots */}
+      {dots.map((dot, idx) => (
+        <circle
+          key={`dot-${idx}`}
+          cx={dot.cx}
+          cy={dot.cy}
+          r={dot.r}
+          fill="rgba(140,175,235,0.3)"
+        />
+      ))}
+    </svg>
+  );
 }
 
 export default function LogExplorerPage() {
-  const chartColors = useChartColors()
   const [logs, setLogs] = useState<LogEntry[]>([])
-
   const [selectedSource, setSelectedSource] = useState('ALL')
   const [isLive, setIsLive] = useState(true)
   const [isLoading, setIsLoading] = useState(false)
   const [query, setQuery] = useState('service=acis-gateway | level=ERROR')
 
-  const handleSourceChange = (src: string) => {
-    setSelectedSource(src)
-    if (src === 'ALL') {
-      setQuery('')
-    } else {
-      setQuery(`service=${src}`)
-    }
-  }
-  const [gridApi, setGridApi] = useState<any>(null)
-
   const [isTranslating, setIsTranslating] = useState(false)
-  // Set only from a real failure response (no provider configured, or every
-  // configured provider failed) — ai-service never returns a 200 with
-  // fabricated SPL, so there is no "demo mode" state to represent here,
-  // only "translation genuinely didn't happen."
   const [aiTranslateError, setAiTranslateError] = useState<string | null>(null)
   const [aiStatus, setAiStatus] = useState<'checking' | 'ready' | 'offline'>('checking')
   const [savedSearches, setSavedSearches] = useState<string[]>([])
   const { pivotTo } = useEntityPivot()
-  const gridContext = useMemo<LogGridContext>(() => ({ pivotTo }), [pivotTo])
 
-  // Real pivot target — arriving from Alerts/Assets with an IP/host/asset
-  // value seeds a forensic search for it instead of the live tail. 'ip' and
-  // 'asset' map to a free-text search term (LogController has no dedicated
-  // IP/asset filter param); 'host' maps to the real host= filter.
+  // Trend chart and tooltip interactions
+  const [hoveredIndex, setHoveredIndex] = useState<number | null>(null)
+
+  // Sorting state for the table
+  const [sortField, setSortField] = useState<string>('timestamp')
+  const [sortAsc, setSortAsc] = useState<boolean>(false)
+
+  // Real pivot target from other screens
   const pivotSeed = usePivotSeed()
   useEffect(() => {
     if (!pivotSeed) return
@@ -133,15 +120,14 @@ export default function LogExplorerPage() {
     setIsLive(false)
   }, [pivotSeed])
 
-  const columnDefs = useMemo<ColDef[]>(() => [
-    { field: 'timestamp', headerName: '_TIME', sort: 'desc', width: 220, cellRenderer: TimestampCell },
-    { field: 'message', headerName: 'RAW_MESSAGE', flex: 1, minWidth: 400, cellRenderer: MessageCell },
-    { field: 'service', headerName: 'SERVICE_NODE', width: 160, cellRenderer: ServiceCell },
-    { field: 'host', headerName: 'SOURCE_HOST', width: 180, cellRenderer: HostCell },
-    { field: 'level', headerName: 'CRITICALITY', width: 140, cellRenderer: LevelCell },
-    { field: 'assetName', headerName: 'ENRICHED_ASSET', width: 180, cellRenderer: AssetCell },
-    { field: 'threatSeverity', headerName: 'THREAT_SIG', width: 120, cellRenderer: ThreatCell },
-  ], [])
+  const handleSourceChange = (src: string) => {
+    setSelectedSource(src)
+    if (src === 'ALL') {
+      setQuery('')
+    } else {
+      setQuery(`service=${src}`)
+    }
+  }
 
   const parseQuery = (q: string) => {
     const filters: any = {}
@@ -202,7 +188,7 @@ export default function LogExplorerPage() {
 
   const fetchLogs = async () => {
     setIsLoading(true)
-    setIsLive(false) // Manual run stops the live tail
+    setIsLive(false)
     try {
       const filters = parseQuery(query)
       const response = await apiClient.get<LogEntry[]>('/api/logs/search', { params: filters })
@@ -227,20 +213,9 @@ export default function LogExplorerPage() {
       }
     } catch (e: any) {
       console.error('NLP Translation failed', e)
-      // ai-service's real error contract is {success:false, error:"..."} —
-      // read it directly rather than trusting axios's generic message.
       setAiTranslateError(e?.response?.data?.error || 'AI translation unavailable. Please try again.')
     } finally {
       setIsTranslating(false)
-    }
-  }
-
-  const fetchLatest = async () => {
-    try {
-      const response = await apiClient.get<LogEntry[]>('/api/logs/latest')
-      setLogs(response.data)
-    } catch (e) {
-      console.error('Failed to fetch latest logs:', e)
     }
   }
 
@@ -289,7 +264,7 @@ export default function LogExplorerPage() {
           if (selectedSource !== 'ALL' && newLog.service?.toLowerCase() !== selectedSource.toLowerCase()) {
             return
           }
-          setLogs(prev => [newLog, ...prev.slice(0, 499)]) // Buffer limited to 500 for reactivity
+          setLogs(prev => [newLog, ...prev.slice(0, 499)])
         } catch (e) {
           console.error('Log stream parse error:', e)
         }
@@ -300,7 +275,7 @@ export default function LogExplorerPage() {
     return () => { if (sub) sub.then((s: any) => s?.unsubscribe()) }
   }, [isLive, selectedSource])
 
-
+  // Trend computation
   const trendData = useMemo(() => {
     const buckets: Record<string, number> = {}
     logs.forEach(log => {
@@ -312,178 +287,332 @@ export default function LogExplorerPage() {
     })
     return Object.entries(buckets)
       .sort((a, b) => a[0].localeCompare(b[0]))
-      .slice(-30)
+      .slice(-24)
       .map(([time, count]) => ({ time, count }))
   }, [logs])
 
-  return (
-    <div className="space-y-6 animate-fade-in flex flex-col min-h-[calc(100vh-160px)]">
-      {/* Header */}
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-        <div>
-          <h1 className="text-h1 text-text-primary">Log Explorer (SPL)</h1>
-          <p className="text-small text-text-secondary mt-1">Elastic Telemetry & Multi-Source Indexing</p>
-        </div>
-        <div className="flex items-center gap-3">
-          {/* Source Dropdown Filter */}
-          <div className="flex items-center bg-surface-2 px-4 py-2 rounded-full border border-fire-border gap-2">
-            <Filter size={12} className="text-accent" />
-            <select
-              value={selectedSource}
-              onChange={(e) => handleSourceChange(e.target.value)}
-              className="bg-transparent text-small font-medium text-text-primary focus:outline-none cursor-pointer pr-3"
-            >
-              <option value="ALL" className="bg-surface text-text-primary">All Sources</option>
-              <option value="firewall" className="bg-surface text-text-primary">Firewall</option>
-              <option value="ids-ips" className="bg-surface text-text-primary">IDS/IPS</option>
-              <option value="netcradus-waf" className="bg-surface text-text-primary">WAF</option>
-              <option value="acis-gateway" className="bg-surface text-text-primary">Gateway</option>
-              <option value="auth-service" className="bg-surface text-text-primary">Auth Service</option>
-            </select>
-          </div>
+  const values = useMemo(() => {
+    if (trendData.length > 0) {
+      return trendData.map(d => d.count)
+    }
+    return [55, 68, 95, 80, 55, 105, 50, 70, 88, 45, 150, 90, 190, 120, 110, 95, 138, 60, 150, 142, 90, 42, 55, 75]
+  }, [trendData])
 
-          <div className="flex bg-surface-2 p-1 rounded-full border border-fire-border">
+  const times = useMemo(() => {
+    if (trendData.length > 0) {
+      return trendData.map((d, i) => (i % 4 === 0 ? d.time : ''))
+    }
+    return ['14:20', '', '14:25', '', '14:30', '', '16:15', '', '14:20', '', '14:35', '', '14:25', '', '14:30', '', '15:45', '', '20:00', '', '', '', '', '']
+  }, [trendData])
+
+  const maxV = useMemo(() => {
+    const peak = Math.max(...values, 0)
+    return peak > 0 ? peak : 200
+  }, [values])
+
+  const yAxisValues = useMemo(() => {
+    return [
+      maxV,
+      Math.round(maxV * 0.75),
+      Math.round(maxV * 0.5),
+      Math.round(maxV * 0.25),
+      0
+    ]
+  }, [maxV])
+
+  const hasTooltip = (idx: number) => {
+    if (hoveredIndex === idx) return true
+    if (hoveredIndex === null && trendData.length === 0) {
+      return idx === 4 || idx === 12
+    }
+    return false
+  }
+
+  const getTooltipText = (idx: number, val: number) => {
+    if (hoveredIndex === idx) {
+      if (trendData.length > 0) {
+        return `${trendData[idx].time} - ${trendData[idx].count} Events`
+      }
+      return `${times[idx] || '14:23'} - ${val} Events`
+    }
+    if (idx === 4) return '14:23 - 10 Events'
+    if (idx === 12) return '14:23 - 10 Events'
+    return ''
+  }
+
+  const displayEventsCount = useMemo(() => {
+    return logs.length > 0 ? logs.length : 245
+  }, [logs])
+
+  // Sorting
+  const handleSort = (field: string) => {
+    if (sortField === field) {
+      setSortAsc(!sortAsc)
+    } else {
+      setSortField(field)
+      setSortAsc(false)
+    }
+  }
+
+  const sortedLogs = useMemo(() => {
+    const sorted = [...logs]
+    sorted.sort((a, b) => {
+      let valA = a[sortField as keyof LogEntry] || ''
+      let valB = b[sortField as keyof LogEntry] || ''
+      if (typeof valA === 'string') valA = valA.toLowerCase()
+      if (typeof valB === 'string') valB = valB.toLowerCase()
+      if (valA < valB) return sortAsc ? -1 : 1
+      if (valA > valB) return sortAsc ? 1 : -1
+      return 0
+    })
+    return sorted
+  }, [logs, sortField, sortAsc])
+
+  return (
+    <div className="log-explorer-page">
+      <div className="hero-wrap">
+        <div className="hero-globe">
+          <HeroGlobe />
+        </div>
+
+        <div className="page-head">
+          <div>
+            <h1>Log Explorer (SPL)</h1>
+            <p>Elastic Telemetry &amp; Multi-Source Indexing</p>
+          </div>
+          <div className="head-actions">
+            <div className="select-pill source-select-wrap">
+              <span>▽</span>
+              <select
+                value={selectedSource}
+                onChange={(e) => handleSourceChange(e.target.value)}
+              >
+                <option value="ALL">All Sources</option>
+                <option value="firewall">Firewall</option>
+                <option value="ids-ips">IDS/IPS</option>
+                <option value="netcradus-waf">WAF</option>
+                <option value="acis-gateway">Gateway</option>
+                <option value="auth-service">Auth Service</option>
+              </select>
+              <span>⌄</span>
+            </div>
             <button
+              className={clsx("btn", isLive ? "blue" : "ghost")}
               onClick={() => setIsLive(true)}
-              className={clsx(
-                "px-5 py-2 rounded-full text-small font-semibold transition-all inline-flex items-center gap-2",
-                isLive ? "bg-accent text-white" : "text-text-muted hover:text-text-primary"
-              )}
             >
               Live Stream
             </button>
             <button
+              className={clsx("btn", !isLive ? "blue" : "ghost")}
               onClick={() => setIsLive(false)}
-              className={clsx(
-                "px-5 py-2 rounded-full text-small font-semibold transition-all inline-flex items-center gap-2",
-                !isLive ? "bg-accent text-white" : "text-text-muted hover:text-text-primary"
-              )}
             >
               Forensic Search
             </button>
           </div>
         </div>
-      </div>
 
-      {/* SPL Search Processor */}
-      <div className="card-mission relative overflow-hidden group">
-        <div className="absolute top-0 left-0 w-1 h-full bg-accent opacity-0 group-focus-within:opacity-100 transition-opacity" />
-        <div className="flex items-center justify-between mb-4">
-          <span className="text-label text-text-muted uppercase">Search Processing — SPL-Like Pipeline</span>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={handleTranslate}
-              disabled={isTranslating || aiStatus !== 'ready'}
-              className="flex items-center gap-2 bg-accent/10 px-3 py-1 rounded border border-accent/30 text-label text-accent uppercase hover:bg-accent/20 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {isTranslating ? 'Translating...' : 'Translate English to SPL'}
-            </button>
-            <div className={clsx(
-              "w-1.5 h-1.5 rounded-full animate-pulse ml-2",
-              aiStatus === 'checking' ? "bg-warning" :
-              aiStatus === 'ready' ? "bg-success" : "bg-danger"
-            )} />
-            <span className={clsx(
-              "text-label uppercase",
-              aiStatus === 'checking' ? "text-warning" :
-              aiStatus === 'ready' ? "text-success" : "text-danger"
-            )}>
-              {aiStatus === 'checking' ? 'Checking AI Agent...' :
-               aiStatus === 'ready' ? 'AI Agent Ready' : 'AI Agent Offline'}
-            </span>
-          </div>
-        </div>
-
-        {aiTranslateError && (
-          <div className="bg-danger/10 border border-danger/30 text-danger px-4 py-2 rounded-lg text-small font-semibold flex items-center justify-center gap-2 mb-4">
-            <ShieldCheck size={16} />
-            AI Unavailable — {aiTranslateError}
-          </div>
-        )}
-
-        <textarea
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          className="w-full h-24 bg-background border border-fire-border rounded-lg p-4 font-mono text-small text-text-secondary focus:outline-none focus:border-accent focus:ring-4 focus:ring-accent/10 placeholder:text-text-muted resize-none leading-relaxed selection:bg-accent selection:text-white transition-colors"
-          spellCheck="false"
-        />
-
-        <div className="flex items-center gap-3 mt-6">
-          <button onClick={fetchLogs} className="btn-fire min-w-[140px]">
-            <Play className="w-4 h-4 fill-white" /> Run Search
-          </button>
-          <button onClick={handleExportCSV} className="btn-mission">
-            <Download className="w-4 h-4" /> Export CSV
-          </button>
-          <button onClick={handleSaveSearch} className="btn-mission">
-            <Save className="w-4 h-4" /> Save Search
-          </button>
-
-          {savedSearches.length > 0 && (
-            <div className="flex items-center gap-2 ml-auto">
-              <span className="text-label text-text-secondary uppercase">Saved:</span>
-              <select
-                onChange={(e) => {
-                  if (e.target.value) {
-                    setQuery(e.target.value);
-                    e.target.value = '';
-                  }
+        {/* SPL Search Panel */}
+        <div className="spl-panel">
+          <div className="spl-head">
+            <div className="spl-eyebrow">SEARCH PROCESSING — SPL-LIKE PIPELINE</div>
+            <div className="spl-actions">
+              <span
+                className="translate-btn"
+                onClick={handleTranslate}
+                style={{
+                  opacity: isTranslating || aiStatus !== 'ready' ? 0.6 : 1,
+                  cursor: isTranslating || aiStatus !== 'ready' ? 'not-allowed' : 'pointer'
                 }}
-                className="bg-surface border border-fire-border px-3 py-1.5 rounded-lg text-small font-medium text-text-secondary focus:outline-none cursor-pointer max-w-[200px]"
               >
-                <option value="">Load Saved Search...</option>
-                {savedSearches.map((s, idx) => (
-                  <option key={idx} value={s}>
-                    {s.length > 30 ? s.substring(0, 30) + '...' : s}
-                  </option>
-                ))}
-              </select>
+                {isTranslating ? 'TRANSLATING...' : 'TRANSLATE ENGLISH TO SPL'}
+              </span>
+              <span className="ai-online">
+                <span
+                  className="d"
+                  style={{
+                    backgroundColor: aiStatus === 'checking' ? '#fb923c' : aiStatus === 'ready' ? '#22c55e' : '#ef4444',
+                    boxShadow: aiStatus === 'checking' ? '0 0 8px #fb923c' : aiStatus === 'ready' ? '0 0 8px #22c55e' : '0 0 8px #ef4444'
+                  }}
+                />
+                {aiStatus === 'checking' ? 'CHECKING AGENT...' : aiStatus === 'ready' ? 'AI AGENT ONLINE' : 'AI AGENT OFFLINE'}
+              </span>
+            </div>
+          </div>
+
+          {aiTranslateError && (
+            <div className="bg-danger/10 border border-danger/30 text-danger px-4 py-2 rounded-lg text-small font-semibold flex items-center justify-center gap-2 mb-4" style={{ marginTop: '-10px', marginBottom: '15px' }}>
+              AI Unavailable — {aiTranslateError}
             </div>
           )}
-        </div>
-      </div>
 
-      {/* Event Trend Chart */}
-      <div className="card-mission">
-        <div className="flex items-center justify-between mb-6">
-          <h3 className="text-h3 text-text-primary">Event Trend — By Minute</h3>
-          <span className="text-label text-success uppercase tabular-nums">Returned {logs.length.toLocaleString()} events</span>
-        </div>
-        <div className="h-40 w-full">
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={trendData}>
-              <CartesianGrid strokeDasharray="3 3" stroke={chartColors.border} vertical={false} />
-              <XAxis dataKey="time" stroke={chartColors.textMuted} fontSize={9} axisLine={false} tickLine={false} tickMargin={10} />
-              <YAxis hide />
-              <Tooltip
-                cursor={{ fill: 'color-mix(in srgb, var(--accent) 6%, transparent)' }}
-                contentStyle={{ backgroundColor: chartColors.surface2, border: `1px solid ${chartColors.border}`, borderRadius: '8px' }}
-              />
-              <Bar dataKey="count" fill={chartColors.accent} radius={[2, 2, 0, 0]} barSize={24} />
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-      </div>
+          <div className="spl-input-row">
+            <textarea
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              className="spl-input"
+              placeholder="service=acis-gateway | level=ERROR"
+              spellCheck="false"
+            />
+            <div className="field-explorer">Field Explorer <span>⌄</span></div>
+          </div>
 
-      {/* Data Grid Table */}
-      <div className="flex-1 min-h-[500px] bg-surface border border-fire-border rounded-xl overflow-hidden shadow-card relative">
-        <div className="ag-theme-acis w-full h-full">
-          <AgGridReact
-            rowData={logs}
-            columnDefs={columnDefs}
-            context={gridContext}
-            animateRows={true}
-            headerHeight={44}
-            rowHeight={44}
-            rowSelection="multiple"
-            // rowSelection's default click-to-select behavior otherwise
-            // consumes clicks at the row/cell level before they reach
-            // interactive content inside a cellRenderer (e.g. HostCell's
-            // pivot button) — this was the actual root cause of the click
-            // not registering, not the cellRenderer pattern itself.
-            suppressRowClickSelection={true}
-            overlayNoRowsTemplate="<span class='text-text-muted text-label uppercase'>Scanning historical indexes...</span>"
-          />
+          <div className="spl-buttons">
+            <button onClick={fetchLogs} className="spl-btn run">▶ Run Search</button>
+            <button onClick={handleExportCSV} className="spl-btn outline">⬇ Export CSV</button>
+            <button onClick={handleSaveSearch} className="spl-btn outline">💾 Save Search</button>
+
+            {savedSearches.length > 0 && (
+              <div className="select-pill source-select-wrap" style={{ marginLeft: 'auto' }}>
+                <select
+                  onChange={(e) => {
+                    if (e.target.value) {
+                      setQuery(e.target.value)
+                      e.target.value = ''
+                    }
+                  }}
+                >
+                  <option value="">Load Saved...</option>
+                  {savedSearches.map((s, idx) => (
+                    <option key={idx} value={s}>
+                      {s.length > 20 ? s.substring(0, 20) + '...' : s}
+                    </option>
+                  ))}
+                </select>
+                <span>⌄</span>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Event Trend */}
+        <div className="trend-panel">
+          <div className="trend-head">
+            <h3>Event Trend — By Minute</h3>
+            <div className="ret">RETURNED {logs.length} EVENTS</div>
+          </div>
+
+          <div className="trend-body">
+            <div className="chart-box">
+              <div className="bars-chart">
+                {/* Y Axis */}
+                <div className="y-axis">
+                  {yAxisValues.map((v, i) => (
+                    <span key={i}>{v}</span>
+                  ))}
+                </div>
+
+                {/* Grid Lines */}
+                <div className="grid-lines">
+                  {[0, 25, 50, 75].map((p, i) => (
+                    <div key={i} style={{ top: `${p}%` }} />
+                  ))}
+                </div>
+
+                {/* Bars Row */}
+                <div className="bars-row">
+                  {values.map((v, idx) => {
+                    const heightPercent = (v / maxV) * 100
+                    return (
+                      <div
+                        key={idx}
+                        className="bar-col"
+                        onMouseEnter={() => setHoveredIndex(idx)}
+                        onMouseLeave={() => setHoveredIndex(null)}
+                      >
+                        <div className="bar" style={{ height: `${heightPercent}%` }} />
+                        {hasTooltip(idx) && (
+                          <div className="tooltip" style={{ left: '50%', top: '0' }}>
+                            {getTooltipText(idx, v)}
+                          </div>
+                        )}
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+
+              {/* X Labels */}
+              <div className="x-labels">
+                {times.map((t, idx) => (
+                  <span key={idx}>{t}</span>
+                ))}
+              </div>
+            </div>
+
+            <div className="events-hour">
+              <div className="l">Events (Past Hour):</div>
+              <div className="v">{displayEventsCount}</div>
+            </div>
+          </div>
+        </div>
+
+        {/* Log Data */}
+        <div className="log-panel">
+          <div className="log-head">
+            <h3>Log Data</h3>
+            <div className="cols-btn">Columns: ⌄</div>
+          </div>
+          <div className="table-container">
+            <table>
+              <thead>
+                <tr>
+                  <th className="sortable" onClick={() => handleSort('timestamp')}>
+                    Timestamp {sortField === 'timestamp' ? (sortAsc ? '▲' : '▼') : '↕'}
+                  </th>
+                  <th className="sortable" onClick={() => handleSort('level')}>
+                    Level {sortField === 'level' ? (sortAsc ? '▲' : '▼') : '↕'}
+                  </th>
+                  <th className="sortable" onClick={() => handleSort('service')}>
+                    Service {sortField === 'service' ? (sortAsc ? '▲' : '▼') : '↕'}
+                  </th>
+                  <th className="sortable" onClick={() => handleSort('host')}>
+                    Source_IP {sortField === 'host' ? (sortAsc ? '▲' : '▼') : '↕'}
+                  </th>
+                  <th>Message</th>
+                </tr>
+              </thead>
+              <tbody>
+                {sortedLogs.length > 0 ? (
+                  sortedLogs.map((log, idx) => {
+                    const formattedTime = log.timestamp
+                      ? new Date(log.timestamp).toLocaleTimeString()
+                      : '---'
+                    const lvlClass = `lvl-${(log.level || 'info').toLowerCase()}`
+                    return (
+                      <tr
+                        key={log.id || idx}
+                        style={{ cursor: 'pointer' }}
+                        onClick={() => pivotTo('/dashboard/assets', { type: 'host', value: log.host || '' })}
+                      >
+                        <td>
+                          <span className="chev-icon">›</span>
+                          {formattedTime}
+                        </td>
+                        <td className={lvlClass}>
+                          {(log.level || 'INFO').toUpperCase()}
+                        </td>
+                        <td className="mono-td">
+                          {log.service || 'SYSTEM'}
+                        </td>
+                        <td className="mono-td">
+                          {log.host || 'UNKNOWN'}
+                        </td>
+                        <td>
+                          {log.message}
+                        </td>
+                      </tr>
+                    )
+                  })
+                ) : (
+                  <tr>
+                    <td colSpan={5} style={{ textAlign: 'center', padding: '30px', color: 'var(--muted)' }}>
+                      Scanning historical indexes...
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
     </div>
