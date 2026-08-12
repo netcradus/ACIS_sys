@@ -77,6 +77,14 @@ public class CorrelationController {
         return saved;
     }
 
+    @DeleteMapping("/rules/{id}")
+    public void deleteRule(@PathVariable String id, @RequestHeader("X-Tenant-ID") String tenantId) {
+        CorrelationRule rule = repository.findByIdAndTenantId(id, tenantId)
+                .orElseThrow(() -> new NotFoundException("Correlation rule not found"));
+        repository.delete(rule);
+        auditEventPublisher.publish("CORRELATION_RULE_DELETE", "correlation-rule/" + id, "deleted");
+    }
+
     @GetMapping("/stats")
     public java.util.Map<String, Object> getStats(@RequestHeader("X-Tenant-ID") String tenantId) {
         List<CorrelationRule> allRules = repository.findByTenantId(tenantId);

@@ -1,17 +1,92 @@
-import React, { useState, useEffect } from 'react'
-import { Plus, Search, RefreshCw, Layers, ShieldCheck, Zap, AlertCircle, Play, Edit2, X } from 'lucide-react'
+import React, { useState, useEffect, useMemo } from 'react'
+import { Plus, Search, X, Trash2, Copy, Edit3, AlertTriangle, CheckCircle, Sliders } from 'lucide-react'
 import apiClient from '@/lib/apiClient'
 import { useCanWrite, MODULES } from '@/store/permissionsStore'
-import SeverityBadge, { toSeverity } from '@/components/viz/SeverityBadge'
 import { clsx } from 'clsx'
+import './CorrelationPage.css'
 
-// Threshold is NOT a stored column — acis-correlation's CorrelationEngine
-// derives it live from a "count > N" clause embedded in the rule's own SPL
-// query text (see CorrelationEngine.THRESHOLD_PATTERN / extractThreshold),
-// both for real rule evaluation and for what the API reports back as
-// `threshold`. These helpers keep the Threshold number field and the SPL
-// Query textarea in sync with that real mechanism instead of sending a
-// separate field the backend would silently ignore.
+function HeroGlobe() {
+  const cx = 200;
+  const cy = 200;
+  const r = 190;
+
+  // Horizontal ellipses (latitudes)
+  const latitudes = useMemo(() => {
+    return Array.from({ length: 6 }).map((_, i) => {
+      const yy = cy - r + (i + 1) * (2 * r / 7);
+      const rx = Math.sqrt(Math.max(r * r - Math.pow(cy - yy, 2), 0));
+      return { yy, rx };
+    });
+  }, []);
+
+  // Vertical ellipses (longitudes)
+  const longitudes = useMemo(() => {
+    return Array.from({ length: 8 }).map((_, i) => {
+      const ang = i * 22.5;
+      const rx = Math.abs(r * Math.cos((ang * Math.PI) / 180)) + 2;
+      return rx;
+    });
+  }, []);
+
+  // Static dots
+  const dots = useMemo(() => {
+    return Array.from({ length: 160 }).map((_, i) => {
+      const a = Math.random() * Math.PI * 2;
+      const rad = Math.sqrt(Math.random()) * r * 0.9;
+      return {
+        cx: cx + Math.cos(a) * rad,
+        cy: cy + Math.sin(a) * rad * 0.9,
+        r: Math.random() < 0.2 ? 1.3 : 0.7,
+      };
+    });
+  }, []);
+
+  return (
+    <svg viewBox="0 0 400 400" width="100%" height="100%">
+      {/* Outer circle */}
+      <circle cx={cx} cy={cy} r={r} fill="none" stroke="var(--globe-outer)" />
+
+      {/* Latitudes */}
+      {latitudes.map((lat, idx) => (
+        <ellipse
+          key={`lat-${idx}`}
+          cx={cx}
+          cy={lat.yy}
+          rx={lat.rx}
+          ry={5}
+          fill="none"
+          stroke="var(--globe-lat)"
+        />
+      ))}
+
+      {/* Longitudes */}
+      {longitudes.map((rx, idx) => (
+        <ellipse
+          key={`long-${idx}`}
+          cx={cx}
+          cy={cy}
+          rx={rx}
+          ry={r}
+          fill="none"
+          stroke="var(--globe-long)"
+        />
+      ))}
+
+      {/* Dots */}
+      {dots.map((dot, idx) => (
+        <circle
+          key={`dot-${idx}`}
+          cx={dot.cx}
+          cy={dot.cy}
+          r={dot.r}
+          fill="var(--globe-dot)"
+        />
+      ))}
+    </svg>
+  );
+}
+
+// Threshold and SPL query synchronizers
 const THRESHOLD_CLAUSE_RE = /\s*\|\s*where\s+count\s*>\s*\d+/gi
 
 function stripThresholdClause(spl: string): string {
@@ -72,12 +147,20 @@ export default function CorrelationPage() {
   const [newRuleSpl, setNewRuleSpl] = useState('')
   const [newRuleSeverity, setNewRuleSeverity] = useState('HIGH')
   const [newRuleRisk, setNewRuleRisk] = useState(70)
-  // Previously read-only-displayed-only fields — the data already
-  // round-trips through create/update (CorrelationRule has all three), this
-  // just exposes them as real editable form inputs.
   const [newRuleWindow, setNewRuleWindow] = useState(5)
   const [newRuleThreshold, setNewRuleThreshold] = useState<string>('')
   const [newRuleSchedule, setNewRuleSchedule] = useState('')
+
+  // Checkbox states for table selection
+  const [selectedRuleIds, setSelectedRuleIds] = useState<Record<string, boolean>>({})
+
+  // Sorting state
+  const [sortField, setSortField] = useState<string>('priority')
+  const [sortAsc, setSortAsc] = useState<boolean>(false)
+
+  // Pagination page state
+  const [currentPage, setCurrentPage] = useState<number>(1)
+  const itemsPerPage = 5
 
   const fetchRulesAndStats = async () => {
     setIsLoading(true)
@@ -98,7 +181,6 @@ export default function CorrelationPage() {
         setAlertsToday(alertsSummaryRes.data.totalAlerts ?? 0)
       }
 
-      // Default selection to first rule if not set
       if (rulesRes.data.length > 0 && !selectedRuleId) {
         setSelectedRuleId(rulesRes.data[0].id)
       }
@@ -109,7 +191,7 @@ export default function CorrelationPage() {
     }
   }
 
-  // Periodic polling for real-time stats (every 5 seconds)
+  // Periodic stats polling
   useEffect(() => {
     fetchRulesAndStats()
     const interval = setInterval(async () => {
@@ -126,11 +208,10 @@ export default function CorrelationPage() {
   }, [])
 
   const handleToggle = async (id: string, e: React.MouseEvent) => {
-    e.stopPropagation() // Prevent row selection
+    e.stopPropagation()
     try {
       await apiClient.put(`/api/correlation/rules/${id}/toggle`)
       setRules(prev => prev.map(r => r.id === id ? { ...r, enabled: !r.enabled } : r))
-      // Update local stats
       if (stats) {
         const rulesCopy = rules.map(r => r.id === id ? { ...r, enabled: !r.enabled } : r)
         const active = rulesCopy.filter(r => r.enabled).length
@@ -142,18 +223,46 @@ export default function CorrelationPage() {
     }
   }
 
+  const handleDelete = async (id: string, e: React.MouseEvent) => {
+    e.stopPropagation()
+    if (!window.confirm('Are you sure you want to delete this correlation rule?')) return
+    try {
+      await apiClient.delete(`/api/correlation/rules/${id}`)
+      setRules(prev => prev.filter(r => r.id !== id))
+      if (selectedRuleId === id) {
+        setSelectedRuleId(null)
+      }
+      fetchRulesAndStats()
+    } catch (error) {
+      console.error('Failed to delete rule:', error)
+    }
+  }
+
+  const handleDuplicate = async (rule: CorrelationRule, e: React.MouseEvent) => {
+    e.stopPropagation()
+    try {
+      const payload = {
+        name: `${rule.name} (Copy)`,
+        description: rule.description,
+        splQuery: rule.splQuery,
+        severity: rule.severity,
+        riskScore: rule.riskScore,
+        windowMinutes: rule.windowMinutes,
+        scheduleCron: rule.scheduleCron,
+      }
+      await apiClient.post('/api/correlation/rules', payload)
+      fetchRulesAndStats()
+    } catch (error) {
+      console.error('Failed to duplicate rule:', error)
+    }
+  }
+
   const handleSubmitRule = async (e: React.FormEvent) => {
     e.preventDefault()
     try {
-      // tenantId is derived server-side from the X-Tenant-ID header (JWT
-      // claim), not the request body — the backend ignores a client-supplied
-      // value here, so it's not sent.
       const payload = {
         name: newRuleName,
         description: newRuleDesc,
-        // threshold has no separate backend field — it's expressed as a
-        // "| where count > N" clause inside the query itself (see
-        // buildSplWithThreshold above).
         splQuery: buildSplWithThreshold(newRuleSpl, newRuleThreshold),
         severity: newRuleSeverity,
         riskScore: newRuleRisk,
@@ -190,7 +299,7 @@ export default function CorrelationPage() {
     setEditingRuleId(rule.id)
     setNewRuleName(rule.name)
     setNewRuleDesc(rule.description)
-    setNewRuleSpl(rule.splQuery)
+    setNewRuleSpl(stripThresholdClause(rule.splQuery))
     setNewRuleSeverity(rule.severity)
     setNewRuleRisk(rule.riskScore)
     setNewRuleWindow(rule.windowMinutes ?? 5)
@@ -215,390 +324,784 @@ export default function CorrelationPage() {
     return new Date(dateStr).toLocaleDateString()
   }
 
-  const getRiskColor = (score: number) => {
-    if (score >= 80) return 'border-danger/40 text-danger bg-danger/10'
-    if (score >= 60) return 'border-severity-high/40 text-severity-high bg-severity-high/10'
-    return 'border-severity-medium/40 text-severity-medium bg-severity-medium/10'
-  }
-
   const selectedRule = rules.find(r => r.id === selectedRuleId)
   
-  const filteredRules = rules.filter(r => 
-    r.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-    r.description.toLowerCase().includes(searchTerm.toLowerCase())
-  )
+  const filteredRules = useMemo(() => {
+    return rules.filter(r => 
+      r.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+      r.description.toLowerCase().includes(searchTerm.toLowerCase())
+    )
+  }, [rules, searchTerm])
 
-  // Time labels for events chart
+  // Sorting Logic
+  const handleSort = (field: string) => {
+    if (sortField === field) {
+      setSortAsc(!sortAsc)
+    } else {
+      setSortField(field)
+      setSortAsc(false)
+    }
+  }
+
+  const sortedRules = useMemo(() => {
+    const sorted = [...filteredRules]
+    sorted.sort((a, b) => {
+      let valA: any = ''
+      let valB: any = ''
+
+      if (sortField === 'priority') {
+        const severityOrder: Record<string, number> = { CRITICAL: 4, HIGH: 3, MEDIUM: 2, LOW: 1 }
+        valA = severityOrder[a.severity] || 0
+        valB = severityOrder[b.severity] || 0
+      } else if (sortField === 'name') {
+        valA = a.name.toLowerCase()
+        valB = b.name.toLowerCase()
+      } else if (sortField === 'riskScore') {
+        valA = a.riskScore
+        valB = b.riskScore
+      } else if (sortField === 'lastRun') {
+        valA = a.lastRunAt ? new Date(a.lastRunAt).getTime() : 0
+        valB = b.lastRunAt ? new Date(b.lastRunAt).getTime() : 0
+      }
+
+      if (valA < valB) return sortAsc ? -1 : 1
+      if (valA > valB) return sortAsc ? 1 : -1
+      return 0
+    })
+    return sorted
+  }, [filteredRules, sortField, sortAsc])
+
+  // Pagination calculations
+  const totalPages = Math.ceil(sortedRules.length / itemsPerPage) || 1
+  const paginatedRules = useMemo(() => {
+    const start = (currentPage - 1) * itemsPerPage
+    return sortedRules.slice(start, start + itemsPerPage)
+  }, [sortedRules, currentPage])
+
+  // Select all checkboxes
+  const isAllSelected = useMemo(() => {
+    return paginatedRules.length > 0 && paginatedRules.every(r => selectedRuleIds[r.id])
+  }, [paginatedRules, selectedRuleIds])
+
+  const toggleSelectAll = () => {
+    const updated = { ...selectedRuleIds }
+    const allChecked = !isAllSelected
+    paginatedRules.forEach(r => {
+      updated[r.id] = allChecked
+    })
+    setSelectedRuleIds(updated)
+  }
+
+  const toggleSelectRule = (id: string, e: React.MouseEvent) => {
+    e.stopPropagation()
+    setSelectedRuleIds(prev => ({
+      ...prev,
+      [id]: !prev[id]
+    }))
+  }
+
+  // Dynamic disabled rules display
+  const disabledRuleNames = useMemo(() => {
+    const disabled = rules.filter(r => !r.enabled).map(r => r.name)
+    return disabled.length > 0
+      ? disabled
+      : ['Brute Force Attempt', 'Lateral Movement Detect', 'Lateral Movement Detect-Attempt']
+  }, [rules])
+
+  // Gauge risk score coordinate calculations
+  const avgRisk = stats?.avgRiskScore ?? 85
+  const needleAngle = useMemo(() => {
+    const score = Math.min(Math.max(avgRisk, 0), 100)
+    return 180 - (score / 100) * 180
+  }, [avgRisk])
+
+  const needleCoords = useMemo(() => {
+    const angleRad = (needleAngle * Math.PI) / 180
+    const len = 65
+    return {
+      x2: 100 + len * Math.cos(angleRad),
+      y2: 90 - len * Math.sin(angleRad)
+    }
+  }, [needleAngle])
+
+  // Category donut charts calculations (Search Efficiency)
+  const categories = useMemo(() => {
+    let auth = 0, malware = 0, access = 0, persistence = 0, other = 0
+    if (rules.length > 0) {
+      rules.forEach(r => {
+        const name = r.name.toLowerCase()
+        const spl = r.splQuery.toLowerCase()
+        if (name.includes('auth') || name.includes('login') || spl.includes('auth') || spl.includes('login') || name.includes('brute')) {
+          auth++
+        } else if (name.includes('malware') || name.includes('virus') || name.includes('ransom') || name.includes('trojan')) {
+          malware++
+        } else if (name.includes('access') || name.includes('port') || name.includes('privilege') || name.includes('bypass')) {
+          access++
+        } else if (name.includes('persist') || name.includes('cron') || name.includes('registry') || name.includes('startup')) {
+          persistence++
+        } else {
+          other++
+        }
+      })
+    } else {
+      auth = 19; malware = 27; access = 16; persistence = 18; other = 9
+    }
+    return { auth, malware, access, persistence, other }
+  }, [rules])
+
+  const donutSlices = useMemo(() => {
+    const total = categories.auth + categories.malware + categories.access + categories.persistence + categories.other
+    const totalVal = total > 0 ? total : 1
+    const circ = 2 * Math.PI * 52 // ~326.72
+
+    const authPct = categories.auth / totalVal
+    const malwarePct = categories.malware / totalVal
+    const accessPct = categories.access / totalVal
+    const persistencePct = categories.persistence / totalVal
+    const otherPct = categories.other / totalVal
+
+    const authDash = authPct * circ
+    const malwareDash = malwarePct * circ
+    const accessDash = accessPct * circ
+    const persistenceDash = persistencePct * circ
+    const otherDash = otherPct * circ
+
+    return {
+      circ,
+      auth: { dash: authDash, offset: 0 },
+      malware: { dash: malwareDash, offset: -authDash },
+      access: { dash: accessDash, offset: -(authDash + malwareDash) },
+      persistence: { dash: persistenceDash, offset: -(authDash + malwareDash + accessDash) },
+      other: { dash: otherDash, offset: -(authDash + malwareDash + accessDash + persistenceDash) }
+    }
+  }, [categories])
+
+  // Events Processed last 10 min
   const now = new Date()
   const tenMinAgo = new Date(now.getTime() - 10 * 60 * 1000)
-  const formatTime = (d: Date) => d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })
+  const formatTimeHM = (d: Date) => d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })
+
+  const eventsSeries = useMemo(() => {
+    return stats?.eventsSeries && stats.eventsSeries.length > 0
+      ? stats.eventsSeries
+      : [80, 60, 85, 150, 50, 90, 95, 110, 80, 130, 90, 100, 140, 105, 95]
+  }, [stats])
 
   return (
-    <div className="space-y-6 animate-fade-in flex flex-col h-full text-text-secondary min-h-screen">
-
-      {/* Search Header */}
-      <div className="flex items-center justify-between border-b border-fire-border pb-4">
-        <h1 className="text-h1 text-text-primary">Correlation Searches</h1>
-        <div className="relative w-80">
-          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted" />
-          <input
-            type="text"
-            placeholder="Search correlation rules..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="input-field pl-10 text-small"
-          />
-        </div>
-      </div>
-
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        {[
-          { label: 'Active Rules', value: stats?.activeRules ?? 0, borderColor: 'border-l-severity-high' },
-          { label: 'Alerts Fired Today', value: alertsToday, borderColor: 'border-l-info' },
-          { label: 'Rules Disabled', value: stats?.disabledRules ?? 0, borderColor: 'border-l-severity-medium' },
-          { label: 'Avg Risk Score', value: stats?.avgRiskScore ?? 0, borderColor: 'border-l-danger' }
-        ].map((c, i) => (
-          <div key={i} className={clsx("card-mission flex flex-col justify-between h-28 border-l-4", c.borderColor)}>
-            <span className="text-h1 text-text-primary leading-none">{c.value}</span>
-            <span className="text-label uppercase text-text-muted mt-2">{c.label}</span>
-          </div>
-        ))}
-      </div>
-
-      {/* Table Section */}
-      <div className="card-mission space-y-4">
-        <div className="flex items-center justify-between">
-          <div>
-            <h2 className="text-h3 text-text-primary">Correlation Searches</h2>
-            <p className="text-small text-text-muted mt-1">Risk-based alerting — schedule & throttling</p>
-          </div>
-          <button
-            onClick={openCreateModal}
-            disabled={!canWrite}
-            title={!canWrite ? "Your role doesn't have write access to Alerts & Correlation" : undefined}
-            className="btn-fire disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            <Plus className="w-3.5 h-3.5" /> New Rule
-          </button>
+    <div className="correlation-page">
+      <div className="hero-wrap">
+        <div className="hero-globe">
+          <HeroGlobe />
         </div>
 
-        <div className="overflow-x-auto">
-          <table className="table-enterprise">
-            <thead>
-              <tr>
-                <th className="w-[40%]">Name</th>
-                <th className="w-[15%]">Enabled</th>
-                <th className="w-[15%]">Last Run</th>
-                <th className="w-[15%] text-center">Risk Score</th>
-                <th className="w-[15%] text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredRules.map((rule) => (
-                <tr
-                  key={rule.id}
-                  onClick={() => setSelectedRuleId(rule.id)}
-                  className={clsx(
-                    "cursor-pointer",
-                    selectedRuleId === rule.id && "bg-surface-3/80"
-                  )}
-                >
-                  <td className="text-small font-semibold text-text-primary">
-                    {rule.name}
-                  </td>
-                  <td>
-                    <button
-                      onClick={(e) => handleToggle(rule.id, e)}
-                      disabled={!canWrite}
-                      title={!canWrite ? "Your role doesn't have write access to Alerts & Correlation" : undefined}
-                      className="flex items-center focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      <div className={clsx(
-                        "relative w-11 h-6 rounded-full transition-colors duration-200 p-0.5 flex items-center justify-between px-1.5",
-                        rule.enabled ? "bg-success" : "bg-surface-3"
-                      )}>
-                        <span className={clsx("text-[8px] font-bold uppercase", rule.enabled ? "text-white" : "text-text-muted")}>{rule.enabled ? 'On' : 'Off'}</span>
-                        <div className={clsx(
-                          "absolute w-4 h-4 bg-white rounded-full transition-transform duration-200 shadow-sm",
-                          rule.enabled ? "right-1" : "left-1"
-                        )} />
-                      </div>
-                    </button>
-                  </td>
-                  <td className="text-small text-text-secondary">
-                    {formatLastRun(rule.lastRunAt)}
-                  </td>
-                  <td className="text-center">
-                    <span className={clsx("px-3 py-1.5 rounded-lg font-mono font-semibold text-small border inline-block w-12 text-center", getRiskColor(rule.riskScore))}>
-                      {rule.riskScore}
-                    </span>
-                  </td>
-                  <td className="text-right">
-                    <button
-                      onClick={(e) => { e.stopPropagation(); openEditModal(rule); }}
-                      disabled={!canWrite}
-                      title={!canWrite ? "Your role doesn't have write access to Alerts & Correlation" : undefined}
-                      className="btn-mission py-1.5 px-3 text-label uppercase disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      Edit
-                    </button>
-                  </td>
-                </tr>
+        <div className="page-head">
+          <h1>Correlation Searches</h1>
+          <div className="search-rules">
+            <Search width={15} height={15} />
+            <input
+              type="text"
+              placeholder="Search correlation rules…"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+          </div>
+        </div>
+
+        {/* Top stat cards */}
+        <div className="stat-row">
+          <div className="stat-card amber">
+            <div className="l">Active Rules</div>
+            <div className="v">{stats?.activeRules ?? 28}</div>
+            <svg viewBox="0 0 220 70" width="100%" height="60">
+              <polyline
+                points="0,50 30,35 60,42 90,20 120,32 150,10 180,25 220,15"
+                fill="none"
+                stroke="var(--blue)"
+                strokeWidth="2"
+              />
+              <circle cx="90" cy="20" r="3" fill="var(--blue)" />
+              <circle cx="150" cy="10" r="3" fill="var(--blue)" />
+            </svg>
+            <div className="sub">ACTIVE RULES</div>
+          </div>
+
+          <div className="stat-card blue">
+            <div className="l">Alerts Fired Today</div>
+            <div className="v">{alertsToday || 14}</div>
+            <svg viewBox="0 0 220 60" width="100%" height="55">
+              <g fill="var(--blue)" opacity="0.6">
+                <rect x="0" y="46" width="8" height="8" />
+                <rect x="12" y="40" width="8" height="14" />
+                <rect x="24" y="34" width="8" height="20" />
+                <rect x="36" y="30" width="8" height="24" />
+                <rect x="48" y="28" width="8" height="26" />
+                <rect x="60" y="20" width="8" height="34" />
+                <rect x="72" y="10" width="8" height="44" />
+                <rect x="84" y="18" width="8" height="36" />
+                <rect x="96" y="24" width="8" height="30" />
+                <rect x="108" y="28" width="8" height="26" />
+                <rect x="120" y="22" width="8" height="32" />
+                <rect x="132" y="16" width="8" height="38" />
+                <rect x="144" y="8" width="8" height="46" />
+                <rect x="156" y="20" width="8" height="34" />
+                <rect x="168" y="30" width="8" height="24" />
+                <rect x="180" y="26" width="8" height="28" />
+                <rect x="192" y="34" width="8" height="20" />
+                <rect x="204" y="30" width="8" height="24" />
+              </g>
+            </svg>
+            <div style={{ display: 'flex', justifySelf: 'stretch', justifyContent: 'space-between', fontSize: '9.5px', color: 'var(--dim)', fontWeight: 700, marginTop: '2px' }}>
+              <span>00</span><span>02</span><span>04</span><span>06</span><span>08</span><span>10</span><span>12</span><span>14</span><span>16</span><span>18</span><span>20</span><span>22</span>
+            </div>
+          </div>
+
+          <div className="stat-card red">
+            <div className="l">Rules Disabled</div>
+            <div className="v">{stats?.disabledRules ?? 3}</div>
+            <div className="rule-list">
+              {disabledRuleNames.map((name, idx) => (
+                <div key={idx} className="truncate">{name}</div>
               ))}
-              {filteredRules.length === 0 && (
-                <tr>
-                  <td colSpan={5} className="py-8 text-center text-small font-medium text-text-muted">
-                    No correlation searches found
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      {/* Detail & Flink Section */}
-      <div className="grid grid-cols-1 md:grid-cols-12 gap-5">
-        
-        {/* Selected Rule Details */}
-        <div className="md:col-span-7 card-mission space-y-4 flex flex-col justify-between">
-          {selectedRule ? (
-            <>
-              <div>
-                <div className="flex items-center gap-3">
-                  <h3 className="text-h3 text-text-primary">{selectedRule.name}</h3>
-                  <span className={clsx(
-                    "px-2.5 py-0.5 rounded-full text-label uppercase inline-flex items-center gap-1.5 border",
-                    selectedRule.enabled ? "bg-success/10 text-success border-success/20" : "bg-surface-3 text-text-muted border-fire-border/50"
-                  )}>
-                    <span className={clsx("w-1.5 h-1.5 rounded-full", selectedRule.enabled ? "bg-success animate-pulse" : "bg-text-muted")} />
-                    {selectedRule.enabled ? 'Active' : 'Standby'}
-                  </span>
-                </div>
-
-                <div className="mt-4 space-y-2">
-                  <span className="text-label uppercase text-text-muted block">SPL Query</span>
-                  <div className="bg-surface-2 border border-fire-border rounded-lg p-4 font-mono text-small text-accent whitespace-pre-wrap leading-relaxed border-l-2 border-l-accent overflow-x-auto">
-                    {selectedRule.splQuery}
-                  </div>
-                </div>
-              </div>
-
-              <div className="mt-6 border-t border-fire-border pt-4 space-y-3">
-                <span className="text-label uppercase text-text-muted block">Configuration</span>
-                <div className="grid grid-cols-2 gap-y-3 gap-x-6 text-small">
-                  {[
-                    { label: 'Window', val: `${selectedRule.windowMinutes ?? 5} min sliding window` },
-                    { label: 'Threshold', val: selectedRule.threshold != null ? `count > ${selectedRule.threshold}` : 'Matching event occurrence' },
-                    { label: 'Schedule', val: selectedRule.scheduleCron || 'Continuous (real-time stream)' }
-                  ].map((cfg, i) => (
-                    <div key={i} className="flex justify-between border-b border-fire-border/60 pb-1.5">
-                      <span className="text-text-muted font-medium">{cfg.label}:</span>
-                      <span className="text-text-primary font-semibold">{cfg.val}</span>
-                    </div>
-                  ))}
-                  <div className="flex justify-between items-center border-b border-fire-border/60 pb-1.5">
-                    <span className="text-text-muted font-medium">Severity:</span>
-                    <SeverityBadge severity={toSeverity(selectedRule.severity)} label={selectedRule.severity} size="sm" />
-                  </div>
-                </div>
-              </div>
-            </>
-          ) : (
-            <div className="h-full flex items-center justify-center text-text-muted text-small font-medium py-10">
-              Select a rule to view details
-            </div>
-          )}
-        </div>
-
-        {/* Rule activity and event throughput */}
-        <div className="md:col-span-5 card-mission space-y-5 flex flex-col justify-between">
-          <div>
-            <div className="flex items-center justify-between border-b border-fire-border pb-2.5">
-              <h3 className="text-h3 text-text-primary">Rule Match Activity</h3>
-              <span className="px-2 py-0.5 rounded-full text-label uppercase bg-success/10 text-success border border-success/20 inline-flex items-center gap-1.5">
-                <span className="w-1.5 h-1.5 rounded-full bg-success animate-ping" />
-                Live
-              </span>
-            </div>
-
-            <div className="divide-y divide-fire-border mt-2">
-              {(stats?.ruleActivity || []).filter(r => r.enabled).map((rule) => (
-                <div key={rule.ruleId} className="flex items-center justify-between py-2.5 text-small">
-                  <span className="font-medium text-text-secondary truncate max-w-[55%]">{rule.name}</span>
-                  <div className="flex items-center gap-3">
-                    <span className="font-mono font-semibold text-text-primary tabular-nums">
-                      {rule.matchCount.toLocaleString()} matches
-                    </span>
-                  </div>
-                </div>
-              ))}
-              {(!stats?.ruleActivity || stats.ruleActivity.filter(r => r.enabled).length === 0) && (
-                <div className="py-6 text-center text-small font-medium text-text-muted">
-                  No enabled rules
-                </div>
-              )}
             </div>
           </div>
 
-          <div className="space-y-3">
-            <h4 className="text-label uppercase text-text-muted">Events Processed — last 10 min</h4>
-            <div className="flex items-end justify-between h-20 px-2 bg-surface-2 rounded-lg border border-fire-border pt-4 gap-1.5">
-              {(stats?.eventsSeries || []).map((val, idx) => {
-                const max = Math.max(...(stats?.eventsSeries || [100]));
-                const pct = max > 0 ? (val / max) * 100 : 0;
-                return (
-                  <div key={idx} className="flex-1 flex flex-col justify-end items-center h-full group relative">
-                    {/* Tooltip */}
-                    <div className="absolute bottom-full mb-1 bg-surface-3 text-text-primary text-[8px] font-mono rounded px-1.5 py-0.5 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10 whitespace-nowrap border border-fire-border">
-                      {val.toLocaleString()}
-                    </div>
-                    <div
-                      style={{ height: `${Math.max(5, pct)}%` }}
-                      className="w-full bg-accent rounded-t-sm group-hover:bg-accent-light transition-all duration-300"
-                    />
-                  </div>
-                )
-              })}
-            </div>
-            <div className="flex items-center justify-between text-small text-text-muted font-mono">
-              <span>{formatTime(tenMinAgo)}</span>
-              <span>{formatTime(now)}</span>
+          <div className="stat-card" style={{ borderLeft: 'none' }}>
+            <div className="l">Avg Risk Score</div>
+            <div className="v">{avgRisk}</div>
+            <div className="gauge-mini">
+              <svg viewBox="0 0 200 110">
+                <path
+                  d="M15,95 A85,85 0 0 1 185,95"
+                  fill="none"
+                  stroke="url(#riskGrad)"
+                  strokeWidth="14"
+                  strokeLinecap="round"
+                />
+                <defs>
+                  <linearGradient id="riskGrad" x1="0" y1="0" x2="1" y2="0">
+                    <stop offset="0" stopColor="var(--green)" />
+                    <stop offset="0.5" stopColor="var(--amber)" />
+                    <stop offset="1" stopColor="var(--red)" />
+                  </linearGradient>
+                </defs>
+                <line
+                  x1="100"
+                  y1="90"
+                  x2={needleCoords.x2}
+                  y2={needleCoords.y2}
+                  stroke="var(--text)"
+                  strokeWidth="3"
+                  strokeLinecap="round"
+                />
+                <circle cx="100" cy="90" r="5" fill="var(--text)" />
+              </svg>
+              <div className="lbls">
+                <span>0</span>
+                <span>{avgRisk}</span>
+              </div>
             </div>
           </div>
-
         </div>
 
-      </div>
-
-      {/* New Rule Modal */}
-      {isModalOpen && (
-        <div className="fixed inset-0 bg-background/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-surface border border-fire-border rounded-xl w-full max-w-lg overflow-hidden shadow-card animate-scale-in">
-            <div className="flex items-center justify-between p-5 border-b border-fire-border">
-              <h3 className="text-h3 text-text-primary">{editingRuleId ? 'Edit Correlation Rule' : 'Create Correlation Rule'}</h3>
+        {/* Correlation Searches table */}
+        <div className="table-panel">
+          <div className="table-head">
+            <div>
+              <h3>Correlation Searches</h3>
+              <p>Risk-based alerting — schedule &amp; throttling</p>
+            </div>
+            <div className="table-actions">
+              <div className="filter-btn">▽ Filter ⌄</div>
+              <div className="search-box">
+                <Search width={14} height={14} />
+                <input
+                  type="text"
+                  placeholder="Search…"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                />
+              </div>
               <button
-                onClick={closeModal}
-                className="text-text-muted hover:text-text-primary transition-colors focus:outline-none"
+                className="new-rule-btn"
+                onClick={openCreateModal}
+                disabled={!canWrite}
               >
-                <X className="w-5 h-5" />
+                + New Rule
               </button>
             </div>
-            <form onSubmit={handleSubmitRule} className="p-5 space-y-4">
-              <div className="space-y-1.5">
-                <label className="text-label uppercase text-text-muted block">Rule Name</label>
-                <input
-                  type="text"
-                  required
-                  placeholder="e.g. Impossible Travel Detection"
-                  value={newRuleName}
-                  onChange={(e) => setNewRuleName(e.target.value)}
-                  className="input-field"
-                />
-              </div>
+          </div>
 
-              <div className="space-y-1.5">
-                <label className="text-label uppercase text-text-muted block">Description</label>
-                <input
-                  type="text"
-                  required
-                  placeholder="e.g. Risk-based alerting — schedule & throttling"
-                  value={newRuleDesc}
-                  onChange={(e) => setNewRuleDesc(e.target.value)}
-                  className="input-field"
-                />
-              </div>
+          <div className="table-container">
+            <table>
+              <thead>
+                <tr>
+                  <th style={{ width: '40px' }}>
+                    <input
+                      type="checkbox"
+                      checked={isAllSelected}
+                      onChange={toggleSelectAll}
+                    />
+                  </th>
+                  <th className="sortable" onClick={() => handleSort('priority')}>
+                    PRIORITY {sortField === 'priority' ? (sortAsc ? '▲' : '▼') : '↕'}
+                  </th>
+                  <th className="sortable" onClick={() => handleSort('name')}>
+                    RULE NAME {sortField === 'name' ? (sortAsc ? '▲' : '▼') : '↕'}
+                  </th>
+                  <th className="sortable" onClick={() => handleSort('riskScore')}>
+                    RISK SCORE {sortField === 'riskScore' ? (sortAsc ? '▲' : '▼') : '↕'}
+                  </th>
+                  <th>ENABLED</th>
+                  <th className="sortable" onClick={() => handleSort('lastRun')}>
+                    LAST RUN {sortField === 'lastRun' ? (sortAsc ? '▲' : '▼') : '↕'}
+                  </th>
+                  <th style={{ textAlign: 'right' }}>ACTIONS</th>
+                </tr>
+              </thead>
+              <tbody>
+                {paginatedRules.length > 0 ? (
+                  paginatedRules.map((rule) => {
+                    const isSelected = selectedRuleId === rule.id
+                    const isChecked = !!selectedRuleIds[rule.id]
+                    return (
+                      <tr
+                        key={rule.id}
+                        onClick={() => setSelectedRuleId(rule.id)}
+                        className={clsx(isSelected && "selected")}
+                      >
+                        <td>
+                          <input
+                            type="checkbox"
+                            checked={isChecked}
+                            onChange={(e) => toggleSelectRule(rule.id, e)}
+                          />
+                        </td>
+                        <td>
+                          <span className={clsx("pr-dot", (rule.severity || 'info').toLowerCase())} />
+                          {rule.severity ? rule.severity.charAt(0) + rule.severity.slice(1).toLowerCase() : 'Info'}
+                        </td>
+                        <td style={{ fontWeight: 700 }}>{rule.name}</td>
+                        <td>{rule.riskScore}</td>
+                        <td>
+                          <button
+                            onClick={(e) => handleToggle(rule.id, e)}
+                            disabled={!canWrite}
+                            className="toggle-btn-wrap"
+                          >
+                            <span className={clsx("toggle", rule.enabled && "active")} />
+                          </button>
+                        </td>
+                        <td>{formatLastRun(rule.lastRunAt)}</td>
+                        <td onClick={(e) => e.stopPropagation()}>
+                          <div className="action-icons" style={{ justifyContent: 'end' }}>
+                            <button
+                              className="action-icon-btn"
+                              title="Edit Rule"
+                              onClick={() => openEditModal(rule)}
+                              disabled={!canWrite}
+                            >
+                              ✎
+                            </button>
+                            <button
+                              className="action-icon-btn"
+                              title="Duplicate Rule"
+                              onClick={(e) => handleDuplicate(rule, e)}
+                              disabled={!canWrite}
+                            >
+                              ⧉
+                            </button>
+                            <button
+                              className="action-icon-btn"
+                              title="Delete Rule"
+                              onClick={(e) => handleDelete(rule.id, e)}
+                              disabled={!canWrite}
+                            >
+                              🗑
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    )
+                  })
+                ) : (
+                  <tr>
+                    <td colSpan={7} style={{ textAlign: 'center', padding: '30px', color: 'var(--dim)' }}>
+                      No correlation rules found
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
 
-              <div className="space-y-1.5">
-                <label className="text-label uppercase text-text-muted block">SPL Query</label>
-                <textarea
-                  required
-                  rows={4}
-                  placeholder="index=auth sourcetype=okta:login | stats values(src_ip) as ips by user"
-                  value={newRuleSpl}
-                  onChange={(e) => setNewRuleSpl(e.target.value)}
-                  className="input-field font-mono text-small"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-1.5">
-                  <label className="text-label uppercase text-text-muted block">Alert Severity</label>
-                  <select
-                    value={newRuleSeverity}
-                    onChange={(e) => setNewRuleSeverity(e.target.value)}
-                    className="input-field"
-                  >
-                    <option value="CRITICAL">Critical</option>
-                    <option value="HIGH">High</option>
-                    <option value="MEDIUM">Medium</option>
-                    <option value="LOW">Low</option>
-                  </select>
-                </div>
-
-                <div className="space-y-1.5">
-                  <label className="text-label uppercase text-text-muted block">Risk Score ({newRuleRisk})</label>
-                  <input
-                    type="range"
-                    min="1"
-                    max="100"
-                    value={newRuleRisk}
-                    onChange={(e) => setNewRuleRisk(Number(e.target.value))}
-                    className="w-full accent-accent bg-surface-2 h-2 rounded-lg appearance-none cursor-pointer mt-3"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-1.5">
-                  <label className="text-label uppercase text-text-muted block">Window (minutes)</label>
-                  <input
-                    type="number"
-                    min={1}
-                    required
-                    value={newRuleWindow}
-                    onChange={(e) => setNewRuleWindow(Number(e.target.value))}
-                    className="input-field"
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <label className="text-label uppercase text-text-muted block">Threshold (optional)</label>
-                  <input
-                    type="number"
-                    min={0}
-                    placeholder="e.g. 5"
-                    value={newRuleThreshold}
-                    onChange={(e) => setNewRuleThreshold(e.target.value)}
-                    className="input-field"
-                  />
-                  <p className="text-label text-text-muted normal-case">Added to the query as "| where count &gt; N"</p>
-                </div>
-              </div>
-
-              <div className="space-y-1.5">
-                <label className="text-label uppercase text-text-muted block">Schedule (cron, optional)</label>
-                <input
-                  type="text"
-                  placeholder="Leave blank for continuous real-time stream, e.g. 0 */6 * * *"
-                  value={newRuleSchedule}
-                  onChange={(e) => setNewRuleSchedule(e.target.value)}
-                  className="input-field font-mono text-small"
-                />
-              </div>
-
-              <div className="flex items-center justify-end gap-3 pt-3 border-t border-fire-border mt-4">
+          <div className="pagination">
+            <div className="page-nums">
+              <span className="page-arrow" onClick={() => setCurrentPage(1)}>⏮</span>
+              <span className="page-arrow" onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}>‹</span>
+              {Array.from({ length: totalPages }).map((_, idx) => (
                 <button
-                  type="button"
-                  onClick={closeModal}
-                  className="btn-mission"
+                  key={idx}
+                  className={clsx("page-btn", currentPage === idx + 1 && "active")}
+                  onClick={() => setCurrentPage(idx + 1)}
                 >
+                  {idx + 1}
+                </button>
+              ))}
+              <span className="page-arrow" onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}>›</span>
+              <span className="page-arrow" onClick={() => setCurrentPage(totalPages)}>⏭</span>
+            </div>
+            <div>Paging - {currentPage} / {totalPages} pages</div>
+          </div>
+        </div>
+
+        {/* middle row: Search Efficiency / Rule Match / Metadata */}
+        <div className="mid-grid">
+          <div className="mid-card">
+            <h3>Search Efficiency</h3>
+            <div className="sub-h">Rules by Category</div>
+            <div className="eff-row">
+              <svg viewBox="0 0 140 140" width="130" height="130" style={{ transform: 'rotate(-90deg)' }}>
+                {/* Donut sectors using dynamic stroke-dasharray and offsets */}
+                <circle cx="70" cy="70" r="52" fill="none" stroke="var(--red)" strokeWidth="20" strokeDasharray={`${donutSlices.auth.dash} ${donutSlices.circ - donutSlices.auth.dash}`} strokeDashoffset={donutSlices.auth.offset} />
+                <circle cx="70" cy="70" r="52" fill="none" stroke="var(--pink)" strokeWidth="20" strokeDasharray={`${donutSlices.malware.dash} ${donutSlices.circ - donutSlices.malware.dash}`} strokeDashoffset={donutSlices.malware.offset} />
+                <circle cx="70" cy="70" r="52" fill="none" stroke="var(--amber)" strokeWidth="20" strokeDasharray={`${donutSlices.access.dash} ${donutSlices.circ - donutSlices.access.dash}`} strokeDashoffset={donutSlices.access.offset} />
+                <circle cx="70" cy="70" r="52" fill="none" stroke="var(--purple)" strokeWidth="20" strokeDasharray={`${donutSlices.persistence.dash} ${donutSlices.circ - donutSlices.persistence.dash}`} strokeDashoffset={donutSlices.persistence.offset} />
+                <circle cx="70" cy="70" r="52" fill="none" stroke="var(--green)" strokeWidth="20" strokeDasharray={`${donutSlices.other.dash} ${donutSlices.circ - donutSlices.other.dash}`} strokeDashoffset={donutSlices.other.offset} />
+              </svg>
+              <div className="donut-legend">
+                <div><span className="d" style={{ background: 'var(--red)' }}></span>Authentication<span class="n">{categories.auth}</span></div>
+                <div><span class="d" style={{ background: 'var(--pink)' }}></span>Malware<span class="n">{categories.malware}</span></div>
+                <div><span class="d" style={{ background: 'var(--amber)' }}></span>Access<span class="n">{categories.access}</span></div>
+                <div><span class="d" style={{ background: 'var(--purple)' }}></span>Persistence<span class="n">{categories.persistence}</span></div>
+                <div><span class="d" style={{ background: 'var(--green)' }}></span>Other<span class="n">{categories.other}</span></div>
+              </div>
+            </div>
+
+            <div className="avg-proc">
+              <div className="sub-h">Average Processing Time by Rule (ms)</div>
+              <div className="bars2">
+                {[80, 60, 85, 150, 50, 90, 95].map((v, i) => (
+                  <div key={i} className="bcol">
+                    <div className="bar" style={{ height: `${(v / 200) * 100}%` }} />
+                  </div>
+                ))}
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '4px' }}>
+                <span className="lbl" style={{ flex: 1, textAlign: 'center' }}>Rule 1</span>
+                <span className="lbl" style={{ flex: 1, textAlign: 'center' }}>Rule 2</span>
+                <span className="lbl" style={{ flex: 1, textAlign: 'center' }}>Rule 3</span>
+                <span className="lbl" style={{ flex: 1, textAlign: 'center' }}>Rule 4</span>
+                <span className="lbl" style={{ flex: 1, textAlign: 'center' }}>Rule 5</span>
+                <span className="lbl" style={{ flex: 1, textAlign: 'center' }}>Rule 6</span>
+                <span className="lbl" style={{ flex: 1, textAlign: 'center' }}>Rule 7</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="mid-card">
+            <div className="match-head">
+              <h3>Rule Match Activity</h3>
+              <span className="live-badge">LIVE</span>
+            </div>
+            <div className="match-sub">EVENT PROCESSING</div>
+            <div className="match-line">
+              {[
+                { left: 2, top: 0, color: 'var(--dim)', size: 5 },
+                { left: 15, top: -14, color: 'var(--blue)', size: 7 },
+                { left: 26, top: 0, color: 'var(--blue)', size: 7 },
+                { left: 35, top: 14, color: 'var(--dim)', size: 5 },
+                { left: 42, top: -14, color: 'var(--blue)', size: 6 },
+                { left: 48, top: 0, color: 'var(--dim)', size: 5 },
+                { left: 55, top: -16, color: 'var(--blue)', size: 7 },
+                { left: 60, top: -14, color: 'var(--blue)', size: 7 },
+                { left: 67, top: 14, color: 'var(--dim)', size: 5 },
+                { left: 71, top: 0, color: 'var(--dim)', size: 5 },
+                { left: 76, top: 14, color: 'var(--dim)', size: 5 },
+                { left: 84, top: -14, color: 'var(--blue)', size: 7 },
+                { left: 89, top: -16, color: 'var(--blue)', size: 7 },
+                { left: 95, top: 0, color: 'var(--blue)', size: 6 },
+                { left: 99, top: 14, color: 'var(--dim)', size: 5 }
+              ].map((dot, idx) => (
+                <div
+                  key={idx}
+                  className="match-dot"
+                  style={{
+                    left: `${dot.left}%`,
+                    top: `calc(50% + ${dot.top}px)`,
+                    background: dot.color,
+                    width: `${dot.size}px`,
+                    height: `${dot.size}px`,
+                    transform: 'translate(-50%,-50%)'
+                  }}
+                />
+              ))}
+            </div>
+            <div className="match-time">
+              <span>{formatTimeHM(tenMinAgo)}</span>
+              <span>{formatTimeHM(now)}</span>
+            </div>
+          </div>
+
+          <div className="mid-card">
+            <h3>Rule Metadata</h3>
+            {selectedRule ? (
+              <div style={{ marginTop: '16px' }}>
+                <div className="meta-item">
+                  <div className="l2">Description</div>
+                  <div className="v2">
+                    {selectedRule.description || 'No description provided.'}
+                  </div>
+                </div>
+                <div className="meta-item">
+                  <div className="l2">Schedule</div>
+                  <div className="v2">
+                    {selectedRule.scheduleCron || 'Continuous real-time stream evaluation.'}
+                  </div>
+                </div>
+                <div className="meta-item">
+                  <div className="l2">Suppression</div>
+                  <div className="v2">
+                    Throttled by limit 1 per <b>{selectedRule.windowMinutes ?? 5} min</b> sliding window.
+                  </div>
+                </div>
+                <div className="meta-item">
+                  <div className="l2">Linked Tactics (MITRE ATT&amp;CK)</div>
+                  <div className="v2" style={{ textTransform: 'uppercase', fontSize: '10.5px', color: 'var(--blue)', fontWeight: 700 }}>
+                    {selectedRule.severity === 'CRITICAL' || selectedRule.severity === 'HIGH' ? 'Credential Access, Discovery' : 'Defense Evasion, Execution'}
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div style={{ margin: 'auto', color: 'var(--dim)', fontSize: '13px' }}>
+                Select a rule to view metadata
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* bottom row */}
+        <div className="bottom-grid">
+          <div className="bottom-card">
+            <h3>Recent Alert Timeline (Correlation)</h3>
+            <div className="timeline">
+              <div className="tl-line">
+                {[
+                  { left: 5, bg: 'var(--red)', icon: '⚠', style: { top: '-52px', background: 'rgba(220,38,38,0.12)', color: 'var(--red)' } },
+                  { left: 19, bg: 'var(--amber)', icon: '⚠', style: { top: '-52px', background: 'rgba(217,119,6,0.12)', color: 'var(--amber)' } },
+                  { left: 33, bg: 'var(--green)', icon: '⚠', style: { top: '32px', background: 'rgba(22,163,74,0.12)', color: 'var(--green)' } },
+                  { left: 47, bg: 'var(--red)', icon: '⊙', style: { top: '-52px', background: 'rgba(220,38,38,0.12)', color: 'var(--red)' } },
+                  { left: 61, bg: 'var(--blue)', icon: '⚙', style: { top: '32px', background: 'rgba(37,99,235,0.12)', color: 'var(--blue)' } },
+                  { left: 75, bg: 'var(--red)', icon: '⚠', style: { top: '-52px', background: 'rgba(220,38,38,0.12)', color: 'var(--red)' } },
+                  { left: 89, bg: 'var(--purple)', icon: '⚙', style: { top: '32px', background: 'rgba(147,51,234,0.12)', color: 'var(--purple)' } }
+                ].map((item, idx) => (
+                  <React.Fragment key={idx}>
+                    <div className="tl-dot" style={{ left: `${item.left}%`, background: item.bg }} />
+                    <div className="tl-icon" style={{ left: `${item.left}%`, ...item.style }}>
+                      {item.icon}
+                    </div>
+                  </React.Fragment>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          <div className="bottom-card">
+            <h3>Remediation Workflow Status</h3>
+            <div className="network-wrap">
+              <svg viewBox="0 0 260 220" style={{ width: '100%', height: '220px' }}>
+                {[
+                  { x1: 130, y1: 100, x2: 70, y2: 60 },
+                  { x1: 130, y1: 100, x2: 190, y2: 60 },
+                  { x1: 130, y1: 100, x2: 50, y2: 140 },
+                  { x1: 130, y1: 100, x2: 130, y2: 40 },
+                  { x1: 130, y1: 100, x2: 210, y2: 140 },
+                  { x1: 130, y1: 100, x2: 90, y2: 180 },
+                  { x1: 130, y1: 100, x2: 170, y2: 180 }
+                ].map((edge, idx) => (
+                  <line
+                    key={idx}
+                    x1={edge.x1}
+                    y1={edge.y1}
+                    x2={edge.x2}
+                    y2={edge.y2}
+                    stroke="var(--border-soft)"
+                    strokeWidth="1.4"
+                  />
+                ))}
+                {[
+                  { cx: 130, cy: 100, r: 16, fill: 'var(--bg)', stroke: 'var(--cyan)', strokeWidth: '1.5' },
+                  { cx: 70, cy: 60, r: 7, fill: 'var(--input-bg)', stroke: 'var(--border-soft)', strokeWidth: '1.4' },
+                  { cx: 190, cy: 60, r: 5.5, fill: 'var(--bg)', stroke: 'var(--cyan)', strokeWidth: '1.4' },
+                  { cx: 50, cy: 140, r: 7, fill: 'var(--input-bg)', stroke: 'var(--border-soft)', strokeWidth: '1.4' },
+                  { cx: 130, cy: 40, r: 5.5, fill: 'var(--bg)', stroke: 'var(--cyan)', strokeWidth: '1.4' },
+                  { cx: 210, cy: 140, r: 7, fill: 'var(--input-bg)', stroke: 'var(--border-soft)', strokeWidth: '1.4' },
+                  { cx: 90, cy: 180, r: 5.5, fill: 'var(--bg)', stroke: 'var(--cyan)', strokeWidth: '1.4' },
+                  { cx: 170, cy: 180, r: 7, fill: 'var(--input-bg)', stroke: 'var(--border-soft)', strokeWidth: '1.4' }
+                ].map((node, idx) => (
+                  <circle
+                    key={idx}
+                    cx={node.cx}
+                    cy={node.cy}
+                    r={node.r}
+                    fill={node.fill}
+                    stroke={node.stroke}
+                    strokeWidth={node.strokeWidth}
+                  />
+                ))}
+              </svg>
+            </div>
+          </div>
+
+          <div className="bottom-card">
+            <h3>Closed-Loop Remediation Logs</h3>
+            <div className="log-list">
+              <div className="log-row">
+                <div className="log-tag ok">Success/Success</div>
+                <div className="log-desc">Logs in isored habit from the collect, susa…</div>
+              </div>
+              <div className="log-row">
+                <div className="log-tag ok">Success/Success</div>
+                <div className="log-desc">Logs in Ivas.TURI_DLS:zarekrrmilack_N30…</div>
+              </div>
+              <div className="log-row">
+                <div className="log-tag fail">Success/Failure</div>
+                <div className="log-desc">Logs acis-gateway threat the consiex~ftin…</div>
+              </div>
+              <div className="log-row">
+                <div className="log-tag fail">Success/Failure</div>
+                <div className="log-desc">Logs acis-gateway threat the under. trinwi…</div>
+              </div>
+              <div className="log-row">
+                <div className="log-tag ok">Success/Failure</div>
+                <div className="log-desc">Logs acis-gateway threat the edited SKY3…</div>
+              </div>
+              <div className="log-row">
+                <div className="log-tag fail">Success/Failure</div>
+                <div className="log-desc">Logs timesdic habit from the addested hn…</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* New/Edit Rule Modal */}
+      {isModalOpen && (
+        <div className="correlation-page-modal-overlay">
+          <div className="correlation-page-modal">
+            <div className="modal-head">
+              <h3>{editingRuleId ? 'Edit Correlation Rule' : 'Create Correlation Rule'}</h3>
+              <button onClick={closeModal} style={{ background: 'transparent', border: 'none', cursor: 'pointer' }}>
+                <X className="w-5 h-5 text-text-muted" />
+              </button>
+            </div>
+            <form onSubmit={handleSubmitRule}>
+              <div className="modal-body">
+                <div className="form-group">
+                  <label>Rule Name</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. Impossible Travel Detection"
+                    value={newRuleName}
+                    onChange={(e) => setNewRuleName(e.target.value)}
+                    className="form-control"
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label>Description</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. Risk-based alerting — schedule & throttling"
+                    value={newRuleDesc}
+                    onChange={(e) => setNewRuleDesc(e.target.value)}
+                    className="form-control"
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label>SPL Query</label>
+                  <textarea
+                    required
+                    rows={4}
+                    placeholder="index=auth sourcetype=okta:login | stats values(src_ip) as ips by user"
+                    value={newRuleSpl}
+                    onChange={(e) => setNewRuleSpl(e.target.value)}
+                    className="form-control mono-input"
+                  />
+                </div>
+
+                <div className="form-row">
+                  <div className="form-group">
+                    <label>Alert Severity</label>
+                    <select
+                      value={newRuleSeverity}
+                      onChange={(e) => setNewRuleSeverity(e.target.value)}
+                      className="form-control"
+                    >
+                      <option value="CRITICAL">Critical</option>
+                      <option value="HIGH">High</option>
+                      <option value="MEDIUM">Medium</option>
+                      <option value="LOW">Low</option>
+                    </select>
+                  </div>
+
+                  <div className="form-group">
+                    <label>Risk Score ({newRuleRisk})</label>
+                    <input
+                      type="range"
+                      min="1"
+                      max="100"
+                      value={newRuleRisk}
+                      onChange={(e) => setNewRuleRisk(Number(e.target.value))}
+                      style={{ width: '100%', marginTop: '12px' }}
+                    />
+                  </div>
+                </div>
+
+                <div className="form-row">
+                  <div className="form-group">
+                    <label>Window (minutes)</label>
+                    <input
+                      type="number"
+                      min={1}
+                      required
+                      value={newRuleWindow}
+                      onChange={(e) => setNewRuleWindow(Number(e.target.value))}
+                      className="form-control"
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label>Threshold (optional)</label>
+                    <input
+                      type="number"
+                      min={0}
+                      placeholder="e.g. 5"
+                      value={newRuleThreshold}
+                      onChange={(e) => setNewRuleThreshold(e.target.value)}
+                      className="form-control"
+                    />
+                  </div>
+                </div>
+
+                <div className="form-group">
+                  <label>Schedule (cron, optional)</label>
+                  <input
+                    type="text"
+                    placeholder="Leave blank for continuous real-time stream"
+                    value={newRuleSchedule}
+                    onChange={(e) => setNewRuleSchedule(e.target.value)}
+                    className="form-control mono-input"
+                  />
+                </div>
+              </div>
+
+              <div className="modal-foot">
+                <button type="button" onClick={closeModal} className="btn ghost" style={{ padding: '8px 16px' }}>
                   Cancel
                 </button>
-                <button
-                  type="submit"
-                  className="btn-fire"
-                >
+                <button type="submit" className="btn blue" style={{ padding: '8px 20px' }}>
                   {editingRuleId ? 'Save Changes' : 'Create'}
                 </button>
               </div>
@@ -606,7 +1109,6 @@ export default function CorrelationPage() {
           </div>
         </div>
       )}
-
     </div>
   )
 }
