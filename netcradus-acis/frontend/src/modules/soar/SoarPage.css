@@ -30,6 +30,7 @@
   --map-hotspot-color: #f59e0b;
   --map-dot-center-color: #7a4508;
   --map-dot-stroke: #f59e0b;
+  --map-play-fill: #fbbf24;
 
   /* Deps nodes */
   --deps-edge-active: rgba(94, 234, 212, 0.35);
@@ -74,18 +75,19 @@
   --box-shadow: 0 8px 20px -16px rgba(30, 50, 110, 0.16);
 
   /* Global Map color variables for Light Mode */
-  --map-dot-color: rgba(30, 58, 90, 0.35);
-  --map-path-color: rgba(30, 58, 90, 0.5);
-  --map-hotspot-color: #1e3a5f;
-  --map-dot-center-color: #1e3a5f;
-  --map-dot-stroke: #1e3a5f;
+  --map-dot-color: rgba(37, 99, 235, 0.25);
+  --map-path-color: rgba(217, 119, 6, 0.55);
+  --map-hotspot-color: rgba(245, 158, 11, 0.4);
+  --map-dot-center-color: #fde3b8;
+  --map-dot-stroke: #d97706;
+  --map-play-fill: #b45309;
 
   /* Deps nodes for Light Mode */
-  --deps-edge-active: rgba(30, 58, 90, 0.25);
-  --deps-edge-cross: rgba(30, 58, 90, 0.15);
-  --deps-center-fill: #5c6684;
-  --deps-node-fill: #eef1f9;
-  --deps-node-stroke: #2563eb;
+  --deps-edge-active: rgba(8, 145, 178, 0.3);
+  --deps-edge-cross: rgba(8, 145, 178, 0.15);
+  --deps-center-fill: #94a3b8;
+  --deps-node-fill: #a7ecec;
+  --deps-node-stroke: #0891b2;
 }
 
 /* Atmospheric Background */

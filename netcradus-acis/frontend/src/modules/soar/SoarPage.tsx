@@ -589,7 +589,7 @@ export default function SoarPage() {
                       />
                       <polygon
                         points={`${x - (idx === 2 ? 5 : 3.5)},${y - (idx === 2 ? 5 : 3.5)} ${x - (idx === 2 ? 5 : 3.5)},${y + (idx === 2 ? 5 : 3.5)} ${x + (idx === 2 ? 5 : 3.5)},${y}`}
-                        fill="#fbbf24"
+                        fill="var(--map-play-fill)"
                       />
                     </g>
                   )
