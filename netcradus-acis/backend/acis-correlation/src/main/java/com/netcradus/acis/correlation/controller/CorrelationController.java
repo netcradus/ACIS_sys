@@ -93,6 +93,7 @@ public class CorrelationController {
         double avgRisk = allRules.stream().mapToInt(CorrelationRule::getRiskScore).average().orElse(0.0);
 
         Map<String, Long> matchCounts = correlationEngine.getRuleMatchCounts();
+        Map<String, Double> avgProcessingMs = correlationEngine.getRuleAvgProcessingMs();
         List<Map<String, Object>> ruleActivity = allRules.stream()
                 .map(rule -> {
                     Map<String, Object> entry = new java.util.HashMap<>();
@@ -101,6 +102,7 @@ public class CorrelationController {
                     entry.put("enabled", rule.isEnabled());
                     entry.put("matchCount", matchCounts.getOrDefault(rule.getId(), 0L));
                     entry.put("lastRunAt", rule.getLastRunAt());
+                    entry.put("avgProcessingMs", avgProcessingMs.get(rule.getId()));
                     return entry;
                 })
                 .collect(Collectors.toList());

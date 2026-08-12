@@ -40,6 +40,12 @@ interface Playbook {
   successCount: number
   runCount: number
   lastRunAt: string | null
+  triggerPlaybookId: string | null
+}
+
+interface DependencyGraph {
+  nodes: { id: string; name: string; enabled: boolean; runCount: number }[]
+  edges: { from: string; to: string }[]
 }
 
 interface Execution {
@@ -66,7 +72,10 @@ export default function SoarPage() {
   const [newPbName, setNewPbName] = useState('')
   const [newPbDesc, setNewPbDesc] = useState('')
   const [newPbStepsList, setNewPbStepsList] = useState<string[]>([''])
+  const [newPbTriggerId, setNewPbTriggerId] = useState<string>('')
   const [editingPlaybookId, setEditingPlaybookId] = useState<string | null>(null)
+  const [dependencyGraph, setDependencyGraph] = useState<DependencyGraph>({ nodes: [], edges: [] })
+  const [iocStats, setIocStats] = useState<{ total: number; highPriority: number; sources: number }>({ total: 0, highPriority: 0, sources: 0 })
 
   // Run Playbook gated by confirm modal
   const [confirmingRunPlaybookId, setConfirmingRunPlaybookId] = useState<string | null>(null)
@@ -74,9 +83,11 @@ export default function SoarPage() {
 
   const fetchData = async () => {
     try {
-      const [playbooksRes, executionsRes] = await Promise.all([
+      const [playbooksRes, executionsRes, dependenciesRes, indicatorsRes] = await Promise.all([
         apiClient.get('/api/soar/playbooks'),
-        apiClient.get('/api/soar/executions')
+        apiClient.get('/api/soar/executions'),
+        apiClient.get('/api/soar/playbooks/dependencies').catch(() => null),
+        apiClient.get('/api/threat-intel').catch(() => null)
       ])
 
       const pbs = playbooksRes.data || []
@@ -84,6 +95,20 @@ export default function SoarPage() {
 
       setPlaybooks(pbs)
       setExecutions(execs)
+      if (dependenciesRes?.data) {
+        setDependencyGraph({
+          nodes: dependenciesRes.data.nodes || [],
+          edges: dependenciesRes.data.edges || []
+        })
+      }
+      if (Array.isArray(indicatorsRes?.data)) {
+        const indicators = indicatorsRes.data
+        setIocStats({
+          total: indicators.length,
+          highPriority: indicators.filter((i: any) => i.severity === 'CRITICAL' || i.severity === 'HIGH').length,
+          sources: new Set(indicators.map((i: any) => i.source).filter(Boolean)).size
+        })
+      }
 
       if (execs.length > 0 && !selectedExecutionId) {
         setSelectedExecutionId(execs[0].id)
@@ -124,7 +149,8 @@ export default function SoarPage() {
         steps: JSON.stringify(cleanSteps.map(step => ({ step, status: 'Completed' }))),
         enabled: true,
         successCount: 0,
-        runCount: 0
+        runCount: 0,
+        triggerPlaybookId: newPbTriggerId || null
       }
       if (editingPlaybookId) {
         await apiClient.put(`/api/soar/playbooks/${editingPlaybookId}`, payload)
@@ -144,6 +170,7 @@ export default function SoarPage() {
     setNewPbName('')
     setNewPbDesc('')
     setNewPbStepsList([''])
+    setNewPbTriggerId('')
     setIsModalOpen(true)
   }
 
@@ -153,6 +180,7 @@ export default function SoarPage() {
     setNewPbDesc(pb.description)
     const names = getStepNames(pb.steps)
     setNewPbStepsList(names.length > 0 ? names : [''])
+    setNewPbTriggerId(pb.triggerPlaybookId || '')
     setIsModalOpen(true)
   }
 
@@ -231,20 +259,29 @@ export default function SoarPage() {
 
   const selectedExecution = executions.find(e => e.id === selectedExecutionId)
 
-  // Node dependencies map data generator
-  const nodePositions = [
-    { x: 500, y: 150, type: 'center', r: 24, label: 'Playbook Dependencies' },
-    { x: 350, y: 90, type: 'child', r: 12, label: 'Playbook Execution…' },
-    { x: 420, y: 60, type: 'child', r: 10, label: 'Playbook Execution…' },
-    { x: 610, y: 60, type: 'child', r: 10, label: 'Playbook Exec…' },
-    { x: 700, y: 110, type: 'child', r: 10, label: 'Playbook Executie…' },
-    { x: 300, y: 220, type: 'child', r: 10, label: 'Playbook Execution…' },
-    { x: 420, y: 240, type: 'child', r: 13, label: 'Playbook Execution…' },
-    { x: 600, y: 240, type: 'child', r: 13, label: 'Playbook Execution…' },
-    { x: 680, y: 200, type: 'child', r: 10, label: 'Playbook Execuin…' }
-  ] as const
-
-  const cross = [[1, 5], [3, 4], [6, 7], [2, 1]] as const
+  // Real dependency graph layout: nodes placed on a circle sized to the actual node count,
+  // edges drawn only for real triggerPlaybookId links returned by the backend.
+  const depsLayout = useMemo(() => {
+    const nodes = dependencyGraph.nodes
+    const cx = 500, cy = 150, radius = Math.min(420, 90 + nodes.length * 22)
+    const positioned = nodes.map((n, idx) => {
+      const angle = (idx / Math.max(nodes.length, 1)) * 2 * Math.PI
+      const isHub = dependencyGraph.edges.some(e => e.to === n.id)
+      return {
+        id: n.id,
+        name: n.name,
+        enabled: n.enabled,
+        x: nodes.length === 1 ? cx : cx + radius * Math.cos(angle),
+        y: nodes.length === 1 ? cy : cy + radius * 0.5 * Math.sin(angle),
+        r: isHub ? 16 : 10,
+      }
+    })
+    const byId = new Map(positioned.map(n => [n.id, n]))
+    const edges = dependencyGraph.edges
+      .map(e => ({ from: byId.get(e.from), to: byId.get(e.to) }))
+      .filter((e): e is { from: typeof positioned[number]; to: typeof positioned[number] } => !!e.from && !!e.to)
+    return { positioned, edges }
+  }, [dependencyGraph])
 
   return (
     <div className="soar-page">
@@ -269,25 +306,16 @@ export default function SoarPage() {
             <div className="summary-sub">Orchestrate Multi-Tool Responses</div>
           </div>
           <div className="sum-stat">
-            <div className="v">2,845</div>
-            <svg viewBox="0 0 70 26" width="70" height="24">
-              <polyline points="0,20 14,16 28,18 42,8 56,4 70,10" fill="none" stroke="var(--cyan)" strokeWidth="2" />
-            </svg>
+            <div className="v">{iocStats.total}</div>
             <div className="l">Total IOCs</div>
           </div>
           <div className="sum-stat">
-            <div className="v">142</div>
-            <svg viewBox="0 0 70 26" width="70" height="24">
-              <polyline points="0,14 14,18 28,10 42,16 56,6 70,12" fill="none" stroke="var(--cyan)" strokeWidth="2" />
-            </svg>
-            <div className="l">Quarantined</div>
+            <div className="v">{iocStats.highPriority}</div>
+            <div className="l">Critical/High</div>
           </div>
           <div className="sum-stat">
-            <div className="v">10</div>
-            <svg viewBox="0 0 70 26" width="70" height="24">
-              <polyline points="0,20 14,14 28,18 42,6 56,10 70,2" fill="none" stroke="var(--cyan)" strokeWidth="2" />
-            </svg>
-            <div className="l">Severitys</div>
+            <div className="v">{iocStats.sources}</div>
+            <div className="l">Sources</div>
           </div>
           <button
             onClick={openCreatePlaybookModal}
@@ -383,77 +411,75 @@ export default function SoarPage() {
         <div className="deps-panel">
           <div className="deps-head">
             <h3>Playbook Dependencies</h3>
-            <span style={{ color: 'var(--dim)', fontSize: '16px', cursor: 'pointer' }}>⤢</span>
           </div>
-          <div className="deps-box">
-            <svg viewBox="0 0 1000 300">
-              {/* Edges from center */}
-              {nodePositions.map((n, idx) => {
-                if (idx === 0) return null
-                return (
+          {depsLayout.positioned.length === 0 ? (
+            <div style={{ padding: '40px 0', textAlign: 'center', color: 'var(--dim)' }}>
+              No playbooks configured yet.
+            </div>
+          ) : depsLayout.edges.length === 0 ? (
+            <div style={{ padding: '40px 0', textAlign: 'center', color: 'var(--dim)' }}>
+              No playbook chains configured. Set "Triggers Next Playbook" on a playbook to link it to another.
+            </div>
+          ) : (
+            <div className="deps-box">
+              <svg viewBox="0 0 1000 300">
+                {depsLayout.edges.map((edge, idx) => (
                   <line
                     key={idx}
-                    x1={nodePositions[0].x}
-                    y1={nodePositions[0].y}
-                    x2={n.x}
-                    y2={n.y}
+                    x1={edge.from.x}
+                    y1={edge.from.y}
+                    x2={edge.to.x}
+                    y2={edge.to.y}
                     stroke="var(--deps-edge-active)"
-                    strokeWidth="1.2"
+                    strokeWidth="1.4"
+                    markerEnd="url(#deps-arrow)"
                   />
-                )
-              })}
+                ))}
+                <defs>
+                  <marker id="deps-arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+                    <path d="M0,0 L8,4 L0,8 Z" fill="var(--deps-edge-active)" />
+                  </marker>
+                </defs>
 
-              {/* Cross Connections */}
-              {cross.map(([a, b], idx) => (
-                <line
-                  key={idx}
-                  x1={nodePositions[a].x}
-                  y1={nodePositions[a].y}
-                  x2={nodePositions[b].x}
-                  y2={nodePositions[b].y}
-                  stroke="var(--deps-edge-cross)"
-                  strokeWidth="1"
-                />
+                {depsLayout.positioned.map((node) => {
+                  const gradId = `ng-deps-${node.id}`
+                  const isHub = node.r > 10
+                  return (
+                    <g key={node.id}>
+                      <defs>
+                        <radialGradient id={gradId}>
+                          <stop offset="0%" stopColor={isHub ? 'var(--deps-center-fill)' : 'var(--deps-node-stroke)'} stopOpacity="0.9" />
+                          <stop offset="100%" stopColor={isHub ? 'var(--deps-center-fill)' : 'var(--deps-node-stroke)'} stopOpacity="0.15" />
+                        </radialGradient>
+                      </defs>
+                      <circle cx={node.x} cy={node.y} r={node.r + 8} fill={`url(#${gradId})`} opacity="0.4" />
+                      <circle
+                        cx={node.x}
+                        cy={node.y}
+                        r={node.r}
+                        fill={isHub ? 'var(--deps-center-fill)' : 'var(--deps-node-fill)'}
+                        stroke="var(--deps-node-stroke)"
+                        strokeWidth="1.5"
+                        opacity={node.enabled ? 1 : 0.4}
+                      />
+                    </g>
+                  )
+                })}
+              </svg>
+              {depsLayout.positioned.map((node) => (
+                <div
+                  key={node.id}
+                  className="deps-label"
+                  style={{
+                    left: `${(node.x / 1000) * 100}%`,
+                    top: `${((node.y + node.r + 16) / 300) * 100}%`
+                  }}
+                >
+                  {node.name}
+                </div>
               ))}
-
-              {/* Nodes */}
-              {nodePositions.map((node, idx) => {
-                const gradId = `ng-deps-${idx}`
-                const isCenter = node.type === 'center'
-                return (
-                  <g key={idx}>
-                    <defs>
-                      <radialGradient id={gradId}>
-                        <stop offset="0%" stopColor={isCenter ? 'var(--deps-center-fill)' : 'var(--deps-node-stroke)'} stopOpacity="0.9" />
-                        <stop offset="100%" stopColor={isCenter ? 'var(--deps-center-fill)' : 'var(--deps-node-stroke)'} stopOpacity="0.15" />
-                      </radialGradient>
-                    </defs>
-                    <circle cx={node.x} cy={node.y} r={node.r + 8} fill={`url(#${gradId})`} opacity="0.4" />
-                    <circle
-                      cx={node.x}
-                      cy={node.y}
-                      r={node.r}
-                      fill={isCenter ? 'var(--deps-center-fill)' : 'var(--deps-node-fill)'}
-                      stroke="var(--deps-node-stroke)"
-                      strokeWidth="1.5"
-                    />
-                  </g>
-                )
-              })}
-            </svg>
-            {nodePositions.map((node, idx) => (
-              <div
-                key={idx}
-                className="deps-label"
-                style={{
-                  left: `${(node.x / 1000) * 100}%`,
-                  top: `${((node.y + node.r + 16) / 300) * 100}%`
-                }}
-              >
-                {node.label}
-              </div>
-            ))}
-          </div>
+            </div>
+          )}
         </div>
 
         {/* Recent Executions */}
@@ -592,6 +618,23 @@ export default function SoarPage() {
                       <Plus className="w-3.5 h-3.5" /> Add Step
                     </button>
                   </div>
+                </div>
+
+                <div>
+                  <label style={{ fontSize: '10.5px', fontWeight: 800, color: 'var(--dim)', textTransform: 'uppercase', display: 'block', marginBottom: '6px' }}>Triggers Next Playbook (optional)</label>
+                  <select
+                    value={newPbTriggerId}
+                    onChange={(e) => setNewPbTriggerId(e.target.value)}
+                    style={{ background: 'var(--input-bg)', border: '1px solid var(--border-soft)', borderRadius: '8px', padding: '10px 14px', width: '100%', color: 'var(--text)' }}
+                  >
+                    <option value="">None — run standalone</option>
+                    {playbooks.filter(p => p.id !== editingPlaybookId).map(p => (
+                      <option key={p.id} value={p.id}>{p.name}</option>
+                    ))}
+                  </select>
+                  <p style={{ fontSize: '11px', color: 'var(--dim)', marginTop: '4px' }}>
+                    When this playbook completes successfully, the selected playbook runs automatically.
+                  </p>
                 </div>
 
                 <div className="flex justify-end gap-3 pt-3 border-t border-border-soft">

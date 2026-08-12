@@ -3,7 +3,6 @@ import { Server, Cpu, Shield, ShieldAlert, ShieldCheck, Activity, RefreshCw, Sea
 import { clsx } from 'clsx'
 import apiClient from '@/lib/apiClient'
 import { useCanWrite, MODULES } from '@/store/permissionsStore'
-import { useThemeStore } from '@/store/themeStore'
 import ConfirmDialog from '@/components/ui/ConfirmDialog'
 import './EndpointsPage.css'
 
@@ -42,8 +41,6 @@ function seedRandom(seed: number) {
 
 export default function EndpointsPage() {
   const canWrite = useCanWrite(MODULES.ASSETS_THREAT_INTEL)
-  const { resolvedTheme } = useThemeStore()
-  const isLight = resolvedTheme === 'light'
 
   const [endpoints, setEndpoints] = useState<Asset[]>([])
   const [agents, setAgents] = useState<AgentEndpointView[]>([])
@@ -83,12 +80,35 @@ export default function EndpointsPage() {
     }
   }
 
+  interface RemediationEvent {
+    id: string
+    timestamp: string
+    action: string
+    resource: string
+    status: string
+  }
+  const [remediationEvents, setRemediationEvents] = useState<RemediationEvent[]>([])
+
+  const fetchRemediationEvents = async () => {
+    try {
+      const response = await apiClient.get('/api/compliance/audit-trail')
+      const entries = Array.isArray(response.data) ? response.data : []
+      setRemediationEvents(
+        entries.filter((e: any) => typeof e.resource === 'string' && e.resource.startsWith('asset/'))
+      )
+    } catch (err) {
+      console.error("Failed to fetch remediation history", err)
+    }
+  }
+
   useEffect(() => {
     fetchEndpoints()
     fetchAgents()
+    fetchRemediationEvents()
     const interval = setInterval(() => {
       fetchEndpoints()
       fetchAgents()
+      fetchRemediationEvents()
     }, 5000)
     return () => clearInterval(interval)
   }, [])
@@ -209,24 +229,7 @@ export default function EndpointsPage() {
     return dots
   }, [])
 
-  // Large attack visualization map
-  const attackMapData = useMemo(() => {
-    const spots = [[80,220],[150,180],[210,210],[270,190],[320,260],[230,360],[130,390],[300,440]]
-    const arcs = [[80,220,150,180],[150,180,210,210],[210,210,270,190],[270,190,320,260],[130,390,230,360],[230,360,300,440]]
-    const dots = []
-    const rng = seedRandom(8888)
-    for (let i = 0; i < 700; i++) {
-      const x = rng() * 400
-      const y = 20 + rng() * 520
-      const inLand = (x > 20 && x < 110 && y > 120 && y < 440) || (x > 140 && x < 230 && y > 60 && y < 440) || (x > 250 && x < 390 && y > 90 && y < 480)
-      if (inLand && rng() < 0.4) {
-        dots.push({ x, y })
-      }
-    }
-    return { dots, spots, arcs }
-  }, [])
-
-  const successRatio = totalCount > 0 ? healthyCount / totalCount : 0.8
+  const successRatio = totalCount > 0 ? healthyCount / totalCount : 0
   const needleRotation = -90 + successRatio * 180
 
   return (
@@ -431,23 +434,19 @@ export default function EndpointsPage() {
 
           <div className="stack-col">
             <div className="panel-box">
-              <h3>Self-Healing Trend over Time</h3>
-              <svg viewBox="0 0 260 150" width="100%" height="140">
-                <line x1="0" y1="0" x2="260" y2="0" stroke="var(--tr-border)" />
-                <line x1="0" y1="35" x2="260" y2="35" stroke="var(--tr-border)" />
-                <line x1="0" y1="70" x2="260" y2="70" stroke="var(--tr-border)" />
-                <line x1="0" y1="105" x2="260" y2="105" stroke="var(--tr-border)" />
-                <line x1="0" y1="140" x2="260" y2="140" stroke="var(--tr-border)" />
-                <polyline points="10,130 55,90 100,105 140,55 185,25 225,75 255,45" fill="none" stroke="var(--cyan)" strokeWidth="2" />
-                <circle cx="10" cy="130" r="3" fill="var(--cyan)" />
-                <circle cx="55" cy="90" r="3" fill="var(--cyan)" />
-                <circle cx="100" cy="105" r="3" fill="var(--cyan)" />
-                <circle cx="140" cy="55" r="3" fill="var(--cyan)" />
-                <circle cx="185" cy="25" r="3" fill="var(--cyan)" />
-                <circle cx="225" cy="75" r="3" fill="var(--cyan)" />
-                <circle cx="255" cy="45" r="3" fill="var(--cyan)" />
-              </svg>
-              <div className="trend-axis"><span>10</span><span>15</span><span>20</span><span>35</span><span>40</span></div>
+              <h3>Recent Remediation Events</h3>
+              {remediationEvents.length === 0 ? (
+                <div className="text-small text-text-muted" style={{ padding: '16px 0' }}>No remediation events recorded yet.</div>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '160px', overflowY: 'auto' }}>
+                  {remediationEvents.slice(0, 6).map((e) => (
+                    <div key={e.id} style={{ fontSize: '11.5px', display: 'flex', justifyContent: 'space-between', gap: '8px', borderBottom: '1px solid var(--tr-border)', paddingBottom: '6px' }}>
+                      <span className="truncate">{e.action} — {e.resource.replace('asset/', '')}</span>
+                      <span style={{ color: 'var(--dim)', whiteSpace: 'nowrap' }}>{new Date(e.timestamp).toLocaleTimeString()}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
 
             <div className="panel-box">
@@ -462,55 +461,6 @@ export default function EndpointsPage() {
                 <div className="gauge-val">{Math.round(successRatio * 100)}% Success</div>
                 <div className="gauge-axis"><span>0</span><span>100</span></div>
               </div>
-            </div>
-          </div>
-
-          <div className="panel-box">
-            <h3>Global Attack Visualization Map</h3>
-            <div className="attack-map-box">
-              <svg viewBox="0 0 400 560">
-                {attackMapData.dots.map((dot, idx) => (
-                  <circle key={idx} cx={dot.x} cy={dot.y} r={0.8} fill="var(--map-dot-color)" />
-                ))}
-
-                {attackMapData.arcs.map(([x1, y1, x2, y2], idx) => {
-                  const mx = (x1 + x2) / 2
-                  const my = (y1 + y2) / 2 - 40
-                  return (
-                    <path
-                      key={idx}
-                      d={`M${x1},${y1} Q${mx},${my} ${x2},${y2}`}
-                      fill="none"
-                      stroke="var(--map-path-color)"
-                      strokeWidth="1.3"
-                    />
-                  )
-                })}
-
-                {attackMapData.spots.map(([x, y], idx) => {
-                  const gradId = `ng-endpoints-map-${idx}`
-                  if (isLight) {
-                    return (
-                      <g key={idx}>
-                        <circle cx={x} cy={y} r={9} fill="#fde3b8" stroke="#d97706" strokeWidth={1.5} />
-                        <circle cx={x} cy={y} r={2.8} fill="#b45309" />
-                      </g>
-                    )
-                  }
-                  return (
-                    <g key={idx}>
-                      <defs>
-                        <radialGradient id={gradId}>
-                          <stop offset="0%" stopColor="var(--map-hotspot-color)" stopOpacity="0.85" />
-                          <stop offset="100%" stopColor="var(--map-hotspot-color)" stopOpacity="0" />
-                        </radialGradient>
-                      </defs>
-                      <circle cx={x} cy={y} r={17} fill={`url(#${gradId})`} />
-                      <circle cx={x} cy={y} r={3} fill="var(--map-dot-center-color)" />
-                    </g>
-                  )
-                })}
-              </svg>
             </div>
           </div>
 

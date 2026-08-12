@@ -426,7 +426,7 @@
 /* bottom grid: distribution map | trend+gauge | global attack map */
 .endpoints-page .bottom-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr 1fr;
+  grid-template-columns: 1fr 1fr;
   gap: 20px;
   align-items: start;
 }

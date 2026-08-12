@@ -502,7 +502,7 @@ export default function AssetsPage() {
 
           {/* Right Side: Asset Details Drawer */}
           {selectedAsset && (
-            <div className="md:col-span-4 bottom-card flex flex-col justify-between space-y-5 animate-slide-in relative overflow-hidden">
+            <div className="md:col-span-4 bottom-card details-drawer flex flex-col justify-between space-y-5 animate-slide-in relative overflow-hidden">
               <div className="absolute top-0 left-0 right-0 h-1" style={{ background: 'linear-gradient(90deg, var(--cyan), var(--blue))', zIndex: 10 }} />
               <div>
                 <div className="flex items-center justify-between border-b border-border-soft pb-3 pt-1">

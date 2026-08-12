@@ -16,6 +16,15 @@ interface DashboardStats {
   events24h: number | null
 }
 
+interface TenantMember {
+  id: string
+  name: string
+  email: string
+  role: string
+  status: string
+  lastLogin: string | null
+}
+
 interface RedTeamSimulation {
   id: string
   name: string
@@ -116,6 +125,43 @@ export default function DashboardPage() {
 
   // Ingest metric stats
   const [ingestStats, setIngestStats] = useState<{ lagSeriesMs: number[]; cpuUsagePercent: number } | null>(null)
+  const [teamMembers, setTeamMembers] = useState<TenantMember[]>([])
+  const [aiMetrics, setAiMetrics] = useState<{
+    totalRequests: number
+    successCount: number
+    failedCount: number
+    successRatePercent: number | null
+    avgLatencyMs: number | null
+    p95LatencyMs: number | null
+    providerBreakdown: Record<string, number>
+    recentSampleSize: number
+  } | null>(null)
+
+  useEffect(() => {
+    const fetchAiMetrics = async () => {
+      try {
+        const res = await apiClient.get('/api/logs/ai-metrics')
+        setAiMetrics(res.data)
+      } catch (e) {
+        console.error('Failed to fetch AI metrics:', e)
+      }
+    }
+    fetchAiMetrics()
+    const interval = setInterval(fetchAiMetrics, 10000)
+    return () => clearInterval(interval)
+  }, [])
+
+  useEffect(() => {
+    const fetchTeamMembers = async () => {
+      try {
+        const res = await apiClient.get('/api/soar/settings/users')
+        setTeamMembers(Array.isArray(res.data) ? res.data : [])
+      } catch (e) {
+        console.error('Failed to fetch team members:', e)
+      }
+    }
+    fetchTeamMembers()
+  }, [])
 
   useEffect(() => {
     const fetchIngestStats = async () => {
@@ -326,6 +372,36 @@ export default function DashboardPage() {
     "0,14 8,6 16,12 24,4 32,10 40,16 48,8 56,4",
     "0,8 8,14 16,4 24,10 32,16 40,6 48,12 56,8"
   ], [])
+
+  // Real AI provider-chain metrics, normalized to a 0-100 radar scale.
+  // Deliberately no accuracy/recall/novelty axes — those need labeled ground
+  // truth this system has none of; these four are all genuinely measured.
+  const aiRadarAxes = useMemo(() => {
+    if (!aiMetrics || aiMetrics.totalRequests === 0) {
+      return { successRate: 0, speed: 0, primaryAvailability: 0, coverage: 0, hasData: false }
+    }
+    const successRate = aiMetrics.successRatePercent ?? 0
+    const speed = aiMetrics.avgLatencyMs != null
+      ? Math.max(0, 100 - (aiMetrics.avgLatencyMs / 8000) * 100)
+      : 0
+    const primaryServed = aiMetrics.providerBreakdown['nvidia'] || 0
+    const primaryAvailability = aiMetrics.successCount > 0 ? (primaryServed / aiMetrics.successCount) * 100 : 0
+    const coverage = Math.min(100, (aiMetrics.recentSampleSize / 200) * 100)
+    return { successRate, speed, primaryAvailability, coverage, hasData: true }
+  }, [aiMetrics])
+
+  const radarCenter = 110
+  const radarRadius = 90
+  const radarPoint = (value: number, direction: [number, number]) => ({
+    x: radarCenter + (Math.max(0, Math.min(100, value)) / 100) * radarRadius * direction[0],
+    y: radarCenter + (Math.max(0, Math.min(100, value)) / 100) * radarRadius * direction[1],
+  })
+  const aiRadarPolygon = [
+    radarPoint(aiRadarAxes.successRate, [0, -1]),
+    radarPoint(aiRadarAxes.speed, [1, 0]),
+    radarPoint(aiRadarAxes.primaryAvailability, [0, 1]),
+    radarPoint(aiRadarAxes.coverage, [-1, 0]),
+  ].map(p => `${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' ')
 
   // Donut chart calculations
   const donutTotal = (severityCounts?.critical ?? 25) + (severityCounts?.high ?? 27) + (severityCounts?.medium ?? 16) + (severityCounts?.low ?? 10)
@@ -704,45 +780,54 @@ export default function DashboardPage() {
               <h3 style={{ fontSize: '14.5px', fontWeight: 800, marginBottom: '4px', color: 'var(--soc-threat-head-color)' }}>
                 Real-Time AI Model Performance
               </h3>
-              <div className="radar-wrap">
-                <svg viewBox="0 0 220 220">
-                  <polygon points="110,20 200,110 110,200 20,110" fill="none" stroke="var(--soc-radar-grid-stroke)" strokeWidth="1"/>
-                  <polygon points="110,55 175,110 110,165 55,110" fill="none" stroke="var(--soc-radar-grid-stroke)" strokeWidth="1"/>
-                  <line x1="110" y1="10" x2="110" y2="210" stroke="var(--soc-radar-axis-stroke)"/>
-                  <line x1="10" y1="110" x2="210" y2="110" stroke="var(--soc-radar-axis-stroke)"/>
-                  <polygon points="110,32 168,105 122,178 48,118" fill="var(--soc-radar-area-fill)" stroke="var(--soc-blue)" strokeWidth="2"/>
-                </svg>
-              </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', fontSize: '10.5px', color: 'var(--soc-muted)', fontWeight: 700, textAlign: 'center', rowGap: '6px' }}>
-                <div>Accuracy</div>
-                <div>Latency</div>
-                <div>Novelty</div>
-                <div>Recall</div>
-              </div>
+              {!aiRadarAxes.hasData ? (
+                <div className="text-small text-text-muted" style={{ padding: '24px 0', textAlign: 'center' }}>
+                  No AI requests recorded yet.
+                </div>
+              ) : (
+                <>
+                  <div className="radar-wrap">
+                    <svg viewBox="0 0 220 220">
+                      <polygon points="110,20 200,110 110,200 20,110" fill="none" stroke="var(--soc-radar-grid-stroke)" strokeWidth="1"/>
+                      <polygon points="110,55 175,110 110,165 55,110" fill="none" stroke="var(--soc-radar-grid-stroke)" strokeWidth="1"/>
+                      <line x1="110" y1="10" x2="110" y2="210" stroke="var(--soc-radar-axis-stroke)"/>
+                      <line x1="10" y1="110" x2="210" y2="110" stroke="var(--soc-radar-axis-stroke)"/>
+                      <polygon points={aiRadarPolygon} fill="var(--soc-radar-area-fill)" stroke="var(--soc-blue)" strokeWidth="2"/>
+                    </svg>
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', fontSize: '10.5px', color: 'var(--soc-muted)', fontWeight: 700, textAlign: 'center', rowGap: '6px' }}>
+                    <div>Success Rate {Math.round(aiRadarAxes.successRate)}%</div>
+                    <div>Speed {Math.round(aiRadarAxes.speed)}%</div>
+                    <div>Primary Uptime {Math.round(aiRadarAxes.primaryAvailability)}%</div>
+                    <div>Coverage {Math.round(aiRadarAxes.coverage)}%</div>
+                  </div>
+                </>
+              )}
             </div>
 
             {/* SOC Operative Status */}
             <div className="card-panel">
               <h3 style={{ fontSize: '14.5px', fontWeight: 800, marginBottom: '2px', color: 'var(--soc-threat-head-color)' }}>
-                SOC Operative Status
+                SOC Team
               </h3>
               <div className="op-list">
-                <div className="op-row">
-                  <div className="avatar" style={{ width: '30px', height: '30px', fontSize: '11px' }}>SP</div>
-                  <div>
-                    <div className="op-name">Security Operator</div>
-                    <div className="op-sub">Active Duty</div>
-                  </div>
-                  <span className="avail">Available</span>
-                </div>
-                <div className="op-row">
-                  <div className="avatar" style={{ width: '30px', height: '30px', fontSize: '11px' }}>AP</div>
-                  <div>
-                    <div className="op-name">AI Copilot</div>
-                    <div className="op-sub">Monitoring Stream</div>
-                  </div>
-                  <span className="avail">Active</span>
-                </div>
+                {teamMembers.length === 0 ? (
+                  <div className="text-small text-text-muted" style={{ padding: '12px 0' }}>No team members found.</div>
+                ) : (
+                  teamMembers.slice(0, 4).map((m) => {
+                    const initials = m.name.split(' ').map(p => p[0]).filter(Boolean).slice(0, 2).join('').toUpperCase() || '?'
+                    return (
+                      <div className="op-row" key={m.id}>
+                        <div className="avatar" style={{ width: '30px', height: '30px', fontSize: '11px' }}>{initials}</div>
+                        <div>
+                          <div className="op-name">{m.name}</div>
+                          <div className="op-sub">{m.role}</div>
+                        </div>
+                        <span className="avail">{m.lastLogin || 'Never'}</span>
+                      </div>
+                    )
+                  })
+                )}
               </div>
               <div className="view-all-btn" onClick={() => navigate('/dashboard/settings')}>View All →</div>
             </div>

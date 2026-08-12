@@ -642,7 +642,7 @@
 }
 
 /* Drawer UI Enhancements */
-.assets-page .bottom-card {
+.assets-page .details-drawer {
   background: var(--card-bg) !important;
   border-radius: 16px;
   border: 1px solid var(--border-soft);
@@ -653,56 +653,56 @@
   overflow: hidden;
 }
 
-:root[data-theme="light"] .assets-page .bottom-card,
-[data-theme="light"] .assets-page .bottom-card {
+:root[data-theme="light"] .assets-page .details-drawer,
+[data-theme="light"] .assets-page .details-drawer {
   box-shadow: 0 12px 30px -12px rgba(30, 50, 110, 0.2), var(--box-shadow);
 }
 
-.assets-page .bottom-card .grid span {
+.assets-page .details-drawer .grid span {
   padding: 4px 0;
 }
 
-.assets-page .bottom-card .group {
+.assets-page .details-drawer .group {
   transition: all 0.2s ease;
 }
 
-.assets-page .bottom-card .group:hover {
+.assets-page .details-drawer .group:hover {
   border-color: rgba(34, 211, 238, 0.4) !important;
   background: rgba(34, 211, 238, 0.02) !important;
 }
 
-:root[data-theme="light"] .assets-page .bottom-card .group:hover,
-[data-theme="light"] .assets-page .bottom-card .group:hover {
+:root[data-theme="light"] .assets-page .details-drawer .group:hover,
+[data-theme="light"] .assets-page .details-drawer .group:hover {
   border-color: rgba(8, 145, 178, 0.4) !important;
   background: rgba(8, 145, 178, 0.02) !important;
 }
 
-.assets-page .bottom-card .input-field:focus {
+.assets-page .details-drawer .input-field:focus {
   border-color: var(--cyan) !important;
   box-shadow: 0 0 0 2px rgba(34, 211, 238, 0.15);
 }
 
-.assets-page .bottom-card .bg-blue {
+.assets-page .details-drawer .bg-blue {
   background: linear-gradient(90deg, #3b82f6, #2563eb) !important;
   box-shadow: 0 4px 12px rgba(37, 99, 235, 0.25) !important;
   border: none !important;
 }
 
-.assets-page .bottom-card .bg-blue:hover {
+.assets-page .details-drawer .bg-blue:hover {
   opacity: 0.9 !important;
 }
 
-.assets-page .bottom-card .bg-red {
+.assets-page .details-drawer .bg-red {
   background: linear-gradient(90deg, #ef4444, #dc2626) !important;
   box-shadow: 0 4px 12px rgba(220, 38, 38, 0.25) !important;
   border: none !important;
 }
 
-.assets-page .bottom-card .bg-red:hover {
+.assets-page .details-drawer .bg-red:hover {
   opacity: 0.9 !important;
 }
 
-.assets-page .bottom-card .add-btn {
+.assets-page .details-drawer .add-btn {
   background: linear-gradient(90deg, #22c55e, #16a34a) !important;
   color: #ffffff !important;
   border: none !important;
@@ -716,7 +716,8 @@
   transition: all 0.2s ease;
 }
 
-.assets-page .bottom-card .add-btn:hover {
+.assets-page .details-drawer .add-btn:hover {
   opacity: 0.9 !important;
 }
+
 

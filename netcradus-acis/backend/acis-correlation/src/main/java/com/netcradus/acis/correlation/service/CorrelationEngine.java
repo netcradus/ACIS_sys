@@ -47,6 +47,9 @@ public class CorrelationEngine {
     private final Map<String, AtomicLong> ruleMatchCounts = new ConcurrentHashMap<>();
     // ruleId -> groupKey -> timestamps of recent matches, for threshold rules
     private final Map<String, Map<String, Deque<Instant>>> ruleWindows = new ConcurrentHashMap<>();
+    // Real per-rule predicate-evaluation timing, accumulated across every event each rule is checked against.
+    private final Map<String, AtomicLong> ruleEvalNanosTotal = new ConcurrentHashMap<>();
+    private final Map<String, AtomicLong> ruleEvalCount = new ConcurrentHashMap<>();
 
     {
         for (int i = 0; i < 8; i++) {
@@ -69,6 +72,18 @@ public class CorrelationEngine {
     public Map<String, Long> getRuleMatchCounts() {
         Map<String, Long> snapshot = new java.util.HashMap<>();
         ruleMatchCounts.forEach((k, v) -> snapshot.put(k, v.get()));
+        return snapshot;
+    }
+
+    /** Real average predicate-evaluation time per rule, in milliseconds — measured, not estimated. */
+    public Map<String, Double> getRuleAvgProcessingMs() {
+        Map<String, Double> snapshot = new java.util.HashMap<>();
+        ruleEvalNanosTotal.forEach((ruleId, totalNanos) -> {
+            long count = ruleEvalCount.getOrDefault(ruleId, new AtomicLong(0)).get();
+            if (count > 0) {
+                snapshot.put(ruleId, (totalNanos.get() / (double) count) / 1_000_000.0);
+            }
+        });
         return snapshot;
     }
 
@@ -101,7 +116,9 @@ public class CorrelationEngine {
                     : List.of();
 
             for (CorrelationRule rule : activeRules) {
-                if (matchesPredicate(rule, event)) {
+                long evalStartNanos = System.nanoTime();
+                boolean matched = matchesPredicate(rule, event);
+                if (matched) {
                     Integer threshold = extractThreshold(rule.getSplQuery());
                     if (threshold == null) {
                         // Simple detection rule: fire immediately on predicate match
@@ -110,6 +127,9 @@ public class CorrelationEngine {
                         triggerAlert(rule, event);
                     }
                 }
+                ruleEvalNanosTotal.computeIfAbsent(rule.getId(), k -> new AtomicLong(0))
+                        .addAndGet(System.nanoTime() - evalStartNanos);
+                ruleEvalCount.computeIfAbsent(rule.getId(), k -> new AtomicLong(0)).incrementAndGet();
             }
         } finally {
             TenantContext.clear();

@@ -165,6 +165,23 @@ public class LogController {
         ));
     }
 
+    /**
+     * Real AI provider-chain metrics (request volume, success rate, latency,
+     * provider breakdown) proxied from ai-service — see AIMetricsTracker there.
+     * Not tenant-scoped: the LLM gateway is shared across tenants.
+     */
+    @GetMapping("/ai-metrics")
+    public ResponseEntity<Map> getAiMetrics() {
+        try {
+            Map response = restTemplate.getForObject(aiServiceUrl + "/ai/metrics", Map.class);
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            log.warn("Failed to fetch AI metrics: {}", e.getMessage());
+            return ResponseEntity.status(HttpStatus.BAD_GATEWAY)
+                    .body(Map.of("success", false, "error", "AI metrics unavailable"));
+        }
+    }
+
     @GetMapping("/ai-health")
     public ResponseEntity<Map<String, String>> checkAiHealth() {
         try {

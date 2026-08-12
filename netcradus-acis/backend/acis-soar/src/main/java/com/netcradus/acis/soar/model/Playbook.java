@@ -42,6 +42,10 @@ public class Playbook {
     @Column(name = "created_at")
     private OffsetDateTime createdAt;
 
+    /** When this playbook completes successfully, the playbook to auto-trigger next. Null = no chain. */
+    @Column(name = "trigger_playbook_id")
+    private UUID triggerPlaybookId;
+
     @PrePersist
     public void prePersist() {
         if (createdAt == null) {

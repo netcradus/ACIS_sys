@@ -15,6 +15,7 @@ from . import threat_intel_client
 from .ai_provider import AIProviderError, AllProvidersFailedError, NoProviderConfiguredError
 from .providers import PROVIDER_CHAIN
 from .llm_utils import parse_json_object
+from .metrics import ai_metrics
 
 # Setup logger
 logging.basicConfig(level=logging.INFO)
@@ -164,6 +165,7 @@ def _unavailable_response(request_id: str, feature: str, error: Exception, start
         status_code = 502
         category = "provider_error"
         message = "The AI provider is temporarily unavailable. Please try again."
+    ai_metrics.record(feature=feature, provider=None, duration_ms=duration_ms, success=False)
     _log_event("AI_REQUEST_FAILED", feature=feature, request_id=request_id, error_category=category, duration_ms=duration_ms)
     return JSONResponse(
         status_code=status_code,
@@ -280,6 +282,7 @@ async def explain_alert(request: AlertRequest):
         recommended_action = "Review the alert details and assign an owner."
 
     duration_ms = round((time.monotonic() - started_at) * 1000)
+    ai_metrics.record(feature="explain", provider=provider_name, duration_ms=duration_ms, success=True)
     _log_event("AI_REQUEST_SUCCESS", feature="explain", request_id=request_id, provider=provider_name, duration_ms=duration_ms)
     # No "success" key here (unlike the error responses) — Java forwards
     # this body verbatim to the frontend's apiClient, whose response
@@ -316,6 +319,7 @@ async def explain_alert_stream(request: AlertRequest):
 
     configured = [p for p in PROVIDER_CHAIN if p.is_configured()]
     if not configured:
+        ai_metrics.record(feature="explain_stream", provider=None, duration_ms=round((time.monotonic() - started_at) * 1000), success=False)
         _log_event("AI_STREAM_FAILED", feature="explain_stream", request_id=request_id, error_category="not_configured")
         return JSONResponse(
             status_code=503,
@@ -336,12 +340,14 @@ async def explain_alert_stream(request: AlertRequest):
                 yield _sse_event({"delta": delta})
         except AllProvidersFailedError as e:
             duration_ms = round((time.monotonic() - started_at) * 1000)
+            ai_metrics.record(feature="explain_stream", provider=None, duration_ms=duration_ms, success=False)
             _log_event("AI_STREAM_FAILED", feature="explain_stream", request_id=request_id, error_category="provider_error", duration_ms=duration_ms)
             yield _sse_event({"error": "The AI provider is temporarily unavailable. Please try again.", "mode": "unavailable"})
             yield _sse_event({"done": True})
             return
 
         duration_ms = round((time.monotonic() - started_at) * 1000)
+        ai_metrics.record(feature="explain_stream", provider=active_provider, duration_ms=duration_ms, success=True)
         _log_event("AI_STREAM_COMPLETED", feature="explain_stream", request_id=request_id, provider=active_provider, duration_ms=duration_ms)
         yield _sse_event({"done": True})
 
@@ -365,6 +371,7 @@ async def nl_to_spl(request: QueryRequest):
         # (AIErrorCategory.EMPTY_RESPONSE), but stripping code-fence/backtick
         # artifacts here could theoretically leave nothing — guard it too.
         duration_ms = round((time.monotonic() - started_at) * 1000)
+        ai_metrics.record(feature="query", provider=provider_name, duration_ms=duration_ms, success=False)
         _log_event("AI_REQUEST_FAILED", feature="query", request_id=request_id, error_category="empty_response", duration_ms=duration_ms)
         return JSONResponse(
             status_code=502,
@@ -373,6 +380,7 @@ async def nl_to_spl(request: QueryRequest):
         )
 
     duration_ms = round((time.monotonic() - started_at) * 1000)
+    ai_metrics.record(feature="query", provider=provider_name, duration_ms=duration_ms, success=True)
     _log_event("AI_REQUEST_SUCCESS", feature="query", request_id=request_id, provider=provider_name, duration_ms=duration_ms)
     # No "success" key on the success body — see the matching comment in
     # explain_alert() above for why.
@@ -405,6 +413,13 @@ async def classify_threat(event: dict):
         "confidence": prob_map[predicted],
         "probabilities": prob_map,
     }
+
+@app.get("/ai/metrics")
+async def ai_metrics_snapshot():
+    """Real LLM provider-chain metrics — request volume, success rate, latency,
+    and which provider actually served recent requests. No ground-truth-dependent
+    metrics (accuracy/recall/etc.) are included because none exist to measure."""
+    return ai_metrics.snapshot()
 
 @app.get("/ai/health")
 async def health_check():

@@ -61,9 +61,47 @@ public class PlaybookService {
             if (updated.getEnabled() != null) {
                 existing.setEnabled(updated.getEnabled());
             }
+            // A playbook can't chain to itself — silently drop rather than reject, since
+            // the field is optional and self-reference is never a valid chain.
+            UUID nextId = updated.getTriggerPlaybookId();
+            existing.setTriggerPlaybookId(nextId != null && nextId.equals(id) ? null : nextId);
             return playbookRepository.save(existing);
         });
     }
+
+    /** Real playbook-to-playbook chain edges for this tenant, derived from triggerPlaybookId — no fabricated relationships. */
+    public java.util.Map<String, Object> getDependencyGraph(UUID tenantId) {
+        List<Playbook> playbooks = playbookRepository.findByTenantId(tenantId);
+        List<java.util.Map<String, Object>> nodes = playbooks.stream()
+                .map(p -> {
+                    java.util.Map<String, Object> node = new java.util.HashMap<>();
+                    node.put("id", p.getId());
+                    node.put("name", p.getName());
+                    node.put("enabled", p.getEnabled());
+                    node.put("runCount", p.getRunCount());
+                    return node;
+                })
+                .collect(java.util.stream.Collectors.toList());
+
+        List<java.util.Map<String, Object>> edges = playbooks.stream()
+                .filter(p -> p.getTriggerPlaybookId() != null)
+                .filter(p -> playbooks.stream().anyMatch(t -> t.getId().equals(p.getTriggerPlaybookId())))
+                .map(p -> {
+                    java.util.Map<String, Object> edge = new java.util.HashMap<>();
+                    edge.put("from", p.getId());
+                    edge.put("to", p.getTriggerPlaybookId());
+                    return edge;
+                })
+                .collect(java.util.stream.Collectors.toList());
+
+        java.util.Map<String, Object> graph = new java.util.HashMap<>();
+        graph.put("nodes", nodes);
+        graph.put("edges", edges);
+        return graph;
+    }
+
+    /** Chain hops are capped to guard against a two-hop cycle (A triggers B, B triggers A). */
+    private static final int MAX_CHAIN_DEPTH = 5;
 
     @Transactional
     public PlaybookExecution startExecution(UUID playbookId, UUID tenantId, UUID userId, String userEmail,
@@ -245,6 +283,30 @@ public class PlaybookService {
             if (!failed) {
                 playbook.setSuccessCount(playbook.getSuccessCount() + 1);
                 playbookRepository.save(playbook);
+
+                if (playbook.getTriggerPlaybookId() != null) {
+                    final int chainDepth;
+                    int parsedDepth;
+                    try {
+                        parsedDepth = Integer.parseInt(params.getOrDefault("_chainDepth", "0"));
+                    } catch (NumberFormatException ignored) {
+                        // treat unparsable depth as start of a fresh chain
+                        parsedDepth = 0;
+                    }
+                    chainDepth = parsedDepth;
+                    if (chainDepth < MAX_CHAIN_DEPTH) {
+                        playbookRepository.findByIdAndTenantId(playbook.getTriggerPlaybookId(), tenantId)
+                            .ifPresent(next -> {
+                                log.info("Playbook {} completed — auto-triggering chained playbook {}", playbook.getId(), next.getId());
+                                java.util.Map<String, String> chainedParams = new java.util.HashMap<>(params);
+                                chainedParams.put("_chainDepth", String.valueOf(chainDepth + 1));
+                                chainedParams.put("_chainedFrom", playbook.getId().toString());
+                                startExecution(next.getId(), tenantId, null, "playbook-chain: " + playbook.getName(), bearerToken, chainedParams);
+                            });
+                    } else {
+                        log.warn("Playbook chain depth limit ({}) reached at playbook {} — not auto-triggering further", MAX_CHAIN_DEPTH, playbook.getId());
+                    }
+                }
             }
             log.info("Completed async execution for execution: {}", executionId);
         } catch (Exception e) {

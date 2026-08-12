@@ -26,6 +26,11 @@ public class PlaybookController {
         return ApiResponse.success(playbookService.getPlaybooks(tenantId));
     }
 
+    @GetMapping("/playbooks/dependencies")
+    public ApiResponse<java.util.Map<String, Object>> getPlaybookDependencies(@RequestHeader("X-Tenant-ID") UUID tenantId) {
+        return ApiResponse.success(playbookService.getDependencyGraph(tenantId));
+    }
+
     @PostMapping("/playbooks")
     public ApiResponse<Playbook> createPlaybook(@RequestBody Playbook playbook, @RequestHeader("X-Tenant-ID") UUID tenantId) {
         playbook.setTenantId(tenantId);

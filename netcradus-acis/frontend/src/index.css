@@ -87,6 +87,9 @@
     --surface-overlay: #232328;
     --surface-overlay-rgb: 35 35 40;
     --shadow-overlay: 0 2px 8px rgba(0, 0, 0, 0.35), 0 12px 40px rgba(0, 0, 0, 0.55);
+    --input-bg: var(--surface-2);
+    --border-soft: var(--border);
+    --heading-color: var(--text-primary);
     color-scheme: dark;
   }
 
@@ -152,6 +155,9 @@
     --surface-overlay: #FFFFFF;
     --surface-overlay-rgb: 255 255 255;
     --shadow-overlay: 0 4px 16px rgba(20, 22, 28, 0.10), 0 12px 32px rgba(20, 22, 28, 0.12);
+    --input-bg: var(--surface-2);
+    --border-soft: var(--border);
+    --heading-color: var(--text-primary);
     color-scheme: light;
   }
 
@@ -1154,5 +1160,17 @@
 .ticker .live { color: var(--soc-green); display: flex; align-items: center; gap: 8px; flex: none; }
 .ticker .msg { flex: 1; color: var(--soc-muted); }
 .ticker .grid-r { flex: none; }
+
+/* Custom Utility Class Integrations */
+.bg-input-bg {
+  background: var(--input-bg) !important;
+}
+.border-border-soft {
+  border-color: var(--border-soft) !important;
+}
+.text-heading-color {
+  color: var(--heading-color) !important;
+}
+
 
 

@@ -745,7 +745,7 @@
 }
 
 /* Drawer UI Enhancements */
-.alerts-page .bottom-card {
+.alerts-page .details-drawer {
   background: var(--card-bg) !important;
   border-radius: 16px;
   border: 1px solid var(--border-soft);
@@ -756,38 +756,38 @@
   overflow: hidden;
 }
 
-:root[data-theme="light"] .alerts-page .bottom-card,
-[data-theme="light"] .alerts-page .bottom-card {
+:root[data-theme="light"] .alerts-page .details-drawer,
+[data-theme="light"] .alerts-page .details-drawer {
   box-shadow: 0 12px 30px -12px rgba(30, 50, 110, 0.2), var(--box-shadow);
 }
 
-.alerts-page .bottom-card .bg-input-bg {
+.alerts-page .details-drawer .bg-input-bg {
   border-color: var(--border-soft) !important;
 }
 
-.alerts-page .bottom-card .border-l-red {
+.alerts-page .details-drawer .border-l-red {
   border-left-color: var(--red) !important;
 }
 
-.alerts-page .bottom-card .border-l-amber {
+.alerts-page .details-drawer .border-l-amber {
   border-left-color: var(--amber) !important;
 }
 
-.alerts-page .bottom-card .border-l-blue {
+.alerts-page .details-drawer .border-l-blue {
   border-left-color: var(--blue) !important;
 }
 
-.alerts-page .bottom-card .bg-blue {
+.alerts-page .details-drawer .bg-blue {
   background: linear-gradient(90deg, #3b82f6, #2563eb) !important;
   box-shadow: 0 4px 12px rgba(37, 99, 235, 0.25) !important;
   border: none !important;
 }
 
-.alerts-page .bottom-card .bg-blue:hover {
+.alerts-page .details-drawer .bg-blue:hover {
   opacity: 0.9 !important;
 }
 
-.alerts-page .bottom-card .select-pill {
+.alerts-page .details-drawer .select-pill {
   background: var(--input-bg) !important;
   border: 1px solid var(--border-soft) !important;
   color: var(--text) !important;
@@ -798,12 +798,12 @@
   padding: 10px 16px !important;
 }
 
-.alerts-page .bottom-card .select-pill:hover {
+.alerts-page .details-drawer .select-pill:hover {
   border-color: var(--blue) !important;
   background: var(--tr-hover) !important;
 }
 
-.alerts-page .bottom-card .new-rule-btn {
+.alerts-page .details-drawer .new-rule-btn {
   background: linear-gradient(90deg, #9333ea, #a855f7) !important;
   color: #ffffff !important;
   box-shadow: 0 4px 12px rgba(168, 85, 247, 0.25) !important;
@@ -815,7 +815,8 @@
   gap: 8px;
 }
 
-.alerts-page .bottom-card .new-rule-btn:hover {
+.alerts-page .details-drawer .new-rule-btn:hover {
   opacity: 0.9 !important;
 }
+
 

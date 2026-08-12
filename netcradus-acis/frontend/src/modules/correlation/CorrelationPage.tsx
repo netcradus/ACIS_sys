@@ -119,6 +119,7 @@ interface RuleActivity {
   enabled: boolean
   matchCount: number
   lastRunAt: string | null
+  avgProcessingMs: number | null
 }
 
 interface CorrelationStats {
@@ -750,22 +751,29 @@ export default function CorrelationPage() {
 
             <div className="avg-proc">
               <div className="sub-h">Average Processing Time by Rule</div>
-              <div className="bars2">
-                {[80, 60, 85, 150, 50, 90, 95].map((v, i) => (
-                  <div key={i} className="bcol">
-                    <div className="bar" style={{ height: `${(v / 200) * 100}%` }} />
-                  </div>
-                ))}
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '4px' }}>
-                <span className="lbl" style={{ flex: 1, textAlign: 'center' }}>14:30</span>
-                <span className="lbl" style={{ flex: 1, textAlign: 'center' }}>14:30</span>
-                <span className="lbl" style={{ flex: 1, textAlign: 'center' }}>14:30</span>
-                <span className="lbl" style={{ flex: 1, textAlign: 'center' }}>14:00</span>
-                <span className="lbl" style={{ flex: 1, textAlign: 'center' }}>14:50</span>
-                <span className="lbl" style={{ flex: 1, textAlign: 'center' }}>20:00</span>
-                <span className="lbl" style={{ flex: 1, textAlign: 'center' }}>20:00</span>
-              </div>
+              {(() => {
+                const timed = (stats?.ruleActivity ?? []).filter(r => r.avgProcessingMs != null)
+                if (timed.length === 0) {
+                  return <div style={{ padding: '16px 0', textAlign: 'center', color: 'var(--dim)', fontSize: '12px' }}>No timed rule evaluations yet.</div>
+                }
+                const maxMs = Math.max(...timed.map(r => r.avgProcessingMs!), 0.01)
+                return (
+                  <>
+                    <div className="bars2">
+                      {timed.slice(0, 7).map((r) => (
+                        <div key={r.ruleId} className="bcol" title={`${r.name}: ${r.avgProcessingMs!.toFixed(2)}ms`}>
+                          <div className="bar" style={{ height: `${(r.avgProcessingMs! / maxMs) * 100}%` }} />
+                        </div>
+                      ))}
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '4px' }}>
+                      {timed.slice(0, 7).map((r) => (
+                        <span key={r.ruleId} className="lbl truncate" style={{ flex: 1, textAlign: 'center', fontSize: '9px' }}>{r.avgProcessingMs!.toFixed(1)}ms</span>
+                      ))}
+                    </div>
+                  </>
+                )
+              })()}
             </div>
           </div>
 
@@ -905,32 +913,24 @@ export default function CorrelationPage() {
           </div>
 
           <div className="bottom-card">
-            <h3>Closed-Loop Remediation Logs</h3>
+            <h3>Recently Evaluated Rules</h3>
             <div className="log-list">
-              <div className="log-row">
-                <div className="log-tag ok">Success/Success</div>
-                <div className="log-desc">Logs in losted habit from the collect, suss…</div>
-              </div>
-              <div className="log-row">
-                <div className="log-tag ok">Success/Success</div>
-                <div className="log-desc">Logs in iwaa,TURL_DLS.zarakrrmlack_N0O…</div>
-              </div>
-              <div className="log-row">
-                <div className="log-tag fail">Success/Failure</div>
-                <div className="log-desc">Logs acis-gateway threat the constexr-trin…</div>
-              </div>
-              <div className="log-row">
-                <div className="log-tag fail">Success/Failure</div>
-                <div className="log-desc">Logs acis-gateway threat the under. trinvii…</div>
-              </div>
-              <div className="log-row">
-                <div className="log-tag ok">Success/Failure</div>
-                <div className="log-desc">Logs acis-gateway threat the edited RKYS…</div>
-              </div>
-              <div className="log-row">
-                <div className="log-tag fail">Success/Failure</div>
-                <div className="log-desc">Logs timesdic habit from the addested hii…</div>
-              </div>
+              {(!stats?.ruleActivity || stats.ruleActivity.filter(r => r.lastRunAt).length === 0) ? (
+                <div style={{ padding: '24px 0', textAlign: 'center', color: 'var(--dim)' }}>
+                  No rule evaluations recorded yet.
+                </div>
+              ) : (
+                [...stats.ruleActivity]
+                  .filter(r => r.lastRunAt)
+                  .sort((a, b) => new Date(b.lastRunAt!).getTime() - new Date(a.lastRunAt!).getTime())
+                  .slice(0, 6)
+                  .map((r) => (
+                    <div key={r.ruleId} className="log-row">
+                      <div className={clsx('log-tag', r.enabled ? 'ok' : 'fail')}>{r.enabled ? 'Enabled' : 'Disabled'}</div>
+                      <div className="log-desc">{r.name} · {r.matchCount} matches · last run {formatLastRun(r.lastRunAt)}</div>
+                    </div>
+                  ))
+              )}
             </div>
           </div>
         </div>
