@@ -31,6 +31,11 @@
   --svg-grid-line: #171f36;
   --workflow-bar-bg: linear-gradient(180deg, #5eead4, #0891b2);
 
+  /* Global Map color variables */
+  --map-dot-color: rgba(120, 160, 230, 0.35);
+  --map-path-color: rgba(94, 234, 212, 0.5);
+  --map-hotspot-color: #5eead4;
+
   background: var(--bg);
   color: var(--text);
   font-family: 'Inter', sans-serif;
@@ -64,14 +69,19 @@
   --tr-hover: #f7f9fe;
   --tr-border: #eef1f9;
   --heading-color: #0e1526;
-  --box-shadow: 0 10px 26px -18px rgba(30, 50, 110, 0.16);
+  --box-shadow: 0 8px 20px -16px rgba(30, 50, 110, 0.16);
 
   /* Specific widgets overrides for Light Mode */
   --date-pill-bg: #f7f9fe;
   --chip-on-bg: #e9edf5;
   --chip-on-color: #101a30;
   --svg-grid-line: #eef1f9;
-  --workflow-bar-bg: var(--cyan);
+  --workflow-bar-bg: linear-gradient(180deg, #22d3ee, #0891b2);
+
+  /* Global Map color variables for Light Mode */
+  --map-dot-color: rgba(37, 99, 235, 0.3);
+  --map-path-color: rgba(8, 145, 178, 0.4);
+  --map-hotspot-color: #0891b2;
 }
 
 .assets-page .mono {
@@ -100,7 +110,7 @@
 
 :root[data-theme="light"] .assets-page .page-head h1,
 [data-theme="light"] .assets-page .page-head h1 {
-  color: var(--blue);
+  color: var(--heading-color);
   text-shadow: none;
 }
 
@@ -120,6 +130,7 @@
 :root[data-theme="light"] .assets-page .search-assets,
 [data-theme="light"] .assets-page .search-assets {
   background: #ffffff;
+  box-shadow: 0 4px 12px -8px rgba(30, 50, 110, 0.1);
 }
 
 .assets-page .search-assets input {
@@ -190,12 +201,7 @@
 .assets-page .stat-chart .n {
   font-size: 11px;
   font-weight: 700;
-  color: #5eead4;
-}
-
-:root[data-theme="light"] .assets-page .stat-chart .n,
-[data-theme="light"] .assets-page .stat-chart .n {
-  color: var(--cyan);
+  color: var(--map-hotspot-color);
 }
 
 /* ---- assets table panel ---- */
@@ -239,7 +245,7 @@
   color: #fff;
   font-size: 12.5px;
   font-weight: 700;
-  box-shadow: 0 8px 20px -8px rgba(37, 99, 235, 0.6);
+  box-shadow: 0 8px 20px -8px rgba(37, 99, 235, 0.45);
   cursor: pointer;
   transition: all 0.2s ease;
 }
@@ -301,7 +307,7 @@
 
 :root[data-theme="light"] .assets-page .owner-name,
 [data-theme="light"] .assets-page .owner-name {
-  color: #28324a;
+  color: #2563eb;
 }
 
 .assets-page .type-icon {
@@ -453,6 +459,12 @@
   background: radial-gradient(circle at 50% 40%, rgba(37, 99, 235, 0.10), transparent 65%);
 }
 
+:root[data-theme="light"] .assets-page .map-box,
+[data-theme="light"] .assets-page .map-box {
+  background: radial-gradient(circle at 50% 40%, rgba(37, 99, 235, 0.06), transparent 65%);
+  border: 1px solid var(--border-soft);
+}
+
 .assets-page .map-box svg {
   width: 100%;
   height: 100%;
@@ -532,6 +544,11 @@
 .assets-page .ticker-top .lnk {
   color: #5b9dff;
   font-weight: 600;
+}
+
+:root[data-theme="light"] .assets-page .ticker-top .lnk,
+[data-theme="light"] .assets-page .ticker-top .lnk {
+  color: #2563eb;
 }
 
 .assets-page .invest-flow {
