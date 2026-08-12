@@ -20,7 +20,9 @@ interface TenantMember {
   id: string
   name: string
   email: string
-  role: string
+  // Real FK relation (UserMember.role -> ConsoleRole), serialized as a full
+  // object by the backend - never render this directly, only role?.name.
+  role: { id: string; name: string } | null
   status: string
   lastLogin: string | null
 }
@@ -821,7 +823,7 @@ export default function DashboardPage() {
                         <div className="avatar" style={{ width: '30px', height: '30px', fontSize: '11px' }}>{initials}</div>
                         <div>
                           <div className="op-name">{m.name}</div>
-                          <div className="op-sub">{m.role}</div>
+                          <div className="op-sub">{m.role?.name || 'No role assigned'}</div>
                         </div>
                         <span className="avail">{m.lastLogin || 'Never'}</span>
                       </div>
