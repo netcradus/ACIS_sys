@@ -5,8 +5,8 @@ import apiClient from '@/lib/apiClient'
 import { useCanWrite, MODULES } from '@/store/permissionsStore'
 import StepExecutionTimeline, { type ExecutionStep, type StepStatus } from '@/components/viz/StepExecutionTimeline'
 import ConfirmDialog from '@/components/ui/ConfirmDialog'
+import './SoarPage.css'
 
-/** Maps PlaybookService's real status strings ("Success"/"Failed"/"Skipped") to StepExecutionTimeline's normalized union. */
 function normalizeSoarStatus(raw: string | undefined): StepStatus {
   const s = (raw || '').toLowerCase()
   if (s === 'success' || s === 'completed') return 'success'
@@ -16,7 +16,6 @@ function normalizeSoarStatus(raw: string | undefined): StepStatus {
   return 'pending'
 }
 
-/** Parses an execution's real stepLogs JSON ({step, status, message, timestamp}[]) into ExecutionStep[] — same wire format PlaybookService already writes, just normalized for the shared timeline component. */
 function parseSoarSteps(stepLogsJson: string): ExecutionStep[] {
   try {
     const parsed = JSON.parse(stepLogsJson)
@@ -54,6 +53,14 @@ interface Execution {
   stepLogs: string // JSON string
 }
 
+function seedRandom(seed: number) {
+  let s = seed
+  return function() {
+    s = (s * 9301 + 49297) % 233280
+    return s / 233280
+  }
+}
+
 export default function SoarPage() {
   const canWrite = useCanWrite(MODULES.SOAR_PLAYBOOKS)
   const [playbooks, setPlaybooks] = useState<Playbook[]>([])
@@ -69,9 +76,7 @@ export default function SoarPage() {
   const [newPbStepsList, setNewPbStepsList] = useState<string[]>([''])
   const [editingPlaybookId, setEditingPlaybookId] = useState<string | null>(null)
 
-  // Run Playbook can genuinely execute real remediation steps (isolation,
-  // containment) — gated behind a real confirm dialog instead of firing on
-  // the first click.
+  // Run Playbook gated by confirm modal
   const [confirmingRunPlaybookId, setConfirmingRunPlaybookId] = useState<string | null>(null)
   const [runBusy, setRunBusy] = useState(false)
 
@@ -88,7 +93,6 @@ export default function SoarPage() {
       setPlaybooks(pbs)
       setExecutions(execs)
 
-      // Auto select first execution for detail view
       if (execs.length > 0 && !selectedExecutionId) {
         setSelectedExecutionId(execs[0].id)
       }
@@ -101,7 +105,6 @@ export default function SoarPage() {
 
   useEffect(() => {
     fetchData()
-    // Poll for updates every 5 seconds to show real-time execution transitions
     const interval = setInterval(fetchData, 5000)
     return () => clearInterval(interval)
   }, [])
@@ -126,9 +129,6 @@ export default function SoarPage() {
       const payload = {
         name: newPbName,
         description: newPbDesc,
-        // Same wire format PlaybookService already reads — a JSON array of
-        // {step, status}. `status` here is a template placeholder (real
-        // per-run status lives in an Execution's own stepLogs, not here).
         steps: JSON.stringify(cleanSteps.map(step => ({ step, status: 'Completed' }))),
         enabled: true,
         successCount: 0,
@@ -169,9 +169,6 @@ export default function SoarPage() {
     setEditingPlaybookId(null)
   }
 
-  // Multi-step builder helpers — replaces the single comma-separated
-  // textarea with real add/remove/reorder controls over the same
-  // {step, status}[] JSON wire format.
   const updateStepAt = (index: number, value: string) => {
     setNewPbStepsList(prev => prev.map((s, i) => (i === index ? value : s)))
   }
@@ -189,7 +186,6 @@ export default function SoarPage() {
     })
   }
 
-  /** Real step names parsed from the playbook's own stored steps JSON — replaces a hardcoded per-name lookup that only covered 3 fixed playbook names and silently fell back to generic placeholder text for anything else, including every user-created playbook. */
   const getStepNames = (stepsJson: string): string[] => {
     try {
       const parsed = JSON.parse(stepsJson)
@@ -200,7 +196,6 @@ export default function SoarPage() {
     }
   }
 
-  /** Real average duration computed from this playbook's own completed executions — replaces a hardcoded "< 45s" style literal. */
   const getAvgDuration = (playbookId: string): string => {
     const completed = executions.filter(e => e.playbookId === playbookId && e.completedAt && e.status !== 'running')
     if (completed.length === 0) return '—'
@@ -238,323 +233,516 @@ export default function SoarPage() {
     return playbooks.find(p => p.id === pbId)?.name || 'Custom Playbook'
   }
 
-  const getPlaybookCardColor = (name: string) => {
-    if (name.includes('Isolate')) return 'bg-info'
-    if (name.includes('Reset')) return 'bg-danger'
-    return 'bg-severity-high'
-  }
-
   const filteredPlaybooks = useMemo(() => {
     return playbooks.filter(p => p.name.toLowerCase().includes(searchTerm.toLowerCase()))
   }, [playbooks, searchTerm])
 
   const selectedExecution = executions.find(e => e.id === selectedExecutionId)
 
+  // Map Data generator
+  const mapData = useMemo(() => {
+    const spots = [[90, 140], [190, 120], [280, 110], [340, 150], [380, 190]]
+    const arcs = [[90, 140, 190, 120], [190, 120, 280, 110], [280, 110, 340, 150], [340, 150, 380, 190]]
+    const dots = []
+    const rng = seedRandom(5678)
+    for (let i = 0; i < 600; i++) {
+      const x = rng() * 400
+      const y = 20 + rng() * 220
+      const inLand = (x > 20 && x < 110 && y > 70 && y < 190) || (x > 140 && x < 230 && y > 40 && y < 180) || (x > 250 && x < 390 && y > 50 && y < 200)
+      if (inLand && rng() < 0.4) {
+        dots.push({ x, y })
+      }
+    }
+    return { dots, spots, arcs }
+  }, [])
+
+  // Node dependencies map data generator
+  const nodePositions = [
+    { x: 500, y: 150, type: 'center', r: 24, label: 'Playbook Dependencies' },
+    { x: 350, y: 90, type: 'child', r: 12, label: 'Playbook Execution…' },
+    { x: 420, y: 60, type: 'child', r: 10, label: 'Playbook Execution…' },
+    { x: 610, y: 60, type: 'child', r: 10, label: 'Playbook Exec…' },
+    { x: 700, y: 110, type: 'child', r: 10, label: 'Playbook Executie…' },
+    { x: 300, y: 220, type: 'child', r: 10, label: 'Playbook Execution…' },
+    { x: 420, y: 240, type: 'child', r: 13, label: 'Playbook Execution…' },
+    { x: 600, y: 240, type: 'child', r: 13, label: 'Playbook Execution…' },
+    { x: 680, y: 200, type: 'child', r: 10, label: 'Playbook Execuin…' }
+  ] as const
+
+  const cross = [[1, 5], [3, 4], [6, 7], [2, 1]] as const
+
   return (
-    <div className="space-y-6 animate-fade-in flex flex-col h-full text-text-secondary min-h-screen">
+    <div className="soar-page">
+      {/* Atmospheric Background for Dark Mode */}
+      <div className="bg-fixed">
+        <div className="nebula1" />
+        <div className="nebula2" />
+        <div className="nebula3" />
+        <div className="grid" />
+        <div className="stars" />
+      </div>
 
-      {/* Search Header */}
-      <div className="flex items-center justify-between border-b border-fire-border pb-4">
-        <h1 className="text-h1 text-text-primary">SOAR Playbooks</h1>
-        <div className="relative w-80">
-          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted" />
-          <input
-            type="text"
-            placeholder="Search playbooks..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="input-field pl-10"
-          />
+      <div className="content">
+        <div className="page-head">
+          <h1>SOAR Playbooks</h1>
         </div>
-      </div>
 
-      {/* Main Orchestrator Title */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-h3 text-text-primary">Playbooks</h2>
-          <p className="text-label text-text-muted mt-1 uppercase">Orchestrate multi-tool responses</p>
+        {/* Summary Bar widgets */}
+        <div className="summary-bar">
+          <div>
+            <div className="summary-title">Playbooks</div>
+            <div className="summary-sub">Orchestrate Multi-Tool Responses</div>
+          </div>
+          <div className="sum-stat">
+            <div className="v">2,845</div>
+            <svg viewBox="0 0 70 26" width="70" height="24">
+              <polyline points="0,20 14,16 28,18 42,8 56,4 70,10" fill="none" stroke="var(--cyan)" strokeWidth="2" />
+            </svg>
+            <div className="l">Total IOCs</div>
+          </div>
+          <div className="sum-stat">
+            <div className="v">142</div>
+            <svg viewBox="0 0 70 26" width="70" height="24">
+              <polyline points="0,14 14,18 28,10 42,16 56,6 70,12" fill="none" stroke="var(--cyan)" strokeWidth="2" />
+            </svg>
+            <div className="l">Quarantined</div>
+          </div>
+          <div className="sum-stat">
+            <div className="v">10</div>
+            <svg viewBox="0 0 70 26" width="70" height="24">
+              <polyline points="0,20 14,14 28,18 42,6 56,10 70,2" fill="none" stroke="var(--cyan)" strokeWidth="2" />
+            </svg>
+            <div className="l">Severitys</div>
+          </div>
+          <button
+            onClick={openCreatePlaybookModal}
+            disabled={!canWrite}
+            className="new-playbook-btn"
+          >
+            + New Playbook
+          </button>
         </div>
-        <button
-          onClick={openCreatePlaybookModal}
-          disabled={!canWrite}
-          title={!canWrite ? "Your role doesn't have write access to SOAR Playbooks" : undefined}
-          className="btn-fire text-small py-2 px-4 flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          <Plus className="w-3.5 h-3.5" /> New Playbook
-        </button>
-      </div>
 
-      {/* Playbooks Grid Layout */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-        {filteredPlaybooks.map(pb => {
-          const cardColor = getPlaybookCardColor(pb.name)
-          const stepsCount = getStepCount(pb.steps)
-          const successRate = pb.runCount > 0 ? Math.round((pb.successCount / pb.runCount) * 100) : 0
-          const stepsList = getStepNames(pb.steps)
-          
-          return (
-            <div key={pb.id} className="bg-surface-2 border border-fire-border rounded-xl p-5 relative overflow-hidden flex flex-col justify-between shadow-sm h-[290px]">
-              {/* Colored Top Bar */}
-              <div className={clsx("absolute top-0 left-0 right-0 h-1", cardColor)} />
+        {/* Search tool block */}
+        <div className="flex items-center gap-4 mb-5 max-w-sm">
+          <div className="relative w-full">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted" />
+            <input
+              type="text"
+              placeholder="Search playbooks..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              style={{
+                background: 'var(--input-bg)',
+                border: '1px solid var(--border-soft)',
+                borderRadius: '8px',
+                padding: '8px 12px 8px 34px',
+                color: 'var(--text)',
+                width: '100%',
+                outline: 'none'
+              }}
+            />
+          </div>
+        </div>
 
-              <div>
-                <h3 className="text-h3 text-text-primary">{pb.name}</h3>
-                <p className="text-label text-text-muted uppercase mt-0.5">{pb.description}</p>
-
-                {/* Metrics */}
-                <div className="grid grid-cols-3 gap-2 mt-4 border-b border-fire-border pb-3">
-                  <div className="flex flex-col">
-                    <span className={clsx("text-h3", pb.name.includes('Reset') ? 'text-danger' : 'text-success')}>{successRate}%</span>
-                    <span className="text-label text-text-muted uppercase mt-0.5">Success</span>
-                  </div>
-                  <div className="flex flex-col">
-                    <span className="text-h3 text-text-primary">{stepsCount}</span>
-                    <span className="text-label text-text-muted uppercase mt-0.5">Steps</span>
-                  </div>
-                  <div className="flex flex-col">
-                    <span className="text-h3 text-text-primary">{getAvgDuration(pb.id)}</span>
-                    <span className="text-label text-text-muted uppercase mt-0.5">Duration</span>
-                  </div>
-                </div>
-
-                {/* Steps List */}
-                <div className="mt-3 space-y-1 text-small text-text-secondary font-medium">
-                  {stepsList.slice(0, 3).map((step, idx) => (
-                    <div key={idx} className="flex items-center gap-2">
-                      <span className="w-1 h-1 rounded-full bg-text-muted" />
-                      <span>{step}</span>
-                    </div>
-                  ))}
-                  {stepsList.length > 3 && (
-                    <span className="text-label text-text-muted italic pl-3">... +{stepsList.length - 3} more steps</span>
-                  )}
-                </div>
-              </div>
-
-              {/* Action Buttons */}
-              <div className="grid grid-cols-2 gap-2 mt-4">
-                <button
-                  onClick={() => setConfirmingRunPlaybookId(pb.id)}
-                  disabled={!canWrite}
-                  title={!canWrite ? "Your role doesn't have write access to SOAR Playbooks" : undefined}
-                  className="btn-fire py-2 text-small disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  <Play className="w-3 h-3 fill-white" /> Run
-                </button>
-                <button
-                  onClick={() => openEditPlaybookModal(pb)}
-                  disabled={!canWrite}
-                  title={!canWrite ? "Your role doesn't have write access to SOAR Playbooks" : undefined}
-                  className="btn-mission py-2 text-small disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  Edit
-                </button>
-              </div>
-            </div>
-          )
-        })}
-      </div>
-
-      {/* Recent Executions Table */}
-      <div className="card-mission space-y-4">
-        <h3 className="text-h3 text-text-primary border-b border-fire-border pb-3">Recent Executions</h3>
-        <div className="overflow-x-auto">
-          <table className="table-enterprise">
+        {/* Playbooks table panel */}
+        <div className="table-panel">
+          <table>
             <thead>
               <tr>
-                <th className="w-[35%]">Playbook</th>
-                <th className="w-[25%]">Triggered By</th>
-                <th className="w-[15%]">Status</th>
-                <th className="w-[12%]">Duration</th>
-                <th className="w-[13%]">Completed</th>
+                <th>ASSET</th>
+                <th>TYPE</th>
+                <th>OWNER</th>
+                <th>TRIGGERED BY</th>
+                <th>PRIORITY</th>
+                <th>STATUS</th>
+                <th>DURATION</th>
+                <th>COMPLETED</th>
+                <th></th>
               </tr>
             </thead>
             <tbody>
-              {executions.map(exec => (
-                <tr
-                  key={exec.id}
-                  onClick={() => setSelectedExecutionId(exec.id)}
-                  className={clsx(
-                    "cursor-pointer",
-                    selectedExecutionId === exec.id ? "bg-surface-3" : ""
-                  )}
-                >
-                  <td className="font-semibold text-text-secondary">
-                    {getPlaybookName(exec.playbookId)}
-                  </td>
-                  <td className="text-text-secondary font-mono">
-                    {exec.triggeredByName || 'auto-trigger'}
-                  </td>
-                  <td>
-                    <div className="flex items-center gap-2">
-                      <span className={clsx(
-                        "w-1.5 h-1.5 rounded-full inline-block",
-                        exec.status === 'completed' ? "bg-success" :
-                        exec.status === 'failed' ? "bg-danger" : "bg-severity-high animate-ping"
-                      )} />
-                      <span className={clsx(
-                        "text-label uppercase",
-                        exec.status === 'completed' ? "text-success" :
-                        exec.status === 'failed' ? "text-danger" : "text-severity-high"
-                      )}>
-                        {exec.status}
+              {filteredPlaybooks.map((pb) => {
+                const isHigh = pb.name.includes('Isolate') || pb.name.includes('Reset')
+                const isSuccess = pb.successCount === pb.runCount && pb.runCount > 0
+                return (
+                  <tr key={pb.id}>
+                    <td className="font-semibold">{pb.name}</td>
+                    <td>{pb.description}</td>
+                    <td className="owner-name">S. Skallenora</td>
+                    <td>{pb.lastRunAt ? formatTimeElapsed(pb.lastRunAt) : '—'}</td>
+                    <td>
+                      <span className={clsx("priority-dot", isHigh ? "high" : "medium")} />
+                      {isHigh ? 'High' : 'Medium'}
+                    </td>
+                    <td>
+                      <span className="status-badge">
+                        <span className={clsx("status-dot2", isSuccess ? "success" : "failed")} />
+                        {isSuccess ? 'Success' : 'Failed'}
                       </span>
-                    </div>
-                  </td>
-                  <td className="text-text-secondary font-mono">
-                    {getDuration(exec)}
-                  </td>
-                  <td className="text-text-secondary font-mono">
-                    {formatTimeElapsed(exec.startedAt)}
-                  </td>
-                </tr>
-              ))}
-              {executions.length === 0 && (
-                <tr>
-                  <td colSpan={5} className="py-12 text-center text-text-muted text-label uppercase">
-                    No SOAR executions logged
-                  </td>
-                </tr>
+                    </td>
+                    <td>
+                      <svg viewBox="0 0 60 22" width="60" height="20" style={{ display: 'inline', marginRight: '6px' }}>
+                        <polyline points={isSuccess ? "0,16 10,10 20,14 30,6 40,12 50,4 60,8" : "0,10 10,16 20,8 30,12 40,4 50,10 60,6"} fill="none" stroke={isSuccess ? "#22d3ee" : "#a855f7"} strokeWidth="1.6" />
+                      </svg>
+                      {getAvgDuration(pb.id)}
+                    </td>
+                    <td>{pb.successCount} / {pb.runCount}</td>
+                    <td>
+                      <button
+                        onClick={() => setConfirmingRunPlaybookId(pb.id)}
+                        disabled={!canWrite}
+                        className="run-btn"
+                      >
+                        Run ▶
+                      </button>
+                    </td>
+                  </tr>
+                )}
               )}
             </tbody>
           </table>
         </div>
-      </div>
 
-      {/* Execution Detail Logs Box (Bottom Panel) */}
-      {selectedExecution && (
-        <div className="card-mission space-y-3">
-          <h4 className="text-label text-text-muted uppercase">
-            Execution Detail — {getPlaybookName(selectedExecution.playbookId)} ({formatTimeElapsed(selectedExecution.startedAt)})
-          </h4>
-          <StepExecutionTimeline
-            steps={parseSoarSteps(selectedExecution.stepLogs)}
-            mode={selectedExecution.status === 'running' ? 'live' : 'historical'}
-          />
-        </div>
-      )}
+        {/* Playbook dependencies visualizer */}
+        <div className="deps-panel">
+          <div className="deps-head">
+            <h3>Playbook Dependencies</h3>
+            <span style={{ color: 'var(--dim)', fontSize: '16px', cursor: 'pointer' }}>⤢</span>
+          </div>
+          <div className="deps-box">
+            <svg viewBox="0 0 1000 300">
+              {/* Edges from center */}
+              {nodePositions.map((n, idx) => {
+                if (idx === 0) return null
+                return (
+                  <line
+                    key={idx}
+                    x1={nodePositions[0].x}
+                    y1={nodePositions[0].y}
+                    x2={n.x}
+                    y2={n.y}
+                    stroke="var(--deps-edge-active)"
+                    strokeWidth="1.2"
+                  />
+                )
+              })}
 
-      {/* Create Playbook Modal */}
-      {isModalOpen && (
-        <div className="fixed inset-0 bg-background/85 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-surface border border-fire-border rounded-xl w-full max-w-md overflow-hidden shadow-card animate-scale-in">
-            <div className="flex items-center justify-between p-5 border-b border-fire-border">
-              <h3 className="text-h3 text-text-primary">{editingPlaybookId ? 'Edit SOAR Playbook' : 'Create SOAR Playbook'}</h3>
-              <button
-                onClick={closePlaybookModal}
-                className="text-text-muted hover:text-text-primary transition-colors focus:outline-none"
+              {/* Cross Connections */}
+              {cross.map(([a, b], idx) => (
+                <line
+                  key={idx}
+                  x1={nodePositions[a].x}
+                  y1={nodePositions[a].y}
+                  x2={nodePositions[b].x}
+                  y2={nodePositions[b].y}
+                  stroke="var(--deps-edge-cross)"
+                  strokeWidth="1"
+                />
+              ))}
+
+              {/* Nodes */}
+              {nodePositions.map((node, idx) => {
+                const gradId = `ng-deps-${idx}`
+                const isCenter = node.type === 'center'
+                return (
+                  <g key={idx}>
+                    <defs>
+                      <radialGradient id={gradId}>
+                        <stop offset="0%" stopColor={isCenter ? 'var(--deps-center-fill)' : 'var(--deps-node-stroke)'} stopOpacity="0.9" />
+                        <stop offset="100%" stopColor={isCenter ? 'var(--deps-center-fill)' : 'var(--deps-node-stroke)'} stopOpacity="0.15" />
+                      </radialGradient>
+                    </defs>
+                    <circle cx={node.x} cy={node.y} r={node.r + 8} fill={`url(#${gradId})`} opacity="0.4" />
+                    <circle
+                      cx={node.x}
+                      cy={node.y}
+                      r={node.r}
+                      fill={isCenter ? 'var(--deps-center-fill)' : 'var(--deps-node-fill)'}
+                      stroke="var(--deps-node-stroke)"
+                      strokeWidth="1.5"
+                    />
+                  </g>
+                )
+              })}
+            </svg>
+            {nodePositions.map((node, idx) => (
+              <div
+                key={idx}
+                className="deps-label"
+                style={{
+                  left: `${(node.x / 1000) * 100}%`,
+                  top: `${((node.y + node.r + 16) / 300) * 100}%`
+                }}
               >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-            <form onSubmit={handleSubmitPlaybook} className="p-5 space-y-4">
-              <div className="space-y-1">
-                <label className="text-label text-text-muted uppercase block">Playbook Name</label>
-                <input
-                  type="text"
-                  required
-                  placeholder="e.g. Block Port on Cisco Switch"
-                  value={newPbName}
-                  onChange={(e) => setNewPbName(e.target.value)}
-                  className="input-field"
-                />
+                {node.label}
               </div>
-
-              <div className="space-y-1">
-                <label className="text-label text-text-muted uppercase block">Description Header</label>
-                <input
-                  type="text"
-                  required
-                  placeholder="e.g. 3 steps • run on suspicious egress triggers"
-                  value={newPbDesc}
-                  onChange={(e) => setNewPbDesc(e.target.value)}
-                  className="input-field"
-                />
-              </div>
-
-              <div className="space-y-1">
-                <label className="text-label text-text-muted uppercase block">Playbook Steps</label>
-                <div className="space-y-2">
-                  {newPbStepsList.map((step, idx) => (
-                    <div key={idx} className="flex items-center gap-1.5">
-                      <GripVertical className="w-3.5 h-3.5 text-text-muted shrink-0" />
-                      <input
-                        type="text"
-                        required
-                        placeholder={`Step ${idx + 1} — e.g. Disable port via SSH`}
-                        value={step}
-                        onChange={(e) => updateStepAt(idx, e.target.value)}
-                        className="input-field flex-1"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => moveStep(idx, -1)}
-                        disabled={idx === 0}
-                        className="text-text-muted hover:text-text-primary disabled:opacity-30 disabled:cursor-not-allowed transition-colors px-1"
-                        title="Move up"
-                      >
-                        <ChevronRight className="w-3.5 h-3.5 -rotate-90" />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => moveStep(idx, 1)}
-                        disabled={idx === newPbStepsList.length - 1}
-                        className="text-text-muted hover:text-text-primary disabled:opacity-30 disabled:cursor-not-allowed transition-colors px-1"
-                        title="Move down"
-                      >
-                        <ChevronRight className="w-3.5 h-3.5 rotate-90" />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => removeStep(idx)}
-                        disabled={newPbStepsList.length === 1}
-                        className="text-text-muted hover:text-danger disabled:opacity-30 disabled:cursor-not-allowed transition-colors px-1"
-                        title="Remove step"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-                  ))}
-                  <button
-                    type="button"
-                    onClick={addStep}
-                    className="btn-mission py-1.5 px-3 text-small flex items-center gap-1.5"
-                  >
-                    <Plus className="w-3.5 h-3.5" /> Add Step
-                  </button>
-                </div>
-              </div>
-
-              <div className="flex items-center justify-end gap-3 pt-3 border-t border-fire-border mt-4">
-                <button
-                  type="button"
-                  onClick={closePlaybookModal}
-                  className="btn-mission py-2 px-4 text-small"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="btn-fire py-2 px-4 text-small"
-                >
-                  {editingPlaybookId ? 'Save Changes' : 'Create Playbook'}
-                </button>
-              </div>
-            </form>
+            ))}
           </div>
         </div>
-      )}
 
-      <ConfirmDialog
-        open={!!confirmingRunPlaybookId}
-        title="Run Playbook"
-        message={`This will execute "${confirmingRunPlaybookId ? getPlaybookName(confirmingRunPlaybookId) : ''}" now, running its real automated response steps against live targets. Continue?`}
-        confirmLabel="Run Playbook"
-        busy={runBusy}
-        onConfirm={() => confirmingRunPlaybookId && handleRunPlaybook(confirmingRunPlaybookId)}
-        onCancel={() => setConfirmingRunPlaybookId(null)}
-      />
+        {/* Recent Executions & Action maps layout */}
+        <div style={{ position: 'relative' }}>
+          
+          <div className="recent-panel">
+            <h3>Recent Executions</h3>
+            <table>
+              <thead>
+                <tr>
+                  <th>TIMESTAMP ↑</th>
+                  <th>INDICATOR</th>
+                  <th>TYPE</th>
+                  <th>ENRICHMENT SOURCE</th>
+                  <th>STATUS</th>
+                  <th>Critical</th>
+                  <th>High</th>
+                  <th>AbuseIPDB</th>
+                  <th>Vendor</th>
+                </tr>
+              </thead>
+              <tbody>
+                {executions.map((exec) => {
+                  const pbName = getPlaybookName(exec.playbookId)
+                  return (
+                    <tr
+                      key={exec.id}
+                      onClick={() => setSelectedExecutionId(exec.id)}
+                      className={clsx("cursor-pointer", selectedExecutionId === exec.id && "bg-slate-800/40")}
+                    >
+                      <td>{formatTimeElapsed(exec.startedAt)}</td>
+                      <td className="font-semibold">{pbName}</td>
+                      <td>Playbook</td>
+                      <td className="owner-name">{exec.triggeredByName || 'auto-trigger'}</td>
+                      <td>
+                        <span className={clsx(
+                          "status-pill",
+                          exec.status === 'completed' ? "success" :
+                          exec.status === 'failed' ? "failed" : "progress"
+                        )}>
+                          {exec.status === 'completed' ? 'Success' :
+                           exec.status === 'failed' ? 'Failed' : 'In Progress'}
+                        </span>
+                      </td>
+                      <td>13 <span className="wbadge">W</span></td>
+                      <td>5 <span className="wbadge">W</span></td>
+                      <td>
+                        0 &nbsp;
+                        <svg width="30" height="14" viewBox="0 0 30 14" style={{ display: 'inline' }}>
+                          <polyline points="0,10 8,4 16,8 24,2 30,6" fill="none" stroke="#fbbf24" strokeWidth="1.5" />
+                        </svg>
+                      </td>
+                      <td>0</td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
 
+          {/* Floating SOAR Action Flow Map */}
+          <div className="map-float">
+            <div className="map-float-head">
+              <h3>📷 SOAR Action Flow Map</h3>
+              <div className="map-icons">⤢ ⚙</div>
+            </div>
+            <div className="map-box">
+              <svg viewBox="0 0 400 260">
+                {/* Silhouette map dots */}
+                {mapData.dots.map((dot, idx) => (
+                  <circle key={idx} cx={dot.x} cy={dot.y} r={0.8} fill="var(--map-dot-color)" />
+                ))}
+
+                {/* Arc paths */}
+                {mapData.arcs.map(([x1, y1, x2, y2], idx) => {
+                  const mx = (x1 + x2) / 2
+                  const my = (y1 + y2) / 2 - 30
+                  return (
+                    <path
+                      key={idx}
+                      d={`M${x1},${y1} Q${mx},${my} ${x2},${y2}`}
+                      fill="none"
+                      stroke="var(--map-path-color)"
+                      strokeWidth="1.4"
+                    />
+                  )
+                })}
+
+                {/* Radar spots */}
+                {mapData.spots.map(([x, y], idx) => {
+                  const gradId = `ng-soar-map-${idx}`
+                  return (
+                    <g key={idx}>
+                      <defs>
+                        <radialGradient id={gradId}>
+                          <stop offset="0%" stopColor="var(--map-hotspot-color)" stopOpacity="0.4" />
+                          <stop offset="100%" stopColor="var(--map-hotspot-color)" stopOpacity="0" />
+                        </radialGradient>
+                      </defs>
+                      <circle cx={x} cy={y} r={16} fill={`url(#${gradId})`} />
+                      <circle
+                        cx={x}
+                        cy={y}
+                        r={idx === 2 ? 11 : 7}
+                        fill="var(--map-dot-center-color)"
+                        stroke="var(--map-dot-stroke)"
+                        strokeWidth="1.5"
+                      />
+                      <polygon
+                        points={`${x - (idx === 2 ? 5 : 3.5)},${y - (idx === 2 ? 5 : 3.5)} ${x - (idx === 2 ? 5 : 3.5)},${y + (idx === 2 ? 5 : 3.5)} ${x + (idx === 2 ? 5 : 3.5)},${y}`}
+                        fill="#fbbf24"
+                      />
+                    </g>
+                  )
+                })}
+              </svg>
+            </div>
+          </div>
+
+          {/* Floating Threat Intel Ticker */}
+          <div className="ticker-float">
+            <h3>Threat intel Ticker <span style={{ color: 'var(--dim)', fontSize: '12px' }}>⌃</span></h3>
+            <div className="tf-item">
+              <span className="d"></span>
+              <div>
+                <b>Ransomware Threat</b> has an oncomment triggered …
+                <span className="sub">Automated SOAR response Status</span>
+              </div>
+            </div>
+            <div className="tf-item">
+              <span className="d"></span>
+              <div>
+                <b>Ransomware Threat</b> has an oncomment triggered …
+                <span className="sub">Automated SOAR response Status</span>
+              </div>
+            </div>
+            <div className="tf-item">
+              <span className="d"></span>
+              <div>
+                <b>Ransomware Threat</b> has a automaticilly person …
+                <span className="sub">Automated SOAR response Status</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Execution Detail Logs Box */}
+        {selectedExecution && (
+          <div style={{ marginTop: '24px', background: 'var(--card-bg)', border: '1px solid var(--border-soft)', padding: '20px', borderRadius: '14px', boxShadow: 'var(--box-shadow)' }}>
+            <h4 className="text-label text-text-muted uppercase mb-3">
+              Execution Detail — {getPlaybookName(selectedExecution.playbookId)} ({formatTimeElapsed(selectedExecution.startedAt)})
+            </h4>
+            <StepExecutionTimeline
+              steps={parseSoarSteps(selectedExecution.stepLogs)}
+              mode={selectedExecution.status === 'running' ? 'live' : 'historical'}
+            />
+          </div>
+        )}
+
+        {/* Form Modal for creating/editing playbooks */}
+        {isModalOpen && (
+          <div className="fixed inset-0 bg-background/85 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <div
+              style={{
+                background: 'var(--card-bg)',
+                border: '1px solid var(--border-soft)',
+                borderRadius: '12px',
+                width: '100%',
+                maxWidth: '460px',
+                boxShadow: '0 24px 60px -14px rgba(0,0,0,0.7)',
+                overflow: 'hidden'
+              }}
+            >
+              <div className="flex items-center justify-between p-5 border-b border-border-soft">
+                <h3 className="font-bold text-lg" style={{ color: 'var(--heading-color)' }}>
+                  {editingPlaybookId ? 'Edit SOAR Playbook' : 'Create SOAR Playbook'}
+                </h3>
+                <button onClick={closePlaybookModal} style={{ color: 'var(--muted)', background: 'none', border: 'none' }}>
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+              <form onSubmit={handleSubmitPlaybook} className="p-5 space-y-4">
+                <div>
+                  <label style={{ fontSize: '10.5px', fontWeight: 800, color: 'var(--dim)', textTransform: 'uppercase', display: 'block', marginBottom: '6px' }}>Playbook Name</label>
+                  <input
+                    type="text"
+                    required
+                    value={newPbName}
+                    onChange={(e) => setNewPbName(e.target.value)}
+                    placeholder="e.g. Block Port on Cisco Switch"
+                    style={{ background: 'var(--input-bg)', border: '1px solid var(--border-soft)', borderRadius: '8px', padding: '10px 14px', width: '100%', color: 'var(--text)' }}
+                  />
+                </div>
+                <div>
+                  <label style={{ fontSize: '10.5px', fontWeight: 800, color: 'var(--dim)', textTransform: 'uppercase', display: 'block', marginBottom: '6px' }}>Description Header</label>
+                  <input
+                    type="text"
+                    required
+                    value={newPbDesc}
+                    onChange={(e) => setNewPbDesc(e.target.value)}
+                    placeholder="e.g. 3 steps • run on suspicious egress triggers"
+                    style={{ background: 'var(--input-bg)', border: '1px solid var(--border-soft)', borderRadius: '8px', padding: '10px 14px', width: '100%', color: 'var(--text)' }}
+                  />
+                </div>
+                <div>
+                  <label style={{ fontSize: '10.5px', fontWeight: 800, color: 'var(--dim)', textTransform: 'uppercase', display: 'block', marginBottom: '6px' }}>Playbook Steps</label>
+                  <div className="space-y-2">
+                    {newPbStepsList.map((step, idx) => (
+                      <div key={idx} className="flex items-center gap-2">
+                        <GripVertical className="w-4 h-4 text-text-muted shrink-0" />
+                        <input
+                          type="text"
+                          required
+                          value={step}
+                          onChange={(e) => updateStepAt(idx, e.target.value)}
+                          placeholder={`Step ${idx + 1} — e.g. Disable port via SSH`}
+                          style={{ background: 'var(--input-bg)', border: '1px solid var(--border-soft)', borderRadius: '8px', padding: '8px 12px', flex: 1, color: 'var(--text)', fontSize: '12.5px' }}
+                        />
+                        <button type="button" onClick={() => moveStep(idx, -1)} disabled={idx === 0} style={{ color: 'var(--muted)', background: 'none', border: 'none' }}>
+                          <ChevronRight className="w-4 h-4 -rotate-90" />
+                        </button>
+                        <button type="button" onClick={() => moveStep(idx, 1)} disabled={idx === newPbStepsList.length - 1} style={{ color: 'var(--muted)', background: 'none', border: 'none' }}>
+                          <ChevronRight className="w-4 h-4 rotate-90" />
+                        </button>
+                        <button type="button" onClick={() => removeStep(idx)} disabled={newPbStepsList.length === 1} style={{ color: 'var(--muted)', background: 'none', border: 'none' }}>
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    ))}
+                    <button
+                      type="button"
+                      onClick={addStep}
+                      style={{ background: 'none', border: '1px dashed var(--border-soft)', color: 'var(--text)', padding: '6px 12px', borderRadius: '8px', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '6px' }}
+                    >
+                      <Plus className="w-3.5 h-3.5" /> Add Step
+                    </button>
+                  </div>
+                </div>
+
+                <div className="flex justify-end gap-3 pt-3 border-t border-border-soft">
+                  <button type="button" onClick={closePlaybookModal} style={{ background: 'none', border: '1px solid var(--border-soft)', color: 'var(--text)', padding: '8px 16px', borderRadius: '8px', fontSize: '12.5px' }}>
+                    Cancel
+                  </button>
+                  <button type="submit" className="run-btn" style={{ fontSize: '12.5px' }}>
+                    {editingPlaybookId ? 'Save Changes' : 'Create Playbook'}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+
+        <ConfirmDialog
+          open={!!confirmingRunPlaybookId}
+          title="Run Playbook"
+          message={`This will execute "${confirmingRunPlaybookId ? getPlaybookName(confirmingRunPlaybookId) : ''}" now, running its real automated response steps against live targets. Continue?`}
+          confirmLabel="Run Playbook"
+          busy={runBusy}
+          onConfirm={() => confirmingRunPlaybookId && handleRunPlaybook(confirmingRunPlaybookId)}
+          onCancel={() => setConfirmingRunPlaybookId(null)}
+        />
+
+        <div style={{ height: '340px' }} />
+      </div>
     </div>
   )
 }
