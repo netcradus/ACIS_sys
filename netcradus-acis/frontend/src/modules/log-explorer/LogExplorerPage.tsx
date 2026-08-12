@@ -46,7 +46,7 @@ function HeroGlobe() {
   return (
     <svg viewBox="0 0 400 400" width="100%" height="100%">
       {/* Outer circle */}
-      <circle cx={cx} cy={cy} r={r} fill="none" stroke="rgba(120,160,230,0.3)" />
+      <circle cx={cx} cy={cy} r={r} fill="none" stroke="var(--globe-outer)" />
 
       {/* Latitudes */}
       {latitudes.map((lat, idx) => (
@@ -57,7 +57,7 @@ function HeroGlobe() {
           rx={lat.rx}
           ry={5}
           fill="none"
-          stroke="rgba(120,160,230,0.15)"
+          stroke="var(--globe-lat)"
         />
       ))}
 
@@ -70,7 +70,7 @@ function HeroGlobe() {
           rx={rx}
           ry={r}
           fill="none"
-          stroke="rgba(120,160,230,0.1)"
+          stroke="var(--globe-long)"
         />
       ))}
 
@@ -81,7 +81,7 @@ function HeroGlobe() {
           cx={dot.cx}
           cy={dot.cy}
           r={dot.r}
-          fill="rgba(140,175,235,0.3)"
+          fill="var(--globe-dot)"
         />
       ))}
     </svg>
