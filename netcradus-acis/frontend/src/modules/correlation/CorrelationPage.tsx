@@ -516,11 +516,11 @@ export default function CorrelationPage() {
               <polyline
                 points="0,50 30,35 60,42 90,20 120,32 150,10 180,25 220,15"
                 fill="none"
-                stroke="var(--blue)"
+                stroke="var(--sparkline-stroke)"
                 strokeWidth="2"
               />
-              <circle cx="90" cy="20" r="3" fill="var(--blue)" />
-              <circle cx="150" cy="10" r="3" fill="var(--blue)" />
+              <circle cx="90" cy="20" r="3" fill="var(--sparkline-stroke)" />
+              <circle cx="150" cy="10" r="3" fill="var(--sparkline-stroke)" />
             </svg>
             <div className="sub">ACTIVE RULES</div>
           </div>
@@ -529,7 +529,7 @@ export default function CorrelationPage() {
             <div className="l">Alerts Fired Today</div>
             <div className="v">{alertsToday || 14}</div>
             <svg viewBox="0 0 220 60" width="100%" height="55">
-              <g fill="var(--blue)" opacity="0.6">
+              <g fill="var(--alerts-bar-fill)">
                 <rect x="0" y="46" width="8" height="8" />
                 <rect x="12" y="40" width="8" height="14" />
                 <rect x="24" y="34" width="8" height="20" />
@@ -551,7 +551,7 @@ export default function CorrelationPage() {
               </g>
             </svg>
             <div style={{ display: 'flex', justifySelf: 'stretch', justifyContent: 'space-between', fontSize: '9.5px', color: 'var(--dim)', fontWeight: 700, marginTop: '2px' }}>
-              <span>00</span><span>02</span><span>04</span><span>06</span><span>08</span><span>10</span><span>12</span><span>14</span><span>16</span><span>18</span><span>20</span><span>22</span>
+              <span>00</span><span>01</span><span>02</span><span>03</span><span>04</span><span>06</span><span>08</span><span>10</span><span>12</span><span>14</span><span>16</span><span>18</span>
             </div>
           </div>
 
@@ -678,7 +678,9 @@ export default function CorrelationPage() {
                         </td>
                         <td>
                           <span className={clsx("pr-dot", (rule.severity || 'info').toLowerCase())} />
-                          {rule.severity ? rule.severity.charAt(0) + rule.severity.slice(1).toLowerCase() : 'Info'}
+                          <span className={clsx("pr-text", (rule.severity || 'info').toLowerCase())}>
+                            {rule.severity ? rule.severity.charAt(0) + rule.severity.slice(1).toLowerCase() : 'Info'}
+                          </span>
                         </td>
                         <td style={{ fontWeight: 700 }}>{rule.name}</td>
                         <td>{rule.riskScore}</td>
@@ -750,7 +752,7 @@ export default function CorrelationPage() {
               <span className="page-arrow" onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}>›</span>
               <span className="page-arrow" onClick={() => setCurrentPage(totalPages)}>⏭</span>
             </div>
-            <div>Paging - {currentPage} / {totalPages} pages</div>
+            <div>Paging : {currentPage} / {totalPages} pages</div>
           </div>
         </div>
 
@@ -769,16 +771,16 @@ export default function CorrelationPage() {
                 <circle cx="70" cy="70" r="52" fill="none" stroke="var(--green)" strokeWidth="20" strokeDasharray={`${donutSlices.other.dash} ${donutSlices.circ - donutSlices.other.dash}`} strokeDashoffset={donutSlices.other.offset} />
               </svg>
               <div className="donut-legend">
-                <div><span className="d" style={{ background: 'var(--red)' }}></span>Authentication<span class="n">{categories.auth}</span></div>
-                <div><span class="d" style={{ background: 'var(--pink)' }}></span>Malware<span class="n">{categories.malware}</span></div>
-                <div><span class="d" style={{ background: 'var(--amber)' }}></span>Access<span class="n">{categories.access}</span></div>
-                <div><span class="d" style={{ background: 'var(--purple)' }}></span>Persistence<span class="n">{categories.persistence}</span></div>
-                <div><span class="d" style={{ background: 'var(--green)' }}></span>Other<span class="n">{categories.other}</span></div>
+                <div><span className="d" style={{ background: 'var(--red)' }}></span>Authentication<span className="n">{categories.auth}</span></div>
+                <div><span className="d" style={{ background: 'var(--pink)' }}></span>Malware<span className="n">{categories.malware}</span></div>
+                <div><span className="d" style={{ background: 'var(--amber)' }}></span>Access<span className="n">{categories.access}</span></div>
+                <div><span className="d" style={{ background: 'var(--purple)' }}></span>Persistence<span className="n">{categories.persistence}</span></div>
+                <div><span className="d" style={{ background: 'var(--green)' }}></span>Other<span className="n">{categories.other}</span></div>
               </div>
             </div>
 
             <div className="avg-proc">
-              <div className="sub-h">Average Processing Time by Rule (ms)</div>
+              <div className="sub-h">Average Processing Time by Rule</div>
               <div className="bars2">
                 {[80, 60, 85, 150, 50, 90, 95].map((v, i) => (
                   <div key={i} className="bcol">
@@ -787,13 +789,13 @@ export default function CorrelationPage() {
                 ))}
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '4px' }}>
-                <span className="lbl" style={{ flex: 1, textAlign: 'center' }}>Rule 1</span>
-                <span className="lbl" style={{ flex: 1, textAlign: 'center' }}>Rule 2</span>
-                <span className="lbl" style={{ flex: 1, textAlign: 'center' }}>Rule 3</span>
-                <span className="lbl" style={{ flex: 1, textAlign: 'center' }}>Rule 4</span>
-                <span className="lbl" style={{ flex: 1, textAlign: 'center' }}>Rule 5</span>
-                <span className="lbl" style={{ flex: 1, textAlign: 'center' }}>Rule 6</span>
-                <span className="lbl" style={{ flex: 1, textAlign: 'center' }}>Rule 7</span>
+                <span className="lbl" style={{ flex: 1, textAlign: 'center' }}>14:30</span>
+                <span className="lbl" style={{ flex: 1, textAlign: 'center' }}>14:30</span>
+                <span className="lbl" style={{ flex: 1, textAlign: 'center' }}>14:30</span>
+                <span className="lbl" style={{ flex: 1, textAlign: 'center' }}>14:00</span>
+                <span className="lbl" style={{ flex: 1, textAlign: 'center' }}>14:50</span>
+                <span className="lbl" style={{ flex: 1, textAlign: 'center' }}>20:00</span>
+                <span className="lbl" style={{ flex: 1, textAlign: 'center' }}>20:00</span>
               </div>
             </div>
           </div>
@@ -807,19 +809,19 @@ export default function CorrelationPage() {
             <div className="match-line">
               {[
                 { left: 2, top: 0, color: 'var(--dim)', size: 5 },
-                { left: 15, top: -14, color: 'var(--blue)', size: 7 },
-                { left: 26, top: 0, color: 'var(--blue)', size: 7 },
-                { left: 35, top: 14, color: 'var(--dim)', size: 5 },
-                { left: 42, top: -14, color: 'var(--blue)', size: 6 },
+                { left: 15, top: 0, color: '#3b82f6', size: 7 },
+                { left: 26, top: 0, color: '#3b82f6', size: 7 },
+                { left: 35, top: 0, color: 'var(--dim)', size: 5 },
+                { left: 42, top: -14, color: '#60a5fa', size: 6 },
                 { left: 48, top: 0, color: 'var(--dim)', size: 5 },
-                { left: 55, top: -16, color: 'var(--blue)', size: 7 },
-                { left: 60, top: -14, color: 'var(--blue)', size: 7 },
+                { left: 55, top: -16, color: '#1e40af', size: 7 },
+                { left: 60, top: -14, color: '#1e40af', size: 7 },
                 { left: 67, top: 14, color: 'var(--dim)', size: 5 },
-                { left: 71, top: 0, color: 'var(--dim)', size: 5 },
+                { left: 71, top: 14, color: 'var(--dim)', size: 5 },
                 { left: 76, top: 14, color: 'var(--dim)', size: 5 },
-                { left: 84, top: -14, color: 'var(--blue)', size: 7 },
-                { left: 89, top: -16, color: 'var(--blue)', size: 7 },
-                { left: 95, top: 0, color: 'var(--blue)', size: 6 },
+                { left: 84, top: -14, color: '#1e40af', size: 7 },
+                { left: 89, top: -16, color: '#1e40af', size: 7 },
+                { left: 95, top: 0, color: '#60a5fa', size: 6 },
                 { left: 99, top: 14, color: 'var(--dim)', size: 5 }
               ].map((dot, idx) => (
                 <div
@@ -886,13 +888,13 @@ export default function CorrelationPage() {
             <div className="timeline">
               <div className="tl-line">
                 {[
-                  { left: 5, bg: 'var(--red)', icon: '⚠', style: { top: '-52px', background: 'rgba(220,38,38,0.12)', color: 'var(--red)' } },
-                  { left: 19, bg: 'var(--amber)', icon: '⚠', style: { top: '-52px', background: 'rgba(217,119,6,0.12)', color: 'var(--amber)' } },
-                  { left: 33, bg: 'var(--green)', icon: '⚠', style: { top: '32px', background: 'rgba(22,163,74,0.12)', color: 'var(--green)' } },
-                  { left: 47, bg: 'var(--red)', icon: '⊙', style: { top: '-52px', background: 'rgba(220,38,38,0.12)', color: 'var(--red)' } },
-                  { left: 61, bg: 'var(--blue)', icon: '⚙', style: { top: '32px', background: 'rgba(37,99,235,0.12)', color: 'var(--blue)' } },
-                  { left: 75, bg: 'var(--red)', icon: '⚠', style: { top: '-52px', background: 'rgba(220,38,38,0.12)', color: 'var(--red)' } },
-                  { left: 89, bg: 'var(--purple)', icon: '⚙', style: { top: '32px', background: 'rgba(147,51,234,0.12)', color: 'var(--purple)' } }
+                  { left: 5, bg: 'var(--red)', icon: '⚠', style: { top: '-52px', background: 'rgba(239,68,68,0.18)', color: '#f87171' } },
+                  { left: 19, bg: 'var(--amber)', icon: '⚠', style: { top: '-52px', background: 'rgba(245,158,11,0.18)', color: '#fbbf24' } },
+                  { left: 33, bg: 'var(--green)', icon: '⚠', style: { top: '32px', background: 'rgba(74,222,128,0.18)', color: '#4ade80' } },
+                  { left: 47, bg: 'var(--red)', icon: '⊙', style: { top: '-52px', background: 'rgba(239,68,68,0.18)', color: '#f87171' } },
+                  { left: 61, bg: 'var(--blue)', icon: '⚙', style: { top: '32px', background: 'rgba(59,130,246,0.18)', color: '#60a5fa' } },
+                  { left: 75, bg: 'var(--red)', icon: '⚠', style: { top: '-52px', background: 'rgba(239,68,68,0.18)', color: '#f87171' } },
+                  { left: 89, bg: 'var(--purple)', icon: '⚙', style: { top: '32px', background: 'rgba(168,85,247,0.18)', color: '#c084fc' } }
                 ].map((item, idx) => (
                   <React.Fragment key={idx}>
                     <div className="tl-dot" style={{ left: `${item.left}%`, background: item.bg }} />
@@ -924,19 +926,19 @@ export default function CorrelationPage() {
                     y1={edge.y1}
                     x2={edge.x2}
                     y2={edge.y2}
-                    stroke="var(--border-soft)"
+                    stroke="var(--net-edge-stroke)"
                     strokeWidth="1.4"
                   />
                 ))}
                 {[
-                  { cx: 130, cy: 100, r: 16, fill: 'var(--bg)', stroke: 'var(--cyan)', strokeWidth: '1.5' },
-                  { cx: 70, cy: 60, r: 7, fill: 'var(--input-bg)', stroke: 'var(--border-soft)', strokeWidth: '1.4' },
-                  { cx: 190, cy: 60, r: 5.5, fill: 'var(--bg)', stroke: 'var(--cyan)', strokeWidth: '1.4' },
-                  { cx: 50, cy: 140, r: 7, fill: 'var(--input-bg)', stroke: 'var(--border-soft)', strokeWidth: '1.4' },
-                  { cx: 130, cy: 40, r: 5.5, fill: 'var(--bg)', stroke: 'var(--cyan)', strokeWidth: '1.4' },
-                  { cx: 210, cy: 140, r: 7, fill: 'var(--input-bg)', stroke: 'var(--border-soft)', strokeWidth: '1.4' },
-                  { cx: 90, cy: 180, r: 5.5, fill: 'var(--bg)', stroke: 'var(--cyan)', strokeWidth: '1.4' },
-                  { cx: 170, cy: 180, r: 7, fill: 'var(--input-bg)', stroke: 'var(--border-soft)', strokeWidth: '1.4' }
+                  { cx: 130, cy: 100, r: 16, fill: 'var(--net-main-node-fill)', stroke: 'var(--net-main-node-stroke)', strokeWidth: '1.5' },
+                  { cx: 70, cy: 60, r: 7, fill: 'var(--net-sub-node-even-fill)', stroke: 'var(--net-sub-node-even-stroke)', strokeWidth: '1.4' },
+                  { cx: 190, cy: 60, r: 5.5, fill: 'var(--net-main-node-fill)', stroke: 'var(--net-main-node-stroke)', strokeWidth: '1.4' },
+                  { cx: 50, cy: 140, r: 7, fill: 'var(--net-sub-node-even-fill)', stroke: 'var(--net-sub-node-even-stroke)', strokeWidth: '1.4' },
+                  { cx: 130, cy: 40, r: 5.5, fill: 'var(--net-main-node-fill)', stroke: 'var(--net-main-node-stroke)', strokeWidth: '1.4' },
+                  { cx: 210, cy: 140, r: 7, fill: 'var(--net-sub-node-even-fill)', stroke: 'var(--net-sub-node-even-stroke)', strokeWidth: '1.4' },
+                  { cx: 90, cy: 180, r: 5.5, fill: 'var(--net-main-node-fill)', stroke: 'var(--net-main-node-stroke)', strokeWidth: '1.4' },
+                  { cx: 170, cy: 180, r: 7, fill: 'var(--net-sub-node-even-fill)', stroke: 'var(--net-sub-node-even-stroke)', strokeWidth: '1.4' }
                 ].map((node, idx) => (
                   <circle
                     key={idx}
@@ -957,27 +959,27 @@ export default function CorrelationPage() {
             <div className="log-list">
               <div className="log-row">
                 <div className="log-tag ok">Success/Success</div>
-                <div className="log-desc">Logs in isored habit from the collect, susa…</div>
+                <div className="log-desc">Logs in losted habit from the collect, suss…</div>
               </div>
               <div className="log-row">
                 <div className="log-tag ok">Success/Success</div>
-                <div className="log-desc">Logs in Ivas.TURI_DLS:zarekrrmilack_N30…</div>
+                <div className="log-desc">Logs in iwaa,TURL_DLS.zarakrrmlack_N0O…</div>
               </div>
               <div className="log-row">
                 <div className="log-tag fail">Success/Failure</div>
-                <div className="log-desc">Logs acis-gateway threat the consiex~ftin…</div>
+                <div className="log-desc">Logs acis-gateway threat the constexr-trin…</div>
               </div>
               <div className="log-row">
                 <div className="log-tag fail">Success/Failure</div>
-                <div className="log-desc">Logs acis-gateway threat the under. trinwi…</div>
+                <div className="log-desc">Logs acis-gateway threat the under. trinvii…</div>
               </div>
               <div className="log-row">
                 <div className="log-tag ok">Success/Failure</div>
-                <div className="log-desc">Logs acis-gateway threat the edited SKY3…</div>
+                <div className="log-desc">Logs acis-gateway threat the edited RKYS…</div>
               </div>
               <div className="log-row">
                 <div className="log-tag fail">Success/Failure</div>
-                <div className="log-desc">Logs timesdic habit from the addested hn…</div>
+                <div className="log-desc">Logs timesdic habit from the addested hii…</div>
               </div>
             </div>
           </div>
