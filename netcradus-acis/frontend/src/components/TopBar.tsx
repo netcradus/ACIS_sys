@@ -9,6 +9,7 @@ import { useAuthStore } from '../store/authStore'
 import { useNotificationStore } from '../store/notificationStore'
 import { clsx } from 'clsx'
 import ThemeToggle from './ThemeToggle'
+import './ChromeTokens.css'
 
 function formatTimeAgo(isoString: string): string {
   try {
@@ -62,7 +63,7 @@ export default function TopBar({ onOpenPalette }: TopBarProps) {
   })
 
   return (
-    <header className="h-16 border-b border-fire-border bg-background/80 backdrop-blur-md px-6 flex items-center justify-between z-20 sticky top-0 overflow-visible">
+    <header className="soc-chrome h-16 border-b border-fire-border bg-background/80 backdrop-blur-md px-6 flex items-center justify-between z-20 sticky top-0 overflow-visible">
       <div className="flex items-center gap-6">
         <h2 className="text-label uppercase text-text-muted hidden lg:block border-r border-fire-border pr-6">
           Security Operations Center

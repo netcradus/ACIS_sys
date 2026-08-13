@@ -1,31 +1,25 @@
 /* ─── App Sidebar — premium chrome treatment ──────────────────────────
-   Uses only tokens already defined in index.css (accent, glow, glass,
-   shadow) that no component had actually applied yet — this is what
-   brings the sidebar in line with the depth/glow language the rest of
-   the redesigned app already uses, not a new palette. The base --bg-glow-*
-   tokens are calibrated for full-page washes and read as almost nothing
-   across a 260px column, so the glow strengths here are deliberately
-   higher than those tokens' own values. */
+   Color values come from the .soc-chrome scope in ChromeTokens.css (the
+   same #070b14/#3b82f6/#22d3ee/#1b2540 palette every content page in the
+   tenant console already uses) — this file only adds the depth/glow
+   structure (gradients, glow shadows, glass) on top of those tokens. */
 
 .app-sidebar {
   background:
-    radial-gradient(360px 420px at 0% 0%, rgba(var(--accent-rgb), 0.16), transparent 65%),
-    radial-gradient(320px 320px at 100% 100%, rgba(var(--accent-pa-rgb), 0.10), transparent 70%),
+    radial-gradient(360px 420px at 0% 0%, rgba(var(--accent-rgb), 0.18), transparent 65%),
+    radial-gradient(320px 320px at 100% 100%, rgba(var(--soc-cyan-rgb), 0.10), transparent 70%),
     linear-gradient(180deg, rgb(var(--surface-rgb)) 0%, rgb(var(--background-rgb)) 55%);
   box-shadow: 1px 0 0 rgb(var(--border-rgb)), 10px 0 40px -18px rgba(0, 0, 0, 0.65);
 }
 
 :root[data-theme="light"] .app-sidebar,
 [data-theme="light"] .app-sidebar {
-  background:
-    radial-gradient(360px 420px at 0% 0%, rgba(var(--accent-rgb), 0.08), transparent 65%),
-    linear-gradient(180deg, rgb(var(--background-rgb)) 0%, rgb(var(--surface-2-rgb)) 100%);
   box-shadow: 1px 0 0 rgb(var(--border-rgb)), 10px 0 28px -20px rgba(15, 23, 42, 0.14);
 }
 
 .app-sidebar .app-sidebar-brand {
   position: relative;
-  border-bottom: 1px solid rgba(var(--border-rgb), 0.7);
+  border-bottom: 1px solid rgba(var(--border-rgb), 0.9);
 }
 
 .app-sidebar .app-sidebar-brand::after {
@@ -39,10 +33,9 @@
 }
 
 /* Nav items — a glowing left rail + gradient fill replaces the flat
-   bg-accent/10 pill, matching --shadow-accent-glow used elsewhere for
-   "this is active/live" emphasis. Rail sits at left:0 (inside the link's
-   own box) since the link has overflow-hidden — anything positioned
-   outside that box gets silently clipped. */
+   bg-accent/10 pill. Rail sits at left:0 (inside the link's own box)
+   since the link has overflow-hidden — anything positioned outside that
+   box gets silently clipped. */
 .app-sidebar .app-sidebar-link {
   position: relative;
 }
@@ -56,12 +49,12 @@
   width: 3px;
   height: 0;
   border-radius: 0 3px 3px 0;
-  background: rgb(var(--accent-rgb));
+  background: linear-gradient(180deg, rgb(var(--accent-rgb)), rgb(var(--soc-cyan-rgb)));
   transition: height 0.18s ease;
 }
 
 .app-sidebar .app-sidebar-link:hover {
-  box-shadow: inset 0 0 0 1px rgba(var(--border-rgb), 0.8);
+  background: rgba(var(--border-rgb), 0.35);
 }
 
 .app-sidebar .app-sidebar-link.active::before {
@@ -78,11 +71,10 @@
   filter: drop-shadow(0 0 6px rgba(var(--accent-rgb), 0.65));
 }
 
-/* Footer — glass panel instead of flat surface-2, matching --glass-bg /
-   --glass-border defined for exactly this kind of floating chrome card. */
+/* Footer — glass panel instead of flat surface-2. */
 .app-sidebar .app-sidebar-footer {
   position: relative;
-  border-top: 1px solid rgba(var(--border-rgb), 0.7);
+  border-top: 1px solid rgba(var(--border-rgb), 0.9);
 }
 
 .app-sidebar .app-sidebar-status-dot {
@@ -90,8 +82,8 @@
 }
 
 .app-sidebar .app-sidebar-profile {
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.05), transparent 40%), var(--glass-bg);
-  border: 1px solid var(--glass-border);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.05), transparent 40%), rgba(var(--surface-rgb), 0.7);
+  border: 1px solid rgba(var(--border-rgb), 0.9);
   box-shadow: 0 8px 24px -12px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.04);
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);

@@ -6,6 +6,7 @@ import NetcradusLogo from './NetcradusLogo'
 import { tenantNavItems as navItems } from './navConfig'
 import { useAuthStore } from '../store/authStore'
 import { usePermissionsStore } from '../store/permissionsStore'
+import './ChromeTokens.css'
 import './Sidebar.css'
 
 export default function Sidebar() {
@@ -24,7 +25,7 @@ export default function Sidebar() {
   return (
     <aside
       className={clsx(
-        "app-sidebar relative z-20 h-full border-r border-fire-border transition-all duration-300 ease-in-out flex flex-col",
+        "app-sidebar soc-chrome relative z-20 h-full border-r border-fire-border transition-all duration-300 ease-in-out flex flex-col",
         collapsed ? 'w-[70px]' : 'w-[260px]'
       )}
     >

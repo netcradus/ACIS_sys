@@ -1,0 +1,59 @@
+/* ─── Shared tenant-console chrome tokens ──────────────────────────────
+   Every content page in the tenant console (Alerts, Assets, Correlation,
+   Endpoints, LogExplorer, RedTeam, Soar, ThreatIntel, AiAnalyst,
+   Compliance, Reports, Settings, Dashboard) independently settled on the
+   same dark navy palette: #070b14 background, #3b82f6 blue, #22d3ee cyan,
+   #1b2540 borders. Sidebar.tsx and TopBar.tsx never adopted it — they were
+   still rendering the older, separate #09090B/generic-gray base tokens
+   from index.css, which is why the chrome read as a different app from
+   the content beneath it. This scopes the SAME real values every content
+   page already uses onto the shared chrome, via the existing
+   rgb(var(--x-rgb)) tokens Sidebar/TopBar already consume through
+   Tailwind (bg-background, border-fire-border, text-accent, etc.) — no
+   class renames needed in either component, the values just change.
+
+   Does NOT touch the platform-admin console's chrome (PlatformAdminSidebar/
+   PlatformAdminTopBar are separate components with their own accent-pa
+   identity) and does NOT touch the global index.css defaults, which other
+   surfaces (modals, auth pages) still rely on. */
+
+.soc-chrome {
+  --background-rgb: 7 11 20;       /* #070b14 */
+  --surface-rgb: 16 23 40;         /* #101728, the card-bg gradient's lighter stop */
+  --surface-2-rgb: 14 21 38;       /* #0e1526, --date-pill-bg */
+  --surface-3-rgb: 23 31 54;       /* #171f36, --tr-border */
+  --border-rgb: 27 37 64;          /* #1b2540, --border-soft */
+  --accent-rgb: 59 130 246;        /* #3b82f6, --blue (matches base --accent exactly) */
+  --accent-dark-rgb: 37 99 235;    /* #2563eb */
+  --accent-light-rgb: 96 165 250;  /* #60a5fa */
+  --text-primary-rgb: 231 236 247; /* #e7ecf7, --text */
+  --text-secondary: #7c88a8;       /* --muted */
+  --text-muted: #54617f;           /* --dim */
+  --success-rgb: 34 197 94;        /* #22c55e, --green */
+  --soc-cyan-rgb: 34 211 238;      /* #22d3ee - secondary highlight, not a base token */
+  /* Popovers/modals/command palette (ConfirmDialog, CommandPalette) and the
+     recessed ticker footer both sit on --surface-overlay / --surface-inset,
+     not --surface - without these two, every modal in the app would still
+     open as a warm-gray card on top of a navy page. */
+  --surface-overlay-rgb: 30 41 66;  /* #1e2942 - one step up from --surface */
+  --surface-inset-rgb: 5 8 14;      /* #05080e - one step down from --background */
+}
+
+:root[data-theme="light"] .soc-chrome,
+[data-theme="light"] .soc-chrome {
+  --background-rgb: 244 246 250;   /* #f4f6fa */
+  --surface-rgb: 255 255 255;
+  --surface-2-rgb: 248 250 255;    /* #f8faff */
+  --surface-3-rgb: 238 241 249;    /* #eef1f9 */
+  --border-rgb: 226 231 241;       /* #e2e7f1 */
+  --accent-rgb: 37 99 235;         /* #2563eb */
+  --accent-dark-rgb: 29 78 216;
+  --accent-light-rgb: 59 130 246;
+  --text-primary-rgb: 18 24 43;    /* #12182b */
+  --text-secondary: #66708c;
+  --text-muted: #96a0ba;
+  --success-rgb: 22 163 74;        /* #16a34a */
+  --soc-cyan-rgb: 8 145 178;       /* #0891b2 */
+  --surface-overlay-rgb: 255 255 255;
+  --surface-inset-rgb: 238 241 249; /* #eef1f9 */
+}

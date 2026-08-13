@@ -7,6 +7,7 @@ import { tenantNavItems } from '@/components/navConfig'
 import { useEntityPivot } from '@/hooks/useEntityPivot'
 import apiClient from '@/lib/apiClient'
 import wsClient from '@/lib/wsClient'
+import '@/components/ChromeTokens.css'
 
 interface Alert {
   id: string
@@ -110,7 +111,7 @@ export default function AppLayout() {
   }, [navigate, pivotTo])
 
   return (
-    <div className="flex h-screen bg-background text-text-primary overflow-hidden font-sans">
+    <div className="soc-chrome flex h-screen bg-background text-text-primary overflow-hidden font-sans">
       {/* Sidebar - Fixed width */}
       <Sidebar />
 
