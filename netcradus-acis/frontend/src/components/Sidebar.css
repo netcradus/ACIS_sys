@@ -1,0 +1,117 @@
+/* ─── App Sidebar — premium chrome treatment ──────────────────────────
+   Uses only tokens already defined in index.css (accent, glow, glass,
+   shadow) that no component had actually applied yet — this is what
+   brings the sidebar in line with the depth/glow language the rest of
+   the redesigned app already uses, not a new palette. The base --bg-glow-*
+   tokens are calibrated for full-page washes and read as almost nothing
+   across a 260px column, so the glow strengths here are deliberately
+   higher than those tokens' own values. */
+
+.app-sidebar {
+  background:
+    radial-gradient(360px 420px at 0% 0%, rgba(var(--accent-rgb), 0.16), transparent 65%),
+    radial-gradient(320px 320px at 100% 100%, rgba(var(--accent-pa-rgb), 0.10), transparent 70%),
+    linear-gradient(180deg, rgb(var(--surface-rgb)) 0%, rgb(var(--background-rgb)) 55%);
+  box-shadow: 1px 0 0 rgb(var(--border-rgb)), 10px 0 40px -18px rgba(0, 0, 0, 0.65);
+}
+
+:root[data-theme="light"] .app-sidebar,
+[data-theme="light"] .app-sidebar {
+  background:
+    radial-gradient(360px 420px at 0% 0%, rgba(var(--accent-rgb), 0.08), transparent 65%),
+    linear-gradient(180deg, rgb(var(--background-rgb)) 0%, rgb(var(--surface-2-rgb)) 100%);
+  box-shadow: 1px 0 0 rgb(var(--border-rgb)), 10px 0 28px -20px rgba(15, 23, 42, 0.14);
+}
+
+.app-sidebar .app-sidebar-brand {
+  position: relative;
+  border-bottom: 1px solid rgba(var(--border-rgb), 0.7);
+}
+
+.app-sidebar .app-sidebar-brand::after {
+  content: '';
+  position: absolute;
+  left: 16px;
+  right: 16px;
+  bottom: -1px;
+  height: 1px;
+  background: linear-gradient(90deg, rgba(var(--accent-rgb), 0.55), transparent 75%);
+}
+
+/* Nav items — a glowing left rail + gradient fill replaces the flat
+   bg-accent/10 pill, matching --shadow-accent-glow used elsewhere for
+   "this is active/live" emphasis. Rail sits at left:0 (inside the link's
+   own box) since the link has overflow-hidden — anything positioned
+   outside that box gets silently clipped. */
+.app-sidebar .app-sidebar-link {
+  position: relative;
+}
+
+.app-sidebar .app-sidebar-link::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 3px;
+  height: 0;
+  border-radius: 0 3px 3px 0;
+  background: rgb(var(--accent-rgb));
+  transition: height 0.18s ease;
+}
+
+.app-sidebar .app-sidebar-link:hover {
+  box-shadow: inset 0 0 0 1px rgba(var(--border-rgb), 0.8);
+}
+
+.app-sidebar .app-sidebar-link.active::before {
+  height: 64%;
+  box-shadow: 0 0 12px 2px rgba(var(--accent-rgb), 0.75);
+}
+
+.app-sidebar .app-sidebar-link.active {
+  background: linear-gradient(90deg, rgba(var(--accent-rgb), 0.22), rgba(var(--accent-rgb), 0.05) 80%);
+  box-shadow: inset 0 0 0 1px rgba(var(--accent-rgb), 0.28), inset 0 0 20px -8px rgba(var(--accent-rgb), 0.35);
+}
+
+.app-sidebar .app-sidebar-link.active svg {
+  filter: drop-shadow(0 0 6px rgba(var(--accent-rgb), 0.65));
+}
+
+/* Footer — glass panel instead of flat surface-2, matching --glass-bg /
+   --glass-border defined for exactly this kind of floating chrome card. */
+.app-sidebar .app-sidebar-footer {
+  position: relative;
+  border-top: 1px solid rgba(var(--border-rgb), 0.7);
+}
+
+.app-sidebar .app-sidebar-status-dot {
+  box-shadow: 0 0 8px 2px rgba(var(--success-rgb), 0.6);
+}
+
+.app-sidebar .app-sidebar-profile {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.05), transparent 40%), var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  box-shadow: 0 8px 24px -12px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.app-sidebar .app-sidebar-profile:hover {
+  border-color: rgba(var(--accent-rgb), 0.35);
+}
+
+.app-sidebar .app-sidebar-avatar {
+  box-shadow: 0 0 0 1px rgba(var(--accent-rgb), 0.35), 0 0 14px 1px rgba(var(--accent-rgb), 0.35);
+}
+
+.app-sidebar .app-sidebar-toggle {
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+}
+
+.app-sidebar .app-sidebar-toggle:hover {
+  box-shadow: 0 0 12px 1px rgba(var(--accent-rgb), 0.5);
+  border-color: rgba(var(--accent-rgb), 0.45);
+}

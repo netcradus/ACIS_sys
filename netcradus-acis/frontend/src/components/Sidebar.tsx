@@ -6,6 +6,7 @@ import NetcradusLogo from './NetcradusLogo'
 import { tenantNavItems as navItems } from './navConfig'
 import { useAuthStore } from '../store/authStore'
 import { usePermissionsStore } from '../store/permissionsStore'
+import './Sidebar.css'
 
 export default function Sidebar() {
   const [collapsed, setCollapsed] = useState(false)
@@ -21,14 +22,14 @@ export default function Sidebar() {
     : navItems.filter((item) => (permissions[item.module] || 'NONE') !== 'NONE')
 
   return (
-    <aside 
+    <aside
       className={clsx(
-        "relative z-20 h-full bg-background border-r border-fire-border transition-all duration-300 ease-in-out flex flex-col",
+        "app-sidebar relative z-20 h-full border-r border-fire-border transition-all duration-300 ease-in-out flex flex-col",
         collapsed ? 'w-[70px]' : 'w-[260px]'
       )}
     >
       {/* Brand area */}
-      <div className="min-h-[84px] py-4 flex items-center px-4 mb-2">
+      <div className="app-sidebar-brand min-h-[84px] py-4 flex items-center px-4 mb-2">
         <NetcradusLogo size={collapsed ? 'sm' : 'md'} collapsed={collapsed} showTagline={!collapsed} />
       </div>
 
@@ -41,9 +42,9 @@ export default function Sidebar() {
             end={item.path === '/dashboard'}
             className={({ isActive }) =>
               clsx(
-                "group flex items-center gap-3 px-3.5 py-2.5 rounded-lg transition-colors duration-150 text-small mb-0.5 relative overflow-hidden",
+                "app-sidebar-link group flex items-center gap-3 px-3.5 py-2.5 rounded-lg transition-colors duration-150 text-small mb-0.5 relative overflow-hidden",
                 isActive
-                  ? "text-accent bg-accent/10 font-semibold"
+                  ? "active text-accent font-semibold"
                   : "text-text-secondary font-medium hover:text-text-primary hover:bg-surface-2"
               )
             }
@@ -60,17 +61,17 @@ export default function Sidebar() {
 
       {/* Footer Branding + Profile */}
       {!collapsed && (
-        <div className="border-t border-fire-border animate-fade-in">
+        <div className="app-sidebar-footer animate-fade-in">
           <div className="px-5 py-3.5">
             <div className="flex items-center gap-2 mb-1">
-              <div className="w-1.5 h-1.5 rounded-full bg-success animate-pulse" />
+              <div className="app-sidebar-status-dot w-1.5 h-1.5 rounded-full bg-success animate-pulse" />
               <span className="text-label uppercase text-success">System Active</span>
             </div>
             <p className="text-label uppercase text-text-muted">Netcradus ACIS v1.2</p>
           </div>
 
-          <div className="flex items-center gap-3 px-3.5 py-3 mx-3 mb-3 rounded-lg bg-surface-2 border border-fire-border">
-            <div className="w-8 h-8 rounded-full bg-accent/10 border border-accent/30 flex items-center justify-center text-accent font-semibold text-xs shrink-0 overflow-hidden">
+          <div className="app-sidebar-profile flex items-center gap-3 px-3.5 py-3 mx-3 mb-3 rounded-lg">
+            <div className="app-sidebar-avatar w-8 h-8 rounded-full bg-accent/10 border border-accent/30 flex items-center justify-center text-accent font-semibold text-xs shrink-0 overflow-hidden">
               {user?.avatarUrl ? (
                 <img src={user.avatarUrl} alt="" className="w-full h-full object-cover" />
               ) : (
@@ -90,7 +91,7 @@ export default function Sidebar() {
       {/* Toggle Button */}
       <button
         onClick={() => setCollapsed(!collapsed)}
-        className="absolute -right-3 top-24 w-6 h-6 rounded-full bg-surface-2 border border-fire-border flex items-center justify-center text-text-secondary hover:text-accent transition-all z-30 shadow-xl hover:scale-110"
+        className="app-sidebar-toggle absolute -right-3 top-24 w-6 h-6 rounded-full bg-surface-2 border border-fire-border flex items-center justify-center text-text-secondary hover:text-accent transition-all z-30 shadow-xl hover:scale-110"
       >
         {collapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
       </button>
