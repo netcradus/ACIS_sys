@@ -324,7 +324,7 @@ export default function AiAnalystPage() {
               </div>
 
               <div className="flex items-center gap-1.5 text-label text-text-muted uppercase justify-center mt-auto pt-4 border-t border-fire-border" style={{ fontSize: '11px', fontWeight: 700 }}>
-                <ShieldCheck className="w-4.5 h-4.5" /> Live data — acis-log-service
+                <ShieldCheck className="w-4 h-4" /> Live data — acis-log-service
               </div>
             </div>
           </div>

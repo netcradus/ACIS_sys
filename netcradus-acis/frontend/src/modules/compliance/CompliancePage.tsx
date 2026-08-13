@@ -92,16 +92,19 @@ export default function CompliancePage() {
 
       <div className="content">
         <div className="page-head">
-          <div>
-            <h1>Compliance &amp; Audit</h1>
-            <p>Regulatory posture, audit trails, and reporting evidence</p>
+          <div className="flex items-center gap-2.5">
+            <Shield className="w-5 h-5 text-accent" />
+            <div>
+              <h1>Compliance &amp; Audit</h1>
+              <p>Regulatory posture, audit trails, and reporting evidence</p>
+            </div>
           </div>
           <button
             onClick={handleGenerateReport}
             disabled={isReportLoading || !canWrite}
             className="generate-btn"
           >
-            {isReportLoading ? 'Queuing Report...' : 'Generate Report'} ⬇
+            {isReportLoading ? 'Queuing Report...' : 'Generate Report'} <Download size={14} />
           </button>
         </div>
 
@@ -152,9 +155,9 @@ export default function CompliancePage() {
                       <div key={control.name} className="comp-item">
                         <div className="left">
                           {isCompliant ? (
-                            <span className="ic ok">✓</span>
+                            <span className="ic ok"><CheckCircle2 size={14} /></span>
                           ) : (
-                            <span className="ic dot">●</span>
+                            <span className="ic dot"><AlertTriangle size={12} /></span>
                           )}
                           <span>{control.name}</span>
                         </div>
@@ -169,7 +172,7 @@ export default function CompliancePage() {
 
                 <div className="comp-footer">
                   <span className="l">Continuously Monitored</span>
-                  <span className="r">View Details ›</span>
+                  <span className="r">View Details <ChevronRight size={12} /></span>
                 </div>
               </div>
             ))
@@ -183,7 +186,7 @@ export default function CompliancePage() {
               <h3>Audit Trail — Immutable Platform Logs</h3>
               <div className="sub">Full traceability for every administrative action</div>
             </div>
-            <div className="monitor-pill">📈 Real-Time Monitoring</div>
+            <div className="monitor-pill"><Activity size={12} /> Real-Time Monitoring</div>
           </div>
 
           <div style={{ overflowX: 'auto' }}>

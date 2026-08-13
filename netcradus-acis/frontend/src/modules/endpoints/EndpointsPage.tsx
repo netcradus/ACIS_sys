@@ -246,7 +246,7 @@ export default function EndpointsPage() {
         <div className="page-head">
           <h1>Endpoints &amp; Network — <span className="accent">Self-Healing</span></h1>
           <div className="search-endpoints">
-            <Search className="w-4.5 h-4.5 shrink-0" />
+            <Search className="w-4 h-4 shrink-0" />
             <input
               type="text"
               placeholder="Search endpoints…"

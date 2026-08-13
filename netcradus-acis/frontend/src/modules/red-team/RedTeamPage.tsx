@@ -295,7 +295,7 @@ export default function RedTeamPage() {
           </div>
           <div className="hero-right">
             <div className="hero-search">
-              <Search className="w-4.5 h-4.5 shrink-0" />
+              <Search className="w-4 h-4 shrink-0" />
               <input
                 type="text"
                 placeholder="Search simulations…"
