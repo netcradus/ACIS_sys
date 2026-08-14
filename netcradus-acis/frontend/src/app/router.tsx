@@ -18,6 +18,7 @@ import AlertsPage              from '@/modules/alerts/AlertsPage'
 import AssetsPage              from '@/modules/assets/AssetsPage'
 import ThreatIntelPage         from '@/modules/threat-intel/ThreatIntelPage'
 import SoarPage                from '@/modules/soar/SoarPage'
+import FileScanningPage        from '@/modules/soar/FileScanningPage'
 import RedTeamPage             from '@/modules/red-team/RedTeamPage'
 import EndpointsPage           from '@/modules/endpoints/EndpointsPage'
 import CompliancePage          from '@/modules/compliance/CompliancePage'
@@ -89,6 +90,7 @@ export const router = createBrowserRouter([
           { path: 'assets',           element: <RequirePermission module={MODULES.ASSETS_THREAT_INTEL}><AssetsPage /></RequirePermission> },
           { path: 'threat-intel',     element: <RequirePermission module={MODULES.ASSETS_THREAT_INTEL}><ThreatIntelPage /></RequirePermission> },
           { path: 'soar',             element: <RequirePermission module={MODULES.SOAR_PLAYBOOKS}><SoarPage /></RequirePermission> },
+          { path: 'file-scanning',    element: <RequirePermission module={MODULES.SOAR_PLAYBOOKS}><FileScanningPage /></RequirePermission> },
           { path: 'red-team',         element: <RequirePermission module={MODULES.SOAR_PLAYBOOKS}><RedTeamPage /></RequirePermission> },
           { path: 'endpoints',        element: <RequirePermission module={MODULES.ASSETS_THREAT_INTEL}><EndpointsPage /></RequirePermission> },
           { path: 'compliance',       element: <RequirePermission module={MODULES.REPORTS_COMPLIANCE}><CompliancePage /></RequirePermission> },

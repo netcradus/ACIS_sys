@@ -99,6 +99,23 @@ services:
       retries: 10
       start_period: 30s
 
+  # Real malware scanning engine (clamd daemon) - FileScanService in
+  # acis-soar speaks the INSTREAM protocol directly against this. The
+  # official image runs freshclam on startup to pull real, current virus
+  # signatures before clamd starts accepting connections, which is why the
+  # healthcheck has a generous start_period.
+  clamav:
+    image: clamav/clamav-debian:latest
+    ports: [ "3310:3310" ]
+    volumes:
+      - clamav_data:/var/lib/clamav
+    healthcheck:
+      test: [ "CMD-SHELL", "echo PING | timeout 5 nc localhost 3310 | grep -q PONG || exit 1" ]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+      start_period: 180s
+
   prometheus:
     image: prom/prometheus:v2.51.0
     volumes:
@@ -117,3 +134,4 @@ volumes:
   es_data:
   grafana_data:
   redis_data:
+  clamav_data:

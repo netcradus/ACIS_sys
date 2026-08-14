@@ -21,3 +21,6 @@ target/
 # Local/temporary files
 temp/
 tmp/
+
+# Local malware-scan file storage (real scanned/quarantined bytes - never committed)
+file-storage/

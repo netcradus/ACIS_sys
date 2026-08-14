@@ -16,6 +16,10 @@ spring:
     properties:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect
+  servlet:
+    multipart:
+      max-file-size: 25MB
+      max-request-size: 26MB
   kafka:
     bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
     producer:
@@ -107,6 +111,15 @@ acis:
   # stored under the old key permanently undecryptable, so this is
   # deliberately not auto-generated at startup.
   credential-encryption-key: ${CREDENTIAL_ENCRYPTION_KEY:VWSEY4S3eOYE3D49h4f4iM+Sh8vLeD8M8QWPJwcHToA=}
+  # Real self-hosted ClamAV daemon (see FileScanService/ClamAvClient) - the
+  # docker-compose "clamav" service, INSTREAM protocol over plain TCP.
+  clamav:
+    host: ${CLAMAV_HOST:localhost}
+    port: ${CLAMAV_PORT:3310}
+  # Where scanned/quarantined file bytes are written - randomized,
+  # extensionless filenames only (see FileScanService.writeToDisk).
+  file-storage:
+    base-dir: ${FILE_STORAGE_BASE_DIR:./file-storage}
 
 logging:
   level:

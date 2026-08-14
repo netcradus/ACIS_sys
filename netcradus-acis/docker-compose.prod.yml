@@ -256,6 +256,24 @@ services:
       retries: 10
     restart: always
 
+  # Real malware scanning engine (clamd daemon) - FileScanService in
+  # acis-soar speaks the INSTREAM protocol directly against this. The
+  # official image runs freshclam on startup to pull real, current virus
+  # signatures before clamd starts accepting connections.
+  clamav:
+    image: clamav/clamav-debian:latest
+    expose:
+      - "3310"
+    volumes:
+      - clamav_data:/var/lib/clamav
+    healthcheck:
+      test: [ "CMD-SHELL", "echo PING | timeout 5 nc localhost 3310 | grep -q PONG || exit 1" ]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+      start_period: 180s
+    restart: always
+
   # 6. Elasticsearch — internal only
   elasticsearch:
     image: docker.elastic.co/elasticsearch/elasticsearch:8.13.0
@@ -488,6 +506,14 @@ services:
       # Where the invitation email's accept link points — the tenant
       # console's real public origin, not the API gateway.
       FRONTEND_URL: https://${PUBLIC_APP_DOMAIN:-localhost}
+      # Real malware scanning (FileScanService -> ClamAvClient's INSTREAM
+      # protocol against clamd) and where scanned/quarantined file bytes are
+      # persisted — mounted to a named volume below so they survive redeploys.
+      CLAMAV_HOST: clamav
+      CLAMAV_PORT: "3310"
+      FILE_STORAGE_BASE_DIR: /app/file-storage
+    volumes:
+      - file_storage_data:/app/file-storage
     expose:
       - "8085"
     depends_on:
@@ -499,6 +525,8 @@ services:
         condition: service_healthy
       ingestion:
         condition: service_started
+      clamav:
+        condition: service_healthy
     restart: always
 
   asset-service:
@@ -614,3 +642,5 @@ volumes:
   caddy_config:
   ai_models_data:
   redis_data:
+  clamav_data:
+  file_storage_data:

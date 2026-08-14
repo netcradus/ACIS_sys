@@ -15,6 +15,7 @@ import {
   Building2,
   Users,
   ScrollText,
+  ShieldAlert,
   type LucideIcon,
 } from 'lucide-react'
 import { MODULES } from '../store/permissionsStore'
@@ -44,6 +45,7 @@ export const tenantNavItems: NavItem[] = [
   { icon: Globe,           label: 'Threat Intel',        path: '/dashboard/threat-intel', module: MODULES.ASSETS_THREAT_INTEL },
   { icon: Play,            label: 'SOAR Playbooks',      path: '/dashboard/soar',         module: MODULES.SOAR_PLAYBOOKS },
   { icon: Crosshair,       label: 'Red Team',            path: '/dashboard/red-team',     module: MODULES.SOAR_PLAYBOOKS },
+  { icon: ShieldAlert,     label: 'File Scanning',       path: '/dashboard/file-scanning', module: MODULES.SOAR_PLAYBOOKS },
   { icon: Server,          label: 'Endpoints & Network', path: '/dashboard/endpoints',    module: MODULES.ASSETS_THREAT_INTEL },
   { icon: Shield,          label: 'Compliance & Audit',  path: '/dashboard/compliance',   module: MODULES.REPORTS_COMPLIANCE },
   { icon: FileText,        label: 'Reports',             path: '/dashboard/reports',      module: MODULES.REPORTS_COMPLIANCE },
