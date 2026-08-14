@@ -62,6 +62,11 @@ public class Alert {
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 
+    /** Real ai-service /ai/anomaly score computed at creation time - see AnomalyScoringService. Null when ai-service was unreachable. */
+    private Double anomalyScore;
+    private Boolean isAnomaly;
+    private String anomalyFeatures;
+
     @PrePersist
     protected void onCreate() {
         createdAt = LocalDateTime.now();

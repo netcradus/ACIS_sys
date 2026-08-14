@@ -20,6 +20,7 @@ public class AlertService {
 
     private final AlertRepository repository;
     private final SimpMessagingTemplate messagingTemplate;
+    private final AnomalyScoringService anomalyScoringService;
     private final Random random = new Random();
 
     @Transactional
@@ -35,6 +36,12 @@ public class AlertService {
                 .rawEvent(dto.getRawEvent())
                 .eventOccurredAt(dto.getEventOccurredAt())
                 .build();
+
+        anomalyScoringService.score(dto).ifPresent(result -> {
+            alert.setAnomalyScore(result.score());
+            alert.setIsAnomaly(result.isAnomaly());
+            alert.setAnomalyFeatures(result.topFeatures());
+        });
 
         Alert saved = repository.save(alert);
         log.info("Saved alert: {}", saved.getId());
@@ -68,6 +75,9 @@ public class AlertService {
                 .confirmedCategory(alert.getConfirmedCategory())
                 .labeledAt(alert.getLabeledAt())
                 .eventOccurredAt(alert.getEventOccurredAt())
+                .anomalyScore(alert.getAnomalyScore())
+                .isAnomaly(alert.getIsAnomaly())
+                .anomalyFeatures(alert.getAnomalyFeatures())
                 .build();
     }
 }

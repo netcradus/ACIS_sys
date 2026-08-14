@@ -24,6 +24,9 @@ interface Alert {
   updatedAt: string
   confirmedCategory: string | null
   labeledAt: string | null
+  anomalyScore: number | null
+  isAnomaly: boolean | null
+  anomalyFeatures: string | null
 }
 
 // Real classifier categories the AI model predicts and trains on — kept in
@@ -548,7 +551,18 @@ export default function AlertsPage() {
                           className={clsx(isSelected && "selected")}
                         >
                           <td style={{ fontWeight: 700 }}>{alert.id}</td>
-                          <td style={{ fontWeight: 700 }}>{alert.title}</td>
+                          <td style={{ fontWeight: 700 }}>
+                            {alert.title}
+                            {alert.isAnomaly && (
+                              <span
+                                className="sev-badge high"
+                                style={{ marginLeft: 6, fontSize: '0.7em', verticalAlign: 'middle' }}
+                                title={`Anomaly score ${alert.anomalyScore?.toFixed(2) ?? '—'} (ai-service)${alert.anomalyFeatures ? ` — drivers: ${alert.anomalyFeatures}` : ''}`}
+                              >
+                                ⚠ Anomaly
+                              </span>
+                            )}
+                          </td>
                           <td>
                             <span className={clsx("sev-badge", severity)}>{badgeChar}</span>
                           </td>
@@ -657,6 +671,15 @@ export default function AlertsPage() {
                   <div className="flex items-center gap-2.5">
                     <span className="font-mono text-small font-bold text-red">{selectedAlert.id}</span>
                     <SeverityBadge severity={toSeverity(selectedAlert.severity)} label={selectedAlert.severity} size="sm" />
+                    {selectedAlert.isAnomaly && (
+                      <span
+                        className="sev-badge high"
+                        style={{ fontSize: '0.75em' }}
+                        title={selectedAlert.anomalyFeatures ? `Drivers: ${selectedAlert.anomalyFeatures}` : undefined}
+                      >
+                        ⚠ Anomaly ({selectedAlert.anomalyScore?.toFixed(2) ?? '—'})
+                      </span>
+                    )}
                   </div>
                   <button
                     onClick={() => setSelectedAlert(null)}

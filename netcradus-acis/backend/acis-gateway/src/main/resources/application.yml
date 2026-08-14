@@ -10,6 +10,12 @@ spring:
       host: ${REDIS_HOST:localhost}
       port: ${REDIS_PORT:6379}
 
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+
   security:
     oauth2:
       resourceserver:
@@ -81,6 +87,12 @@ spring:
           uri: ${PLATFORM_ADMIN_SERVICE_URL:http://localhost:8088}
           predicates:
             - Path=/api/platform/**
+
+acis:
+  internal-service-key: ${INTERNAL_SERVICE_KEY:local-dev-internal-key}
+  waf:
+    soar-service-url: ${SOAR_SERVICE_URL:http://localhost:8085}
+    policy-poll-interval-ms: ${WAF_POLICY_POLL_INTERVAL_MS:30000}
 
 # Actuator — expose health and prometheus metrics
 management:

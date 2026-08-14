@@ -58,6 +58,14 @@
       <artifactId>spring-boot-starter-data-redis-reactive</artifactId>
     </dependency>
 
+    <!-- Kafka producer - WafInspectionFilter publishes real Alerts to
+         acis.alerts on injection-signature matches, same topic/pattern
+         CorrelationEngine and BruteForceAlertPublisher already use. -->
+    <dependency>
+      <groupId>org.springframework.kafka</groupId>
+      <artifactId>spring-kafka</artifactId>
+    </dependency>
+
     <!-- Test -->
     <dependency>
       <groupId>org.springframework.boot</groupId>
