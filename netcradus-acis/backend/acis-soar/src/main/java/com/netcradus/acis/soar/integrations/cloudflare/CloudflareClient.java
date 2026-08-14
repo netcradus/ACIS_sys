@@ -52,8 +52,8 @@ public class CloudflareClient {
         }
     }
 
-    /** Blocks an IP at the Cloudflare edge for the given zone. Throws with a human-readable message on failure. */
-    public void blockIp(String apiToken, String zoneId, String ip, String note) {
+    /** Blocks an IP at the Cloudflare edge for the given zone. Returns the created rule's ID (needed for real rollback via unblockIp). */
+    public String blockIp(String apiToken, String zoneId, String ip, String note) {
         try {
             Map<String, Object> body = Map.of(
                 "mode", "block",
@@ -72,6 +72,28 @@ public class CloudflareClient {
                 throw new CloudflareApiException(extractErrorMessage(responseBody, "Cloudflare rejected the block request"));
             }
             log.info("Cloudflare: blocked IP {} on zone {}", ip, zoneId);
+            return responseBody.path("result").path("id").asText(null);
+        } catch (HttpStatusCodeException e) {
+            throw new CloudflareApiException(describeHttpError(e));
+        } catch (CloudflareApiException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new CloudflareApiException("Could not reach Cloudflare: " + e.getMessage());
+        }
+    }
+
+    /** Real rollback for blockIp - removes the access rule so the IP is no longer blocked at the edge. */
+    public void unblockIp(String apiToken, String zoneId, String ruleId) {
+        try {
+            HttpEntity<Void> request = new HttpEntity<>(authHeaders(apiToken));
+            var response = restTemplate.exchange(
+                BASE_URL + "/zones/" + zoneId + "/firewall/access_rules/rules/" + ruleId,
+                HttpMethod.DELETE, request, String.class);
+            JsonNode responseBody = objectMapper.readTree(response.getBody());
+            if (!responseBody.path("success").asBoolean(false)) {
+                throw new CloudflareApiException(extractErrorMessage(responseBody, "Cloudflare rejected the unblock request"));
+            }
+            log.info("Cloudflare: removed access rule {} on zone {}", ruleId, zoneId);
         } catch (HttpStatusCodeException e) {
             throw new CloudflareApiException(describeHttpError(e));
         } catch (CloudflareApiException e) {

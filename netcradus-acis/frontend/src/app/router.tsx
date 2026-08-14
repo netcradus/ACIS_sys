@@ -20,6 +20,7 @@ import ThreatIntelPage         from '@/modules/threat-intel/ThreatIntelPage'
 import SoarPage                from '@/modules/soar/SoarPage'
 import FileScanningPage        from '@/modules/soar/FileScanningPage'
 import SupplyChainPage         from '@/modules/soar/SupplyChainPage'
+import ApprovalsPage           from '@/modules/soar/ApprovalsPage'
 import RedTeamPage             from '@/modules/red-team/RedTeamPage'
 import EndpointsPage           from '@/modules/endpoints/EndpointsPage'
 import CompliancePage          from '@/modules/compliance/CompliancePage'
@@ -93,6 +94,7 @@ export const router = createBrowserRouter([
           { path: 'soar',             element: <RequirePermission module={MODULES.SOAR_PLAYBOOKS}><SoarPage /></RequirePermission> },
           { path: 'file-scanning',    element: <RequirePermission module={MODULES.SOAR_PLAYBOOKS}><FileScanningPage /></RequirePermission> },
           { path: 'supply-chain',     element: <RequirePermission module={MODULES.SOAR_PLAYBOOKS}><SupplyChainPage /></RequirePermission> },
+          { path: 'approvals',        element: <RequirePermission module={MODULES.SOAR_PLAYBOOKS}><ApprovalsPage /></RequirePermission> },
           { path: 'red-team',         element: <RequirePermission module={MODULES.SOAR_PLAYBOOKS}><RedTeamPage /></RequirePermission> },
           { path: 'endpoints',        element: <RequirePermission module={MODULES.ASSETS_THREAT_INTEL}><EndpointsPage /></RequirePermission> },
           { path: 'compliance',       element: <RequirePermission module={MODULES.REPORTS_COMPLIANCE}><CompliancePage /></RequirePermission> },

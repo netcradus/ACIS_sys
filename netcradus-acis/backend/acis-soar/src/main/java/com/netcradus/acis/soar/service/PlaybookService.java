@@ -1,11 +1,7 @@
 package com.netcradus.acis.soar.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.netcradus.acis.common.crypto.CredentialEncryptor;
 import com.netcradus.acis.common.tenant.TenantContext;
-import com.netcradus.acis.soar.integrations.cloudflare.CloudflareClient;
-import com.netcradus.acis.soar.integrations.cloudflare.CloudflareIntegration;
-import com.netcradus.acis.soar.integrations.cloudflare.CloudflareIntegrationRepository;
 import com.netcradus.acis.soar.model.Playbook;
 import com.netcradus.acis.soar.model.PlaybookExecution;
 import com.netcradus.acis.soar.repository.PlaybookExecutionRepository;
@@ -30,14 +26,10 @@ public class PlaybookService {
     private final PlaybookRepository playbookRepository;
     private final PlaybookExecutionRepository executionRepository;
     private final ObjectMapper objectMapper;
-    private final CloudflareIntegrationRepository cloudflareIntegrationRepository;
-    private final CloudflareClient cloudflareClient;
+    private final ContainmentActionService containmentActionService;
 
     @Value("${acis.asset-service.url}")
     private String assetServiceUrl;
-
-    @Value("${acis.credential-encryption-key}")
-    private String credentialEncryptionKey;
 
     public List<Playbook> getPlaybooks(UUID tenantId) {
         return playbookRepository.findByTenantId(tenantId);
@@ -122,14 +114,15 @@ public class PlaybookService {
         playbook.setLastRunAt(OffsetDateTime.now());
         playbookRepository.save(playbook);
 
-        executePlaybookStepsAsync(execution.getId(), playbook, params, tenantId, bearerToken);
+        executePlaybookStepsAsync(execution.getId(), playbook, params, tenantId, bearerToken,
+                userEmail != null ? userEmail : "unknown");
 
         return execution;
     }
 
     @Async
     public void executePlaybookStepsAsync(UUID executionId, Playbook playbook, java.util.Map<String, String> params,
-                                           UUID tenantId, String bearerToken) {
+                                           UUID tenantId, String bearerToken, String performedBy) {
         log.info("Starting async execution for playbook: {} execution: {}", playbook.getName(), executionId);
         // @Async runs on a separate thread with no HTTP request / TenantContextFilter,
         // so the tenant must be set explicitly here — required for the Row Level
@@ -222,36 +215,39 @@ public class PlaybookService {
                         failed = true;
                     }
                 } else if (stepName.toLowerCase().contains("disable") || stepName.toLowerCase().contains("reset") || stepName.toLowerCase().contains("revoke")) {
-                    // No identity provider (Okta/Entra/etc.) integration exists yet — say so
-                    // honestly instead of claiming an API call that never happened.
-                    status = "Skipped";
-                    outputMessage = "No identity provider integration configured — this step did not change any credentials.";
+                    // Real Keycloak account disable + full session revocation (see
+                    // ContainmentActionService) when a target user is provided;
+                    // "reset" with no target user is a step this platform genuinely
+                    // cannot fulfill (no password-reset-only Keycloak flow is wired),
+                    // so it stays honestly Skipped rather than pretending.
+                    String targetUserId = params.get("targetUserId");
+                    if (targetUserId == null || targetUserId.isBlank()) {
+                        status = "Skipped";
+                        outputMessage = "No targetUserId provided — this step did not change any credentials.";
+                    } else {
+                        ContainmentActionService.Result result = containmentActionService.disableAccount(
+                                tenantId, targetUserId, performedBy, executionId);
+                        status = result.success() ? "Success" : "Failed";
+                        outputMessage = result.message();
+                        failed = failed || !result.success();
+                    }
                 } else if (stepName.toLowerCase().contains("block") || stepName.toLowerCase().contains("policy")) {
                     // Real Cloudflare edge block if the tenant has one configured
                     // (Settings > Integrations > Cloudflare); otherwise say so honestly
                     // rather than claiming a firewall rule that was never applied.
-                    Optional<CloudflareIntegration> cf = cloudflareIntegrationRepository.findByTenantId(tenantId);
-                    if (cf.isEmpty() || !cf.get().isEnabled()) {
-                        status = "Skipped";
-                        outputMessage = "No Cloudflare integration configured — this step did not block anything. Configure one in Settings > Integrations to enable real blocking.";
+                    String targetIp = params.get("targetIp");
+                    if (targetIp == null || targetIp.isBlank()) {
+                        status = "Failed";
+                        outputMessage = "No target IP provided for block action";
+                        failed = true;
                     } else {
-                        String targetIp = params.get("targetIp");
-                        if (targetIp == null || targetIp.isBlank()) {
-                            status = "Failed";
-                            outputMessage = "No target IP provided for block action";
-                            failed = true;
-                        } else {
-                            try {
-                                String rawToken = CredentialEncryptor.decrypt(cf.get().getApiTokenEncrypted(), credentialEncryptionKey);
-                                cloudflareClient.blockIp(rawToken, cf.get().getZoneId(), targetIp,
-                                    "Blocked by ACIS playbook \"" + playbook.getName() + "\" (execution " + executionId + ")");
-                                outputMessage = "Cloudflare: blocked " + targetIp + " at the edge (zone " + cf.get().getZoneId() + ")";
-                            } catch (CloudflareClient.CloudflareApiException ex) {
-                                status = "Failed";
-                                outputMessage = "Cloudflare block failed: " + ex.getMessage();
-                                failed = true;
-                            }
-                        }
+                        ContainmentActionService.Result result = containmentActionService.blockIp(
+                                tenantId, targetIp,
+                                "Blocked by ACIS playbook \"" + playbook.getName() + "\" (execution " + executionId + ")",
+                                performedBy, executionId);
+                        status = result.success() ? "Success" : (result.message().startsWith("No Cloudflare") ? "Skipped" : "Failed");
+                        outputMessage = result.message();
+                        failed = failed || (!result.success() && !"Skipped".equals(status));
                     }
                 }
 

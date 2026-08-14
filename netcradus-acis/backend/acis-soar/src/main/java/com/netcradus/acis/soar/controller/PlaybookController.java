@@ -5,6 +5,7 @@ import com.netcradus.acis.common.dto.ApiResponse;
 import com.netcradus.acis.common.tenant.TenantContext;
 import com.netcradus.acis.soar.model.Playbook;
 import com.netcradus.acis.soar.model.PlaybookExecution;
+import com.netcradus.acis.soar.service.ApprovalService;
 import com.netcradus.acis.soar.service.PlaybookService;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
@@ -20,6 +21,7 @@ public class PlaybookController {
 
     private final PlaybookService playbookService;
     private final AuditEventPublisher auditEventPublisher;
+    private final ApprovalService approvalService;
 
     @GetMapping("/playbooks")
     public ApiResponse<List<Playbook>> getPlaybooks(@RequestHeader("X-Tenant-ID") UUID tenantId) {
@@ -55,8 +57,16 @@ public class PlaybookController {
                 .orElse(ApiResponse.error("Playbook not found"));
     }
 
+    /**
+     * Real high-impact playbooks (any step touching account/session/endpoint/
+     * network containment - see ApprovalService.isHighRisk) do not execute
+     * here at all - they return a PENDING containment approval instead, and
+     * only actually run once a second, different user approves it via
+     * ApprovalController. Low-risk playbooks still execute immediately, same
+     * as before.
+     */
     @PostMapping("/playbooks/{id}/execute")
-    public org.springframework.http.ResponseEntity<ApiResponse<PlaybookExecution>> executePlaybook(
+    public org.springframework.http.ResponseEntity<ApiResponse<java.util.Map<String, Object>>> executePlaybook(
             @PathVariable UUID id,
             @RequestBody(required = false) java.util.Map<String, String> payload,
             @RequestHeader("X-Tenant-ID") UUID tenantId,
@@ -68,9 +78,18 @@ public class PlaybookController {
                 ? authHeader.substring("Bearer ".length()) : null;
 
         java.util.Map<String, String> params = payload != null ? payload : new java.util.HashMap<>();
-        PlaybookExecution execution = playbookService.startExecution(id, tenantId, userId, userEmail, bearerToken, params);
-        auditEventPublisher.publish("PLAYBOOK_EXECUTE", "playbook/" + id, "execution=" + execution.getId());
-        return org.springframework.http.ResponseEntity.accepted().body(ApiResponse.success(execution));
+        ApprovalService.ExecutionOutcome outcome = approvalService.requestOrExecute(id, tenantId, userId, userEmail, bearerToken, params);
+
+        java.util.Map<String, Object> body = new java.util.HashMap<>();
+        if (outcome instanceof ApprovalService.Executed executed) {
+            auditEventPublisher.publish("PLAYBOOK_EXECUTE", "playbook/" + id, "execution=" + executed.execution().getId());
+            body.put("outcome", "EXECUTING");
+            body.put("execution", executed.execution());
+        } else if (outcome instanceof ApprovalService.PendingApproval pending) {
+            body.put("outcome", "PENDING_APPROVAL");
+            body.put("approval", pending.approval());
+        }
+        return org.springframework.http.ResponseEntity.accepted().body(ApiResponse.success(body));
     }
 
     @GetMapping("/executions/{id}")
