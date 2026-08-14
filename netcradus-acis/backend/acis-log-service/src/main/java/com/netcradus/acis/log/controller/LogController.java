@@ -36,6 +36,7 @@ public class LogController {
     private final LogRepository logRepository;
     private final com.netcradus.acis.log.service.IngestMetricsService ingestMetricsService;
     private final LogCategoryMappingRepository logCategoryMappingRepository;
+    private final com.netcradus.acis.log.repository.IngestionErrorRepository ingestionErrorRepository;
     private final ObjectMapper objectMapper;
 
     private static final java.util.Set<String> VALID_LOG_CATEGORIES =
@@ -263,6 +264,65 @@ public class LogController {
                 "lagSeriesMs", ingestMetricsService.getLagSeries(),
                 "cpuUsagePercent", ingestMetricsService.getCpuUsagePercent()
         ));
+    }
+
+    /**
+     * Real time-bucketed ingest volume (this tenant's actual Elasticsearch
+     * log documents in range) against real ingestion-pipeline error counts
+     * (platform-wide - see IngestionError; failures like a down Elasticsearch
+     * or malformed payload aren't tenant-specific). Powers the Dashboard's
+     * zoomable/filterable "Ingest Volume vs Errors" chart - never a static
+     * dataset. fromEpochMs/toEpochMs default to the last 24 hours;
+     * bucketMinutes defaults to 60 (hourly).
+     */
+    @GetMapping("/ingest-volume-errors")
+    public ResponseEntity<Map<String, Object>> getIngestVolumeErrors(
+            @RequestHeader("X-Tenant-ID") String tenantId,
+            @RequestParam(required = false) Long fromEpochMs,
+            @RequestParam(required = false) Long toEpochMs,
+            @RequestParam(defaultValue = "60") int bucketMinutes) {
+        java.time.Instant to = toEpochMs != null ? java.time.Instant.ofEpochMilli(toEpochMs) : java.time.Instant.now();
+        java.time.Instant from = fromEpochMs != null ? java.time.Instant.ofEpochMilli(fromEpochMs) : to.minus(24, java.time.temporal.ChronoUnit.HOURS);
+        long bucketMs = Math.max(1, bucketMinutes) * 60_000L;
+
+        List<LogDocument> logs;
+        try {
+            logs = logRepository.findByTenantIdAndTimestampBetween(tenantId, from, to);
+        } catch (Exception e) {
+            log.warn("Elasticsearch query failed for ingest-volume-errors: {}", e.getMessage());
+            logs = Collections.emptyList();
+        }
+        List<com.netcradus.acis.log.model.IngestionError> errors =
+                ingestionErrorRepository.findByOccurredAtBetween(from, to);
+
+        java.util.Map<Long, long[]> byBucket = new java.util.TreeMap<>();
+        for (LogDocument doc : logs) {
+            if (doc.getTimestamp() == null) continue;
+            long bucketStart = (doc.getTimestamp().toEpochMilli() / bucketMs) * bucketMs;
+            byBucket.computeIfAbsent(bucketStart, k -> new long[2])[0]++;
+        }
+        for (com.netcradus.acis.log.model.IngestionError err : errors) {
+            long bucketStart = (err.getOccurredAt().toEpochMilli() / bucketMs) * bucketMs;
+            byBucket.computeIfAbsent(bucketStart, k -> new long[2])[1]++;
+        }
+
+        List<Map<String, Object>> buckets = new java.util.ArrayList<>();
+        for (java.util.Map.Entry<Long, long[]> entry : byBucket.entrySet()) {
+            Map<String, Object> bucket = new java.util.LinkedHashMap<>();
+            bucket.put("bucketStart", java.time.Instant.ofEpochMilli(entry.getKey()).toString());
+            bucket.put("volume", entry.getValue()[0]);
+            bucket.put("errors", entry.getValue()[1]);
+            buckets.add(bucket);
+        }
+
+        Map<String, Object> result = new java.util.LinkedHashMap<>();
+        result.put("buckets", buckets);
+        result.put("totalVolume", logs.size());
+        result.put("totalErrors", errors.size());
+        result.put("fromEpochMs", from.toEpochMilli());
+        result.put("toEpochMs", to.toEpochMilli());
+        result.put("bucketMinutes", bucketMinutes);
+        return ResponseEntity.ok(result);
     }
 
     /**

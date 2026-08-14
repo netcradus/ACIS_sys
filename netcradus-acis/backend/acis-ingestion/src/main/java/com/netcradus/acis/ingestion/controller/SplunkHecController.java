@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.MappingIterator;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.netcradus.acis.common.tenant.TenantContext;
+import com.netcradus.acis.ingestion.service.IngestionErrorService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
@@ -37,6 +38,7 @@ import java.util.Map;
 public class SplunkHecController {
 
     private final KafkaTemplate<String, Object> kafkaTemplate;
+    private final IngestionErrorService ingestionErrorService;
     private final ObjectMapper objectMapper = new ObjectMapper();
     private static final String TOPIC = "acis-logs";
 
@@ -65,9 +67,11 @@ public class SplunkHecController {
             }
         } catch (Exception e) {
             log.warn("Malformed HEC event payload for tenant {}: {}", tenantId, e.getMessage());
+            ingestionErrorService.record("splunk_hec", e.getMessage());
             return ResponseEntity.badRequest().body(Map.of("text", "Invalid data format", "code", 6));
         }
         if (count == 0) {
+            ingestionErrorService.record("splunk_hec", "Empty payload for tenant " + tenantId);
             return ResponseEntity.badRequest().body(Map.of("text", "No data", "code", 5));
         }
         return ResponseEntity.ok(Map.of("text", "Success", "code", 0));

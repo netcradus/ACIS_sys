@@ -1,6 +1,7 @@
 package com.netcradus.acis.ingestion.controller;
 
 import com.netcradus.acis.common.tenant.TenantContext;
+import com.netcradus.acis.ingestion.service.IngestionErrorService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
@@ -18,6 +19,7 @@ import java.util.Map;
 public class IngestionController {
 
     private final KafkaTemplate<String, Object> kafkaTemplate;
+    private final IngestionErrorService ingestionErrorService;
     private static final String TOPIC = "acis-logs";
 
     @PostMapping("/syslog")
@@ -55,20 +57,33 @@ public class IngestionController {
         logDoc.put("level", "INFO");
         logDoc.put("service", service);
         logDoc.put("timestamp", java.time.Instant.now());
-        kafkaTemplate.send(TOPIC, logDoc);
+        try {
+            kafkaTemplate.send(TOPIC, logDoc);
+        } catch (Exception e) {
+            log.warn("Failed to publish syslog event for tenant {}: {}", TenantContext.getTenantId(), e.getMessage());
+            ingestionErrorService.record(service, e.getMessage());
+            return ResponseEntity.internalServerError().body(Map.of("status", "failed"));
+        }
         return ResponseEntity.accepted().body(Map.of("status", "accepted"));
     }
 
     private ResponseEntity<Map<String, String>> doIngestJson(List<Map<String, Object>> logs) {
         log.debug("Received {} JSON logs", logs.size());
         String tenantId = TenantContext.getTenantId();
+        int published = 0;
         for (Map<String, Object> logDoc : logs) {
             logDoc.put("tenantId", tenantId);
             if (!logDoc.containsKey("timestamp")) {
                 logDoc.put("timestamp", java.time.Instant.now().toString());
             }
-            kafkaTemplate.send(TOPIC, logDoc);
+            try {
+                kafkaTemplate.send(TOPIC, logDoc);
+                published++;
+            } catch (Exception e) {
+                log.warn("Failed to publish JSON log event for tenant {}: {}", tenantId, e.getMessage());
+                ingestionErrorService.record("json_ingest", e.getMessage());
+            }
         }
-        return ResponseEntity.accepted().body(Map.of("status", "accepted", "count", String.valueOf(logs.size())));
+        return ResponseEntity.accepted().body(Map.of("status", "accepted", "count", String.valueOf(published)));
     }
 }

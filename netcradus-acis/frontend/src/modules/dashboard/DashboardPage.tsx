@@ -59,6 +59,7 @@ interface SoarExecution {
   status: string
   startedAt: string
   completedAt: string | null
+  stepLogs: string
 }
 
 export default function DashboardPage() {
@@ -68,8 +69,6 @@ export default function DashboardPage() {
   const canReadSoarPlaybooks = useCanRead(MODULES.SOAR_PLAYBOOKS)
 
   // Memoized elements for SOC Operational View
-  const miniBarsHeights = useMemo(() => Array.from({ length: 14 }, () => 8 + Math.random() * 18), [])
-  
   const globeEllipsesLat = useMemo(() => {
     return Array.from({ length: 6 }).map((_, i) => {
       const yy = 200 - 190 + (i + 1) * (2 * 190 / 7)
@@ -118,6 +117,10 @@ export default function DashboardPage() {
   // Telemetry metric states
   const [stats, setStats] = useState<DashboardStats | null>(null)
   const [incidents, setIncidents] = useState<any[]>([])
+  // Full real alert list — Owner Breakdown, MTTD, MTTR, Incident Timeline all
+  // need real per-alert fields (ownerId, eventOccurredAt, createdAt, updatedAt)
+  // that the 5-item "incidents" summary above doesn't carry.
+  const [alerts, setAlerts] = useState<any[]>([])
   const [severityCounts, setSeverityCounts] = useState<{ critical: number; high: number; medium: number; low: number } | null>(null)
   const [responseReadiness, setResponseReadiness] = useState<number | null>(null)
   const [isLoading, setIsLoading] = useState(true)
@@ -213,7 +216,10 @@ export default function DashboardPage() {
   }, [])
 
   // Real per-category (Endpoint/Network/Application) live log event counts.
-  const [categoryCounts, setCategoryCounts] = useState<{ endpoint: number; network: number; application: number } | null>(null)
+  const [categoryCounts, setCategoryCounts] = useState<{
+    endpoint: number; network: number; application: number
+    services: { serviceName: string; count: number; category: string }[]
+  } | null>(null)
   useEffect(() => {
     const fetchCategoryCounts = async () => {
       try {
@@ -228,6 +234,78 @@ export default function DashboardPage() {
     return () => clearInterval(interval)
   }, [])
 
+  // Real enrolled agent connectivity (Grid Status, Operational Readiness).
+  const [agents, setAgents] = useState<{ id: string; hostname: string; status: string; lastHeartbeatAt: string | null }[]>([])
+  useEffect(() => {
+    const fetchAgents = async () => {
+      try {
+        const res = await apiClient.get('/api/soar/settings/agents')
+        // This endpoint wraps its payload in {success, data, timestamp} (ApiResponse<T>) — unwrap it.
+        setAgents(res.data?.data || [])
+      } catch (e) {
+        console.error('Failed to fetch agents:', e)
+      }
+    }
+    fetchAgents()
+    const interval = setInterval(fetchAgents, 15000)
+    return () => clearInterval(interval)
+  }, [])
+
+  // Real configured vendor-integration poll health (Operational Readiness, Live Threat Feed availability).
+  const [integrationStatuses, setIntegrationStatuses] = useState<{ name: string; enabled: boolean; healthy: boolean; lastPolledAt: string | null; lastPollError: string | null }[]>([])
+  useEffect(() => {
+    const fetchIntegrationStatuses = async () => {
+      try {
+        const res = await apiClient.get('/api/soar/settings/integrations/status')
+        setIntegrationStatuses(res.data || [])
+      } catch (e) {
+        console.error('Failed to fetch integration statuses:', e)
+      }
+    }
+    fetchIntegrationStatuses()
+    const interval = setInterval(fetchIntegrationStatuses, 30000)
+    return () => clearInterval(interval)
+  }, [])
+
+  // Real threat indicators (VirusTotal/AbuseIPDB enrichment + vendor feeds) — Live Threat Feed.
+  const [threatIndicators, setThreatIndicators] = useState<{ id: string; value: string; type: string; severity: string; description: string | null; source: string | null; lastSeen: string }[]>([])
+  useEffect(() => {
+    const fetchThreatIndicators = async () => {
+      try {
+        const res = await apiClient.get('/api/threat-intel')
+        setThreatIndicators(res.data || [])
+      } catch (e) {
+        console.error('Failed to fetch threat indicators:', e)
+      }
+    }
+    fetchThreatIndicators()
+    const interval = setInterval(fetchThreatIndicators, 15000)
+    return () => clearInterval(interval)
+  }, [])
+
+  // Real time-bucketed ingest volume vs pipeline errors — Ingest Volume vs Errors chart, zoomable.
+  const [ingestRangeHours, setIngestRangeHours] = useState<number>(24)
+  const [ingestVolumeErrors, setIngestVolumeErrors] = useState<{
+    buckets: { bucketStart: string; volume: number; errors: number }[]
+    totalVolume: number; totalErrors: number
+  } | null>(null)
+  useEffect(() => {
+    const fetchIngestVolumeErrors = async () => {
+      try {
+        const to = Date.now()
+        const from = to - ingestRangeHours * 3600_000
+        const bucketMinutes = ingestRangeHours <= 2 ? 5 : ingestRangeHours <= 24 ? 60 : ingestRangeHours <= 168 ? 240 : 1440
+        const res = await apiClient.get('/api/logs/ingest-volume-errors', { params: { fromEpochMs: from, toEpochMs: to, bucketMinutes } })
+        setIngestVolumeErrors(res.data)
+      } catch (e) {
+        console.error('Failed to fetch ingest volume/errors:', e)
+      }
+    }
+    fetchIngestVolumeErrors()
+    const interval = setInterval(fetchIngestVolumeErrors, 30000)
+    return () => clearInterval(interval)
+  }, [ingestRangeHours])
+
   const ingestLagHistory = (ingestStats?.lagSeriesMs ?? []).map((v, i) => ({ t: i, v }))
   const cpuUsage = Math.round(ingestStats?.cpuUsagePercent ?? 0)
 
@@ -240,6 +318,7 @@ export default function DashboardPage() {
 
       setStats(statsRes.data)
       const allAlerts = alertsRes.data as any[]
+      setAlerts(allAlerts)
       setSeverityCounts({
         critical: allAlerts.filter(a => a.severity === 'CRITICAL').length,
         high: allAlerts.filter(a => a.severity === 'HIGH').length,
@@ -503,28 +582,143 @@ export default function DashboardPage() {
     radarPoint(aiRadarAxes.coverage, [-1, 0]),
   ].map(p => `${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' ')
 
-  // Donut chart calculations
-  const donutTotal = (severityCounts?.critical ?? 25) + (severityCounts?.high ?? 27) + (severityCounts?.medium ?? 16) + (severityCounts?.low ?? 10)
+  // Donut chart calculations — real severity counts only; no fabricated
+  // fallback numbers when data hasn't loaded yet (donutTotal guards div/0).
+  const donutTotal = Math.max(1, (severityCounts?.critical ?? 0) + (severityCounts?.high ?? 0) + (severityCounts?.medium ?? 0) + (severityCounts?.low ?? 0))
+  const hasSeverityData = donutTotal > 1 || (severityCounts !== null && (severityCounts.critical + severityCounts.high + severityCounts.medium + severityCounts.low) > 0)
   const donutCirc = 259
-  const donutCritDash = Math.round(((severityCounts?.critical ?? 25) / donutTotal) * donutCirc)
-  const donutHighDash = Math.round(((severityCounts?.high ?? 27) / donutTotal) * donutCirc)
-  const donutMedDash = Math.round(((severityCounts?.medium ?? 16) / donutTotal) * donutCirc)
-  const donutLowDash = Math.round(((severityCounts?.low ?? 10) / donutTotal) * donutCirc)
+  const donutCritDash = Math.round(((severityCounts?.critical ?? 0) / donutTotal) * donutCirc)
+  const donutHighDash = Math.round(((severityCounts?.high ?? 0) / donutTotal) * donutCirc)
+  const donutMedDash = Math.round(((severityCounts?.medium ?? 0) / donutTotal) * donutCirc)
+  const donutLowDash = Math.round(((severityCounts?.low ?? 0) / donutTotal) * donutCirc)
 
   const donutHighOffset = -donutCritDash
   const donutMedOffset = -(donutCritDash + donutHighDash)
   const donutLowOffset = -(donutCritDash + donutHighDash + donutMedDash)
 
   // Timeline dots calculations
+  // Real Incident Timeline — every real alert from the actual past 24 hours,
+  // positioned by its real createdAt time within that window (not evenly
+  // spaced placeholder positions).
   const timelineDots = useMemo(() => {
-    return incidents.slice(0, 7).map((inc, i) => {
-      const percentage = 5 + i * 14
-      const isWarning = inc.severity === 'Critical' || inc.severity === 'High'
-      const color = inc.severity === 'Critical' ? 'var(--soc-red)' : inc.severity === 'High' ? 'var(--soc-amber)' : 'var(--soc-blue)'
-      const symbol = isWarning ? '⚠' : '⚙'
-      return { percentage, color, symbol }
-    })
-  }, [incidents])
+    const windowMs = 24 * 60 * 60 * 1000
+    const now = Date.now()
+    return alerts
+      .filter(a => now - new Date(a.createdAt).getTime() <= windowMs)
+      .map(a => {
+        const ageMs = now - new Date(a.createdAt).getTime()
+        const percentage = Math.max(2, Math.min(98, 100 - (ageMs / windowMs) * 100))
+        const isWarning = a.severity === 'CRITICAL' || a.severity === 'HIGH'
+        const color = a.severity === 'CRITICAL' ? 'var(--soc-red)' : a.severity === 'HIGH' ? 'var(--soc-amber)' : 'var(--soc-blue)'
+        const symbol = isWarning ? '⚠' : '⚙'
+        return { id: a.id, title: a.title, percentage, color, symbol }
+      })
+      .sort((a, b) => a.percentage - b.percentage)
+  }, [alerts])
+
+  // Real Owner Breakdown — every alert's actual ownerId, including unassigned.
+  const ownerBreakdown = useMemo(() => {
+    if (alerts.length === 0) return null
+    const assigned = alerts.filter(a => a.ownerId).length
+    const unassigned = alerts.length - assigned
+    return {
+      total: alerts.length,
+      assigned,
+      unassigned,
+      assignedPercent: Math.round((assigned / alerts.length) * 100),
+      unassignedPercent: Math.round((unassigned / alerts.length) * 100),
+    }
+  }, [alerts])
+
+  // Real Mean Time to Detect — createdAt (alert fired) minus eventOccurredAt
+  // (the source event's own real timestamp — see CorrelationEngine). Alerts
+  // with no traceable source event (eventOccurredAt null) are excluded, not
+  // counted as zero.
+  const mttdMinutes = useMemo(() => {
+    const withEvent = alerts.filter(a => a.eventOccurredAt)
+    if (withEvent.length === 0) return null
+    const totalMs = withEvent.reduce((sum, a) => sum + Math.max(0, new Date(a.createdAt).getTime() - new Date(a.eventOccurredAt).getTime()), 0)
+    return totalMs / withEvent.length / 60000
+  }, [alerts])
+
+  // Real Mean Time to Respond — updatedAt (last status change) minus
+  // createdAt, for alerts an analyst has actually resolved (MITIGATED/CLOSED).
+  // Same definition ReportsPage uses for incidents.
+  const mttrMinutes = useMemo(() => {
+    const resolved = alerts.filter(a => a.status === 'MITIGATED' || a.status === 'CLOSED')
+    if (resolved.length === 0) return null
+    const totalMs = resolved.reduce((sum, a) => sum + (new Date(a.updatedAt).getTime() - new Date(a.createdAt).getTime()), 0)
+    return totalMs / resolved.length / 60000
+  }, [alerts])
+
+  // Real Operational Readiness — composite of the 4 signals confirmed for
+  // this dashboard. Each factor is excluded (not zeroed) when there's
+  // nothing real to measure yet, so a tenant with e.g. no agents enrolled
+  // isn't unfairly penalized for a factor that doesn't apply to them.
+  const agentConnectivityPercent = agents.length > 0
+    ? Math.round((agents.filter(a => a.status === 'ONLINE').length / agents.length) * 100)
+    : null
+  const integrationConnectivityPercent = integrationStatuses.length > 0
+    ? Math.round((integrationStatuses.filter(i => i.healthy).length / integrationStatuses.length) * 100)
+    : null
+  const pipelineHealthPercent = useMemo(() => {
+    if (!ingestVolumeErrors) return null
+    const total = ingestVolumeErrors.totalVolume + ingestVolumeErrors.totalErrors
+    if (total === 0) return null
+    const errorRate = ingestVolumeErrors.totalErrors / total
+    return Math.round(Math.max(0, 100 - errorRate * 1000))
+  }, [ingestVolumeErrors])
+  const readinessFactors = useMemo(() => ({
+    agentConnectivityPercent, integrationConnectivityPercent, responseReadiness, pipelineHealthPercent,
+  }), [agentConnectivityPercent, integrationConnectivityPercent, responseReadiness, pipelineHealthPercent])
+  const readinessValues = Object.values(readinessFactors).filter((v): v is number => v !== null)
+  const operationalReadinessPercent = readinessValues.length > 0
+    ? Math.round(readinessValues.reduce((a, b) => a + b, 0) / readinessValues.length)
+    : null
+
+  // Real Grid Status — agents + configured integrations, never simulated.
+  const agentsOnline = agents.filter(a => a.status === 'ONLINE').length
+  const integrationsHealthy = integrationStatuses.filter(i => i.healthy).length
+  const gridHasAnyMonitoredSystem = agents.length > 0 || integrationStatuses.length > 0
+  const gridDegraded = (agents.length > 0 && agentsOnline < agents.length) || (integrationStatuses.length > 0 && integrationsHealthy < integrationStatuses.length)
+
+  // Real Network Telemetry state — driven by actual NETWORK-category log
+  // services (see Log Categorization) and actual open high-severity alerts,
+  // never a permanently-hardcoded "nominal" claim.
+  const networkServices = categoryCounts?.services.filter(s => s.category === 'NETWORK') ?? []
+  const hasNetworkTelemetry = networkServices.length > 0
+  const openHighSeverityAlerts = alerts.filter(a => (a.severity === 'CRITICAL' || a.severity === 'HIGH') && (a.status === 'OPEN' || a.status === 'INVESTIGATING'))
+  const networkTickerMessage = !hasNetworkTelemetry
+    ? 'NO NETWORK TELEMETRY SOURCE CONNECTED — configure a firewall, syslog, or network integration in Settings › Data Sources…'
+    : openHighSeverityAlerts.length > 0
+      ? `ACTIVE THREAT STATE: ${openHighSeverityAlerts.length} open ${openHighSeverityAlerts.length === 1 ? 'alert' : 'alerts'} matching correlation rules (${openHighSeverityAlerts.filter(a => a.severity === 'CRITICAL').length} critical)…`
+      : `SCANNING NETWORK TELEMETRY (${networkServices.length} real ${networkServices.length === 1 ? 'source' : 'sources'})… NO ACTIVE THREATS MATCHING CORRELATION RULES… SYSTEM STATUS NOMINAL…`
+  const gridStatusTickerLabel = !gridHasAnyMonitoredSystem ? 'NO SYSTEMS MONITORED' : gridDegraded ? 'DEGRADED' : 'NOMINAL'
+
+  // Real Closed-Loop Remediation Logs — every real step from real
+  // PlaybookExecution.stepLogs (see PlaybookService), never a simulated log.
+  const remediationLogs = useMemo(() => {
+    const playbookNames = new Map(soarPlaybooks.map(p => [p.id, p.name]))
+    type Step = { step?: string; status?: string; message?: string; timestamp?: string }
+    const entries: { text: string; failed: boolean; timestamp: string }[] = []
+    for (const exec of soarExecutions) {
+      let steps: Step[] = []
+      try {
+        const parsed = JSON.parse(exec.stepLogs)
+        if (Array.isArray(parsed)) steps = parsed
+      } catch { /* not parseable - skip this execution's steps */ }
+      const playbookName = playbookNames.get(exec.playbookId) || 'Playbook'
+      for (const s of steps) {
+        const failed = (s.status || '').toLowerCase().includes('fail')
+        entries.push({
+          text: `${playbookName} — ${s.step || 'step'}${s.message ? `: ${s.message}` : ''}`,
+          failed,
+          timestamp: s.timestamp || exec.startedAt,
+        })
+      }
+    }
+    return entries.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+  }, [soarExecutions, soarPlaybooks])
 
   return (
     <div className="space-y-6 animate-fade-in relative min-h-screen text-[var(--soc-text)]">
@@ -923,8 +1117,8 @@ export default function DashboardPage() {
 
           {/* Footer status */}
           <div className="footer-status">
-            <span>LIVE THREAT FEED &nbsp;·&nbsp; SYSTEM STATUS: NOMINAL</span>
-            <span>ZONE SECURED &nbsp;·&nbsp; SEC_OPS COMPLETE</span>
+            <span>LIVE THREAT FEED ({threatIndicators.length}) &nbsp;·&nbsp; SYSTEM STATUS: {openHighSeverityAlerts.length > 0 ? `${openHighSeverityAlerts.length} OPEN` : 'NOMINAL'}</span>
+            <span>{simState === 'simulating' ? 'SIMULATION RUNNING' : 'STANDING BY'} &nbsp;·&nbsp; {simState === 'simulating' ? `${loggedStages} STEPS LOGGED` : 'SEC_OPS IDLE'}</span>
           </div>
 
         </div>
@@ -958,26 +1152,38 @@ export default function DashboardPage() {
                 <div className="readiness">
                   <div className="lbl">OPERATIONAL READINESS</div>
                   <div className="big">
-                    {isLoading || responseReadiness === null ? '—' : `${responseReadiness}%`}
+                    {isLoading || operationalReadinessPercent === null ? '—' : `${operationalReadinessPercent}%`}
                     <div className="mini-bars">
-                      {miniBarsHeights.map((h, i) => (
-                        <div key={i} style={{ height: `${h}px` }} />
+                      {[agentConnectivityPercent, integrationConnectivityPercent, responseReadiness, pipelineHealthPercent].map((v, i) => (
+                        <div key={i} style={{ height: `${v === null ? 3 : 4 + (v / 100) * 22}px`, opacity: v === null ? 0.25 : 1 }} />
                       ))}
                     </div>
                   </div>
-                  <div className="desc">Systems fully operational across all monitored zones.</div>
+                  <div className="desc">
+                    {readinessValues.length === 0 ? 'No readiness signals available yet.' : (
+                      <>
+                        Agents {agentConnectivityPercent ?? '—'}% · Integrations {integrationConnectivityPercent ?? '—'}% · Response {responseReadiness ?? '—'}% · Pipeline {pipelineHealthPercent ?? '—'}%
+                      </>
+                    )}
+                  </div>
                 </div>
                 <div className="owner">
                   <div className="lbl">OWNER BREAKDOWN</div>
-                  <div className="owner-row">
-                    <span className="d cyan"></span>Open
-                    <b>{stats ? `${Math.round(((stats.totalAlerts - stats.criticalAlerts) / Math.max(1, stats.totalAlerts)) * 100)}%` : '55%'}</b>
-                  </div>
-                  <div className="owner-row">
-                    <span className="d blue"></span>Assigned
-                    <b>{stats ? `${Math.round((stats.criticalAlerts / Math.max(1, stats.totalAlerts)) * 100)}%` : '25%'}</b>
-                  </div>
-                  <div className="desc">Share of open alerts with an assigned alertees, ready for response.</div>
+                  {ownerBreakdown ? (
+                    <>
+                      <div className="owner-row">
+                        <span className="d blue"></span>Assigned
+                        <b>{ownerBreakdown.assignedPercent}%</b>
+                      </div>
+                      <div className="owner-row">
+                        <span className="d cyan"></span>Unassigned
+                        <b>{ownerBreakdown.unassignedPercent}%</b>
+                      </div>
+                      <div className="desc">{ownerBreakdown.assigned} of {ownerBreakdown.total} alerts have a real assigned owner.</div>
+                    </>
+                  ) : (
+                    <div className="desc">No alerts to attribute ownership to yet.</div>
+                  )}
                 </div>
               </div>
             </div>
@@ -993,7 +1199,7 @@ export default function DashboardPage() {
               <div className="grid-status-pill">
                 <div className="l">GRID STATUS</div>
                 <div className="v">
-                  {isLoading ? '—' : (stats?.criticalAlerts ?? 0) > 0 ? `${stats!.criticalAlerts} Critical` : 'Secure'}
+                  {!gridHasAnyMonitoredSystem ? 'No Systems' : gridDegraded ? 'Degraded' : 'Secure'}
                 </div>
               </div>
             </div>
@@ -1001,91 +1207,131 @@ export default function DashboardPage() {
             <div className="ov-grid">
               {/* Ingest Volume vs Errors */}
               <div className="ov-card card-cyan">
-                <h3>Ingest Volume vs Errors <span className="zoom-btn">Zoom ⌄</span></h3>
-                <div className="zoom-tabs"><span className="on">1H</span><span>1D</span></div>
-                <svg viewBox="0 0 300 160" width="100%" height="150">
-                  <polyline points="0,90 20,70 40,80 60,50 80,65 100,40 120,55 140,35 160,50 180,30 200,45 220,25 240,40 260,20 280,35 300,15" fill="none" stroke="#22d3ee" strokeWidth="2"/>
-                  <polygon points="0,90 20,70 40,80 60,50 80,65 100,40 120,55 140,35 160,50 180,30 200,45 220,25 240,40 260,20 280,35 300,15 300,160 0,160" fill="rgba(34,211,238,0.15)"/>
-                  <polyline points="0,130 20,120 40,125 60,110 80,118 100,105 120,112 140,100 160,110 180,95 200,105 220,90 240,100 260,85 280,95 300,80" fill="none" stroke="#a855f7" strokeWidth="2"/>
-                  <polyline points="0,150 20,148 40,150 60,145 80,148 100,142 120,146 140,140 160,144 180,138 200,142 220,135 240,140 260,132 280,137 300,128" fill="none" stroke="#f59e0b" strokeWidth="1.5"/>
-                </svg>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '9.5px', color: 'var(--soc-dim)', marginTop: '2px' }}>
-                  <span>14:00</span><span>14:20</span><span>14:30</span><span>19:30</span><span>20:00</span>
+                <h3>
+                  Ingest Volume vs Errors
+                  <span className="zoom-btn" onClick={() => setIngestRangeHours(h => (h === 1 ? 24 : h === 24 ? 168 : 1))}>
+                    {ingestRangeHours}h ⌄
+                  </span>
+                </h3>
+                <div className="zoom-tabs">
+                  {[1, 24, 168].map(h => (
+                    <span key={h} className={ingestRangeHours === h ? 'on' : ''} style={{ cursor: 'pointer' }} onClick={() => setIngestRangeHours(h)}>
+                      {h === 1 ? '1H' : h === 24 ? '1D' : '7D'}
+                    </span>
+                  ))}
                 </div>
+                {(() => {
+                  const buckets = ingestVolumeErrors?.buckets ?? []
+                  if (buckets.length === 0) {
+                    return <div className="text-small text-text-muted" style={{ padding: '24px 0', textAlign: 'center' }}>No ingest activity in this window.</div>
+                  }
+                  const maxVal = Math.max(1, ...buckets.map(b => Math.max(b.volume, b.errors)))
+                  const w = 300, h = 150, n = buckets.length
+                  const volPoints = buckets.map((b, i) => `${(i / Math.max(1, n - 1)) * w},${h - (b.volume / maxVal) * h}`).join(' ')
+                  const errPoints = buckets.map((b, i) => `${(i / Math.max(1, n - 1)) * w},${h - (b.errors / maxVal) * h}`).join(' ')
+                  return (
+                    <>
+                      <svg viewBox={`0 0 ${w} ${h + 10}`} width="100%" height="150">
+                        <polyline points={volPoints} fill="none" stroke="#22d3ee" strokeWidth="2" />
+                        <polygon points={`${volPoints} ${w},${h} 0,${h}`} fill="rgba(34,211,238,0.15)" />
+                        <polyline points={errPoints} fill="none" stroke="#ef4444" strokeWidth="2" />
+                      </svg>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '9.5px', color: 'var(--soc-dim)', marginTop: '2px' }}>
+                        <span>{new Date(buckets[0].bucketStart).toLocaleString([], { hour: '2-digit', minute: '2-digit', month: ingestRangeHours > 24 ? 'short' : undefined, day: ingestRangeHours > 24 ? 'numeric' : undefined })}</span>
+                        <span>{new Date(buckets[buckets.length - 1].bucketStart).toLocaleString([], { hour: '2-digit', minute: '2-digit', month: ingestRangeHours > 24 ? 'short' : undefined, day: ingestRangeHours > 24 ? 'numeric' : undefined })}</span>
+                      </div>
+                      <div className="mtr-legend">
+                        <span><span className="d" style={{ background: '#22d3ee' }}></span>Volume ({ingestVolumeErrors?.totalVolume ?? 0})</span>
+                        <span><span className="d" style={{ background: '#ef4444' }}></span>Errors ({ingestVolumeErrors?.totalErrors ?? 0})</span>
+                      </div>
+                    </>
+                  )
+                })()}
               </div>
 
               {/* Notable Events */}
               <div className="ov-card card-purple">
                 <h3>Notable Events <span className="chev-r">›</span></h3>
-                <div className="big-num">{stats?.totalAlerts ?? 0}</div>
+                <div className="big-num">{openHighSeverityAlerts.length}</div>
                 <div className="live-feed-link" onClick={() => navigate('/dashboard/alerts')}>↗ Live Feed</div>
                 <div className="notable-list">
-                  {incidents.slice(0, 5).map((inc, i) => (
-                    <div key={inc.id || i}>{inc.title || 'CVE detection log'}</div>
+                  {openHighSeverityAlerts.slice(0, 5).map((a, i) => (
+                    <div key={a.id || i}>{a.title}</div>
                   ))}
-                  {incidents.length === 0 && <div>No active notable alerts.</div>}
+                  {openHighSeverityAlerts.length === 0 && <div>No open high/critical severity alerts.</div>}
                 </div>
               </div>
 
               {/* Mean Time to Detect */}
               <div className="ov-card card-teal">
                 <h3>Mean Time to Detect</h3>
-                <div className="gauge-wrap">
-                  <svg viewBox="0 0 200 120">
-                    <path d="M20,110 A80,80 0 0 1 180,110" fill="none" stroke="var(--soc-gauge-bg)" strokeWidth="14"/>
-                    <path d="M20,110 A80,80 0 0 1 180,110" fill="none" stroke="url(#gaugeGrad)" strokeWidth="14" strokeDasharray="200 251" strokeLinecap="round"/>
-                    <defs>
-                      <linearGradient id="gaugeGrad" x1="0" y1="0" x2="1" y2="0">
-                        <stop offset="0" stopColor="#22d3ee"/><stop offset="1" stopColor="#5eead4"/>
-                      </linearGradient>
-                    </defs>
-                    <line x1="100" y1="105" x2="150" y2="55" stroke="var(--soc-text)" strokeWidth="3" strokeLinecap="round"/>
-                    <circle cx="100" cy="105" r="5" fill="var(--soc-text)"/>
-                    <text x="26" y="108" font-size="10" fill="var(--soc-muted)">0</text>
-                    <text x="42" y="70" font-size="10" fill="var(--soc-muted)">20</text>
-                    <text x="75" y="42" font-size="10" fill="var(--soc-muted)">40</text>
-                    <text x="112" y="35" font-size="10" fill="var(--soc-muted)">60 80</text>
-                    <text x="160" y="70" font-size="10" fill="var(--soc-muted)">100</text>
-                    <text x="170" y="108" font-size="10" fill="var(--soc-muted)">120</text>
-                  </svg>
-                  <div className="gauge-val">90s</div>
-                </div>
+                {(() => {
+                  const scaleMax = 120 // minutes, matches the dial's 0-120 labels
+                  const clamped = mttdMinutes === null ? 0 : Math.min(scaleMax, mttdMinutes)
+                  const angleDeg = 180 - (clamped / scaleMax) * 180
+                  const rad = (angleDeg * Math.PI) / 180
+                  const needleX = 100 + 50 * Math.cos(rad)
+                  const needleY = 110 - 50 * Math.sin(rad)
+                  return (
+                    <div className="gauge-wrap">
+                      <svg viewBox="0 0 200 120">
+                        <path d="M20,110 A80,80 0 0 1 180,110" fill="none" stroke="var(--soc-gauge-bg)" strokeWidth="14"/>
+                        <path d="M20,110 A80,80 0 0 1 180,110" fill="none" stroke="url(#gaugeGrad)" strokeWidth="14" strokeDasharray={`${mttdMinutes === null ? 0 : (clamped / scaleMax) * 251} 251`} strokeLinecap="round"/>
+                        <defs>
+                          <linearGradient id="gaugeGrad" x1="0" y1="0" x2="1" y2="0">
+                            <stop offset="0" stopColor="#22d3ee"/><stop offset="1" stopColor="#5eead4"/>
+                          </linearGradient>
+                        </defs>
+                        <line x1="100" y1="105" x2={needleX} y2={needleY} stroke="var(--soc-text)" strokeWidth="3" strokeLinecap="round"/>
+                        <circle cx="100" cy="105" r="5" fill="var(--soc-text)"/>
+                        <text x="26" y="108" fontSize="10" fill="var(--soc-muted)">0</text>
+                        <text x="42" y="70" fontSize="10" fill="var(--soc-muted)">20</text>
+                        <text x="75" y="42" fontSize="10" fill="var(--soc-muted)">40</text>
+                        <text x="112" y="35" fontSize="10" fill="var(--soc-muted)">60 80</text>
+                        <text x="160" y="70" fontSize="10" fill="var(--soc-muted)">100</text>
+                        <text x="170" y="108" fontSize="10" fill="var(--soc-muted)">120</text>
+                      </svg>
+                      <div className="gauge-val">{mttdMinutes === null ? 'No data' : mttdMinutes < 1 ? `${Math.round(mttdMinutes * 60)}s` : `${mttdMinutes.toFixed(1)}m`}</div>
+                    </div>
+                  )
+                })()}
               </div>
 
               {/* Mean Time to Respond */}
               <div className="ov-card card-teal">
                 <h3>Mean Time to Respond <span className="chev-r">›</span></h3>
-                <svg viewBox="0 0 300 160" width="100%" height="140">
-                  <polyline points="0,50 40,20 80,35 120,55 160,45 200,65 240,50 280,70" fill="none" stroke="#22d3ee" strokeWidth="2"/>
-                  <polyline points="0,90 40,105 80,95 120,80 160,90 200,95 240,80 280,90" fill="none" stroke="#f97316" strokeWidth="2"/>
-                </svg>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '9.5px', color: 'var(--soc-dim)' }}>
-                  <span>14:00</span><span>14:20</span><span>14:30</span><span>19:30</span><span>20:00</span>
-                </div>
-                <div className="mtr-legend">
-                  <span><span className="d" style={{ background: '#22d3ee' }}></span>Phishing</span>
-                  <span><span className="d" style={{ background: '#f97316' }}></span>Lateral</span>
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '140px', gap: '8px' }}>
+                  <div className="gauge-val" style={{ fontSize: '28px' }}>
+                    {mttrMinutes === null ? 'No data' : mttrMinutes < 60 ? `${mttrMinutes.toFixed(1)}m` : `${(mttrMinutes / 60).toFixed(1)}h`}
+                  </div>
+                  <div className="text-small text-text-muted">
+                    {alerts.filter(a => a.status === 'MITIGATED' || a.status === 'CLOSED').length} resolved alerts (createdAt → last status update)
+                  </div>
                 </div>
               </div>
 
               {/* Alert Severity Mix */}
               <div className="ov-card card-amber">
                 <h3>Alert Severity Mix</h3>
-                <div className="donut-wrap">
-                  <svg viewBox="0 0 140 140" width="120" height="120">
-                    <circle cx="70" cy="70" r="55" fill="none" stroke="var(--soc-border-soft)" strokeWidth="20"/>
-                    <circle cx="70" cy="70" r="55" fill="none" stroke="#ef4444" strokeWidth="20" strokeDasharray={`${donutCritDash} 259`} strokeDashoffset="0" transform="rotate(-90 70 70)"/>
-                    <circle cx="70" cy="70" r="55" fill="none" stroke="#f97316" strokeWidth="20" strokeDasharray={`${donutHighDash} 259`} strokeDashoffset={donutHighOffset} transform="rotate(-90 70 70)"/>
-                    <circle cx="70" cy="70" r="55" fill="none" stroke="#facc15" strokeWidth="20" strokeDasharray={`${donutMedDash} 259`} strokeDashoffset={donutMedOffset} transform="rotate(-90 70 70)"/>
-                    <circle cx="70" cy="70" r="55" fill="none" stroke="#4ade80" stroke-width="20" strokeDasharray={`${donutLowDash} 259`} strokeDashoffset={donutLowOffset} transform="rotate(-90 70 70)"/>
-                  </svg>
-                  <div className="donut-legend">
-                    <div><span className="d" style={{ background: '#ef4444' }}></span>Critical<span className="n">{severityCounts?.critical ?? 25}</span></div>
-                    <div><span className="d" style={{ background: '#f97316' }}></span>High<span className="n">{severityCounts?.high ?? 27}</span></div>
-                    <div><span className="d" style={{ background: '#facc15' }}></span>Medium<span className="n">{severityCounts?.medium ?? 16}</span></div>
-                    <div><span className="d" style={{ background: '#4ade80' }}></span>Low<span className="n">{severityCounts?.low ?? 10}</span></div>
+                {hasSeverityData ? (
+                  <div className="donut-wrap">
+                    <svg viewBox="0 0 140 140" width="120" height="120">
+                      <circle cx="70" cy="70" r="55" fill="none" stroke="var(--soc-border-soft)" strokeWidth="20"/>
+                      <circle cx="70" cy="70" r="55" fill="none" stroke="#ef4444" strokeWidth="20" strokeDasharray={`${donutCritDash} 259`} strokeDashoffset="0" transform="rotate(-90 70 70)"/>
+                      <circle cx="70" cy="70" r="55" fill="none" stroke="#f97316" strokeWidth="20" strokeDasharray={`${donutHighDash} 259`} strokeDashoffset={donutHighOffset} transform="rotate(-90 70 70)"/>
+                      <circle cx="70" cy="70" r="55" fill="none" stroke="#facc15" strokeWidth="20" strokeDasharray={`${donutMedDash} 259`} strokeDashoffset={donutMedOffset} transform="rotate(-90 70 70)"/>
+                      <circle cx="70" cy="70" r="55" fill="none" stroke="#4ade80" strokeWidth="20" strokeDasharray={`${donutLowDash} 259`} strokeDashoffset={donutLowOffset} transform="rotate(-90 70 70)"/>
+                    </svg>
+                    <div className="donut-legend">
+                      <div><span className="d" style={{ background: '#ef4444' }}></span>Critical<span className="n">{severityCounts?.critical ?? 0}</span></div>
+                      <div><span className="d" style={{ background: '#f97316' }}></span>High<span className="n">{severityCounts?.high ?? 0}</span></div>
+                      <div><span className="d" style={{ background: '#facc15' }}></span>Medium<span className="n">{severityCounts?.medium ?? 0}</span></div>
+                      <div><span className="d" style={{ background: '#4ade80' }}></span>Low<span className="n">{severityCounts?.low ?? 0}</span></div>
+                    </div>
                   </div>
-                </div>
+                ) : (
+                  <div className="text-small text-text-muted" style={{ padding: '24px 0', textAlign: 'center' }}>No alerts yet.</div>
+                )}
               </div>
             </div>
           </div>
@@ -1097,15 +1343,15 @@ export default function DashboardPage() {
               <div className="timeline">
                 <div style={{ position: 'relative', height: '2px', background: 'var(--soc-border-soft)', margin: '10px 6px 0' }}>
                   {timelineDots.map((dot, i) => (
-                    <div key={i}>
-                      <div className="tl-dot" style={{ left: `${dot.percentage}%`, background: dot.color }} />
-                      <div className="tl-icon" style={{ left: `${dot.percentage}%`, top: i % 2 === 0 ? '-52px' : '32px', background: `${dot.color}2e`, color: dot.color }}>
+                    <div key={dot.id}>
+                      <div className="tl-dot" title={dot.title} style={{ left: `${dot.percentage}%`, background: dot.color }} />
+                      <div className="tl-icon" title={dot.title} style={{ left: `${dot.percentage}%`, top: i % 2 === 0 ? '-52px' : '32px', background: `${dot.color}2e`, color: dot.color }}>
                         {dot.symbol}
                       </div>
                     </div>
                   ))}
                   {timelineDots.length === 0 && (
-                    <div className="text-center text-small text-text-muted mt-4">No recent incident signals.</div>
+                    <div className="text-center text-small text-text-muted mt-4">No incidents in the past 24 hours.</div>
                   )}
                 </div>
               </div>
@@ -1113,67 +1359,56 @@ export default function DashboardPage() {
 
             <div className="bottom-card">
               <h3>Grid Status</h3>
-              <div className="network-wrap">
-                <svg viewBox="0 0 260 220" id="netSvg">
-                  {netEdges.map(([a, b], idx) => (
-                    <line
-                      key={idx}
-                      x1={netNodes[a].x}
-                      y1={netNodes[a].y}
-                      x2={netNodes[b].x}
-                      y2={netNodes[b].y}
-                      stroke="var(--soc-border-soft)"
-                      strokeWidth="1.4"
-                    />
+              {!gridHasAnyMonitoredSystem ? (
+                <div className="text-small text-text-muted" style={{ padding: '20px 0', textAlign: 'center' }}>
+                  No agents or integrations configured yet.
+                </div>
+              ) : (
+                <div className="log-list">
+                  {agents.map(a => (
+                    <div key={a.id} className="log-row">
+                      <div className={`log-tag ${a.status === 'ONLINE' ? 'ok' : 'fail'}`}>{a.status}</div>
+                      <div className="log-desc">Agent — {a.hostname}</div>
+                    </div>
                   ))}
-                  {netNodes.map((node, i) => {
-                    const isProbing = simState === 'simulating' && gridNodes[i % gridNodes.length] === 'probing'
-                    const isCompromised = simState === 'simulating' && gridNodes[i % gridNodes.length] === 'compromised'
-                    const isContained = simState === 'simulating' && gridNodes[i % gridNodes.length] === 'contained'
-                    
-                    const fill = isCompromised ? 'var(--soc-red)' : isContained ? 'var(--soc-green)' : isProbing ? 'var(--soc-amber)' : (node.type === 'main' || i % 3 === 0 ? '#0e2a3a' : '#0d1526')
-                    const stroke = isCompromised ? 'var(--soc-red)' : isContained ? 'var(--soc-green)' : isProbing ? 'var(--soc-amber)' : (node.type === 'main' || i % 3 === 0 ? 'var(--soc-cyan)' : '#3b4568')
-                    const radius = node.type === 'main' ? 16 : (i % 2 === 0 ? 7 : 5.5)
-                    
-                    return (
-                      <circle
-                        key={i}
-                        cx={node.x}
-                        cy={node.y}
-                        r={radius}
-                        fill={fill}
-                        stroke={stroke}
-                        strokeWidth="1.4"
-                      />
-                    )
-                  })}
-                </svg>
-              </div>
+                  {integrationStatuses.map(integ => (
+                    <div key={integ.name} className="log-row">
+                      <div className={`log-tag ${integ.healthy ? 'ok' : 'fail'}`}>{integ.enabled ? (integ.healthy ? 'Healthy' : 'Degraded') : 'Disabled'}</div>
+                      <div className="log-desc">Integration — {integ.name}</div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
 
             <div className="bottom-card">
               <h3>Closed-Loop Remediation Logs</h3>
               <div className="log-list">
-                {simLogs.slice(0, 6).map((log, i) => {
-                  const isFail = log.toLowerCase().includes('fail')
-                  return (
-                    <div key={i} className="log-row">
-                      <div className={`log-tag ${isFail ? 'fail' : 'ok'}`}>
-                        {isFail ? 'Success/Failure' : 'Success/Success'}
-                      </div>
-                      <div className="log-desc">{log}</div>
+                {remediationLogs.slice(0, 6).map((entry, i) => (
+                  <div key={i} className="log-row">
+                    <div className={`log-tag ${entry.failed ? 'fail' : 'ok'}`}>
+                      {entry.failed ? 'Failed' : 'Success'}
                     </div>
-                  )
-                })}
+                    <div className="log-desc">{entry.text}</div>
+                  </div>
+                ))}
+                {remediationLogs.length === 0 && (
+                  <div className="text-small text-text-muted" style={{ padding: '12px 0' }}>No playbook executions yet.</div>
+                )}
               </div>
             </div>
           </div>
 
           {/* ================ TICKER ================ */}
           <div className="ticker">
-            <span className="live"><span className="dot"></span>LIVE THREAT FEED</span>
-            <span className="msg">SCANNING NETWORK TELEMETRY… NO ACTIVE THREATS MATCHING CORRELATION RULES… SYSTEM STATUS NOMINAL…</span>
-            <span className="grid-r">GRID STATUS: NOMINAL &nbsp;·&nbsp; T2: IBT</span>
+            <span className="live"><span className="dot"></span>LIVE THREAT FEED{threatIndicators.length > 0 ? ` (${threatIndicators.length})` : ''}</span>
+            <span className="msg">
+              {threatIndicators.length > 0
+                ? threatIndicators.slice(0, 5).map(t => `${t.severity} ${t.type} ${t.value} (${t.source || 'enrichment'})`).join('   •   ') + '   •   '
+                : ''}
+              {networkTickerMessage}
+            </span>
+            <span className="grid-r">GRID STATUS: {gridStatusTickerLabel}</span>
           </div>
 
         </div>

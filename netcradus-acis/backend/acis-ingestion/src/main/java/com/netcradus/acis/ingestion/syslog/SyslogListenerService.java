@@ -3,6 +3,7 @@ package com.netcradus.acis.ingestion.syslog;
 import com.netcradus.acis.common.syslog.SyslogSource;
 import com.netcradus.acis.common.syslog.SyslogSourceRepository;
 import com.netcradus.acis.common.tenant.TenantContext;
+import com.netcradus.acis.ingestion.service.IngestionErrorService;
 import jakarta.annotation.PreDestroy;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -54,6 +55,7 @@ public class SyslogListenerService {
 
     private final SyslogSourceRepository syslogSourceRepository;
     private final KafkaTemplate<String, Object> kafkaTemplate;
+    private final IngestionErrorService ingestionErrorService;
 
     private final Map<UUID, BoundListener> active = new ConcurrentHashMap<>();
     private final ExecutorService executor = Executors.newCachedThreadPool();
@@ -143,6 +145,7 @@ public class SyslogListenerService {
             } catch (IOException e) {
                 if (!listener.udpSocket.isClosed()) {
                     log.warn("UDP syslog receive error for tenant {}: {}", tenantId, e.getMessage());
+                    ingestionErrorService.record("syslog-udp", e.getMessage());
                 }
             }
         }
@@ -156,6 +159,7 @@ public class SyslogListenerService {
             } catch (IOException e) {
                 if (!listener.tcpSocket.isClosed()) {
                     log.warn("TCP syslog accept error for tenant {}: {}", tenantId, e.getMessage());
+                    ingestionErrorService.record("syslog-tcp", e.getMessage());
                 }
             }
         }

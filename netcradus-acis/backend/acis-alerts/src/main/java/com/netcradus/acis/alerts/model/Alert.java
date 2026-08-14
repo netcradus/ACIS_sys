@@ -51,6 +51,14 @@ public class Alert {
     private String confirmedCategory;
     private LocalDateTime labeledAt;
 
+    /**
+     * Real source-event time this alert was detected from (see
+     * NormalizedEvent.timestamp / CorrelationEngine.triggerAlert) — null for
+     * alerts with no traceable source event. createdAt - eventOccurredAt is
+     * the real Mean Time to Detect, never a fabricated/estimated value.
+     */
+    private LocalDateTime eventOccurredAt;
+
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 

@@ -25,4 +25,6 @@ public class AlertDto {
     private LocalDateTime updatedAt;
     private String confirmedCategory;
     private LocalDateTime labeledAt;
+    /** Real source-event time this alert was detected from - null for alerts with no traceable source event. Powers MTTD. */
+    private LocalDateTime eventOccurredAt;
 }

@@ -62,6 +62,36 @@ export default function AppLayout() {
     }
   }, [])
 
+  // Real Grid Status for the ticker's status pill — enrolled agent
+  // connectivity + configured vendor-integration poll health, never a
+  // permanently-hardcoded "Nominal" claim.
+  const [gridStatus, setGridStatus] = useState<'nominal' | 'degraded' | 'unknown'>('unknown')
+  useEffect(() => {
+    const fetchGridStatus = async () => {
+      try {
+        const [agentsRes, integrationsRes] = await Promise.all([
+          apiClient.get('/api/soar/settings/agents'),
+          apiClient.get('/api/soar/settings/integrations/status'),
+        ])
+        // /agents wraps its payload in {success, data, timestamp} (ApiResponse<T>); /integrations/status returns a bare array.
+        const agents: { status: string }[] = agentsRes.data?.data || []
+        const integrations: { enabled: boolean; healthy: boolean }[] = integrationsRes.data || []
+        if (agents.length === 0 && integrations.length === 0) {
+          setGridStatus('unknown')
+          return
+        }
+        const agentsDegraded = agents.length > 0 && agents.some(a => a.status !== 'ONLINE')
+        const integrationsDegraded = integrations.length > 0 && integrations.some(i => !i.healthy)
+        setGridStatus(agentsDegraded || integrationsDegraded ? 'degraded' : 'nominal')
+      } catch (error) {
+        console.error('Failed to fetch grid status:', error)
+      }
+    }
+    fetchGridStatus()
+    const interval = setInterval(fetchGridStatus, 30000)
+    return () => clearInterval(interval)
+  }, [])
+
   // Global ⌘K / Ctrl+K — finally wires up what TopBar's search affordance
   // always looked like it should do.
   useEffect(() => {
@@ -177,7 +207,9 @@ export default function AppLayout() {
 
           <div className="px-5 bg-surface-inset z-10 border-l border-fire-border h-full flex items-center gap-3.5">
             <span className="text-label uppercase text-text-muted">
-              Grid Status: <span className="text-success">Nominal</span>
+              Grid Status: <span className={gridStatus === 'nominal' ? 'text-success' : gridStatus === 'degraded' ? 'text-danger' : 'text-text-muted'}>
+                {gridStatus === 'unknown' ? 'No Systems' : gridStatus === 'nominal' ? 'Nominal' : 'Degraded'}
+              </span>
             </span>
             <span className="text-label uppercase text-text-muted">
               TZ: <span className="text-text-primary">IST</span>

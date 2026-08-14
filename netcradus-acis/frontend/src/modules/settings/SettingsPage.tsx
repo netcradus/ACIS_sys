@@ -359,7 +359,11 @@ export default function SettingsPage() {
     try {
       setAgentFleetLoading(true)
       const res = await apiClient.get('/api/soar/settings/agents')
-      setAgentFleet(Array.isArray(res.data) ? res.data : [])
+      // This endpoint wraps its payload in {success, data, timestamp} (ApiResponse<T>) —
+      // Array.isArray(res.data) was always false here, so the fleet table always
+      // rendered empty regardless of how many agents were actually enrolled.
+      const agentList = res.data?.data
+      setAgentFleet(Array.isArray(agentList) ? agentList : [])
     } catch (e) {
       console.error('Failed to load agent fleet:', e)
     } finally {

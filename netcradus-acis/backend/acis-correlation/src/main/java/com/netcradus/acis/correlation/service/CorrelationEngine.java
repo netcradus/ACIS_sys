@@ -227,6 +227,10 @@ public class CorrelationEngine {
                 .severity(rule.getSeverity())
                 .source("Correlation Engine")
                 .status("OPEN")
+                // Real source-event time this alert was detected from - see
+                // NormalizedEvent.timestamp (LogIngestionService). Powers a
+                // real MTTD (createdAt - eventOccurredAt), not a fabricated one.
+                .eventOccurredAt(event.getTimestamp())
                 .build();
 
         kafkaTemplate.send("acis.alerts", alert);

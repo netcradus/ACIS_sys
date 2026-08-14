@@ -33,6 +33,7 @@ public class AlertService {
                 .source(dto.getSource())
                 .status("OPEN")
                 .rawEvent(dto.getRawEvent())
+                .eventOccurredAt(dto.getEventOccurredAt())
                 .build();
 
         Alert saved = repository.save(alert);
@@ -66,6 +67,7 @@ public class AlertService {
                 .updatedAt(alert.getUpdatedAt())
                 .confirmedCategory(alert.getConfirmedCategory())
                 .labeledAt(alert.getLabeledAt())
+                .eventOccurredAt(alert.getEventOccurredAt())
                 .build();
     }
 }

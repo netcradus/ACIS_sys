@@ -24,6 +24,7 @@ public class LogIngestionService {
     private final com.netcradus.acis.log.client.EnrichmentClient enrichmentClient;
     private final org.springframework.kafka.core.KafkaTemplate<String, Object> kafkaTemplate;
     private final IngestMetricsService ingestMetricsService;
+    private final IngestionErrorService ingestionErrorService;
 
     @KafkaListener(topics = "acis-logs", groupId = "${spring.kafka.consumer.group-id}")
     public void consume(LogDocument logDocument) {
@@ -56,13 +57,15 @@ public class LogIngestionService {
             }
         } catch (Exception e) {
             log.warn("Enrichment failed (continuing with raw log): {}", e.getMessage());
+            ingestionErrorService.record("enrichment", e.getMessage());
         }
-        
+
         // Try to persist to Elasticsearch (non-fatal if ES is down)
         try {
             logRepository.save(logDocument);
         } catch (Exception e) {
             log.warn("Failed to save log to Elasticsearch: {}", e.getMessage());
+            ingestionErrorService.record("es_persist", e.getMessage());
         }
         
         // Always broadcast to WebSocket for real-time UI
@@ -78,7 +81,11 @@ public class LogIngestionService {
         com.netcradus.acis.common.dto.NormalizedEvent normalizedEvent = com.netcradus.acis.common.dto.NormalizedEvent.builder()
             .eventId(logDocument.getId())
             .tenantId(tenantId)
-            .timestamp(java.time.LocalDateTime.now())
+            // Real source-event time (when the log itself says it happened),
+            // not ingest-processing time - this is what MTTD is measured
+            // from once an alert fires. logDocument.getTimestamp() is never
+            // null here (defaulted at line 34 above if the source omitted it).
+            .timestamp(java.time.LocalDateTime.ofInstant(logDocument.getTimestamp(), java.time.ZoneOffset.UTC))
             .sourceType(logDocument.getService())
             .raw(logDocument.getMessage())
             .severity(logDocument.getLevel())
