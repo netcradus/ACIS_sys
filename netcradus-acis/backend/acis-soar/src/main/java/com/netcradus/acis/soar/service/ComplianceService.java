@@ -168,6 +168,52 @@ public class ComplianceService {
         return auditEntryRepository.findByTenantIdOrderByTimestampDesc(tenantId);
     }
 
+    public record ChainVerificationResult(boolean valid, int checkedCount, String brokenAtEntryId, String detail) {}
+
+    /**
+     * Real verification, not a status label that just echoes a stored field —
+     * walks this tenant's actual chain oldest-first and recomputes every
+     * hash from the real row contents (see AuditEventConsumer.computeHash),
+     * reporting the exact entry where a mismatch first appears if the trail
+     * has been altered or a row deleted out from the middle of the chain.
+     */
+    public ChainVerificationResult verifyAuditChain(UUID tenantId) {
+        List<AuditEntry> entries = auditEntryRepository.findByTenantIdOrderByTimestampAsc(tenantId);
+        String expectedPrevHash = "0".repeat(64);
+        int checked = 0;
+        int legacySkipped = 0;
+        for (AuditEntry entry : entries) {
+            if (entry.getPrevHash() == null || entry.getHash() == null) {
+                // Predates this feature - not verifiable, but not a failure
+                // either. Legacy entries always sort before every real-chain
+                // entry (timestamps only increase, and this feature was
+                // deployed at one fixed point in time), but skip rather than
+                // stop here anyway - AuditEventConsumer itself falls back to
+                // GENESIS_HASH whenever the true most-recent prior entry has
+                // no hash, so treating any single legacy row as "the chain
+                // ends here" would report real, correctly-chained entries
+                // after it as unverified.
+                legacySkipped++;
+                continue;
+            }
+            if (!entry.getPrevHash().equals(expectedPrevHash)) {
+                return new ChainVerificationResult(false, checked, entry.getId().toString(),
+                        "prevHash does not match the preceding entry's real hash - the chain was broken before this entry.");
+            }
+            String recomputed = AuditEventConsumer.computeHash(entry.getPrevHash(), entry);
+            if (!recomputed.equals(entry.getHash())) {
+                return new ChainVerificationResult(false, checked, entry.getId().toString(),
+                        "Stored hash does not match a hash recomputed from this entry's real content - it was altered after being written.");
+            }
+            expectedPrevHash = entry.getHash();
+            checked++;
+        }
+        String detail = legacySkipped > 0
+                ? "All " + checked + " entries verified intact (" + legacySkipped + " earlier entries predate tamper-evidence and are not covered)."
+                : "All " + checked + " entries verified intact.";
+        return new ChainVerificationResult(true, checked, null, detail);
+    }
+
     /** A real numerator/denominator pair, or an explicit "not tracked" / "not applicable" state — never a fabricated percentage. */
     private static final class ComplianceMetric {
         private final Long numerator;

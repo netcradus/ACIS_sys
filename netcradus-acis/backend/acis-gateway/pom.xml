@@ -50,6 +50,14 @@
       <artifactId>micrometer-registry-prometheus</artifactId>
     </dependency>
 
+    <!-- Reactive Redis client - real distributed counters for RateLimiterFilter
+         and PreAuthRateLimiterFilter, shared across every gateway instance
+         instead of a per-instance in-memory map. -->
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-data-redis-reactive</artifactId>
+    </dependency>
+
     <!-- Test -->
     <dependency>
       <groupId>org.springframework.boot</groupId>

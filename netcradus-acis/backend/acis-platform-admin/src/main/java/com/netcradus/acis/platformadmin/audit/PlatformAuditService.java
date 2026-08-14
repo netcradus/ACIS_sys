@@ -15,6 +15,8 @@ import org.springframework.security.oauth2.server.resource.authentication.JwtAut
 import org.springframework.stereotype.Service;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -24,6 +26,8 @@ import java.util.UUID;
 @RequiredArgsConstructor
 @Slf4j
 public class PlatformAuditService {
+
+    private static final String GENESIS_HASH = "0".repeat(64);
 
     private final PlatformAuditRepository repository;
 
@@ -36,6 +40,7 @@ public class PlatformAuditService {
                     targetUserId, targetUsername, targetEmail,
                     tenantId, tenantName, previousValue, newValue,
                     AuditStatus.SUCCESS, null);
+            attachChainHash(event);
             repository.save(event);
         } catch (Exception e) {
             log.warn("Failed to persist audit event action={}: {}", action, e.getMessage());
@@ -50,10 +55,82 @@ public class PlatformAuditService {
                     targetUserId, targetUsername, targetEmail,
                     tenantId, tenantName, null, null,
                     AuditStatus.FAILURE, failureReason);
+            attachChainHash(event);
             repository.save(event);
         } catch (Exception e) {
             log.warn("Failed to persist audit failure event: {}", e.getMessage());
         }
+    }
+
+    /**
+     * Real tamper-evidence, same single-instance tradeoff documented on
+     * acis-soar's AuditEventConsumer: correct as long as writes happen from
+     * one instance. This service's writes are request-thread-synchronous
+     * (not a Kafka consumer), so within one instance they're naturally
+     * serialized by whatever concurrency the servlet container itself uses -
+     * no additional locking added here beyond that existing assumption.
+     */
+    private void attachChainHash(PlatformAuditEvent event) {
+        String prevHash = repository.findTopByOrderByTimestampDesc()
+                .map(PlatformAuditEvent::getHash)
+                .orElse(GENESIS_HASH);
+        event.setPrevHash(prevHash);
+        event.setHash(computeHash(prevHash, event));
+    }
+
+    /** Same field concatenation the verify path recomputes - keep them in sync. */
+    static String computeHash(String prevHash, PlatformAuditEvent event) {
+        try {
+            String payload = String.join("|",
+                    prevHash,
+                    String.valueOf(event.getAdminUserId()),
+                    String.valueOf(event.getTargetUserId()),
+                    String.valueOf(event.getTenantId()),
+                    String.valueOf(event.getAction()),
+                    String.valueOf(event.getResourceType()),
+                    String.valueOf(event.getStatus()),
+                    String.valueOf(event.getFailureReason()),
+                    String.valueOf(event.getTimestamp()));
+            byte[] digest = MessageDigest.getInstance("SHA-256").digest(payload.getBytes(StandardCharsets.UTF_8));
+            StringBuilder hex = new StringBuilder(digest.length * 2);
+            for (byte b : digest) hex.append(String.format("%02x", b));
+            return hex.toString();
+        } catch (Exception e) {
+            throw new IllegalStateException("SHA-256 unavailable", e);
+        }
+    }
+
+    public record ChainVerificationResult(boolean valid, int checkedCount, String brokenAtEntryId, String detail) {}
+
+    /** Real verification - recomputes every hash from actual row content rather than trusting a stored field. */
+    public ChainVerificationResult verifyChain() {
+        List<PlatformAuditEvent> entries = repository.findAllByOrderByTimestampAsc();
+        String expectedPrevHash = GENESIS_HASH;
+        int checked = 0;
+        int legacySkipped = 0;
+        for (PlatformAuditEvent entry : entries) {
+            if (entry.getPrevHash() == null || entry.getHash() == null) {
+                // Predates this feature - see ComplianceService.verifyAuditChain
+                // for why this skips rather than stops the walk.
+                legacySkipped++;
+                continue;
+            }
+            if (!entry.getPrevHash().equals(expectedPrevHash)) {
+                return new ChainVerificationResult(false, checked, entry.getId().toString(),
+                        "prevHash does not match the preceding entry's real hash - the chain was broken before this entry.");
+            }
+            String recomputed = computeHash(entry.getPrevHash(), entry);
+            if (!recomputed.equals(entry.getHash())) {
+                return new ChainVerificationResult(false, checked, entry.getId().toString(),
+                        "Stored hash does not match a hash recomputed from this entry's real content - it was altered after being written.");
+            }
+            expectedPrevHash = entry.getHash();
+            checked++;
+        }
+        String detail = legacySkipped > 0
+                ? "All " + checked + " entries verified intact (" + legacySkipped + " earlier entries predate tamper-evidence and are not covered)."
+                : "All " + checked + " entries verified intact.";
+        return new ChainVerificationResult(true, checked, null, detail);
     }
 
     public Page<PlatformAuditEvent> search(OffsetDateTime startDate, OffsetDateTime endDate,

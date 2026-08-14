@@ -15,4 +15,10 @@ public interface PlatformAuditRepository extends JpaRepository<PlatformAuditEven
     List<PlatformAuditEvent> findAllByOrderByTimestampDesc();
 
     Page<PlatformAuditEvent> findAllByOrderByTimestampDesc(Pageable pageable);
+
+    /** Chain tail - the entry the next real audit event's prevHash must match. */
+    java.util.Optional<PlatformAuditEvent> findTopByOrderByTimestampDesc();
+
+    /** Oldest-first walk of the real global chain, for verification. */
+    List<PlatformAuditEvent> findAllByOrderByTimestampAsc();
 }

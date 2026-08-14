@@ -4,8 +4,11 @@ import com.netcradus.acis.common.dto.ApiResponse;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.server.ResponseStatusException;
+
+import java.util.stream.Collectors;
 
 /**
  * Shared exception-to-HTTP-status mapping for every acis-* service. Spring's
@@ -33,6 +36,21 @@ public abstract class AbstractGlobalExceptionHandler {
     public ResponseEntity<ApiResponse<Void>> handleNotFound(NotFoundException ex) {
         return ResponseEntity.status(HttpStatus.NOT_FOUND)
                 .body(ApiResponse.failure("ERR_404", ex.getMessage()));
+    }
+
+    /**
+     * A @Valid-annotated @RequestBody that failed Bean Validation (see
+     * CorrelationRuleDto for the first real usage) — a real client input
+     * error, always 400, with the actual field-level messages rather than
+     * Spring's default verbose {timestamp,status,errors:[...]} body.
+     */
+    @ExceptionHandler(MethodArgumentNotValidException.class)
+    public ResponseEntity<ApiResponse<Void>> handleValidation(MethodArgumentNotValidException ex) {
+        String message = ex.getBindingResult().getFieldErrors().stream()
+                .map(fe -> fe.getField() + ": " + fe.getDefaultMessage())
+                .collect(Collectors.joining("; "));
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(ApiResponse.failure("ERR_VALIDATION", message.isBlank() ? "Invalid request." : message));
     }
 
     @ExceptionHandler(ResponseStatusException.class)

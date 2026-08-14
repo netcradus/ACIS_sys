@@ -26,6 +26,20 @@ public class AuditEntry {
     private String ip;
     private String status;
 
+    /**
+     * Real tamper-evidence: hash = SHA-256(prevHash + tenantId + timestamp +
+     * user + action + resource + ip + status), chained per tenant so any
+     * edit or deletion of a historical row breaks every hash after it - not
+     * just a checksum of that one row, which an attacker could recompute
+     * after tampering. See AuditEventConsumer (writer) and
+     * ComplianceController's /audit-trail/verify (reader).
+     */
+    @Column(name = "prev_hash", length = 64)
+    private String prevHash;
+
+    @Column(name = "hash", length = 64)
+    private String hash;
+
     @PrePersist
     public void prePersist() {
         if (timestamp == null) {

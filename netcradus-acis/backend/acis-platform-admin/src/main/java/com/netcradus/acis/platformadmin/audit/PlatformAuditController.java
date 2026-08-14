@@ -66,6 +66,12 @@ public class PlatformAuditController {
         return ApiResponse.success(AuditAction.values());
     }
 
+    /** Real tamper-evidence check - recomputes the actual hash chain rather than trusting a stored status flag. See PlatformAuditService.verifyChain. */
+    @GetMapping("/verify")
+    public ApiResponse<PlatformAuditService.ChainVerificationResult> verify() {
+        return ApiResponse.success(auditService.verifyChain());
+    }
+
     @GetMapping("/export/csv")
     public ResponseEntity<byte[]> exportCsv(
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) OffsetDateTime startDate,

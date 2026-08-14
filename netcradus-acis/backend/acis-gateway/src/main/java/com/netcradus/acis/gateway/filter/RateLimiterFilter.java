@@ -9,9 +9,9 @@ import org.springframework.cloud.gateway.filter.GatewayFilterChain;
 import org.springframework.cloud.gateway.filter.GlobalFilter;
 import org.springframework.core.Ordered;
 import org.springframework.core.io.buffer.DataBuffer;
+import org.springframework.data.redis.core.ReactiveStringRedisTemplate;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
-import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.security.core.context.ReactiveSecurityContextHolder;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
 import org.springframework.stereotype.Component;
@@ -19,34 +19,34 @@ import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Mono;
 
 import java.net.InetSocketAddress;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.atomic.AtomicLong;
+import java.time.Duration;
 
 /**
- * In-memory rate limiter — 1000 requests per minute per TENANT (falling back
- * to per-IP for requests with no authenticated tenant, e.g. permitAll paths).
- * Keying by tenant rather than by caller IP means one tenant's traffic spike
- * can't be split across many source IPs to evade the limit, and one noisy
- * tenant can't be conflated with — or blamed on — another tenant sharing a
- * NAT'd/proxied IP.
+ * Real distributed rate limiter — 1000 requests per minute per TENANT
+ * (falling back to per-IP for requests with no authenticated tenant, e.g.
+ * permitAll paths), backed by Redis so the count is real and shared across
+ * every gateway instance, not per-process. Keying by tenant rather than by
+ * caller IP means one tenant's traffic spike can't be split across many
+ * source IPs to evade the limit, and one noisy tenant can't be conflated
+ * with — or blamed on — another tenant sharing a NAT'd/proxied IP.
  *
- * Uses ConcurrentHashMap + AtomicLong counters, reset every 60s via
- * @Scheduled. No Redis dependency — matches the existing single-instance
- * gateway deployment; if the gateway is ever horizontally scaled, this would
- * need to move to a shared store (Redis) since counts are per-instance.
- * Runs at order -20 (before AuthMeFilter), but reads the SecurityContext,
- * which Spring Security populates upstream of Gateway's own GlobalFilters.
+ * Fixed 60-second window: INCR the key, and only the request that creates
+ * the key (count == 1) sets its 60s expiry — every other request in the
+ * window just increments, so the window doesn't keep sliding forward on
+ * continued traffic the way a naive "reset TTL on every hit" version would.
  */
 @Component
 public class RateLimiterFilter implements GlobalFilter, Ordered {
 
     private static final Logger log = LoggerFactory.getLogger(RateLimiterFilter.class);
     private static final long MAX_REQUESTS_PER_MINUTE = 1000L;
+    private static final Duration WINDOW = Duration.ofSeconds(60);
 
-    private final ConcurrentHashMap<String, AtomicLong> counters = new ConcurrentHashMap<>();
+    private final ReactiveStringRedisTemplate redisTemplate;
     private final ObjectMapper objectMapper;
 
-    public RateLimiterFilter(ObjectMapper objectMapper) {
+    public RateLimiterFilter(ReactiveStringRedisTemplate redisTemplate, ObjectMapper objectMapper) {
+        this.redisTemplate = redisTemplate;
         this.objectMapper = objectMapper;
     }
 
@@ -55,25 +55,32 @@ public class RateLimiterFilter implements GlobalFilter, Ordered {
         return -20;
     }
 
-    /** Reset all counters every 60 seconds. */
-    @Scheduled(fixedRate = 60_000)
-    public void resetCounters() {
-        int size = counters.size();
-        counters.clear();
-        if (size > 0) log.debug("Rate limiter: cleared {} counters", size);
-    }
-
     @Override
     public Mono<Void> filter(ServerWebExchange exchange, GatewayFilterChain chain) {
         return resolveKey(exchange).flatMap(key -> {
-            long count = counters.computeIfAbsent(key, k -> new AtomicLong(0)).incrementAndGet();
-
-            if (count > MAX_REQUESTS_PER_MINUTE) {
-                log.warn("Rate limit exceeded for key={} count={}", key, count);
-                return writeTooManyRequests(exchange);
-            }
-
-            return chain.filter(exchange);
+            String redisKey = "ratelimit:" + key;
+            return redisTemplate.opsForValue().increment(redisKey)
+                    .flatMap(count -> {
+                        Mono<Boolean> ensureTtl = count == 1
+                                ? redisTemplate.expire(redisKey, WINDOW)
+                                : Mono.just(true);
+                        return ensureTtl.thenReturn(count);
+                    })
+                    .flatMap(count -> {
+                        if (count > MAX_REQUESTS_PER_MINUTE) {
+                            log.warn("Rate limit exceeded for key={} count={}", key, count);
+                            return writeTooManyRequests(exchange);
+                        }
+                        return chain.filter(exchange);
+                    })
+                    // Redis being briefly unavailable must not take the whole
+                    // gateway down with it — fail open (same posture every
+                    // other real poller/consumer in this codebase takes on a
+                    // downstream dependency hiccup) and let the request through.
+                    .onErrorResume(e -> {
+                        log.warn("Rate limiter Redis call failed, allowing request through: {}", e.getMessage());
+                        return chain.filter(exchange);
+                    });
         });
     }
 
@@ -100,7 +107,7 @@ public class RateLimiterFilter implements GlobalFilter, Ordered {
 
     private Mono<Void> writeTooManyRequests(ServerWebExchange exchange) {
         ApiResponse<Void> body = ApiResponse.failure(
-            ApiError.ERR_RATE_LIMITED, "Rate limit exceeded. Max 1000 requests/minute.");
+                ApiError.ERR_RATE_LIMITED, "Rate limit exceeded. Max 1000 requests/minute.");
 
         var resp = exchange.getResponse();
         resp.setStatusCode(HttpStatus.TOO_MANY_REQUESTS);

@@ -239,6 +239,23 @@ services:
       start_period: 30s
     restart: always
 
+  # Redis — internal only. Backs the gateway's real distributed rate limiter
+  # (RateLimiterFilter) and pre-auth-endpoint limiter (PreAuthRateLimiterFilter)
+  # so request counters are shared across every gateway instance instead of
+  # the old single-instance in-memory map.
+  redis:
+    image: redis:7-alpine
+    expose:
+      - "6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: [ "CMD", "redis-cli", "ping" ]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: always
+
   # 6. Elasticsearch — internal only
   elasticsearch:
     image: docker.elastic.co/elasticsearch/elasticsearch:8.13.0
@@ -278,10 +295,14 @@ services:
       ASSET_SERVICE_URL: http://asset-service:8086
       THREAT_SERVICE_URL: http://threat-service:8087
       PLATFORM_ADMIN_SERVICE_URL: http://platform-admin:8088
+      REDIS_HOST: redis
+      REDIS_PORT: "6379"
     expose:
       - "8080"
     depends_on:
       keycloak:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     restart: always
 
@@ -592,3 +613,4 @@ volumes:
   caddy_data:
   caddy_config:
   ai_models_data:
+  redis_data:

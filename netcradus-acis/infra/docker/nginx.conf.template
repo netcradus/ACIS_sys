@@ -2,6 +2,21 @@ server {
     listen 80;
     server_name _;
 
+    # Real security response headers — this container only ever runs behind
+    # Caddy's TLS termination in prod (see docker-compose.prod.yml network
+    # isolation: only caddy publishes host ports), so HSTS is always accurate
+    # here, not conditional on a per-request scheme check.
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header X-Frame-Options "DENY" always;
+    add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+    add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
+    add_header Permissions-Policy "geolocation=(), camera=(), microphone=()" always;
+    # connect-src stays broad on scheme (https:/wss:/ws:) rather than a
+    # hardcoded Keycloak host, since VITE_KEYCLOAK_URL is a build-time arg
+    # that can point at a different origin per deployment — an overly strict
+    # connect-src would silently break login rather than fail loudly.
+    add_header Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' https: wss: ws:; frame-ancestors 'none'; base-uri 'self'; form-action 'self'" always;
+
     # Docker's embedded DNS. Without this, nginx resolves the gateway
     # hostname exactly once at config-load time and REFUSES TO START if it
     # isn't resolvable yet (e.g. gateway container still starting, or

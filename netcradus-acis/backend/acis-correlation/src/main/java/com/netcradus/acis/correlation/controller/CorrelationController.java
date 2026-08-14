@@ -6,6 +6,7 @@ import com.netcradus.acis.common.exception.NotFoundException;
 import com.netcradus.acis.correlation.model.CorrelationRule;
 import com.netcradus.acis.correlation.repository.CorrelationRuleRepository;
 import com.netcradus.acis.correlation.service.CorrelationEngine;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
@@ -31,7 +32,7 @@ public class CorrelationController {
     }
 
     @PostMapping("/rules")
-    public CorrelationRule createRule(@RequestBody CorrelationRuleDto dto, @RequestHeader("X-Tenant-ID") String tenantId) {
+    public CorrelationRule createRule(@Valid @RequestBody CorrelationRuleDto dto, @RequestHeader("X-Tenant-ID") String tenantId) {
         CorrelationRule rule = CorrelationRule.builder()
                 .tenantId(tenantId)
                 .name(dto.getName())
@@ -49,7 +50,7 @@ public class CorrelationController {
     }
 
     @PutMapping("/rules/{id}")
-    public CorrelationRule updateRule(@PathVariable String id, @RequestBody CorrelationRuleDto dto,
+    public CorrelationRule updateRule(@PathVariable String id, @Valid @RequestBody CorrelationRuleDto dto,
             @RequestHeader("X-Tenant-ID") String tenantId) {
         CorrelationRule rule = repository.findByIdAndTenantId(id, tenantId)
                 .orElseThrow(() -> new NotFoundException("Correlation rule not found"));

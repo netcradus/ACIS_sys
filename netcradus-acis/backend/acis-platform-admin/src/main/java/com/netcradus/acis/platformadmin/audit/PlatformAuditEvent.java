@@ -61,6 +61,18 @@ public class PlatformAuditEvent {
     @Column(columnDefinition = "TEXT")
     private String failureReason;
 
+    /**
+     * Real tamper-evidence, same design as acis-soar's AuditEntry: hash =
+     * SHA-256(prevHash + real field values), one global chain since this
+     * table is cross-tenant platform-operator activity, not per-tenant data.
+     * See PlatformAuditService (writer) and its verifyChain (reader).
+     */
+    @Column(name = "prev_hash", length = 64)
+    private String prevHash;
+
+    @Column(name = "hash", length = 64)
+    private String hash;
+
     @PrePersist
     protected void onCreate() {
         if (id == null) id = UUID.randomUUID();

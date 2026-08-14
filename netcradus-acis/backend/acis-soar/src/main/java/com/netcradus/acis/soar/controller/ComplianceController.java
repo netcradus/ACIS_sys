@@ -43,6 +43,14 @@ public class ComplianceController {
         return ApiResponse.success(complianceService.getAuditTrail(resolveTenant(tenantId)));
     }
 
+    /** Real tamper-evidence check - recomputes the actual hash chain rather than trusting a stored status flag. See ComplianceService.verifyAuditChain. */
+    @GetMapping("/audit-trail/verify")
+    public ApiResponse<ComplianceService.ChainVerificationResult> verifyAuditTrail(
+            @RequestHeader(value = "X-Tenant-ID", required = false) UUID tenantId
+    ) {
+        return ApiResponse.success(complianceService.verifyAuditChain(resolveTenant(tenantId)));
+    }
+
     @GetMapping("/report")
     public ApiResponse<Map<String, String>> generateComplianceReport(
             @RequestHeader(value = "X-Tenant-ID", required = false) UUID tenantId) {

@@ -85,6 +85,15 @@
       <artifactId>spring-boot-starter-mail</artifactId>
       <scope>provided</scope>
     </dependency>
+    <!-- Bean Validation annotations on shared request DTOs (e.g.
+         CorrelationRuleDto) — provided, each consuming service that wants
+         @Valid to actually execute declares spring-boot-starter-validation
+         itself (this is annotations-only, no validator implementation). -->
+    <dependency>
+      <groupId>jakarta.validation</groupId>
+      <artifactId>jakarta.validation-api</artifactId>
+      <scope>provided</scope>
+    </dependency>
   </dependencies>
 </project>
 

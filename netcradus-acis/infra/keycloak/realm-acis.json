@@ -27,6 +27,14 @@
   "maxDeltaTimeSeconds": 43200,
   "failureFactor": 5,
   "maxTemporaryLockouts": 0,
+  "passwordPolicy": "length(12) and digits(1) and lowerCase(1) and upperCase(1) and specialChars(1) and notUsername and notEmail",
+  "otpPolicyType": "totp",
+  "otpPolicyAlgorithm": "HmacSHA1",
+  "otpPolicyInitialCounter": 0,
+  "otpPolicyDigits": 6,
+  "otpPolicyLookAheadWindow": 1,
+  "otpPolicyPeriod": 30,
+  "otpSupportedApplications": ["FreeOTP", "Google Authenticator"],
   "roles": {
     "realm": [
       { "name": "viewer",   "description": "Read-only access to dashboards and logs" },
