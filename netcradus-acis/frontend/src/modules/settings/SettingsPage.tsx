@@ -1,11 +1,12 @@
 import React, { useEffect, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { 
-  Key, Copy, Plus, X, Check, Settings, Activity, FileText, Database, Shield, 
-  Users, CreditCard, Layers, Building2, User, Lock, Bell, ShieldCheck, 
+  Key, Copy, Plus, X, Check, Settings, Activity, FileText, Database, Shield,
+  Users, CreditCard, Layers, Building2, User, Lock, Bell, ShieldCheck,
   Smartphone, ExternalLink, Save, CheckCircle2, Mail, Phone, Globe, ShieldAlert,
   Terminal, Download, Server, Radio, RefreshCw, Laptop, ArrowRight, Power,
-  CopyCheck, Sliders, ShieldOff, HardDrive, Search, Info
+  CopyCheck, Sliders, ShieldOff, HardDrive, Search, Info, Cpu, Tags, History,
+  RotateCcw
 } from 'lucide-react'
 import { clsx } from 'clsx'
 import apiClient from '@/lib/apiClient'
@@ -73,6 +74,148 @@ export default function SettingsPage() {
   const handleTabClick = (tabLabel: string) => {
     setActiveTab(tabLabel)
     setSearchParams({ tab: tabLabel })
+  }
+
+  // AI Model tab — real retraining pipeline status, polled from ai-service via LogController.
+  interface ModelVersionMetrics {
+    accuracy: number
+    precision: number
+    recall: number
+    f1: number
+    trainSampleCount: number
+    testSampleCount: number
+    totalLabeledSampleCount: number
+    distinctClassesInTraining: number
+    stratified: boolean
+  }
+  interface ModelVersionEntry {
+    versionId: string
+    trainedAt: string
+    trigger: string
+    metrics: ModelVersionMetrics
+    deployed: boolean
+  }
+  const [modelStatus, setModelStatus] = useState<{
+    isTraining: boolean
+    usingRealTrainedModel: boolean
+    activeVersion: string | null
+    activeVersionMetrics: ModelVersionMetrics | null
+    lastTrainedAt: string | null
+    lastTrainLabelCount: number
+    versionHistory: ModelVersionEntry[]
+    minimumSamplesRequired: number
+    labelCountTrigger: number
+  } | null>(null)
+  const [retrainLoading, setRetrainLoading] = useState(false)
+  const [retrainMessage, setRetrainMessage] = useState<{ ok: boolean; message: string } | null>(null)
+  const [rollbackVersionLoading, setRollbackVersionLoading] = useState<string | null>(null)
+
+  const fetchModelStatus = async () => {
+    try {
+      const res = await apiClient.get('/api/logs/ai-model-status')
+      setModelStatus(res.data)
+    } catch (e) {
+      console.error('Failed to fetch AI model status:', e)
+    }
+  }
+
+  useEffect(() => {
+    if (activeTab !== 'AI Model') return
+    fetchModelStatus()
+    const interval = setInterval(fetchModelStatus, 5000)
+    return () => clearInterval(interval)
+  }, [activeTab])
+
+  const handleRetrainNow = async () => {
+    setRetrainLoading(true)
+    setRetrainMessage(null)
+    try {
+      const res = await apiClient.post('/api/logs/ai-retrain')
+      if (res.data?.status === 'already_training') {
+        setRetrainMessage({ ok: false, message: 'A training run is already in progress.' })
+      } else {
+        setRetrainMessage({ ok: true, message: 'Retraining started in the background — status below updates automatically.' })
+      }
+      await fetchModelStatus()
+    } catch (e: any) {
+      const status = e?.response?.status
+      if (status === 409) {
+        setRetrainMessage({ ok: false, message: 'A training run is already in progress.' })
+      } else {
+        setRetrainMessage({ ok: false, message: e?.response?.data?.error || e?.response?.data?.detail || 'Failed to start retraining.' })
+      }
+    } finally {
+      setRetrainLoading(false)
+    }
+  }
+
+  const handleRollback = async (versionId: string) => {
+    if (!window.confirm(`Roll back the live classifier to version ${versionId}? This immediately replaces the active model.`)) return
+    setRollbackVersionLoading(versionId)
+    setRetrainMessage(null)
+    try {
+      await apiClient.post('/api/logs/ai-model-rollback', { versionId })
+      setRetrainMessage({ ok: true, message: `Rolled back to version ${versionId}.` })
+      await fetchModelStatus()
+    } catch (e: any) {
+      setRetrainMessage({ ok: false, message: e?.response?.data?.error || e?.response?.data?.detail || 'Rollback failed.' })
+    } finally {
+      setRollbackVersionLoading(null)
+    }
+  }
+
+  // Log Categories tab — real per-service event counts + admin-configurable category mapping.
+  interface CategoryServiceRow {
+    serviceName: string
+    count: number
+    category: string
+  }
+  const [categoryCounts, setCategoryCounts] = useState<{
+    endpoint: number
+    network: number
+    application: number
+    uncategorized: number
+    totalEvents: number
+    services: CategoryServiceRow[]
+  } | null>(null)
+  const [categoryEdits, setCategoryEdits] = useState<Record<string, string>>({})
+  const [categorySaving, setCategorySaving] = useState(false)
+  const [categorySaveResult, setCategorySaveResult] = useState<{ ok: boolean; message: string } | null>(null)
+
+  const fetchCategoryCounts = async () => {
+    try {
+      const res = await apiClient.get('/api/logs/category-counts')
+      setCategoryCounts(res.data)
+    } catch (e) {
+      console.error('Failed to fetch log category counts:', e)
+    }
+  }
+
+  useEffect(() => {
+    if (activeTab !== 'Log Categories') return
+    fetchCategoryCounts()
+    const interval = setInterval(fetchCategoryCounts, 5000)
+    return () => clearInterval(interval)
+  }, [activeTab])
+
+  const handleSaveCategoryMappings = async () => {
+    const entries = Object.entries(categoryEdits)
+    if (entries.length === 0) return
+    setCategorySaving(true)
+    setCategorySaveResult(null)
+    try {
+      await apiClient.put('/api/logs/category-mappings', entries.map(([serviceName, category]) => ({
+        serviceName,
+        category: category === 'UNCATEGORIZED' ? '' : category
+      })))
+      setCategoryEdits({})
+      setCategorySaveResult({ ok: true, message: 'Category mappings saved.' })
+      await fetchCategoryCounts()
+    } catch (e: any) {
+      setCategorySaveResult({ ok: false, message: e?.response?.data?.error || 'Failed to save category mappings.' })
+    } finally {
+      setCategorySaving(false)
+    }
   }
 
   // Profile states — real backend-persisted profile (GET/PUT
@@ -1603,6 +1746,27 @@ export default function SettingsPage() {
           ))}
         </div>
 
+        <div className="space-y-2">
+          <span className="text-label text-text-muted uppercase block px-3">AI & Automation</span>
+          {[
+            { label: 'AI Model', icon: Cpu },
+            { label: 'Log Categories', icon: Tags }
+          ].map((tab, idx) => (
+            <button
+              key={idx}
+              onClick={() => handleTabClick(tab.label)}
+              className={clsx(
+                "w-full text-left px-3 py-2 rounded-lg text-small font-semibold transition-colors flex items-center gap-2 focus:outline-none",
+                activeTab === tab.label
+                  ? "text-accent bg-accent/5"
+                  : "text-text-muted hover:text-text-primary hover:bg-surface-3/40"
+              )}
+            >
+              <tab.icon className="w-3.5 h-3.5" /> {tab.label}
+            </button>
+          ))}
+        </div>
+
       </aside>
 
       {/* Main Settings Panel Area */}
@@ -1664,7 +1828,25 @@ export default function SettingsPage() {
               <p className="text-small text-text-muted mt-2">Connect cloud and network telemetry for ingestion, correlation, and alerting.</p>
             </div>
           )}
-          {!['Profile', 'Organization', 'License & Billing', 'Users & Groups', 'Roles & Permissions', 'Data Sources'].includes(activeTab) && (
+          {activeTab === 'AI Model' && (
+            <div>
+              <div className="text-small text-text-muted mb-2">
+                <span>Settings</span> <span className="text-text-muted">/</span> <span className="text-text-primary">AI Model</span>
+              </div>
+              <h2 className="text-h1 text-text-primary leading-none">AI Classifier Model</h2>
+              <p className="text-small text-text-muted mt-2">Real training status, evaluation metrics, version history, and rollback for the alert classification model.</p>
+            </div>
+          )}
+          {activeTab === 'Log Categories' && (
+            <div>
+              <div className="text-small text-text-muted mb-2">
+                <span>Settings</span> <span className="text-text-muted">/</span> <span className="text-text-primary">Log Categories</span>
+              </div>
+              <h2 className="text-h1 text-text-primary leading-none">Log Categorization</h2>
+              <p className="text-small text-text-muted mt-2">Map real ingested log services to Endpoint, Network, or Application, with live event counts.</p>
+            </div>
+          )}
+          {!['Profile', 'Organization', 'License & Billing', 'Users & Groups', 'Roles & Permissions', 'Data Sources', 'AI Model', 'Log Categories'].includes(activeTab) && (
             <div>
               <h2 className="text-h1 text-text-primary leading-none">Access & Integrations</h2>
               <p className="text-small text-text-muted mt-1">Manage API access tokens and connected third-party security tools.</p>
@@ -4170,6 +4352,270 @@ export default function SettingsPage() {
                   </div>
                 </form>
               )}
+            </div>
+
+          </div>
+        )}
+
+        {/* Tab: AI Model — real retraining pipeline status, manual trigger, version history, rollback */}
+        {activeTab === 'AI Model' && (
+          <div className="space-y-6 animate-fade-in">
+
+            {retrainMessage && (
+              <div className={clsx(
+                'p-4 rounded-xl text-small flex items-center justify-between shadow-sm border',
+                retrainMessage.ok ? 'bg-success/10 border-success/30 text-success' : 'bg-danger/10 border-danger/30 text-danger'
+              )}>
+                <div className="flex items-center gap-3">
+                  {retrainMessage.ok ? <CheckCircle2 className="w-5 h-5 shrink-0" /> : <ShieldAlert className="w-5 h-5 shrink-0" />}
+                  {retrainMessage.message}
+                </div>
+                <button onClick={() => setRetrainMessage(null)} className="hover:text-text-primary">
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            )}
+
+            {/* Status Card */}
+            <div className="card-mission p-5 space-y-5">
+              <div className="flex items-center justify-between border-b border-fire-border pb-3">
+                <div>
+                  <h3 className="text-h3 text-text-primary">Classifier Status</h3>
+                  <p className="text-small text-text-muted mt-1">Live status of the alert-classification model powering the AI SIEM pipeline.</p>
+                </div>
+                <button
+                  onClick={handleRetrainNow}
+                  disabled={!canWriteSettings || retrainLoading || modelStatus?.isTraining}
+                  title={!canWriteSettings ? "Your role doesn't have write access to Settings" : undefined}
+                  className="btn-fire py-2 px-4 text-small disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <RefreshCw className={clsx('w-3.5 h-3.5', (retrainLoading || modelStatus?.isTraining) && 'animate-spin')} />
+                  {modelStatus?.isTraining ? 'Training…' : 'Retrain Now'}
+                </button>
+              </div>
+
+              {!modelStatus ? (
+                <div className="text-small text-text-muted">Loading model status…</div>
+              ) : (
+                <>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div>
+                      <span className="text-label text-text-muted uppercase block mb-1">Model State</span>
+                      <span className={clsx('badge-mission', modelStatus.usingRealTrainedModel ? 'bg-success/10 text-success border-success/20' : 'bg-warning/10 text-warning border-warning/20')}>
+                        {modelStatus.usingRealTrainedModel ? 'Real-Trained' : 'Synthetic Bootstrap'}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-label text-text-muted uppercase block mb-1">Active Version</span>
+                      <span className="font-mono text-small text-text-secondary">{modelStatus.activeVersion || '—'}</span>
+                    </div>
+                    <div>
+                      <span className="text-label text-text-muted uppercase block mb-1">Last Trained</span>
+                      <span className="text-small text-text-secondary">{formatRelativeTime(modelStatus.lastTrainedAt)}</span>
+                    </div>
+                    <div>
+                      <span className="text-label text-text-muted uppercase block mb-1">Labels Used Last Run</span>
+                      <span className="text-small text-text-secondary">{modelStatus.lastTrainLabelCount}</span>
+                    </div>
+                  </div>
+
+                  {modelStatus.activeVersionMetrics ? (
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 pt-4 border-t border-fire-border">
+                      <div>
+                        <span className="text-label text-text-muted uppercase block mb-1">Accuracy</span>
+                        <span className="text-h3 text-text-primary">{(modelStatus.activeVersionMetrics.accuracy * 100).toFixed(1)}%</span>
+                      </div>
+                      <div>
+                        <span className="text-label text-text-muted uppercase block mb-1">Precision</span>
+                        <span className="text-h3 text-text-primary">{(modelStatus.activeVersionMetrics.precision * 100).toFixed(1)}%</span>
+                      </div>
+                      <div>
+                        <span className="text-label text-text-muted uppercase block mb-1">Recall</span>
+                        <span className="text-h3 text-text-primary">{(modelStatus.activeVersionMetrics.recall * 100).toFixed(1)}%</span>
+                      </div>
+                      <div>
+                        <span className="text-label text-text-muted uppercase block mb-1">F1 Score</span>
+                        <span className="text-h3 text-text-primary">{(modelStatus.activeVersionMetrics.f1 * 100).toFixed(1)}%</span>
+                      </div>
+                      <div className="col-span-2 md:col-span-4 text-small text-text-muted">
+                        Evaluated on a held-out test split of {modelStatus.activeVersionMetrics.testSampleCount} real analyst-labeled samples
+                        ({modelStatus.activeVersionMetrics.trainSampleCount} used for training, {modelStatus.activeVersionMetrics.totalLabeledSampleCount} total labeled,
+                        {' '}{modelStatus.activeVersionMetrics.distinctClassesInTraining} distinct classes{modelStatus.activeVersionMetrics.stratified ? ', stratified split' : ', non-stratified split (a class had only 1 sample)'}).
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="text-small text-text-muted pt-4 border-t border-fire-border">
+                      No real-trained version has been deployed yet — still running on the synthetic bootstrap classifier.
+                      Needs at least {modelStatus.minimumSamplesRequired} analyst-confirmed alert labels to train.
+                    </div>
+                  )}
+
+                  <div className="text-small text-text-muted pt-2">
+                    Retrains automatically every 24 hours, or after {modelStatus.labelCountTrigger} new analyst-confirmed labels — whichever comes first.
+                  </div>
+                </>
+              )}
+            </div>
+
+            {/* Version History */}
+            <div className="card-mission p-5 space-y-4">
+              <div className="flex items-center gap-2 border-b border-fire-border pb-3">
+                <History className="w-4 h-4 text-accent" />
+                <h3 className="text-h3 text-text-primary">Version History</h3>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="table-enterprise">
+                  <thead>
+                    <tr>
+                      <th>Version</th>
+                      <th>Trained</th>
+                      <th>Trigger</th>
+                      <th>Accuracy</th>
+                      <th>F1</th>
+                      <th>Status</th>
+                      <th className="text-right">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {(modelStatus?.versionHistory || []).map(v => (
+                      <tr key={v.versionId}>
+                        <td className="font-mono text-small text-text-secondary">{v.versionId}</td>
+                        <td>{formatRelativeTime(v.trainedAt)}</td>
+                        <td className="text-small text-text-muted">{v.trigger}</td>
+                        <td>{(v.metrics.accuracy * 100).toFixed(1)}%</td>
+                        <td>{(v.metrics.f1 * 100).toFixed(1)}%</td>
+                        <td>
+                          {v.deployed ? (
+                            <span className="badge-mission bg-success/10 text-success border-success/20">Active</span>
+                          ) : (
+                            <span className="badge-mission bg-surface-3 text-text-muted border-fire-border">Not Deployed</span>
+                          )}
+                        </td>
+                        <td className="text-right">
+                          {v.deployed ? (
+                            <span className="text-text-muted text-small">—</span>
+                          ) : (
+                            <button
+                              onClick={() => handleRollback(v.versionId)}
+                              disabled={!canWriteSettings || rollbackVersionLoading !== null}
+                              title={!canWriteSettings ? "Your role doesn't have write access to Settings" : undefined}
+                              className="text-accent hover:text-accent/80 font-semibold text-small transition-colors focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center gap-1"
+                            >
+                              <RotateCcw className={clsx('w-3 h-3', rollbackVersionLoading === v.versionId && 'animate-spin')} /> Rollback
+                            </button>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                    {(!modelStatus || modelStatus.versionHistory.length === 0) && (
+                      <tr>
+                        <td colSpan={7} className="py-12 text-center text-text-muted text-small">
+                          No training runs yet — trigger one manually or wait for the automated schedule.
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+          </div>
+        )}
+
+        {/* Tab: Log Categories — real per-service event counts + admin category mapping */}
+        {activeTab === 'Log Categories' && (
+          <div className="space-y-6 animate-fade-in">
+
+            {categorySaveResult && (
+              <div className={clsx(
+                'p-4 rounded-xl text-small flex items-center justify-between shadow-sm border',
+                categorySaveResult.ok ? 'bg-success/10 border-success/30 text-success' : 'bg-danger/10 border-danger/30 text-danger'
+              )}>
+                <div className="flex items-center gap-3">
+                  {categorySaveResult.ok ? <CheckCircle2 className="w-5 h-5 shrink-0" /> : <ShieldAlert className="w-5 h-5 shrink-0" />}
+                  {categorySaveResult.message}
+                </div>
+                <button onClick={() => setCategorySaveResult(null)} className="hover:text-text-primary">
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            )}
+
+            {/* Live Counts Summary */}
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+              {[
+                { label: 'Endpoint', value: categoryCounts?.endpoint },
+                { label: 'Network', value: categoryCounts?.network },
+                { label: 'Application', value: categoryCounts?.application },
+                { label: 'Uncategorized', value: categoryCounts?.uncategorized },
+                { label: 'Total Events', value: categoryCounts?.totalEvents },
+              ].map(kpi => (
+                <div key={kpi.label} className="card-mission p-4">
+                  <span className="text-label text-text-muted uppercase block mb-1">{kpi.label}</span>
+                  <span className="text-h2 text-text-primary">{kpi.value ?? '—'}</span>
+                </div>
+              ))}
+            </div>
+
+            {/* Service → Category Mapping */}
+            <div className="card-mission p-5 space-y-4">
+              <div className="flex items-center justify-between border-b border-fire-border pb-3">
+                <div>
+                  <h3 className="text-h3 text-text-primary">Service Mapping</h3>
+                  <p className="text-small text-text-muted mt-1">Every real log service seen in ingestion, with its live event count. Unmapped services stay Uncategorized until assigned.</p>
+                </div>
+                <button
+                  onClick={handleSaveCategoryMappings}
+                  disabled={!canWriteSettings || categorySaving || Object.keys(categoryEdits).length === 0}
+                  title={!canWriteSettings ? "Your role doesn't have write access to Settings" : undefined}
+                  className="btn-fire py-2 px-4 text-small disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <Save className="w-3.5 h-3.5" /> {categorySaving ? 'Saving…' : 'Save Changes'}
+                </button>
+              </div>
+
+              <div className="overflow-x-auto">
+                <table className="table-enterprise">
+                  <thead>
+                    <tr>
+                      <th>Service</th>
+                      <th>Live Event Count</th>
+                      <th>Category</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {(categoryCounts?.services || []).map(row => {
+                      const effectiveCategory = categoryEdits[row.serviceName] ?? row.category
+                      return (
+                        <tr key={row.serviceName}>
+                          <td className="font-mono text-small text-text-secondary">{row.serviceName}</td>
+                          <td>{row.count}</td>
+                          <td>
+                            <select
+                              value={effectiveCategory}
+                              disabled={!canWriteSettings}
+                              onChange={(e) => setCategoryEdits(prev => ({ ...prev, [row.serviceName]: e.target.value }))}
+                              className="input-field py-1.5 text-small w-44"
+                            >
+                              <option value="UNCATEGORIZED">Uncategorized</option>
+                              <option value="ENDPOINT">Endpoint</option>
+                              <option value="NETWORK">Network</option>
+                              <option value="APPLICATION">Application</option>
+                            </select>
+                          </td>
+                        </tr>
+                      )
+                    })}
+                    {(!categoryCounts || categoryCounts.services.length === 0) && (
+                      <tr>
+                        <td colSpan={3} className="py-12 text-center text-text-muted text-small">
+                          No log services seen yet — mappings will appear once ingestion produces real log documents.
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
             </div>
 
           </div>

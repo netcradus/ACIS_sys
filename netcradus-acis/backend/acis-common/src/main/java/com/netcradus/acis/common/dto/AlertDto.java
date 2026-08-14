@@ -23,4 +23,6 @@ public class AlertDto {
     private String rawEvent;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
+    private String confirmedCategory;
+    private LocalDateTime labeledAt;
 }

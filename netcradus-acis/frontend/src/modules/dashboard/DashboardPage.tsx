@@ -7,6 +7,7 @@ import { useEntityPivot } from '@/hooks/useEntityPivot'
 import KpiTile from '@/components/ui/KpiTile'
 import { ResponsiveContainer, AreaChart, Area, PieChart, Pie, Cell, Tooltip } from 'recharts'
 import { useChartColors } from '@/hooks/useChartColors'
+import { Zap, PauseCircle } from 'lucide-react'
 
 interface DashboardStats {
   totalAlerts: number
@@ -43,11 +44,21 @@ interface RedTeamExecution {
   completedAt: string | null
 }
 
-function simulationCategory(name: string): 'phishing' | 'lateral' | 'other' {
-  const n = name.toLowerCase()
-  if (n.includes('phishing')) return 'phishing'
-  if (n.includes('lateral')) return 'lateral'
-  return 'other'
+interface SoarPlaybook {
+  id: string
+  name: string
+  enabled: boolean
+  successCount: number
+  runCount: number
+  lastRunAt: string | null
+}
+
+interface SoarExecution {
+  id: string
+  playbookId: string
+  status: string
+  startedAt: string
+  completedAt: string | null
 }
 
 export default function DashboardPage() {
@@ -125,6 +136,11 @@ export default function DashboardPage() {
   const [activeExecutionId, setActiveExecutionId] = useState<string | null>(null)
   const [loggedStages, setLoggedStages] = useState<number>(0)
 
+  // Real SOAR playbooks/executions for the Layer 2 panel
+  const [soarPlaybooks, setSoarPlaybooks] = useState<SoarPlaybook[]>([])
+  const [soarExecutions, setSoarExecutions] = useState<SoarExecution[]>([])
+  const [actionTab, setActionTab] = useState<'suggested' | 'auto'>('suggested')
+
   // Ingest metric stats
   const [ingestStats, setIngestStats] = useState<{ lagSeriesMs: number[]; cpuUsagePercent: number } | null>(null)
   const [teamMembers, setTeamMembers] = useState<TenantMember[]>([])
@@ -176,6 +192,39 @@ export default function DashboardPage() {
     }
     fetchIngestStats()
     const interval = setInterval(fetchIngestStats, 5000)
+    return () => clearInterval(interval)
+  }, [])
+
+  // Real AI classifier retraining status — replaces the old hardcoded
+  // "MONITORING" chip text.
+  const [modelStatus, setModelStatus] = useState<{ isTraining: boolean; usingRealTrainedModel: boolean } | null>(null)
+  useEffect(() => {
+    const fetchModelStatus = async () => {
+      try {
+        const res = await apiClient.get('/api/logs/ai-model-status')
+        setModelStatus(res.data)
+      } catch (e) {
+        console.error('Failed to fetch AI model status:', e)
+      }
+    }
+    fetchModelStatus()
+    const interval = setInterval(fetchModelStatus, 10000)
+    return () => clearInterval(interval)
+  }, [])
+
+  // Real per-category (Endpoint/Network/Application) live log event counts.
+  const [categoryCounts, setCategoryCounts] = useState<{ endpoint: number; network: number; application: number } | null>(null)
+  useEffect(() => {
+    const fetchCategoryCounts = async () => {
+      try {
+        const res = await apiClient.get('/api/logs/category-counts')
+        setCategoryCounts(res.data)
+      } catch (e) {
+        console.error('Failed to fetch log category counts:', e)
+      }
+    }
+    fetchCategoryCounts()
+    const interval = setInterval(fetchCategoryCounts, 5000)
     return () => clearInterval(interval)
   }, [])
 
@@ -240,14 +289,35 @@ export default function DashboardPage() {
     }
   }
 
+  const fetchSoarData = async () => {
+    try {
+      const [playbooksRes, executionsRes] = await Promise.all([
+        apiClient.get<SoarPlaybook[]>('/api/soar/playbooks'),
+        apiClient.get<SoarExecution[]>('/api/soar/executions'),
+      ])
+      setSoarPlaybooks(playbooksRes.data || [])
+      setSoarExecutions(executionsRes.data || [])
+    } catch (error) {
+      console.error('Failed to fetch SOAR data:', error)
+    }
+  }
+
   useEffect(() => {
     fetchData()
     if (canReadSoarPlaybooks) {
       fetchRedTeamSimulations()
+      fetchSoarData()
+      const soarInterval = setInterval(fetchSoarData, 8000)
+      const dashSub = wsClient.subscribe('/topic/dashboard', () => fetchData())
+      const alertSub = wsClient.subscribe('/topic/alerts', () => fetchData())
+      return () => {
+        clearInterval(soarInterval)
+        dashSub.then(s => s?.unsubscribe())
+        alertSub.then(s => s?.unsubscribe())
+      }
     }
     const dashSub = wsClient.subscribe('/topic/dashboard', () => fetchData())
     const alertSub = wsClient.subscribe('/topic/alerts', () => fetchData())
-
     return () => {
       dashSub.then(s => s?.unsubscribe())
       alertSub.then(s => s?.unsubscribe())
@@ -258,6 +328,29 @@ export default function DashboardPage() {
     const time = new Date().toLocaleTimeString()
     setSimLogs(prev => [`[${time}] [${sender}] ${text}`, ...prev])
   }
+
+  // Real SOAR data for the Layer 2 panel - "suggested" = enabled, never-run
+  // playbooks; "auto" = playbooks with real prior executions, most-recent first.
+  const suggestedPlaybooks = useMemo(
+    () => soarPlaybooks.filter(p => p.enabled && p.runCount === 0).slice(0, 5),
+    [soarPlaybooks]
+  )
+  const autoActionPlaybooks = useMemo(
+    () => soarPlaybooks
+      .filter(p => p.runCount > 0)
+      .sort((a, b) => new Date(b.lastRunAt || 0).getTime() - new Date(a.lastRunAt || 0).getTime())
+      .slice(0, 5),
+    [soarPlaybooks]
+  )
+
+  // Real average remediation duration across the most recent completed executions.
+  const avgRemediationLag = useMemo(() => {
+    const completed = soarExecutions.filter(e => e.completedAt).slice(0, 20)
+    if (completed.length === 0) return null
+    const totalMs = completed.reduce((sum, e) => sum + (new Date(e.completedAt!).getTime() - new Date(e.startedAt).getTime()), 0)
+    const avgSeconds = totalMs / completed.length / 1000
+    return avgSeconds < 60 ? `~${Math.round(avgSeconds)}s` : `~${Math.round(avgSeconds / 60)}m`
+  }, [soarExecutions])
 
   function parseStepLogs(stepLogsJson: string): { stage: number; name: string; technique: string | null }[] {
     try {
@@ -361,10 +454,15 @@ export default function DashboardPage() {
     return () => { cancelled = true; clearInterval(interval) }
   }, [simState, activeExecutionId, loggedStages, activeSimulation])
 
-  // Generate 38 telemetry bar heights
-  const generatedBars = useMemo(() => {
-    return Array.from({ length: 38 }, (_, i) => 15 + Math.random() * 40 + (i > 30 ? 20 : 0))
-  }, [])
+  // Real ingest-pipeline lag samples (IngestMetricsService's rolling window),
+  // scaled to bar heights. No fabricated fallback - an empty/short series
+  // just renders fewer/shorter bars rather than being padded with fake ones.
+  const ingestBars = useMemo(() => {
+    const series = ingestStats?.lagSeriesMs ?? []
+    if (series.length === 0) return []
+    const maxLag = Math.max(...series, 1)
+    return series.map(v => 8 + (v / maxLag) * 47)
+  }, [ingestStats])
 
   // Static Sparklines points
   const sparklinesPoints = useMemo(() => [
@@ -539,23 +637,27 @@ export default function DashboardPage() {
               </div>
 
               <div className="telemetry-box">
-                <div className="telemetry-row"><span>Ingestion Telemetry</span></div>
-                <div className="telemetry-row"><span>Endpoint Log</span><span className="val">v07750</span></div>
-                <div className="telemetry-row"><span>Network Log</span><span className="val">v07750</span></div>
-                <div className="telemetry-row"><span>Application Log</span><span className="val">v07755</span></div>
-                <div className="bars">
-                  {generatedBars.map((h, i) => (
-                    <div key={i} style={{ height: `${h}px` }} />
-                  ))}
-                </div>
+                <div className="telemetry-row"><span>Ingestion Telemetry</span><span className="val">{ingestStats ? `${cpuUsage}% CPU` : '—'}</span></div>
+                <div className="telemetry-row"><span>Endpoint Logs</span><span className="val">{categoryCounts ? categoryCounts.endpoint.toLocaleString() : '—'}</span></div>
+                <div className="telemetry-row"><span>Network Logs</span><span className="val">{categoryCounts ? categoryCounts.network.toLocaleString() : '—'}</span></div>
+                <div className="telemetry-row"><span>Application Logs</span><span className="val">{categoryCounts ? categoryCounts.application.toLocaleString() : '—'}</span></div>
+                {ingestBars.length === 0 ? (
+                  <div className="text-label text-text-muted" style={{ padding: '8px 0' }}>No ingest lag samples yet.</div>
+                ) : (
+                  <div className="bars">
+                    {ingestBars.map((h, i) => (
+                      <div key={i} style={{ height: `${h}px` }} />
+                    ))}
+                  </div>
+                )}
               </div>
 
               <div className="pipeline">
-                <div className="pipe-node">Auth / Parse</div>
+                <div className={`pipe-node ${simState === 'simulating' && simStep === 1 ? 'active' : ''}`}>Auth / Parse</div>
                 <div className="pipe-arrow">→</div>
-                <div className="pipe-node">Correlation Gen</div>
+                <div className={`pipe-node ${simState === 'simulating' && simStep === 3 ? 'active' : ''}`}>Correlation Gen</div>
                 <div className="pipe-arrow">→</div>
-                <div className="pipe-node">Classify</div>
+                <div className={`pipe-node ${simState === 'simulating' && simStep === 2 ? 'active' : ''}`}>Classify</div>
               </div>
 
               <div className="status-pair">
@@ -563,9 +665,9 @@ export default function DashboardPage() {
                   <div className="l">LINEAGE PROJECTION</div>
                   {simState === 'simulating' ? 'STREAMING' : 'ACTIVE'}
                 </div>
-                <div className="status-chip amber">
+                <div className={`status-chip ${modelStatus?.isTraining ? 'amber' : (modelStatus?.usingRealTrainedModel ? 'green' : 'amber')}`}>
                   <div className="l">MODEL RETRAINING</div>
-                  MONITORING
+                  {!modelStatus ? '—' : modelStatus.isTraining ? 'TRAINING' : modelStatus.usingRealTrainedModel ? 'MONITORING' : 'BOOTSTRAP'}
                 </div>
               </div>
 
@@ -573,17 +675,19 @@ export default function DashboardPage() {
                 <div style={{ flex: 1 }}>
                   <div className="mini-flow-title">INGEST LAB — IDS</div>
                   <div className="flow-diagram">
-                    <div className="flow-node">Firewall</div>
-                    <div className="flow-node">Raw Signal</div>
-                    <div className="flow-node">Flow A</div>
-                    <div className="flow-node">Anomalies</div>
-                    <div className="flow-node">Rewind</div>
-                    <div className="flow-node">Flow B</div>
+                    {['Firewall', 'Raw Signal', 'Flow A', 'Anomalies', 'Rewind', 'Flow B'].map((label, idx) => (
+                      <div
+                        key={label}
+                        className={`flow-node ${simState === 'simulating' && idx === Math.min(5, simStep - 1) ? 'active' : ''}`}
+                      >
+                        {label}
+                      </div>
+                    ))}
                   </div>
                 </div>
                 <div className="ai-agent-box">
                   <div className="ring">
-                    <span>96%</span>
+                    <span>{aiRadarAxes.hasData ? `${Math.round(aiRadarAxes.successRate)}%` : '—'}</span>
                   </div>
                   <div className="t">AI Agent</div>
                 </div>
@@ -601,36 +705,34 @@ export default function DashboardPage() {
               </div>
 
               <div className="action-tabs">
-                <span className="action-tab on">Suggested Actions</span>
-                <span className="action-tab">Auto Actions</span>
+                <span className={`action-tab ${actionTab === 'suggested' ? 'on' : ''}`} onClick={() => setActionTab('suggested')} style={{ cursor: 'pointer' }}>Suggested Actions</span>
+                <span className={`action-tab ${actionTab === 'auto' ? 'on' : ''}`} onClick={() => setActionTab('auto')} style={{ cursor: 'pointer' }}>Auto Actions</span>
               </div>
 
               <div className="action-bar">PLAYBOOK · AUTOMATIC ACTIONS</div>
 
               <div className="action-list">
-                <div className={`action-item ${simStep === 3 && activeSimulation && simulationCategory(activeSimulation.name) === 'other' ? 'active' : ''}`}>
-                  <span className="ai">⛔</span>Block IP Range
-                  <span className="chev-r">›</span>
-                </div>
-                <div className={`action-item ${simStep === 3 && activeSimulation && simulationCategory(activeSimulation.name) === 'lateral' ? 'active' : ''}`}>
-                  <span className="ai">▣</span>Isolate Endpoint Node
-                  <span className="chev-r">›</span>
-                </div>
-                <div className={`action-item ${simStep === 3 && activeSimulation && simulationCategory(activeSimulation.name) === 'phishing' ? 'active' : ''}`}>
-                  <span className="ai">◈</span>Execute Containment Script
-                  <span className="chev-r">›</span>
-                </div>
-                <div className="action-item">
-                  <span className="ai">☣</span>Kill Malicious Process
-                  <span className="chev-r">›</span>
-                </div>
-                <div className="action-item">
-                  <span className="ai">↺</span>Remediation Log
-                  <span className="chev-r">›</span>
-                </div>
+                {(actionTab === 'suggested' ? suggestedPlaybooks : autoActionPlaybooks).length === 0 ? (
+                  <div className="text-small text-text-muted" style={{ padding: '16px 0', textAlign: 'center' }}>
+                    {actionTab === 'suggested' ? 'No enabled playbooks awaiting a first run.' : 'No playbooks have executed yet.'}
+                  </div>
+                ) : (
+                  (actionTab === 'suggested' ? suggestedPlaybooks : autoActionPlaybooks).map(pb => (
+                    <div
+                      key={pb.id}
+                      className="action-item"
+                      onClick={() => navigate('/dashboard/soar')}
+                      style={{ cursor: 'pointer' }}
+                    >
+                      <span className="ai">{pb.enabled ? <Zap size={13} /> : <PauseCircle size={13} />}</span>
+                      {pb.name}
+                      <span className="chev-r">›</span>
+                    </div>
+                  ))
+                )}
                 <div className="action-item count">
                   Remediation Lag
-                  <span className="count-val">&lt; 10s</span>
+                  <span className="count-val">{avgRemediationLag ?? '—'}</span>
                 </div>
               </div>
             </div>
@@ -681,58 +783,26 @@ export default function DashboardPage() {
                     );
                   })}
 
-                  {/* Heat Blobs */}
-                  {[
-                    { x: 170, y: 160, c: '#ef4444', rad: 26 },
-                    { x: 210, y: 150, c: '#f59e0b', rad: 20 },
-                    { x: 190, y: 180, c: '#22c55e', rad: 16 },
-                    { x: 150, y: 200, c: '#a855f7', rad: 18 },
-                    { x: 230, y: 190, c: '#3b82f6', rad: 14 },
-                    { x: 175, y: 220, c: '#ec4899', rad: 15 },
-                    { x: 220, y: 230, c: '#ef4444', rad: 18 },
-                    { x: 140, y: 150, c: '#22d3ee', rad: 12 }
-                  ].map((pt, idx) => (
-                    <g key={`heat-${idx}`}>
-                      <defs>
-                        <radialGradient id={`g-heat-${idx}`} cx="50%" cy="50%" r="50%">
-                          <stop offset="0%" stopColor={pt.c} stopOpacity="var(--soc-globe-heat-opacity)" />
-                          <stop offset="100%" stopColor={pt.c} stopOpacity={0} />
-                        </radialGradient>
-                      </defs>
-                      <circle cx={pt.x} cy={pt.y} r={pt.rad} fill={`url(#g-heat-${idx})`} className={simStep === 1 ? 'animate-ping' : ''} style={{ animationDuration: '3s' }} />
-                    </g>
-                  ))}
-
-                  {/* Connection Arcs */}
-                  {[
-                    { x1: 170, y1: 160, x2: 210, y2: 150 },
-                    { x1: 190, y1: 180, x2: 150, y2: 200 },
-                    { x1: 210, y1: 150, x2: 230, y2: 190 },
-                    { x1: 175, y1: 220, x2: 220, y2: 230 }
-                  ].map((arc, idx) => {
-                    const mx = (arc.x1 + arc.x2) / 2;
-                    const my = (arc.y1 + arc.y2) / 2 - 24;
-                    return (
-                      <path
-                        key={`arc-${idx}`}
-                        d={`M${arc.x1},${arc.y1} Q${mx},${my} ${arc.x2},${arc.y2}`}
-                        fill="none"
-                        stroke="var(--soc-globe-arc-stroke)"
-                        strokeWidth={1}
-                      />
-                    );
-                  })}
                 </svg>
-                
-                <div className="geo-tag" style={{ top: '28%', left: '48%' }}>US-01-A</div>
-                <div className="geo-tag" style={{ top: '44%', left: '62%' }}>CN-A-04</div>
-                <div className="geo-tag" style={{ top: '38%', left: '22%' }}>US-01-B</div>
-                <div className="geo-tag" style={{ top: '62%', left: '38%' }}>CN-A-06</div>
+
+                {/* Real active-campaign readout - no fabricated geo data exists
+                    for these executions, so this shows real execution state
+                    instead of invented location pins. */}
+                <div className="geo-tag" style={{ top: '46%', left: '50%', transform: 'translate(-50%, -50%)', textAlign: 'center' }}>
+                  {simState === 'simulating' && activeSimulation ? (
+                    <>
+                      <div>{activeSimulation.name}</div>
+                      <div style={{ fontSize: '10px', opacity: 0.75, marginTop: '2px' }}>{loggedStages} step{loggedStages === 1 ? '' : 's'} logged</div>
+                    </>
+                  ) : (
+                    <div>Standing by</div>
+                  )}
+                </div>
               </div>
 
               <div className="globe-footer">
-                <span>COIP STATUS: <span className="status">NOMINAL</span></span>
-                <span>v2.1.07</span>
+                <span>STATUS: <span className="status">{simState === 'simulating' ? 'RUNNING' : 'IDLE'}</span></span>
+                <span>{redTeamSimulations.length} campaign{redTeamSimulations.length === 1 ? '' : 's'} configured</span>
               </div>
             </div>
 

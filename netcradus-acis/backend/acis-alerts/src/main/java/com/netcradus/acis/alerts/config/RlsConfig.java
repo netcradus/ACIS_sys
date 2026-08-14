@@ -34,6 +34,31 @@ public class RlsConfig {
     @Bean
     @Order(1000)
     public CommandLineRunner enableRowLevelSecurity(JdbcTemplate jdbcTemplate) {
-        return args -> RlsBootstrapper.apply(jdbcTemplate, "alerts", "incidents");
+        return args -> RlsBootstrapper.apply(jdbcTemplate, "incidents");
+    }
+
+    /**
+     * alerts needs the same non-standard policy as acis-soar's vendor poller
+     * tables: GET /api/alerts/labeled (see AlertController) must read
+     * analyst-confirmed labels across every tenant to train the one shared
+     * classifier, with no per-request tenant context of its own — gated by
+     * app.system_poller, the same GUC only that kind of internal system read
+     * ever sets (see TenantContext.setSystemPollerInProgress and
+     * TenantAwareDataSource). Every write still goes through WITH CHECK
+     * unmodified, since normal request-scoped writes always carry the real
+     * tenant id.
+     */
+    @Bean
+    @Order(1001)
+    public CommandLineRunner enableAlertsRowLevelSecurity(JdbcTemplate jdbcTemplate) {
+        return args -> {
+            jdbcTemplate.execute("ALTER TABLE alerts ENABLE ROW LEVEL SECURITY");
+            jdbcTemplate.execute("ALTER TABLE alerts FORCE ROW LEVEL SECURITY");
+            jdbcTemplate.execute("DROP POLICY IF EXISTS tenant_isolation ON alerts");
+            jdbcTemplate.execute("CREATE POLICY tenant_isolation ON alerts" +
+                    " USING (tenant_id::text = current_setting('app.current_tenant_id', true)" +
+                    "        OR current_setting('app.system_poller', true) = 'true')" +
+                    " WITH CHECK (tenant_id::text = current_setting('app.current_tenant_id', true))");
+        };
     }
 }

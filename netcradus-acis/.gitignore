@@ -12,3 +12,8 @@ build/
 # Kiro credentials — never commit. Real content is dropped in locally by the
 # operator, referenced by docker-compose's kiro-gateway volume mount.
 secrets/
+
+# ai-service's local classifier version store — runtime state (trained model
+# files + manifest.json), same role as the ai_models_data Docker volume in
+# prod. Never source-controlled.
+ai-service/models/

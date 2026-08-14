@@ -64,6 +64,8 @@ public class AlertService {
                 .rawEvent(alert.getRawEvent())
                 .createdAt(alert.getCreatedAt())
                 .updatedAt(alert.getUpdatedAt())
+                .confirmedCategory(alert.getConfirmedCategory())
+                .labeledAt(alert.getLabeledAt())
                 .build();
     }
 }

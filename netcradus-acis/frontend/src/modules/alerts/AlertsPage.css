@@ -787,6 +787,16 @@
   opacity: 0.9 !important;
 }
 
+.alerts-page .details-drawer .bg-green {
+  background: linear-gradient(90deg, #22c55e, #16a34a) !important;
+  box-shadow: 0 4px 12px rgba(34, 197, 94, 0.25) !important;
+  border: none !important;
+}
+
+.alerts-page .details-drawer .bg-green:hover {
+  opacity: 0.9 !important;
+}
+
 .alerts-page .details-drawer .select-pill {
   background: var(--input-bg) !important;
   border: 1px solid var(--border-soft) !important;

@@ -22,7 +22,21 @@ interface Alert {
   rawEvent: string | null
   createdAt: string
   updatedAt: string
+  confirmedCategory: string | null
+  labeledAt: string | null
 }
+
+// Real classifier categories the AI model predicts and trains on — kept in
+// sync manually with ai-service's CLASSES list and AlertController's
+// VALID_CATEGORIES (separate Python/Java processes, no shared enum).
+const ALERT_CATEGORIES = [
+  { value: 'malware', label: 'Malware' },
+  { value: 'exfiltration', label: 'Exfiltration' },
+  { value: 'lateral_movement', label: 'Lateral Movement' },
+  { value: 'phishing', label: 'Phishing' },
+  { value: 'privilege_escalation', label: 'Privilege Escalation' },
+  { value: 'benign', label: 'Benign' },
+]
 
 interface Incident {
   id: string
@@ -188,6 +202,40 @@ export default function AlertsPage() {
       }
     } catch (e) {
       console.error('Failed to update status:', e)
+    }
+  }
+
+  const [categorySelection, setCategorySelection] = useState('')
+  const [categoryConfirming, setCategoryConfirming] = useState(false)
+  const [categoryConfirmError, setCategoryConfirmError] = useState<string | null>(null)
+
+  useEffect(() => {
+    setCategorySelection(selectedAlert?.confirmedCategory || '')
+    setCategoryConfirmError(null)
+  }, [selectedAlert?.id])
+
+  // Real ground-truth label for the AI retraining pipeline — analyst
+  // confirms the true category as they resolve the alert. Also marks the
+  // alert MITIGATED in the same request, since confirming a category is
+  // part of closing it out, not a separate step.
+  const handleConfirmCategory = async (alertId: string) => {
+    if (!categorySelection) return
+    setCategoryConfirming(true)
+    setCategoryConfirmError(null)
+    try {
+      const res = await apiClient.put(`/api/alerts/${alertId}`, {
+        confirmedCategory: categorySelection,
+        status: 'MITIGATED',
+      })
+      if (res.data) {
+        setAlerts(prev => prev.map(a => a.id === alertId ? { ...a, confirmedCategory: categorySelection, status: 'MITIGATED' } : a))
+        setSelectedAlert(prev => prev && prev.id === alertId ? { ...prev, confirmedCategory: categorySelection, status: 'MITIGATED' } : prev)
+      }
+    } catch (e: any) {
+      console.error('Failed to confirm category:', e)
+      setCategoryConfirmError(e?.response?.data?.error || 'Failed to confirm category.')
+    } finally {
+      setCategoryConfirming(false)
     }
   }
 
@@ -750,6 +798,43 @@ export default function AlertsPage() {
                     <Zap className="w-3.5 h-3.5 text-blue" /> Run SOAR Playbook
                   </button>
                 </div>
+              </div>
+
+              {/* Category Confirmation — real ground-truth label for AI retraining */}
+              <div className="border-t border-border-soft pt-4 space-y-2">
+                <span className="text-label uppercase text-text-muted block">
+                  Confirm Category {selectedAlert.confirmedCategory && (
+                    <span className="text-green normal-case font-normal">
+                      · labeled {selectedAlert.labeledAt ? new Date(selectedAlert.labeledAt).toLocaleString() : ''}
+                    </span>
+                  )}
+                </span>
+                <p className="text-small text-text-muted">
+                  Confirming the real category resolves this alert and trains the AI classifier's next retraining cycle.
+                </p>
+                <div className="flex items-center gap-2">
+                  <select
+                    value={categorySelection}
+                    onChange={(e) => setCategorySelection(e.target.value)}
+                    disabled={!canWrite || categoryConfirming}
+                    className="select-pill flex-1"
+                  >
+                    <option value="">Select category…</option>
+                    {ALERT_CATEGORIES.map(c => (
+                      <option key={c.value} value={c.value}>{c.label}</option>
+                    ))}
+                  </select>
+                  <button
+                    onClick={() => handleConfirmCategory(selectedAlert.id)}
+                    disabled={!canWrite || categoryConfirming || !categorySelection}
+                    className="py-2.5 px-4 text-center font-semibold rounded-lg text-small transition-colors border bg-green text-white border-transparent disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+                  >
+                    {categoryConfirming ? 'Saving…' : 'Confirm & Resolve'}
+                  </button>
+                </div>
+                {categoryConfirmError && (
+                  <div className="text-small text-red">{categoryConfirmError}</div>
+                )}
               </div>
             </div>
           )}

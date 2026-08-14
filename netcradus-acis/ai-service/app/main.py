@@ -3,7 +3,7 @@ import logging
 import time
 import uuid
 from contextlib import asynccontextmanager
-from fastapi import FastAPI, Header, HTTPException
+from fastapi import BackgroundTasks, FastAPI, Header, HTTPException
 from fastapi.responses import JSONResponse, StreamingResponse
 from pydantic import BaseModel
 from sentence_transformers import SentenceTransformer
@@ -16,6 +16,7 @@ from .ai_provider import AIProviderError, AllProvidersFailedError, NoProviderCon
 from .providers import PROVIDER_CHAIN
 from .llm_utils import parse_json_object
 from .metrics import ai_metrics
+from . import training
 
 # Setup logger
 logging.basicConfig(level=logging.INFO)
@@ -60,7 +61,7 @@ async def lifespan(app: FastAPI):
     app.state.iforest = IsolationForest(contamination=0.1, random_state=42)
     app.state.iforest.fit(BASELINE_FEATURE_ROWS)
 
-    logger.info("Instantiating and fitting Threat Classifier on synthetic demo data...")
+    logger.info("Instantiating and fitting Threat Classifier on synthetic bootstrap data (replaced by a real-trained model below if one exists on disk, or once retraining accumulates enough real labels)...")
     if XGBOOST_AVAILABLE:
         app.state.classifier = XGBClassifier(n_estimators=50, max_depth=3, eval_metric="mlogloss")
     else:
@@ -69,6 +70,13 @@ async def lifespan(app: FastAPI):
         [row for row, _ in CLASSIFIER_TRAINING_ROWS],
         [CLASSES.index(label) for _, label in CLASSIFIER_TRAINING_ROWS],
     )
+    app.state.classifier_version = None
+    app.state.classifier_is_real_trained = False
+
+    restored = training.restore_active_model_on_startup(app.state)
+    if not restored:
+        logger.info("No real-trained model on disk yet - serving the synthetic bootstrap classifier until enough real labels accumulate.")
+    training.start_scheduler(app.state)
 
     logger.info("Starting gRPC server in background...")
     grpc_thread = threading.Thread(target=grpc_server.serve_grpc, daemon=True)
@@ -173,59 +181,14 @@ def _unavailable_response(request_id: str, feature: str, error: Exception, start
         headers={"X-ACIS-AI-Mode": "unavailable"},
     )
 
-# 5-dim feature vector shared by the anomaly + classifier models:
-# [bytes_out_norm, failed_logins, has_admin_signal, has_lolbin_signal, severity_weight]
-FEATURE_NAMES = ["bytes_out", "failed_logins", "admin_signal", "lolbin_signal", "severity_weight"]
-SEVERITY_WEIGHTS = {"critical": 4, "high": 3, "medium": 2, "low": 1, "info": 0}
-
-def extract_features(event: dict) -> List[float]:
-    action = str(event.get("action") or "").lower()
-    raw = str(event.get("raw") or event.get("message") or "").lower()
-    severity = str(event.get("severity") or "").lower()
-    text = f"{action} {raw}"
-
-    def to_float(value, default=0.0):
-        try:
-            return float(value)
-        except (TypeError, ValueError):
-            return default
-
-    return [
-        to_float(event.get("bytes_out") or event.get("outbound_bytes_mb"), 0.0),
-        to_float(event.get("failed_logins") or event.get("failed_auth_count"), 0.0),
-        1.0 if ("admin" in text or event.get("is_admin_account")) else 0.0,
-        1.0 if any(k in text for k in ("powershell", "certutil", "lolbin", "mimikatz")) else 0.0,
-        float(SEVERITY_WEIGHTS.get(severity, 0)),
-    ]
-
-BASELINE_FEATURE_ROWS = [
-    [5, 0, 0, 0, 0],
-    [10, 0, 0, 0, 1],
-    [20, 1, 0, 0, 1],
-    [8000, 5, 1, 1, 4],
-]
-
-CLASSES = ["malware", "exfiltration", "lateral_movement", "phishing", "privilege_escalation", "benign"]
-
-# Small synthetic, clearly-labeled demo dataset used only because no real
-# labeled training data exists yet — the classifier is genuinely fit on
-# this and genuinely scores whatever features are extracted from the
-# request, it just isn't backed by production telemetry.
-CLASSIFIER_TRAINING_ROWS = [
-    ([0, 0, 0, 0, 0], "benign"),
-    ([15, 0, 0, 0, 0], "benign"),
-    ([30, 1, 0, 0, 1], "benign"),
-    ([500, 0, 0, 1, 3], "malware"),
-    ([200, 0, 0, 1, 4], "malware"),
-    ([9000, 0, 0, 0, 2], "exfiltration"),
-    ([12000, 1, 0, 0, 3], "exfiltration"),
-    ([50, 8, 0, 0, 3], "lateral_movement"),
-    ([100, 12, 1, 0, 3], "lateral_movement"),
-    ([20, 4, 0, 0, 2], "phishing"),
-    ([40, 2, 0, 0, 3], "phishing"),
-    ([60, 0, 1, 1, 4], "privilege_escalation"),
-    ([90, 1, 1, 1, 4], "privilege_escalation"),
-]
+from .features import (
+    FEATURE_NAMES,
+    SEVERITY_WEIGHTS,
+    extract_features,
+    BASELINE_FEATURE_ROWS,
+    CLASSES,
+    CLASSIFIER_TRAINING_ROWS,
+)
 
 # ------------------------------------------------------------------------------------------------
 # Internal REST endpoints (Callable by Spring Boot only, not Gateway - User Constraint 6)
@@ -412,7 +375,39 @@ async def classify_threat(event: dict):
         "predicted_class": predicted,
         "confidence": prob_map[predicted],
         "probabilities": prob_map,
+        "model_real_trained": bool(getattr(app.state, "classifier_is_real_trained", False)),
+        "model_version": getattr(app.state, "classifier_version", None),
     }
+
+class RollbackRequest(BaseModel):
+    version_id: str
+
+@app.get("/ai/model-status")
+async def model_status():
+    """Real-time retraining pipeline status - current active version (or
+    'still on synthetic bootstrap' if no real model has ever been deployed),
+    its real held-out evaluation metrics, whether a training run is in
+    progress right now, and the real version history."""
+    return training.get_status(app.state)
+
+@app.post("/ai/retrain")
+async def trigger_retrain(background_tasks: BackgroundTasks):
+    """Manual retrain trigger. Runs in the background (a real train/test
+    cycle against real labeled data can take real seconds-to-minutes) -
+    poll /ai/model-status for progress and the result."""
+    if training.is_training():
+        return JSONResponse(status_code=409, content={"status": "already_training"})
+    background_tasks.add_task(training.run_training_cycle, app.state, "manual")
+    return {"status": "started"}
+
+@app.post("/ai/model/rollback")
+async def model_rollback(request: RollbackRequest):
+    result = training.rollback_to(app.state, request.version_id)
+    if result["status"] == "not_found":
+        raise HTTPException(status_code=404, detail=f"No version {request.version_id} in the manifest")
+    if result["status"] == "model_file_missing":
+        raise HTTPException(status_code=410, detail=f"Version {request.version_id}'s model file is missing from disk")
+    return result
 
 @app.get("/ai/metrics")
 async def ai_metrics_snapshot():

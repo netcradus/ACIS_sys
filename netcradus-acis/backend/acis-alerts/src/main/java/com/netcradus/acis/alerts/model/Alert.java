@@ -40,6 +40,17 @@ public class Alert {
     @Column(columnDefinition = "jsonb")
     private String rawEvent;
 
+    /**
+     * Real analyst-confirmed classification (malware, exfiltration,
+     * lateral_movement, phishing, privilege_escalation, benign) — set only
+     * when a human reviewer explicitly confirms it while resolving the
+     * alert, never inferred/guessed. This is the actual ground truth the
+     * classifier retraining pipeline trains on; labeledAt lets the training
+     * job find only samples confirmed since the last training run.
+     */
+    private String confirmedCategory;
+    private LocalDateTime labeledAt;
+
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 

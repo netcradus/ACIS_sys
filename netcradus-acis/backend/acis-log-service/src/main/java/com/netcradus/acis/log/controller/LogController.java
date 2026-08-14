@@ -1,6 +1,8 @@
 package com.netcradus.acis.log.controller;
 
+import com.netcradus.acis.log.model.LogCategoryMapping;
 import com.netcradus.acis.log.model.LogDocument;
+import com.netcradus.acis.log.repository.LogCategoryMappingRepository;
 import com.netcradus.acis.log.repository.LogRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
@@ -33,7 +35,11 @@ public class LogController {
 
     private final LogRepository logRepository;
     private final com.netcradus.acis.log.service.IngestMetricsService ingestMetricsService;
+    private final LogCategoryMappingRepository logCategoryMappingRepository;
     private final ObjectMapper objectMapper;
+
+    private static final java.util.Set<String> VALID_LOG_CATEGORIES =
+            java.util.Set.of("ENDPOINT", "NETWORK", "APPLICATION");
 
     @Value("${acis.ai-service.url}")
     private String aiServiceUrl;
@@ -157,6 +163,100 @@ public class LogController {
      * pipeline-wide health signal, not per-tenant data), so no
      * X-Tenant-ID dependency here.
      */
+    /** Real tenant-configured service->category mappings — empty until an admin sets some, never a guessed default. */
+    @GetMapping("/category-mappings")
+    public ResponseEntity<List<Map<String, String>>> getCategoryMappings(@RequestHeader("X-Tenant-ID") String tenantId) {
+        List<Map<String, String>> result = logCategoryMappingRepository.findByTenantId(tenantId).stream()
+                .map(m -> Map.of("serviceName", m.getServiceName(), "category", m.getCategory()))
+                .collect(Collectors.toList());
+        return ResponseEntity.ok(result);
+    }
+
+    /** Bulk upsert of real service->category mappings. Each entry: {serviceName, category}. category="" deletes the mapping (reverts that service to Uncategorized). */
+    @PutMapping("/category-mappings")
+    public ResponseEntity<?> putCategoryMappings(@RequestHeader("X-Tenant-ID") String tenantId,
+                                                  @RequestBody List<Map<String, String>> mappings) {
+        for (Map<String, String> entry : mappings) {
+            String serviceName = entry.get("serviceName");
+            String category = entry.get("category");
+            if (serviceName == null || serviceName.isBlank()) {
+                continue;
+            }
+            if (category == null || category.isBlank()) {
+                logCategoryMappingRepository.findByTenantIdAndServiceName(tenantId, serviceName)
+                        .ifPresent(logCategoryMappingRepository::delete);
+                continue;
+            }
+            String normalized = category.trim().toUpperCase();
+            if (!VALID_LOG_CATEGORIES.contains(normalized)) {
+                return ResponseEntity.badRequest().body(Map.of(
+                        "error", "Unknown category '" + category + "'. Must be one of: " + VALID_LOG_CATEGORIES));
+            }
+            LogCategoryMapping mapping = logCategoryMappingRepository
+                    .findByTenantIdAndServiceName(tenantId, serviceName)
+                    .orElseGet(LogCategoryMapping::new);
+            mapping.setTenantId(tenantId);
+            mapping.setServiceName(serviceName);
+            mapping.setCategory(normalized);
+            logCategoryMappingRepository.save(mapping);
+        }
+        return ResponseEntity.ok(Map.of("status", "saved"));
+    }
+
+    /**
+     * Real, live event counts per category, computed from real log documents'
+     * `service` field run through the tenant's real configured mapping — a
+     * service with no mapping counts as "UNCATEGORIZED", never silently
+     * dropped or guessed into one of the three real categories. Also returns
+     * the real distinct service names seen (with their own real counts) so
+     * the config UI can offer exactly what's actually flowing in, not an
+     * invented list.
+     */
+    @GetMapping("/category-counts")
+    public ResponseEntity<Map<String, Object>> getCategoryCounts(@RequestHeader("X-Tenant-ID") String tenantId) {
+        List<LogDocument> logs;
+        try {
+            logs = logRepository.findByTenantId(tenantId);
+        } catch (Exception e) {
+            log.warn("Elasticsearch query failed for category-counts: {}", e.getMessage());
+            logs = Collections.emptyList();
+        }
+
+        Map<String, String> serviceToCategory = logCategoryMappingRepository.findByTenantId(tenantId).stream()
+                .collect(Collectors.toMap(LogCategoryMapping::getServiceName, LogCategoryMapping::getCategory));
+
+        Map<String, Long> countsByService = logs.stream()
+                .filter(l -> l.getService() != null && !l.getService().isBlank())
+                .collect(Collectors.groupingBy(LogDocument::getService, Collectors.counting()));
+
+        long endpointCount = 0, networkCount = 0, applicationCount = 0, uncategorizedCount = 0;
+        List<Map<String, Object>> serviceBreakdown = new java.util.ArrayList<>();
+        for (Map.Entry<String, Long> entry : countsByService.entrySet()) {
+            String category = serviceToCategory.getOrDefault(entry.getKey(), "UNCATEGORIZED");
+            switch (category) {
+                case "ENDPOINT" -> endpointCount += entry.getValue();
+                case "NETWORK" -> networkCount += entry.getValue();
+                case "APPLICATION" -> applicationCount += entry.getValue();
+                default -> uncategorizedCount += entry.getValue();
+            }
+            Map<String, Object> row = new java.util.HashMap<>();
+            row.put("serviceName", entry.getKey());
+            row.put("count", entry.getValue());
+            row.put("category", category);
+            serviceBreakdown.add(row);
+        }
+        serviceBreakdown.sort((a, b) -> Long.compare((Long) b.get("count"), (Long) a.get("count")));
+
+        Map<String, Object> result = new java.util.HashMap<>();
+        result.put("endpoint", endpointCount);
+        result.put("network", networkCount);
+        result.put("application", applicationCount);
+        result.put("uncategorized", uncategorizedCount);
+        result.put("totalEvents", logs.size());
+        result.put("services", serviceBreakdown);
+        return ResponseEntity.ok(result);
+    }
+
     @GetMapping("/ingest-stats")
     public ResponseEntity<Map<String, Object>> getIngestStats() {
         return ResponseEntity.ok(Map.of(
@@ -179,6 +279,60 @@ public class LogController {
             log.warn("Failed to fetch AI metrics: {}", e.getMessage());
             return ResponseEntity.status(HttpStatus.BAD_GATEWAY)
                     .body(Map.of("success", false, "error", "AI metrics unavailable"));
+        }
+    }
+
+    /**
+     * Real-time classifier retraining pipeline status, proxied from
+     * ai-service (see training.py) — current deployed version and its real
+     * held-out evaluation metrics, whether a training run is in progress,
+     * and real version history. Not tenant-scoped: the classifier is one
+     * shared global model.
+     */
+    @GetMapping("/ai-model-status")
+    public ResponseEntity<Map> getAiModelStatus() {
+        try {
+            Map response = restTemplate.getForObject(aiServiceUrl + "/ai/model-status", Map.class);
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            log.warn("Failed to fetch AI model status: {}", e.getMessage());
+            return ResponseEntity.status(HttpStatus.BAD_GATEWAY)
+                    .body(Map.of("success", false, "error", "AI model status unavailable"));
+        }
+    }
+
+    /** Manual retrain trigger — real training run against real analyst-confirmed labels, not a simulated one. */
+    @PostMapping("/ai-retrain")
+    public ResponseEntity<Map> triggerAiRetrain() {
+        try {
+            ResponseEntity<Map> response = restTemplate.postForEntity(aiServiceUrl + "/ai/retrain", null, Map.class);
+            return ResponseEntity.status(response.getStatusCode()).body(response.getBody());
+        } catch (HttpStatusCodeException e) {
+            return ResponseEntity.status(e.getStatusCode())
+                    .body(parseAiErrorBody(e.getResponseBodyAsString()));
+        } catch (Exception e) {
+            log.warn("Failed to trigger AI retrain: {}", e.getMessage());
+            return ResponseEntity.status(HttpStatus.BAD_GATEWAY)
+                    .body(Map.of("success", false, "error", "Could not reach AI service"));
+        }
+    }
+
+    /** Rolls the live classifier back to a specific real prior trained version. */
+    @PostMapping("/ai-model-rollback")
+    public ResponseEntity<Map> rollbackAiModel(@RequestBody Map<String, String> body) {
+        try {
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
+            HttpEntity<Map<String, String>> request = new HttpEntity<>(Map.of("version_id", body.get("versionId")), headers);
+            ResponseEntity<Map> response = restTemplate.postForEntity(aiServiceUrl + "/ai/model/rollback", request, Map.class);
+            return ResponseEntity.status(response.getStatusCode()).body(response.getBody());
+        } catch (HttpStatusCodeException e) {
+            return ResponseEntity.status(e.getStatusCode())
+                    .body(parseAiErrorBody(e.getResponseBodyAsString()));
+        } catch (Exception e) {
+            log.warn("Failed to roll back AI model: {}", e.getMessage());
+            return ResponseEntity.status(HttpStatus.BAD_GATEWAY)
+                    .body(Map.of("success", false, "error", "Could not reach AI service"));
         }
     }
 

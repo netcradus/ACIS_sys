@@ -96,6 +96,18 @@ services:
       # enrichment returns an explicit "unconfigured" result, never fake data.
       VIRUSTOTAL_API_KEY: ${VIRUSTOTAL_API_KEY:-}
       ABUSEIPDB_API_KEY: ${ABUSEIPDB_API_KEY:-}
+      # Real classifier retraining pipeline (app/training.py) — fetches
+      # analyst-confirmed alert labels from acis-alerts to retrain on, never
+      # synthetic data. Same internal-service-key every other cross-service
+      # call in this deployment already requires.
+      ALERTS_SERVICE_URL: http://alerts:8081
+      INTERNAL_SERVICE_KEY: ${INTERNAL_SERVICE_KEY:?Set INTERNAL_SERVICE_KEY in .env, generated via openssl rand -base64 32}
+      AI_MODELS_DIR: /app/models
+    volumes:
+      # Trained model versions + manifest must survive container
+      # recreation, or every deploy would silently drop back to the
+      # synthetic bootstrap classifier and lose all training history.
+      - ai_models_data:/app/models
     expose:
       - "8090"
       - "50051"
@@ -579,3 +591,4 @@ volumes:
   kafka_data:
   caddy_data:
   caddy_config:
+  ai_models_data:

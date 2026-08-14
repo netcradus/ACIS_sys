@@ -48,6 +48,9 @@ public class AlertController {
     @Value("${acis.ai-service.url}")
     private String aiServiceUrl;
 
+    @Value("${acis.internal-service-key}")
+    private String internalServiceKey;
+
     @GetMapping
     public List<AlertDto> getAllAlerts(@RequestHeader("X-Tenant-ID") String tenantId) {
         return alertService.findAll(tenantId);
@@ -70,8 +73,12 @@ public class AlertController {
         return saved;
     }
 
+    /** Real classifier categories this system actually predicts — see ai-service's CLASSES list. Kept in sync manually since ai-service is a separate Python process with no shared enum. */
+    private static final java.util.Set<String> VALID_CATEGORIES = java.util.Set.of(
+            "malware", "exfiltration", "lateral_movement", "phishing", "privilege_escalation", "benign");
+
     @PutMapping("/{id}")
-    public Alert updateAlert(@PathVariable String id, @RequestBody Map<String, Object> updates,
+    public ResponseEntity<?> updateAlert(@PathVariable String id, @RequestBody Map<String, Object> updates,
                               @RequestHeader("X-Tenant-ID") String tenantId) {
         Alert alert = alertRepository.findByIdAndTenantId(id, tenantId)
                 .orElseThrow(() -> new NotFoundException("Alert not found"));
@@ -81,9 +88,79 @@ public class AlertController {
         if (updates.containsKey("ownerId")) {
             alert.setOwnerId((String) updates.get("ownerId"));
         }
+        if (updates.containsKey("confirmedCategory")) {
+            Object raw = updates.get("confirmedCategory");
+            String category = raw == null ? null : String.valueOf(raw).trim();
+            if (category != null && !category.isEmpty()) {
+                if (!VALID_CATEGORIES.contains(category)) {
+                    return ResponseEntity.badRequest().body(Map.of(
+                            "error", "Unknown category. Must be one of: " + VALID_CATEGORIES));
+                }
+                alert.setConfirmedCategory(category);
+                alert.setLabeledAt(java.time.LocalDateTime.now());
+                auditEventPublisher.publish("ALERT_LABELED", "alert/" + id, "confirmedCategory=" + category);
+            } else {
+                // Explicit un-label (client sent an empty value) — real
+                // correction of a prior mistaken label, not a no-op.
+                alert.setConfirmedCategory(null);
+                alert.setLabeledAt(null);
+            }
+        }
         Alert saved = alertRepository.save(alert);
         auditEventPublisher.publish("ALERT_UPDATE", "alert/" + id, "updated");
-        return saved;
+        return ResponseEntity.ok(saved);
+    }
+
+    /**
+     * Real labeled training data for the ML retraining pipeline — every
+     * alert an analyst has explicitly confirmed a category for, across
+     * every tenant (the classifier is one shared global model, not
+     * per-tenant, so its training set must be too). Internal-service-key
+     * only: this deliberately crosses tenant boundaries, which no
+     * tenant-scoped JWT caller should ever be able to trigger.
+     */
+    @GetMapping("/labeled")
+    public ResponseEntity<?> getLabeledAlerts(
+            @RequestHeader(value = "X-Internal-Service-Key", required = false) String providedKey) {
+        if (internalServiceKey == null || internalServiceKey.isBlank() || !internalServiceKey.equals(providedKey)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of("error", "Internal endpoint"));
+        }
+        com.netcradus.acis.common.tenant.TenantContext.setSystemPollerInProgress(true);
+        try {
+            List<Alert> labeled = alertRepository.findByConfirmedCategoryIsNotNull();
+            List<Map<String, Object>> result = labeled.stream()
+                    .map(a -> {
+                        // Flat "event" shape matching exactly what ai-service's
+                        // extract_features() reads (action/raw/severity/bytes_out/
+                        // failed_logins/...) - the alert's own rawEvent JSON, with
+                        // the alert's authoritative severity merged in (the raw
+                        // event itself may not carry one).
+                        Map<String, Object> event = new LinkedHashMap<>();
+                        if (a.getRawEvent() != null) {
+                            try {
+                                Object parsed = objectMapper.readValue(a.getRawEvent(), Map.class);
+                                if (parsed instanceof Map) {
+                                    event.putAll((Map<String, Object>) parsed);
+                                }
+                            } catch (Exception ignored) {
+                                // Not parseable JSON - train on severity/title alone below.
+                            }
+                        }
+                        event.putIfAbsent("severity", a.getSeverity());
+                        event.putIfAbsent("action", a.getTitle());
+
+                        Map<String, Object> row = new LinkedHashMap<>();
+                        row.put("id", a.getId());
+                        row.put("confirmedCategory", a.getConfirmedCategory());
+                        row.put("labeledAt", a.getLabeledAt());
+                        row.put("event", event);
+                        return row;
+                    })
+                    .collect(java.util.stream.Collectors.toList());
+            return ResponseEntity.ok(result);
+        } finally {
+            com.netcradus.acis.common.tenant.TenantContext.setSystemPollerInProgress(false);
+        }
     }
 
     @GetMapping("/dashboard/summary")
