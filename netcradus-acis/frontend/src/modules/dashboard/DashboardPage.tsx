@@ -272,8 +272,11 @@ export default function DashboardPage() {
   useEffect(() => {
     const fetchThreatIndicators = async () => {
       try {
-        const res = await apiClient.get('/api/threat-intel')
-        setThreatIndicators(res.data || [])
+        // /api/threat-intel now returns a real paginated envelope (was
+        // unbounded before the production-readiness audit) - this feed only
+        // ever shows the most recent items, so a normal page is enough.
+        const res = await apiClient.get('/api/threat-intel', { params: { size: 50 } })
+        setThreatIndicators(res.data?.content || [])
       } catch (e) {
         console.error('Failed to fetch threat indicators:', e)
       }

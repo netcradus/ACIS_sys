@@ -43,6 +43,7 @@ export default function EndpointsPage() {
   const canWrite = useCanWrite(MODULES.ASSETS_THREAT_INTEL)
 
   const [endpoints, setEndpoints] = useState<Asset[]>([])
+  const [endpointsError, setEndpointsError] = useState<string | null>(null)
   const [agents, setAgents] = useState<AgentEndpointView[]>([])
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
@@ -53,9 +54,12 @@ export default function EndpointsPage() {
   const [rollbackAllBusy, setRollbackAllBusy] = useState(false)
 
   const fetchEndpoints = async () => {
+    setEndpointsError(null)
     try {
-      const response = await apiClient.get('/api/assets')
-      const assets = response.data || []
+      // /api/assets now returns a real paginated envelope (was unbounded
+      // before the production-readiness audit).
+      const response = await apiClient.get('/api/assets', { params: { size: 500 } })
+      const assets = response.data?.content || []
       const filtered = assets.filter((a: Asset) =>
         a.type === 'WORKSTATION' ||
         a.type === 'SERVER' ||
@@ -64,8 +68,10 @@ export default function EndpointsPage() {
         a.type === 'IOT_DEVICE'
       )
       setEndpoints(filtered)
-    } catch (err) {
+    } catch (err: any) {
       console.error("Failed to fetch endpoints", err)
+      setEndpoints([])
+      setEndpointsError(err?.message || 'Unable to load endpoints. Please try again.')
     } finally {
       setLoading(false)
     }
@@ -403,7 +409,17 @@ export default function EndpointsPage() {
                   </tr>
                 )
               })}
-              {filteredEndpoints.length === 0 && (
+              {!loading && endpointsError && (
+                <tr>
+                  <td colSpan={5} className="py-8 text-center text-text-muted">
+                    <div className="flex flex-col items-center gap-2">
+                      <span>Unable to load endpoints. Please try again.</span>
+                      <button className="btn-mission text-small px-3 py-1.5" onClick={fetchEndpoints}>Retry</button>
+                    </div>
+                  </td>
+                </tr>
+              )}
+              {!loading && !endpointsError && filteredEndpoints.length === 0 && (
                 <tr>
                   <td colSpan={5} className="py-8 text-center text-text-muted">
                     No matching endpoint nodes found.

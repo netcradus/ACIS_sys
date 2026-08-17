@@ -1,11 +1,14 @@
 package com.netcradus.acis.threat.controller;
 
+import com.netcradus.acis.common.dto.PageResponse;
 import com.netcradus.acis.threat.model.ThreatIndicator;
 import com.netcradus.acis.threat.model.ThreatSeverity;
 import com.netcradus.acis.threat.service.ThreatIntelligenceGrpcClient;
 import com.netcradus.acis.threat.service.ThreatIntelligenceService;
 import com.netcradus.acis.ai.grpc.EnrichIocResponse;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import java.util.Map;
@@ -17,11 +20,25 @@ import java.util.List;
 @RequiredArgsConstructor
 public class ThreatController {
 
+    private static final int MAX_PAGE_SIZE = 500;
+
     private final ThreatIntelligenceService threatService;
 
+    /**
+     * Real database-level pagination (added during the production-readiness
+     * audit - this endpoint previously returned a tenant's entire indicator
+     * table unbounded). page/size default to the first 50 rows; size is
+     * capped at 500 regardless of what's requested so a caller can't force
+     * an effectively-unbounded fetch back in through the query string.
+     */
     @GetMapping
-    public ResponseEntity<List<ThreatIndicator>> getAllIndicators(@RequestHeader("X-Tenant-ID") String tenantId) {
-        return ResponseEntity.ok(threatService.findAll(tenantId));
+    public ResponseEntity<PageResponse<ThreatIndicator>> getAllIndicators(
+            @RequestHeader("X-Tenant-ID") String tenantId,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "50") int size) {
+        int safeSize = Math.min(Math.max(size, 1), MAX_PAGE_SIZE);
+        PageRequest pageRequest = PageRequest.of(Math.max(page, 0), safeSize, Sort.by(Sort.Direction.DESC, "lastSeen"));
+        return ResponseEntity.ok(PageResponse.of(threatService.findAll(tenantId, pageRequest)));
     }
 
     @GetMapping("/lookup/{value}")
@@ -82,18 +99,14 @@ public class ThreatController {
     @PostMapping("/indicators/bulk")
     public ResponseEntity<Map<String, Object>> ingestIndicators(@RequestBody List<IndicatorIngestRequest> indicators,
             @RequestHeader("X-Tenant-ID") String tenantId) {
-        int saved = 0;
-        for (IndicatorIngestRequest req : indicators) {
-            if (req.value() == null || req.value().isBlank()) continue;
-            ThreatSeverity severity;
-            try {
-                severity = ThreatSeverity.valueOf(req.severity() != null ? req.severity().toUpperCase() : "LOW");
-            } catch (IllegalArgumentException e) {
-                severity = ThreatSeverity.LOW;
-            }
-            threatService.saveEnrichmentResult(tenantId, req.value(), req.type(), severity, req.description(), req.source());
-            saved++;
-        }
+        // Real fix for the N+1 here (see ThreatIntelligenceService.saveEnrichmentResultsBulk) -
+        // one existence-check query + one batched saveAll() instead of a
+        // findByValueAndTenantId + save() round trip per indicator.
+        List<ThreatIntelligenceService.BulkIndicatorRequest> requests = indicators.stream()
+                .map(req -> new ThreatIntelligenceService.BulkIndicatorRequest(
+                        req.value(), req.type(), req.severity(), req.description(), req.source()))
+                .toList();
+        int saved = threatService.saveEnrichmentResultsBulk(tenantId, requests);
         return ResponseEntity.ok(Map.of("saved", saved));
     }
 }

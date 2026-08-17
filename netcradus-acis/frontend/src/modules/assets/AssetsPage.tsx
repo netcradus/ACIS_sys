@@ -67,6 +67,7 @@ export default function AssetsPage() {
   const [alerts, setAlerts] = useState<RealAlert[]>([])
   const [selectedAssetId, setSelectedAssetId] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
+  const [assetsError, setAssetsError] = useState<string | null>(null)
   const [searchTerm, setSearchTerm] = useState('')
   const [isModalOpen, setIsModalOpen] = useState(false)
   const { pivotTo } = useEntityPivot()
@@ -108,14 +109,22 @@ export default function AssetsPage() {
 
   const fetchAssets = async () => {
     setIsLoading(true)
+    setAssetsError(null)
     try {
-      const response = await apiClient.get('/api/assets')
-      setAssets(response.data)
-      if (response.data.length > 0 && !selectedAssetId) {
-        setSelectedAssetId(response.data[0].id)
+      // /api/assets now returns a real paginated envelope (was unbounded
+      // before the production-readiness audit) - this page still does its
+      // own search/filter client-side, so it requests the endpoint's full
+      // allowed page size rather than a small page.
+      const response = await apiClient.get('/api/assets', { params: { size: 500 } })
+      const content = response.data?.content || []
+      setAssets(content)
+      if (content.length > 0 && !selectedAssetId) {
+        setSelectedAssetId(content[0].id)
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to fetch assets:', error)
+      setAssets([])
+      setAssetsError(error?.message || 'Unable to load assets. Please try again.')
     } finally {
       setIsLoading(false)
     }
@@ -488,7 +497,17 @@ export default function AssetsPage() {
                       </tr>
                     )
                   })}
-                  {filteredAssets.length === 0 && (
+                  {!isLoading && assetsError && (
+                    <tr>
+                      <td colSpan={6} style={{ textAlign: 'center', padding: '30px', color: 'var(--dim)' }}>
+                        <div className="flex flex-col items-center gap-2">
+                          <span>Unable to load assets. Please try again.</span>
+                          <button className="btn-mission text-small px-3 py-1.5" onClick={fetchAssets}>Retry</button>
+                        </div>
+                      </td>
+                    </tr>
+                  )}
+                  {!isLoading && !assetsError && filteredAssets.length === 0 && (
                     <tr>
                       <td colSpan={6} style={{ textAlign: 'center', padding: '30px', color: 'var(--dim)' }}>
                         No discovered assets in this environment

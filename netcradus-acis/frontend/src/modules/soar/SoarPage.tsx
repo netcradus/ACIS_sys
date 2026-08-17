@@ -87,7 +87,9 @@ export default function SoarPage() {
         apiClient.get('/api/soar/playbooks'),
         apiClient.get('/api/soar/executions'),
         apiClient.get('/api/soar/playbooks/dependencies').catch(() => null),
-        apiClient.get('/api/threat-intel').catch(() => null)
+        // /api/threat-intel now returns a real paginated envelope (was
+        // unbounded before the production-readiness audit).
+        apiClient.get('/api/threat-intel', { params: { size: 200 } }).catch(() => null)
       ])
 
       const pbs = playbooksRes.data || []
@@ -101,10 +103,11 @@ export default function SoarPage() {
           edges: dependenciesRes.data.edges || []
         })
       }
-      if (Array.isArray(indicatorsRes?.data)) {
-        const indicators = indicatorsRes.data
+      const indicatorsPage = indicatorsRes?.data
+      if (indicatorsPage && Array.isArray(indicatorsPage.content)) {
+        const indicators = indicatorsPage.content
         setIocStats({
-          total: indicators.length,
+          total: typeof indicatorsPage.totalElements === 'number' ? indicatorsPage.totalElements : indicators.length,
           highPriority: indicators.filter((i: any) => i.severity === 'CRITICAL' || i.severity === 'HIGH').length,
           sources: new Set(indicators.map((i: any) => i.source).filter(Boolean)).size
         })

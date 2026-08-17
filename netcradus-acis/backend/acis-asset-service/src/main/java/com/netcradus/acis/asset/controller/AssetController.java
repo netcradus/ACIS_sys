@@ -3,8 +3,11 @@ package com.netcradus.acis.asset.controller;
 import com.netcradus.acis.asset.model.Asset;
 import com.netcradus.acis.asset.service.AssetService;
 import com.netcradus.acis.common.audit.AuditEventPublisher;
+import com.netcradus.acis.common.dto.PageResponse;
 import com.netcradus.acis.common.exception.NotFoundException;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -15,12 +18,28 @@ import java.util.List;
 @RequiredArgsConstructor
 public class AssetController {
 
+    private static final int MAX_PAGE_SIZE = 500;
+
     private final AssetService assetService;
     private final AuditEventPublisher auditEventPublisher;
 
+    /**
+     * Real database-level pagination (added during the production-readiness
+     * audit - this endpoint previously returned a tenant's entire asset
+     * table unbounded). Defaults to 500 rows (the endpoint's own cap) rather
+     * than a small page, since AssetsPage/EndpointsPage still do their
+     * search/filtering client-side over the fetched set - this bounds the
+     * query at the database level without requiring a larger client-side
+     * pagination UI rework in the same change.
+     */
     @GetMapping
-    public ResponseEntity<List<Asset>> getAllAssets(@RequestHeader("X-Tenant-ID") String tenantId) {
-        return ResponseEntity.ok(assetService.findAll(tenantId));
+    public ResponseEntity<PageResponse<Asset>> getAllAssets(
+            @RequestHeader("X-Tenant-ID") String tenantId,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "500") int size) {
+        int safeSize = Math.min(Math.max(size, 1), MAX_PAGE_SIZE);
+        PageRequest pageRequest = PageRequest.of(Math.max(page, 0), safeSize, Sort.by(Sort.Direction.ASC, "name"));
+        return ResponseEntity.ok(PageResponse.of(assetService.findAll(tenantId, pageRequest)));
     }
 
     @GetMapping("/{id}")

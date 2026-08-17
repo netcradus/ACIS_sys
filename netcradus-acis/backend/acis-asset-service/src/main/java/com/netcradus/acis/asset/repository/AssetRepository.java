@@ -12,6 +12,7 @@ import java.util.Optional;
 public interface AssetRepository extends JpaRepository<Asset, String> {
     Optional<Asset> findByIpAddress(String ipAddress);
     List<Asset> findByTenantId(String tenantId);
+    org.springframework.data.domain.Page<Asset> findByTenantId(String tenantId, org.springframework.data.domain.Pageable pageable);
     Optional<Asset> findByIdAndTenantId(String id, String tenantId);
     Optional<Asset> findByIpAddressAndTenantId(String ipAddress, String tenantId);
 

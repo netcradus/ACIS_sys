@@ -110,8 +110,11 @@ export default function AppLayout() {
 
     if (allAssetsRef.current === null) {
       try {
-        const res = await apiClient.get('/api/assets')
-        allAssetsRef.current = res.data || []
+        // /api/assets now returns a real paginated envelope (was unbounded
+        // before the production-readiness audit) - the command palette only
+        // needs a working set to search over, not literally every asset.
+        const res = await apiClient.get('/api/assets', { params: { size: 500 } })
+        allAssetsRef.current = res.data?.content || []
       } catch {
         allAssetsRef.current = []
       }

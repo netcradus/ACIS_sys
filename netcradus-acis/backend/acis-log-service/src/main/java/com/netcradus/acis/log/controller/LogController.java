@@ -1,5 +1,6 @@
 package com.netcradus.acis.log.controller;
 
+import com.netcradus.acis.common.dto.PageResponse;
 import com.netcradus.acis.log.model.LogCategoryMapping;
 import com.netcradus.acis.log.model.LogDocument;
 import com.netcradus.acis.log.repository.LogCategoryMappingRepository;
@@ -7,12 +8,21 @@ import com.netcradus.acis.log.repository.LogRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.elasticsearch.client.elc.NativeQuery;
+import org.springframework.data.elasticsearch.core.ElasticsearchOperations;
+import org.springframework.data.elasticsearch.core.SearchHits;
+import org.springframework.data.elasticsearch.core.query.Query;
+import co.elastic.clients.elasticsearch._types.query_dsl.BoolQuery;
+import co.elastic.clients.elasticsearch._types.query_dsl.Query.Builder;
 import org.springframework.web.bind.annotation.*;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import lombok.extern.slf4j.Slf4j;
 
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -34,6 +44,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 public class LogController {
 
     private final LogRepository logRepository;
+    private final ElasticsearchOperations elasticsearchOperations;
     private final com.netcradus.acis.log.service.IngestMetricsService ingestMetricsService;
     private final LogCategoryMappingRepository logCategoryMappingRepository;
     private final com.netcradus.acis.log.repository.IngestionErrorRepository ingestionErrorRepository;
@@ -45,8 +56,17 @@ public class LogController {
     @Value("${acis.ai-service.url}")
     private String aiServiceUrl;
 
+    /**
+     * Real Elasticsearch-level filtering + sorting + pagination — this
+     * previously pulled a tenant's ENTIRE log history into a Java List
+     * before any filter/sort/page was applied (confirmed during the
+     * production-readiness audit: the page/size params were cosmetic
+     * post-processing on an unbounded fetch). Now every filter is a real ES
+     * term/match query and page/size are real ES `from`/`size` params, so
+     * only the requested page's worth of documents ever leaves Elasticsearch.
+     */
     @GetMapping("/search")
-    public Mono<List<LogDocument>> search(
+    public Mono<ResponseEntity<PageResponse<LogDocument>>> search(
             @RequestHeader("X-Tenant-ID") String tenantId,
             @RequestParam(required = false) String service,
             @RequestParam(required = false) String level,
@@ -55,48 +75,50 @@ public class LogController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "50") int size) {
 
-        // Real per-tenant scoping — confirmed live this session that this
-        // endpoint previously returned every tenant's logs regardless of
-        // caller. X-Tenant-ID is always the JWT-derived real value here
-        // (TenantContextFilter overrides whatever the client sent), never
-        // client-supplied.
-        List<LogDocument> allLogs;
-        try {
-            allLogs = logRepository.findByTenantId(tenantId);
-        } catch (Exception e) {
-            log.warn("Elasticsearch search failed, returning empty result: {}", e.getMessage());
-            return Mono.just(Collections.emptyList());
-        }
-
-        Stream<LogDocument> stream = allLogs.stream();
-        
-        if (service != null && !service.trim().isEmpty() && !service.equalsIgnoreCase("ALL")) {
-            stream = stream.filter(log -> service.equalsIgnoreCase(log.getService()));
-        }
-        if (level != null && !level.trim().isEmpty()) {
-            stream = stream.filter(log -> level.equalsIgnoreCase(log.getLevel()));
-        }
-        if (host != null && !host.trim().isEmpty()) {
-            stream = stream.filter(log -> host.equalsIgnoreCase(log.getHost()));
-        }
-        if (query != null && !query.trim().isEmpty()) {
-            stream = stream.filter(log -> log.getMessage() != null && log.getMessage().toLowerCase().contains(query.toLowerCase()));
-        }
-        
-        List<LogDocument> filtered = stream
-                .sorted((a, b) -> {
-                    if (a.getTimestamp() == null || b.getTimestamp() == null) return 0;
-                    return b.getTimestamp().compareTo(a.getTimestamp());
-                })
-                .collect(Collectors.toList());
-
         int safePage = Math.max(page, 0);
         int safeSize = Math.min(Math.max(size, 1), 500);
-        int fromIndex = Math.min(safePage * safeSize, filtered.size());
-        int toIndex = Math.min(fromIndex + safeSize, filtered.size());
-        List<LogDocument> paged = filtered.subList(fromIndex, toIndex);
 
-        return Mono.just(paged);
+        try {
+            // Real per-tenant scoping — confirmed live this session that this
+            // endpoint previously returned every tenant's logs regardless of
+            // caller. X-Tenant-ID is always the JWT-derived real value here
+            // (TenantContextFilter overrides whatever the client sent), never
+            // client-supplied.
+            BoolQuery.Builder bool = new BoolQuery.Builder();
+            bool.must(m -> m.term(t -> t.field("tenantId").value(tenantId)));
+            if (service != null && !service.trim().isEmpty() && !service.equalsIgnoreCase("ALL")) {
+                bool.must(m -> m.term(t -> t.field("service").value(service)));
+            }
+            if (level != null && !level.trim().isEmpty()) {
+                bool.must(m -> m.term(t -> t.field("level").value(level)));
+            }
+            if (host != null && !host.trim().isEmpty()) {
+                bool.must(m -> m.term(t -> t.field("host").value(host)));
+            }
+            if (query != null && !query.trim().isEmpty()) {
+                bool.must(m -> m.match(mt -> mt.field("message").query(query)));
+            }
+
+            Builder queryBuilder = new Builder();
+            queryBuilder.bool(bool.build());
+
+            Query esQuery = NativeQuery.builder()
+                    .withQuery(queryBuilder.build())
+                    .withPageable(PageRequest.of(safePage, safeSize, Sort.by(Sort.Direction.DESC, "timestamp")))
+                    .build();
+
+            SearchHits<LogDocument> hits = elasticsearchOperations.search(esQuery, LogDocument.class);
+            List<LogDocument> content = hits.getSearchHits().stream().map(org.springframework.data.elasticsearch.core.SearchHit::getContent).toList();
+            long total = hits.getTotalHits();
+            int totalPages = safeSize == 0 ? 0 : (int) Math.ceil((double) total / safeSize);
+            Page<LogDocument> resultPage = new PageImpl<>(content, PageRequest.of(safePage, safeSize), total);
+
+            return Mono.just(ResponseEntity.ok(PageResponse.of(resultPage)));
+        } catch (Exception e) {
+            log.warn("Elasticsearch search failed, returning empty result: {}", e.getMessage());
+            Page<LogDocument> empty = new PageImpl<>(Collections.emptyList(), PageRequest.of(safePage, safeSize), 0);
+            return Mono.just(ResponseEntity.ok(PageResponse.of(empty)));
+        }
     }
 
     @GetMapping("/latest")

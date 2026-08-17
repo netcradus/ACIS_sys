@@ -28,6 +28,11 @@ public class AssetService {
         return repository.findByTenantId(tenantId);
     }
 
+    /** Real database-level pagination - added during the production-readiness audit (previously unbounded). */
+    public org.springframework.data.domain.Page<Asset> findAll(String tenantId, org.springframework.data.domain.Pageable pageable) {
+        return repository.findByTenantId(tenantId, pageable);
+    }
+
     public Optional<Asset> findById(String id, String tenantId) {
         return repository.findByIdAndTenantId(id, tenantId);
     }

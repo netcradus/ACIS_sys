@@ -19,17 +19,30 @@ export default function ThreatIntelPage() {
   const [result, setResult] = useState<any>(null)
   const [enrichedAt, setEnrichedAt] = useState<string | null>(null)
   const [indicators, setIndicators] = useState<any[]>([])
+  const [totalIndicators, setTotalIndicators] = useState(0)
   const [indicatorsLoading, setIndicatorsLoading] = useState(true)
+  const [indicatorsError, setIndicatorsError] = useState<string | null>(null)
   const [demoMode, setDemoMode] = useState(false)
   const [lookupError, setLookupError] = useState<string | null>(null)
 
   const fetchRecent = async () => {
     try {
       setIndicatorsLoading(true)
-      const res = await apiClient.get('/api/threat-intel')
-      setIndicators(Array.isArray(res.data) ? res.data : [])
-    } catch (e) {
+      setIndicatorsError(null)
+      // GET /api/threat-intel is now real database-level pagination (was
+      // fully unbounded before the production-readiness audit). This page's
+      // severity/source breakdowns are real aggregate stats over the whole
+      // tenant, so it requests the largest single page (200, the API's cap
+      // is 500) rather than the default 50 - still a real, bounded fetch,
+      // not the previous "everything, no limit" behavior.
+      const res = await apiClient.get('/api/threat-intel', { params: { size: 200 } })
+      const content = res.data?.content
+      setIndicators(Array.isArray(content) ? content : [])
+      setTotalIndicators(typeof res.data?.totalElements === 'number' ? res.data.totalElements : (content?.length ?? 0))
+    } catch (e: any) {
       console.error('Failed to fetch recent indicators:', e)
+      setIndicators([])
+      setIndicatorsError(e?.message || 'Unable to load threat indicators. Please try again.')
     } finally {
       setIndicatorsLoading(false)
     }
@@ -128,7 +141,7 @@ export default function ThreatIntelPage() {
             <span>🌐</span>
             <div>
               <div className="l">INDICATORS TRACKED</div>
-              <div className="v">{indicatorsLoading ? '...' : indicators.length}</div>
+              <div className="v">{indicatorsLoading ? '...' : totalIndicators}</div>
             </div>
           </div>
         </div>
@@ -153,7 +166,7 @@ export default function ThreatIntelPage() {
           <div className="panel">
             <h3>Indicator Tracking</h3>
             <div className="ioc-boxes">
-              <div className="ioc-box"><div className="n">{indicators.length}</div><div className="l">Total IOCs</div></div>
+              <div className="ioc-box"><div className="n">{totalIndicators}</div><div className="l">Total IOCs</div></div>
               <div className="ioc-box"><div className="n">{distinctSources.length}</div><div className="l">Sources</div></div>
               <div className="ioc-box"><div className="n">{severityBreakdown.CRITICAL + severityBreakdown.HIGH}</div><div className="l">Critical + High</div></div>
             </div>
@@ -323,14 +336,24 @@ export default function ThreatIntelPage() {
                 {indicatorsLoading && (
                   <tr><td colSpan={5} className="text-center text-text-muted py-6">Loading...</td></tr>
                 )}
-                {!indicatorsLoading && indicators.length === 0 && (
+                {!indicatorsLoading && indicatorsError && (
+                  <tr className="empty-row">
+                    <td colSpan={5}>
+                      <div className="flex flex-col items-center gap-2 py-4">
+                        <span>Unable to load threat indicators. Please try again.</span>
+                        <button className="btn-mission text-small px-3 py-1.5" onClick={fetchRecent}>Retry</button>
+                      </div>
+                    </td>
+                  </tr>
+                )}
+                {!indicatorsLoading && !indicatorsError && indicators.length === 0 && (
                   <tr className="empty-row">
                     <td colSpan={5}>
                       No indicators enriched yet — paste an IOC above to get started.
                     </td>
                   </tr>
                 )}
-                {!indicatorsLoading && indicators.slice(0, 20).map((ind) => (
+                {!indicatorsLoading && !indicatorsError && indicators.slice(0, 20).map((ind) => (
                   <tr key={ind.id}>
                     <td className="font-mono text-text-secondary">
                       {ind.type === 'IP' ? (

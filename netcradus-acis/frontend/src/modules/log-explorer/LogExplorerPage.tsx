@@ -93,6 +93,7 @@ export default function LogExplorerPage() {
   const [selectedSource, setSelectedSource] = useState('ALL')
   const [isLive, setIsLive] = useState(true)
   const [isLoading, setIsLoading] = useState(false)
+  const [logsError, setLogsError] = useState<string | null>(null)
   const [query, setQuery] = useState('service=acis-gateway | level=ERROR')
 
   const [isTranslating, setIsTranslating] = useState(false)
@@ -189,12 +190,18 @@ export default function LogExplorerPage() {
   const fetchLogs = async () => {
     setIsLoading(true)
     setIsLive(false)
+    setLogsError(null)
     try {
       const filters = parseQuery(query)
-      const response = await apiClient.get<LogEntry[]>('/api/logs/search', { params: filters })
-      setLogs(response.data)
-    } catch (error) {
+      // /api/logs/search now filters/sorts/paginates at the Elasticsearch
+      // level (was fetching a tenant's whole log history into memory before
+      // the production-readiness audit) - real content/totalElements envelope.
+      const response = await apiClient.get<{ content: LogEntry[]; totalElements: number }>('/api/logs/search', { params: { ...filters, size: 200 } })
+      setLogs(response.data?.content || [])
+    } catch (error: any) {
       console.error('Failed to fetch logs:', error)
+      setLogs([])
+      setLogsError(error?.message || 'Unable to load logs. Please try again.')
     } finally {
       setIsLoading(false)
     }
@@ -249,9 +256,9 @@ export default function LogExplorerPage() {
     if (isLive) {
       const loadLiveLogs = async () => {
         try {
-          const params = selectedSource !== 'ALL' ? { service: selectedSource } : {}
-          const response = await apiClient.get<LogEntry[]>('/api/logs/search', { params })
-          setLogs(response.data)
+          const params: Record<string, string | number> = selectedSource !== 'ALL' ? { service: selectedSource, size: 200 } : { size: 200 }
+          const response = await apiClient.get<{ content: LogEntry[] }>('/api/logs/search', { params })
+          setLogs(response.data?.content || [])
         } catch (e) {
           console.error('Failed to load initial live logs:', e)
         }
@@ -578,10 +585,25 @@ export default function LogExplorerPage() {
                       </tr>
                     )
                   })
-                ) : (
+                ) : isLoading ? (
                   <tr>
                     <td colSpan={5} style={{ textAlign: 'center', padding: '30px', color: 'var(--muted)' }}>
                       Scanning historical indexes...
+                    </td>
+                  </tr>
+                ) : logsError ? (
+                  <tr>
+                    <td colSpan={5} style={{ textAlign: 'center', padding: '30px', color: 'var(--muted)' }}>
+                      <div className="flex flex-col items-center gap-2">
+                        <span>Unable to load logs. Please try again.</span>
+                        <button className="btn-mission text-small px-3 py-1.5" onClick={fetchLogs}>Retry</button>
+                      </div>
+                    </td>
+                  </tr>
+                ) : (
+                  <tr>
+                    <td colSpan={5} style={{ textAlign: 'center', padding: '30px', color: 'var(--muted)' }}>
+                      No logs found for the current filters.
                     </td>
                   </tr>
                 )}

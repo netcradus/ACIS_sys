@@ -8,10 +8,16 @@ import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.env.Environment;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 @Service
@@ -74,6 +80,11 @@ public class ThreatIntelligenceService {
         return repository.findByTenantId(tenantId);
     }
 
+    /** Real database-level pagination - added during the production-readiness audit (previously unbounded). */
+    public Page<ThreatIndicator> findAll(String tenantId, Pageable pageable) {
+        return repository.findByTenantId(tenantId, pageable);
+    }
+
     public Optional<ThreatIndicator> findByValue(String value, String tenantId) {
         return repository.findByValueAndTenantId(value, tenantId);
     }
@@ -97,5 +108,66 @@ public class ThreatIntelligenceService {
         indicator.setSource(source);
         indicator.setLastSeen(LocalDateTime.now());
         return repository.save(indicator);
+    }
+
+    public record BulkIndicatorRequest(String value, String type, String severity, String description, String source) {}
+
+    /**
+     * Real fix for the N+1 in bulk ingestion (see IntegrationPollerService's
+     * GuardDuty/Azure AD findings -> ThreatController.ingestIndicators):
+     * the previous version called findByValueAndTenantId + save() once per
+     * record, so a 200-indicator batch was ~400 round trips. This does
+     * exactly ONE existence-check query (findByValueInAndTenantId, a real
+     * SQL IN clause) and ONE saveAll() - with hibernate.jdbc.batch_size set
+     * (see application.yml), saveAll() also batches the actual INSERT/UPDATE
+     * statements at the JDBC level instead of sending them one at a time.
+     * Behavior is unchanged: still an upsert by (tenantId, value), still
+     * skips blank values, still tenant-scoped.
+     */
+    @Transactional
+    public int saveEnrichmentResultsBulk(String tenantId, List<BulkIndicatorRequest> requests) {
+        List<BulkIndicatorRequest> valid = requests.stream()
+                .filter(r -> r.value() != null && !r.value().isBlank())
+                .toList();
+        if (valid.isEmpty()) {
+            return 0;
+        }
+
+        List<String> values = valid.stream().map(BulkIndicatorRequest::value).toList();
+        Map<String, ThreatIndicator> existingByValue = new HashMap<>();
+        for (ThreatIndicator existing : repository.findByValueInAndTenantId(values, tenantId)) {
+            existingByValue.put(existing.getValue(), existing);
+        }
+
+        for (BulkIndicatorRequest req : valid) {
+            ThreatIndicator indicator = existingByValue.getOrDefault(req.value(), new ThreatIndicator());
+            ThreatSeverity severity;
+            try {
+                severity = ThreatSeverity.valueOf(req.severity() != null ? req.severity().toUpperCase() : "LOW");
+            } catch (IllegalArgumentException e) {
+                severity = ThreatSeverity.LOW;
+            }
+            indicator.setTenantId(tenantId);
+            indicator.setValue(req.value());
+            indicator.setType(req.type());
+            indicator.setSeverity(severity);
+            indicator.setDescription(req.description());
+            indicator.setSource(req.source());
+            indicator.setLastSeen(LocalDateTime.now());
+            // Newly-created rows must be visible to later duplicates within the
+            // SAME batch too (a batch can legitimately contain the same IOC
+            // twice from two different findings) - without this, two "new"
+            // entries for the same value would each get a fresh UUID and
+            // insert as separate rows instead of the second updating the first.
+            // Only put here (not also append to a separate save list) - the
+            // final save set is exactly this map's values, so a same-batch
+            // duplicate naturally collapses to one entry instead of being
+            // queued for save twice.
+            existingByValue.put(req.value(), indicator);
+        }
+
+        List<ThreatIndicator> toSave = new ArrayList<>(existingByValue.values());
+        repository.saveAll(toSave);
+        return toSave.size();
     }
 }
