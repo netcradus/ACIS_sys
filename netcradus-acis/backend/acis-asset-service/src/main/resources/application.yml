@@ -41,6 +41,20 @@ acis:
   # is a background health sweep, not a live event handler.
   drift-detection-interval-ms: ${DRIFT_DETECTION_INTERVAL_MS:300000}
 
+# Actuator — expose health and Prometheus metrics (see infra/monitoring/prometheus.yml)
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus,metrics
+  endpoint:
+    health:
+      show-details: always
+  metrics:
+    export:
+      prometheus:
+        enabled: true
+
 logging:
   level:
     com.netcradus.acis: DEBUG

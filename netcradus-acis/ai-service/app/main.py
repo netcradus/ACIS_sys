@@ -5,6 +5,7 @@ import uuid
 from contextlib import asynccontextmanager
 from fastapi import BackgroundTasks, FastAPI, Header, HTTPException
 from fastapi.responses import JSONResponse, StreamingResponse
+from prometheus_fastapi_instrumentator import Instrumentator
 from pydantic import BaseModel
 from sentence_transformers import SentenceTransformer
 from sklearn.ensemble import IsolationForest
@@ -87,6 +88,13 @@ async def lifespan(app: FastAPI):
     logger.info("AI service shutting down.")
 
 app = FastAPI(lifespan=lifespan)
+
+# Real Prometheus metrics (request count/latency/in-progress per route,
+# labeled by method+path+status) — see infra/monitoring/prometheus.yml. This
+# is the standard, widely-used instrumentator rather than hand-rolled
+# middleware; /ai/metrics above is a separate, deliberately non-Prometheus
+# JSON endpoint the frontend's AI performance widget reads directly.
+Instrumentator().instrument(app).expose(app, endpoint="/metrics", include_in_schema=False)
 
 # Models
 class AlertRequest(BaseModel):

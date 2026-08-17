@@ -35,6 +35,7 @@ services:
       - "80:80"
       - "443:443"
       - "8443:8443"
+      - "8444:8444"
     volumes:
       - ./infra/caddy/Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy_data:/data
@@ -42,6 +43,7 @@ services:
     depends_on:
       - frontend
       - keycloak
+      - grafana
     restart: always
 
   # 1. ACIS Web Frontend (nginx, proxies /api + /ws to the gateway) — internal only, fronted by Caddy
@@ -776,6 +778,104 @@ services:
         condition: service_started
     restart: always
 
+  # ---- Monitoring — Prometheus/Grafana/Alertmanager + exporters ----
+  # Internal only except Grafana (see the :8444 Caddy block) - Prometheus/
+  # Alertmanager have no login of their own, so they're reached via an SSH
+  # tunnel rather than published, same reasoning docker-compose.prod.yml
+  # already applies to Postgres/Kafka/etc. See infra/monitoring/MONITORING.md.
+
+  prometheus:
+    image: prom/prometheus:v2.51.0
+    volumes:
+      - ./infra/monitoring/prometheus.prod.yml:/etc/prometheus/prometheus.yml:ro
+      - ./infra/monitoring/alert-rules.yml:/etc/prometheus/alert-rules.yml:ro
+      - prometheus_data:/prometheus
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --storage.tsdb.retention.time=30d
+    expose:
+      - "9090"
+    mem_limit: 512m
+    restart: always
+
+  alertmanager:
+    image: prom/alertmanager:v0.27.0
+    volumes:
+      - ./infra/monitoring/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+      - alertmanager_data:/alertmanager
+    expose:
+      - "9093"
+    mem_limit: 128m
+    restart: always
+
+  grafana:
+    image: grafana/grafana:10.4.0
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:?Set GRAFANA_ADMIN_PASSWORD in .env — do not reuse the dev default}
+      # Grafana is reverse-proxied at :8444, not at the domain root — without
+      # this every asset/redirect URL Grafana generates would be wrong.
+      GF_SERVER_ROOT_URL: https://${PUBLIC_APP_DOMAIN:-localhost}:8444
+      GF_USERS_ALLOW_SIGN_UP: "false"
+    volumes:
+      - ./infra/monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./infra/monitoring/grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - grafana_data:/var/lib/grafana
+    expose:
+      - "3000"
+    depends_on:
+      - prometheus
+    mem_limit: 256m
+    restart: always
+
+  # Container-level CPU/mem/restarts for every container on the host (the
+  # "infra" half of §11 — app-level Actuator/FastAPI metrics above only see
+  # each process's own view of itself, not its actual container resource
+  # usage against docker-compose.prod.yml's mem_limit values).
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:v0.49.1
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+      - /dev/disk/:/dev/disk:ro
+    expose:
+      - "8080"
+    privileged: true
+    mem_limit: 256m
+    restart: always
+
+  # Real Postgres connection/query metrics — connects as acis_app (never the
+  # admin role) with a read-only view of pg_stat_* system catalogs, same
+  # least-privilege reasoning as every application service's own DB user.
+  postgres-exporter:
+    image: quay.io/prometheuscommunity/postgres-exporter:v0.15.0
+    environment:
+      DATA_SOURCE_URI: "postgres:5432/${DB_NAME:-acis}?sslmode=disable"
+      DATA_SOURCE_USER: acis_app
+      DATA_SOURCE_PASS: ${DB_PASSWORD:?Set DB_PASSWORD in .env}
+    expose:
+      - "9187"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    mem_limit: 128m
+    restart: always
+
+  es-exporter:
+    image: prometheuscommunity/elasticsearch-exporter:v1.7.0
+    command:
+      - --es.uri=http://elasticsearch:9200
+    expose:
+      - "9114"
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+    mem_limit: 128m
+    restart: always
+
 volumes:
   postgres_data:
   es_data:
@@ -787,3 +887,6 @@ volumes:
   clamav_data:
   file_storage_data:
   backup_data:
+  prometheus_data:
+  alertmanager_data:
+  grafana_data:

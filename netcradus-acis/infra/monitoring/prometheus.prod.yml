@@ -1,0 +1,92 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets: ['alertmanager:9093']
+
+rule_files:
+  - /etc/prometheus/alert-rules.yml
+
+scrape_configs:
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+  # Spring Boot microservices — real request count/latency/error-rate + JVM
+  # metrics via micrometer-registry-prometheus (backend/*/pom.xml) +
+  # management.endpoints.web.exposure.include: prometheus (application.yml).
+  - job_name: 'acis-gateway'
+    metrics_path: '/actuator/prometheus'
+    static_configs:
+      - targets: ['gateway:8080']
+
+  - job_name: 'acis-alerts'
+    metrics_path: '/actuator/prometheus'
+    static_configs:
+      - targets: ['alerts:8081']
+
+  - job_name: 'acis-log-service'
+    metrics_path: '/actuator/prometheus'
+    static_configs:
+      - targets: ['log-service:8082']
+
+  - job_name: 'acis-correlation'
+    metrics_path: '/actuator/prometheus'
+    static_configs:
+      - targets: ['correlation:8083']
+
+  - job_name: 'acis-ingestion'
+    metrics_path: '/actuator/prometheus'
+    static_configs:
+      - targets: ['ingestion:8084']
+
+  - job_name: 'acis-soar'
+    metrics_path: '/actuator/prometheus'
+    static_configs:
+      - targets: ['soar:8085']
+
+  - job_name: 'acis-asset-service'
+    metrics_path: '/actuator/prometheus'
+    static_configs:
+      - targets: ['asset-service:8086']
+
+  - job_name: 'acis-threat-service'
+    metrics_path: '/actuator/prometheus'
+    static_configs:
+      - targets: ['threat-service:8087']
+
+  - job_name: 'acis-platform-admin'
+    metrics_path: '/actuator/prometheus'
+    static_configs:
+      - targets: ['platform-admin:8088']
+
+  # Python FastAPI — prometheus-fastapi-instrumentator (ai-service/app/main.py)
+  - job_name: 'acis-ai-service'
+    metrics_path: '/metrics'
+    static_configs:
+      - targets: ['ai-service:8090']
+
+  # Container-level CPU/mem/restarts/disk for every container on the host —
+  # the "infra" half of §11 (app metrics above only cover the JVM/FastAPI
+  # process's own view of itself, not container resource limits/OOMs).
+  - job_name: 'cadvisor'
+    static_configs:
+      - targets: ['cadvisor:8080']
+
+  # DB connection/query metrics — the "DB" half of §11 (pool exhaustion,
+  # slow queries, replication lag are invisible to app-level actuator metrics
+  # alone since those only see the JVM-side of the pool, not Postgres itself).
+  - job_name: 'postgres'
+    static_configs:
+      - targets: ['postgres-exporter:9187']
+
+  # Elasticsearch has no built-in Prometheus endpoint - real cluster/index
+  # metrics via the standard prometheuscommunity/elasticsearch-exporter
+  # sidecar (see the `es-exporter` service in docker-compose.prod.yml),
+  # never scraping :9200 directly (that's ES's own REST API, not metrics).
+  - job_name: 'elasticsearch'
+    static_configs:
+      - targets: ['es-exporter:9114']

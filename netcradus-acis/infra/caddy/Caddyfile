@@ -5,9 +5,13 @@
 # DNS A/AAAA record points at this host (ports 80+443 must be reachable from
 # the internet for the ACME HTTP-01 challenge).
 #
-# Two site blocks share the SAME hostname on two ports so only one certificate
-# is needed: :443 for the app itself, :8443 for Keycloak (kept off the main
-# port so Keycloak's own routes/assets never collide with the frontend's).
+# Site blocks share the SAME hostname on different ports so only one
+# certificate is needed: :443 for the app itself, :8443 for Keycloak, :8444
+# for Grafana (kept off the main port so none of these collide with the
+# frontend's own routes/assets). Prometheus/Alertmanager are deliberately
+# NOT exposed here — they have no login of their own (Grafana does), so
+# access them via an SSH tunnel to the Docker host instead (see
+# infra/monitoring/MONITORING.md).
 {
 	email {$ACME_EMAIL:admin@example.invalid}
 	servers {
@@ -39,6 +43,10 @@
 
 {$PUBLIC_APP_DOMAIN:localhost}:8443 {
 	reverse_proxy keycloak:8080
+}
+
+{$PUBLIC_APP_DOMAIN:localhost}:8444 {
+	reverse_proxy grafana:3000
 }
 
 # Direct-IP visitors on plain HTTP get sent to the real domain instead of a

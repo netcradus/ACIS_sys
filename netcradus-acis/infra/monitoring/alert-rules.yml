@@ -1,0 +1,148 @@
+groups:
+  # ── App: service availability ─────────────────────────────
+  - name: acis-app-availability
+    rules:
+      - alert: ServiceDown
+        expr: up == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "{{ $labels.job }} is down"
+          description: "Prometheus has failed to scrape {{ $labels.job }} ({{ $labels.instance }}) for 2 minutes. The service is either crashed, deadlocked, or unreachable on the internal network."
+
+  # ── App: request errors + latency (Spring Boot micrometer) ─
+  - name: acis-app-http
+    rules:
+      - alert: HighServerErrorRate
+        expr: |
+          sum by (job) (rate(http_server_requests_seconds_count{status=~"5.."}[5m]))
+          /
+          sum by (job) (rate(http_server_requests_seconds_count[5m]))
+          > 0.05
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "{{ $labels.job }} 5xx error rate above 5%"
+          description: "{{ $labels.job }} has returned 5xx responses for more than 5% of requests over the last 5 minutes. Check the service's logs for the underlying exception."
+
+      - alert: HighRequestLatencyP99
+        expr: |
+          histogram_quantile(0.99,
+            sum by (job, le) (rate(http_server_requests_seconds_bucket[5m]))
+          ) > 3
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "{{ $labels.job }} p99 latency above 3s"
+          description: "{{ $labels.job }}'s 99th-percentile request latency has been above 3 seconds for 10 minutes — check for DB contention, GC pauses, or a slow downstream dependency."
+
+  # ── App: JVM health ────────────────────────────────────────
+  - name: acis-app-jvm
+    rules:
+      - alert: JvmHeapNearLimit
+        expr: |
+          sum by (job) (jvm_memory_used_bytes{area="heap"})
+          /
+          sum by (job) (jvm_memory_max_bytes{area="heap"})
+          > 0.90
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "{{ $labels.job }} JVM heap usage above 90%"
+          description: "{{ $labels.job }} is at real risk of an OutOfMemoryError. Check for a memory leak or whether mem_limit in docker-compose.prod.yml needs raising."
+
+  # ── DB: connection pool + Postgres itself ─────────────────
+  - name: acis-db
+    rules:
+      - alert: PostgresDown
+        expr: pg_up == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Postgres is unreachable"
+          description: "postgres-exporter cannot reach Postgres — every backend service and Keycloak will be failing right now."
+
+      - alert: HikariPoolNearExhaustion
+        expr: |
+          sum by (job) (hikaricp_connections_active)
+          /
+          sum by (job) (hikaricp_connections_max)
+          > 0.85
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "{{ $labels.job }}'s DB connection pool is near exhaustion"
+          description: "{{ $labels.job }} is using more than 85% of its HikariCP connection pool. Requests will start queuing/timing out on the DB if this continues — check for a connection leak or a genuine load increase."
+
+      - alert: HikariPoolPendingConnections
+        expr: sum by (job) (hikaricp_connections_pending) > 0
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "{{ $labels.job }} has threads waiting for a DB connection"
+          description: "{{ $labels.job }} has requests actively blocked waiting for a free HikariCP connection for 2+ minutes — a real, user-visible slowdown is already happening."
+
+  # ── Infra: container resource pressure ────────────────────
+  - name: acis-infra-containers
+    rules:
+      - alert: ContainerHighMemoryUsage
+        expr: |
+          (
+            container_memory_usage_bytes{name!=""}
+            /
+            container_spec_memory_limit_bytes{name!=""}
+          ) > 0.90
+          and
+          container_spec_memory_limit_bytes{name!=""} > 0
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Container {{ $labels.name }} above 90% of its memory limit"
+          description: "{{ $labels.name }} is close to its mem_limit in docker-compose.prod.yml and at risk of being OOM-killed."
+
+      - alert: ContainerRestartingRepeatedly
+        expr: |
+          (time() - container_start_time_seconds{name!=""}) < 120
+        for: 10m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Container {{ $labels.name }} keeps restarting"
+          description: "{{ $labels.name }}'s start time has been under 2 minutes ago continuously for 10 minutes — it is very likely crash-looping, not just having recently deployed. Check `docker logs {{ $labels.name }}`."
+
+  # ── Business health: real, currently-available proxies ────
+  # Real ground-truth business metrics (e.g. a genuine "critical alerts
+  # created" counter, "ingestion records failed" counter) don't exist as
+  # Prometheus series yet - they're rows in Postgres, not instrumented
+  # metrics. The two rules below use HTTP status codes Spring Security/the
+  # ingestion controller already record today as an honest, currently-real
+  # proxy rather than inventing a metric name that doesn't emit anything.
+  - name: acis-business-health
+    rules:
+      - alert: AuthFailureSpike
+        expr: |
+          sum(rate(http_server_requests_seconds_count{job="acis-gateway", status=~"401|403"}[5m])) > 5
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Elevated 401/403 rate at the gateway"
+          description: "More than 5 auth-rejected requests/sec sustained for 5 minutes — could be a real credential-stuffing/brute-force attempt, or a client misconfiguration (e.g. an expired shared INTERNAL_SERVICE_KEY) breaking a legitimate integration."
+
+      - alert: IngestionErrorRateHigh
+        expr: |
+          sum(rate(http_server_requests_seconds_count{job="acis-ingestion", status=~"5.."}[10m])) > 1
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "acis-ingestion is failing requests"
+          description: "The ingestion service (external log/finding intake) has a sustained 5xx rate — real log/threat data may be silently being dropped. Cross-check the ingestion_errors table for the underlying cause."

@@ -30,6 +30,20 @@ spring:
         jwt:
           jwk-set-uri: ${KEYCLOAK_URL:http://localhost:8180}/realms/${KEYCLOAK_REALM:acis}/protocol/openid-connect/certs
 
+# Actuator — expose health and Prometheus metrics (see infra/monitoring/prometheus.yml)
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus,metrics
+  endpoint:
+    health:
+      show-details: always
+  metrics:
+    export:
+      prometheus:
+        enabled: true
+
 logging:
   level:
     com.netcradus.acis: DEBUG

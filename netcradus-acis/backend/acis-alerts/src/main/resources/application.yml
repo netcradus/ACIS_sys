@@ -41,6 +41,20 @@ acis:
   # across every backend service.
   internal-service-key: ${INTERNAL_SERVICE_KEY:local-dev-internal-key}
 
+# Actuator — expose health and Prometheus metrics (see infra/monitoring/prometheus.yml)
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus,metrics
+  endpoint:
+    health:
+      show-details: always
+  metrics:
+    export:
+      prometheus:
+        enabled: true
+
 logging:
   level:
     com.netcradus.acis: DEBUG
