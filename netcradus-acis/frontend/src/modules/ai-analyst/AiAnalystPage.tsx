@@ -4,6 +4,7 @@ import { clsx } from 'clsx'
 import apiClient from '@/lib/apiClient'
 import { LogEntry } from '@/types/log'
 import { useCanWrite, MODULES } from '@/store/permissionsStore'
+import { toast } from '@/store/toastStore'
 import './AiAnalystPage.css'
 
 interface Playbook {
@@ -97,8 +98,10 @@ export default function AiAnalystPage() {
       if (Object.keys(filters).length === 0) {
         filters.query = searchQuery
       }
-      const searchRes = await apiClient.get<LogEntry[]>('/api/logs/search', { params: filters })
-      setResults(searchRes.data || [])
+      // /api/logs/search returns a real paginated envelope (was a bare
+      // array before the production-readiness audit's ES-level pagination fix).
+      const searchRes = await apiClient.get<{ content: LogEntry[] }>('/api/logs/search', { params: { ...filters, size: 200 } })
+      setResults(searchRes.data?.content || [])
       setHasRun(true)
     } catch (e) {
       console.error('Log search failed:', e)
@@ -114,10 +117,10 @@ export default function AiAnalystPage() {
     setTriggering(playbookId)
     try {
       await apiClient.post(`/api/soar/playbooks/${playbookId}/execute`)
-      alert(`Triggered SOAR playbook: "${playbookName}". Check the SOAR module for live execution status.`)
+      toast.success(`Triggered SOAR playbook: "${playbookName}". Check the SOAR module for live execution status.`)
     } catch (e) {
       console.error(e)
-      alert('Failed to execute playbook — see console for details.')
+      toast.error('Failed to execute playbook — see console for details.')
     } finally {
       setTriggering(null)
     }

@@ -3,6 +3,7 @@ import { Outlet, useNavigate } from 'react-router-dom'
 import Sidebar from '@/components/Sidebar'
 import TopBar from '@/components/TopBar'
 import CommandPalette, { type PaletteEntityResult } from '@/components/ui/CommandPalette'
+import ToastContainer from '@/components/ui/ToastContainer'
 import { tenantNavItems } from '@/components/navConfig'
 import { useEntityPivot } from '@/hooks/useEntityPivot'
 import apiClient from '@/lib/apiClient'
@@ -228,6 +229,8 @@ export default function AppLayout() {
         searchEntities={searchEntities}
         accentClass="accent"
       />
+
+      <ToastContainer />
     </div>
   )
 }

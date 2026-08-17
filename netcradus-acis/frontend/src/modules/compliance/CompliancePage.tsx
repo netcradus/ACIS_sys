@@ -3,6 +3,7 @@ import { Shield, CheckCircle2, AlertTriangle, Download, ChevronRight, Activity }
 import { clsx } from 'clsx'
 import apiClient from '@/lib/apiClient'
 import { useCanWrite, MODULES } from '@/store/permissionsStore'
+import { toast } from '@/store/toastStore'
 import './CompliancePage.css'
 
 interface ComplianceControl {
@@ -74,7 +75,7 @@ export default function CompliancePage() {
       }
     } catch (error) {
       console.error('Failed to generate report:', error)
-      alert('Unable to queue compliance report at this time.')
+      toast.error('Unable to queue compliance report at this time.')
     } finally {
       setIsReportLoading(false)
     }

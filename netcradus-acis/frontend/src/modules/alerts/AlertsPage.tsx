@@ -9,6 +9,7 @@ import { usePivotSeed } from '@/hooks/useEntityPivot'
 import SeverityBadge, { toSeverity } from '@/components/viz/SeverityBadge'
 import PivotChip from '@/components/ui/PivotChip'
 import ConfirmDialog from '@/components/ui/ConfirmDialog'
+import { toast } from '@/store/toastStore'
 import { clsx } from 'clsx'
 import './AlertsPage.css'
 
@@ -172,7 +173,7 @@ export default function AlertsPage() {
       setSelectedAlert(null)
     } catch (e: any) {
       console.error('Failed to create incident:', e)
-      alert(e?.message || 'Failed to create incident')
+      toast.error(e?.response?.data?.error?.message || e?.message || 'Failed to create incident')
     }
   }
 
@@ -250,11 +251,11 @@ export default function AlertsPage() {
         await apiClient.post(`/api/soar/playbooks/${pbs.data[0].id}/execute`, { alertId })
         handleUpdateStatus(alertId, 'MITIGATED')
       } else {
-        alert('No active SOAR playbooks found.')
+        toast.warning('No active SOAR playbooks found.')
       }
     } catch (e) {
       console.error('Playbook execution failed:', e)
-      alert('Error triggering SOAR playbook execution.')
+      toast.error('Error triggering SOAR playbook execution.')
     } finally {
       setPlaybookBusy(false)
       setConfirmingPlaybookAlertId(null)

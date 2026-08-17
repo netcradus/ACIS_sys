@@ -14,6 +14,8 @@ import InDevelopment from '@/components/InDevelopment'
 import { useAuthStore } from '@/store/authStore'
 import { useCanWrite, useCanAdmin, MODULES } from '@/store/permissionsStore'
 import keycloak from '@/lib/keycloak'
+import ConfirmDialog from '@/components/ui/ConfirmDialog'
+import { toast } from '@/store/toastStore'
 import './SettingsPage.css'
 
 
@@ -64,6 +66,8 @@ export default function SettingsPage() {
   // backend never persists or returns it again after this response.
   const [revealedKey, setRevealedKey] = useState<{ keyName: string; rawToken: string } | null>(null)
   const [revealedTokenCopied, setRevealedTokenCopied] = useState(false)
+  const [revokeKeyTarget, setRevokeKeyTarget] = useState<string | null>(null)
+  const [revokeKeyBusy, setRevokeKeyBusy] = useState(false)
 
   useEffect(() => {
     if (tabParam) {
@@ -109,6 +113,7 @@ export default function SettingsPage() {
   const [retrainLoading, setRetrainLoading] = useState(false)
   const [retrainMessage, setRetrainMessage] = useState<{ ok: boolean; message: string } | null>(null)
   const [rollbackVersionLoading, setRollbackVersionLoading] = useState<string | null>(null)
+  const [rollbackTarget, setRollbackTarget] = useState<string | null>(null)
 
   const fetchModelStatus = async () => {
     try {
@@ -149,14 +154,20 @@ export default function SettingsPage() {
     }
   }
 
-  const handleRollback = async (versionId: string) => {
-    if (!window.confirm(`Roll back the live classifier to version ${versionId}? This immediately replaces the active model.`)) return
+  const handleRollback = (versionId: string) => {
+    setRollbackTarget(versionId)
+  }
+
+  const confirmRollback = async () => {
+    if (!rollbackTarget) return
+    const versionId = rollbackTarget
     setRollbackVersionLoading(versionId)
     setRetrainMessage(null)
     try {
       await apiClient.post('/api/logs/ai-model-rollback', { versionId })
       setRetrainMessage({ ok: true, message: `Rolled back to version ${versionId}.` })
       await fetchModelStatus()
+      setRollbackTarget(null)
     } catch (e: any) {
       setRetrainMessage({ ok: false, message: e?.response?.data?.error || e?.response?.data?.detail || 'Rollback failed.' })
     } finally {
@@ -342,6 +353,8 @@ export default function SettingsPage() {
   const [agentPolicyLoading, setAgentPolicyLoading] = useState(true)
   const [agentPolicySaving, setAgentPolicySaving] = useState(false)
   const [agentPolicySuccess, setAgentPolicySuccess] = useState(false)
+  const [removeAgentTarget, setRemoveAgentTarget] = useState<string | null>(null)
+  const [removeAgentBusy, setRemoveAgentBusy] = useState(false)
 
   const fetchAgentToken = async () => {
     try {
@@ -401,7 +414,7 @@ export default function SettingsPage() {
       const res = await apiClient.post('/api/soar/settings/agent-token/regenerate')
       setEnrollmentToken(res.data?.token || '')
     } catch (e: any) {
-      alert(e?.message || 'Failed to regenerate enrollment token')
+      toast.error(e?.message || 'Failed to regenerate enrollment token')
     } finally {
       setTokenRegenerating(false)
     }
@@ -413,13 +426,21 @@ export default function SettingsPage() {
     setTimeout(() => setCopiedCmdId(null), 2500)
   }
 
-  const handleRemoveAgent = async (id: string) => {
-    if (!confirm('Remove this agent from the fleet? It will reappear on its next heartbeat if the machine is still running the installer.')) return
+  const handleRemoveAgent = (id: string) => {
+    setRemoveAgentTarget(id)
+  }
+
+  const confirmRemoveAgent = async () => {
+    if (!removeAgentTarget) return
+    setRemoveAgentBusy(true)
     try {
-      await apiClient.delete(`/api/soar/settings/agents/${id}`)
+      await apiClient.delete(`/api/soar/settings/agents/${removeAgentTarget}`)
       await fetchAgentFleet()
+      setRemoveAgentTarget(null)
     } catch (e: any) {
-      alert(e?.message || 'Failed to remove agent')
+      toast.error(e?.message || 'Failed to remove agent')
+    } finally {
+      setRemoveAgentBusy(false)
     }
   }
 
@@ -437,7 +458,7 @@ export default function SettingsPage() {
       setAgentPolicySuccess(true)
       setTimeout(() => setAgentPolicySuccess(false), 3500)
     } catch (e: any) {
-      alert(e?.message || 'Failed to save agent policy')
+      toast.error(e?.message || 'Failed to save agent policy')
     } finally {
       setAgentPolicySaving(false)
     }
@@ -473,12 +494,15 @@ export default function SettingsPage() {
   const [orgTimeZone, setOrgTimeZone] = useState('IST (UTC +5:30)')
   const [orgLoading, setOrgLoading] = useState(true)
   const [orgSaving, setOrgSaving] = useState(false)
+  const [deleteOrgConfirmOpen, setDeleteOrgConfirmOpen] = useState(false)
+  const [deleteOrgBusy, setDeleteOrgBusy] = useState(false)
 
   // License & Billing states
   const [license, setLicense] = useState<any>(null)
   const [invoices, setInvoices] = useState<any[]>([])
   const [licenseLoading, setLicenseLoading] = useState(true)
   const [licenseChanging, setLicenseChanging] = useState(false)
+  const [changePlanTarget, setChangePlanTarget] = useState<string | null>(null)
 
   // Users & Groups states
   const [users, setUsers] = useState<any[]>([])
@@ -486,6 +510,10 @@ export default function SettingsPage() {
   const [usersLoading, setUsersLoading] = useState(true)
   const [inviteModalOpen, setInviteModalOpen] = useState(false)
   const [groupModalOpen, setGroupModalOpen] = useState(false)
+  const [deleteUserTarget, setDeleteUserTarget] = useState<{ id: string; name: string } | null>(null)
+  const [deleteUserBusy, setDeleteUserBusy] = useState(false)
+  const [deleteGroupTarget, setDeleteGroupTarget] = useState<{ id: string; name: string } | null>(null)
+  const [deleteGroupBusy, setDeleteGroupBusy] = useState(false)
 
   // Invite user form fields
   const [inviteName, setInviteName] = useState('')
@@ -509,6 +537,8 @@ export default function SettingsPage() {
   const [cfSaving, setCfSaving] = useState(false)
   const [cfTesting, setCfTesting] = useState(false)
   const [cfTestResult, setCfTestResult] = useState<{ ok: boolean; message: string } | null>(null)
+  const [cfDeleteConfirmOpen, setCfDeleteConfirmOpen] = useState(false)
+  const [cfDeleteBusy, setCfDeleteBusy] = useState(false)
 
   // Palo Alto integration — real PAN-OS API polling (see IntegrationPollerService)
   const [paConfigured, setPaConfigured] = useState(false)
@@ -522,6 +552,8 @@ export default function SettingsPage() {
   const [paLastPolledAt, setPaLastPolledAt] = useState<string | null>(null)
   const [paLastPollStatus, setPaLastPollStatus] = useState<string | null>(null)
   const [paLastPollError, setPaLastPollError] = useState<string | null>(null)
+  const [paDeleteConfirmOpen, setPaDeleteConfirmOpen] = useState(false)
+  const [paDeleteBusy, setPaDeleteBusy] = useState(false)
 
   // Wazuh integration — real Wazuh Indexer polling (see IntegrationPollerService)
   const [wzConfigured, setWzConfigured] = useState(false)
@@ -537,6 +569,8 @@ export default function SettingsPage() {
   const [wzLastPolledAt, setWzLastPolledAt] = useState<string | null>(null)
   const [wzLastPollStatus, setWzLastPollStatus] = useState<string | null>(null)
   const [wzLastPollError, setWzLastPollError] = useState<string | null>(null)
+  const [wzDeleteConfirmOpen, setWzDeleteConfirmOpen] = useState(false)
+  const [wzDeleteBusy, setWzDeleteBusy] = useState(false)
 
   // SentinelOne integration — real Management API polling (see IntegrationPollerService)
   const [s1Configured, setS1Configured] = useState(false)
@@ -550,6 +584,8 @@ export default function SettingsPage() {
   const [s1LastPolledAt, setS1LastPolledAt] = useState<string | null>(null)
   const [s1LastPollStatus, setS1LastPollStatus] = useState<string | null>(null)
   const [s1LastPollError, setS1LastPollError] = useState<string | null>(null)
+  const [s1DeleteConfirmOpen, setS1DeleteConfirmOpen] = useState(false)
+  const [s1DeleteBusy, setS1DeleteBusy] = useState(false)
 
   // AWS GuardDuty — real SigV4-signed polling (see IntegrationPollerService)
   const [gdConfigured, setGdConfigured] = useState(false)
@@ -564,6 +600,8 @@ export default function SettingsPage() {
   const [gdLastPolledAt, setGdLastPolledAt] = useState<string | null>(null)
   const [gdLastPollStatus, setGdLastPollStatus] = useState<string | null>(null)
   const [gdLastPollError, setGdLastPollError] = useState<string | null>(null)
+  const [gdDeleteConfirmOpen, setGdDeleteConfirmOpen] = useState(false)
+  const [gdDeleteBusy, setGdDeleteBusy] = useState(false)
 
   // Azure Sentinel — real OAuth2 + Incidents API polling
   const [asConfigured, setAsConfigured] = useState(false)
@@ -581,6 +619,8 @@ export default function SettingsPage() {
   const [asLastPolledAt, setAsLastPolledAt] = useState<string | null>(null)
   const [asLastPollStatus, setAsLastPollStatus] = useState<string | null>(null)
   const [asLastPollError, setAsLastPollError] = useState<string | null>(null)
+  const [asDeleteConfirmOpen, setAsDeleteConfirmOpen] = useState(false)
+  const [asDeleteBusy, setAsDeleteBusy] = useState(false)
 
   // Azure AD Sign-in Logs — real Microsoft Graph polling
   const [adConfigured, setAdConfigured] = useState(false)
@@ -595,6 +635,8 @@ export default function SettingsPage() {
   const [adLastPolledAt, setAdLastPolledAt] = useState<string | null>(null)
   const [adLastPollStatus, setAdLastPollStatus] = useState<string | null>(null)
   const [adLastPollError, setAdLastPollError] = useState<string | null>(null)
+  const [adDeleteConfirmOpen, setAdDeleteConfirmOpen] = useState(false)
+  const [adDeleteBusy, setAdDeleteBusy] = useState(false)
 
   // Syslog/CEF — real UDP+TCP listener with an allocated port (see SyslogListenerService)
   const [syConfigured, setSyConfigured] = useState(false)
@@ -602,6 +644,8 @@ export default function SettingsPage() {
   const [syEnabled, setSyEnabled] = useState(true)
   const [syLastReceivedAt, setSyLastReceivedAt] = useState<string | null>(null)
   const [syCreating, setSyCreating] = useState(false)
+  const [syDeleteConfirmOpen, setSyDeleteConfirmOpen] = useState(false)
+  const [syDeleteBusy, setSyDeleteBusy] = useState(false)
 
   // Form states
   const [newKeyName, setNewKeyName] = useState('')
@@ -658,11 +702,11 @@ export default function SettingsPage() {
         timeZone: orgTimeZone
       })
       if (res.data) {
-        alert("Organization settings updated successfully!")
+        toast.success("Organization settings updated successfully!")
       }
     } catch (e) {
       console.error("Failed to update organization settings:", e)
-      alert("Failed to update organization settings.")
+      toast.error("Failed to update organization settings.")
     } finally {
       setOrgSaving(false)
     }
@@ -676,23 +720,32 @@ export default function SettingsPage() {
         headers: { 'Content-Type': 'text/plain' }
       })
       if (res.data) {
-        alert(res.data)
+        toast.success(typeof res.data === 'string' ? res.data : 'Ownership transferred successfully.')
       }
     } catch (e) {
       console.error("Failed to transfer ownership:", e)
+      toast.error("Failed to transfer ownership.")
     }
   }
 
-  const handleDeleteOrganization = async () => {
-    if (!confirm("WARNING: This action is irreversible. Are you sure you want to permanently delete and reset this organization?")) return
+  const handleDeleteOrganization = () => {
+    setDeleteOrgConfirmOpen(true)
+  }
+
+  const confirmDeleteOrganization = async () => {
+    setDeleteOrgBusy(true)
     try {
       const res = await apiClient.delete('/api/soar/settings/organization')
       if (res.data) {
-        alert(res.data)
+        toast.success(typeof res.data === 'string' ? res.data : 'Organization deleted and reset.')
         fetchOrganization()
       }
+      setDeleteOrgConfirmOpen(false)
     } catch (e) {
       console.error("Failed to delete organization:", e)
+      toast.error("Failed to delete and reset organization.")
+    } finally {
+      setDeleteOrgBusy(false)
     }
   }
 
@@ -714,13 +767,16 @@ export default function SettingsPage() {
     }
   }
 
-  const handleChangePlan = async () => {
+  const handleChangePlan = () => {
     const plans = ["Enterprise Shield", "Growth Shield", "Standard Shield"]
     const currentIdx = plans.indexOf(license?.planName || '')
     const nextPlan = plans[(currentIdx + 1) % plans.length]
-    
-    if (!confirm(`Are you sure you want to change your plan to ${nextPlan}?`)) return
-    
+    setChangePlanTarget(nextPlan)
+  }
+
+  const confirmChangePlan = async () => {
+    if (!changePlanTarget) return
+    const nextPlan = changePlanTarget
     try {
       setLicenseChanging(true)
       const res = await apiClient.post('/api/soar/settings/license/change-plan', nextPlan, {
@@ -728,10 +784,12 @@ export default function SettingsPage() {
       })
       if (res.data) {
         setLicense(res.data)
-        alert(`Plan changed successfully to ${nextPlan}!`)
+        toast.success(`Plan changed successfully to ${nextPlan}!`)
       }
+      setChangePlanTarget(null)
     } catch (e) {
       console.error("Failed to change plan:", e)
+      toast.error("Failed to change plan.")
     } finally {
       setLicenseChanging(false)
     }
@@ -756,10 +814,11 @@ export default function SettingsPage() {
       })
       if (res.data) {
         setLicense(res.data)
-        alert("Payment method updated successfully!")
+        toast.success("Payment method updated successfully!")
       }
     } catch (e) {
       console.error("Failed to update payment method:", e)
+      toast.error("Failed to update payment method.")
     }
   }
 
@@ -775,12 +834,13 @@ export default function SettingsPage() {
       link.click()
     } catch (e) {
       console.error("Failed to download invoice:", e)
+      toast.error("Failed to download invoice.")
     }
   }
 
   const handleDownloadAllInvoices = () => {
     if (!invoices.length) {
-      alert("No invoices available to download.")
+      toast.warning("No invoices available to download.")
       return
     }
     invoices.forEach(inv => {
@@ -821,7 +881,7 @@ export default function SettingsPage() {
       await apiClient.put(`/api/soar/settings/users/${userId}/role`, { roleId: roleId || null })
       await fetchUsersAndGroups()
     } catch (e: any) {
-      alert(e?.response?.data?.error?.message || 'Failed to assign role')
+      toast.error(e?.response?.data?.error?.message || 'Failed to assign role')
     }
   }
 
@@ -841,9 +901,9 @@ export default function SettingsPage() {
         await apiClient.put(`/api/soar/settings/users/${memberId}/group`, { groupId: inviteGroup })
       }
       if (res.data?.emailSent) {
-        alert(`Invited ${inviteName} — invitation email sent to ${inviteEmail}.`)
+        toast.success(`Invited ${inviteName} — invitation email sent to ${inviteEmail}.`)
       } else {
-        alert(`${inviteName} was invited, but the invitation email failed to send (${res.data?.emailError || 'unknown error'}). You'll need to share the accept link another way.`)
+        toast.warning(`${inviteName} was invited, but the invitation email failed to send (${res.data?.emailError || 'unknown error'}). You'll need to share the accept link another way.`)
       }
       setInviteName('')
       setInviteEmail('')
@@ -852,7 +912,7 @@ export default function SettingsPage() {
       fetchUsersAndGroups()
     } catch (e) {
       console.error("Failed to invite user:", e)
-      alert("Failed to invite user.")
+      toast.error("Failed to invite user.")
     }
   }
 
@@ -860,13 +920,14 @@ export default function SettingsPage() {
     try {
       const res = await apiClient.post(`/api/soar/settings/users/${userId}/resend`)
       if (res.data?.emailSent) {
-        alert(`Invitation email resent to ${userName}.`)
+        toast.success(`Invitation email resent to ${userName}.`)
       } else {
-        alert(`Resent, but the invitation email failed to send (${res.data?.emailError || 'unknown error'}).`)
+        toast.warning(`Resent, but the invitation email failed to send (${res.data?.emailError || 'unknown error'}).`)
       }
       fetchUsersAndGroups()
     } catch (e) {
       console.error("Failed to resend invitation:", e)
+      toast.error("Failed to resend invitation.")
     }
   }
 
@@ -878,20 +939,29 @@ export default function SettingsPage() {
       await apiClient.put(`/api/soar/settings/users/${userId}/group`, { groupId: groupId || null })
       await fetchUsersAndGroups()
     } catch (e: any) {
-      alert(e?.response?.data?.error?.message || 'Failed to assign group')
+      toast.error(e?.response?.data?.error?.message || 'Failed to assign group')
     }
   }
 
-  const handleDeleteUser = async (userId: string, userName: string) => {
-    if (!confirm(`Are you sure you want to remove ${userName} from this organization?`)) return
+  const handleDeleteUser = (userId: string, userName: string) => {
+    setDeleteUserTarget({ id: userId, name: userName })
+  }
+
+  const confirmDeleteUser = async () => {
+    if (!deleteUserTarget) return
+    setDeleteUserBusy(true)
     try {
-      const res = await apiClient.delete(`/api/soar/settings/users/${userId}`)
+      const res = await apiClient.delete(`/api/soar/settings/users/${deleteUserTarget.id}`)
       if (res.data) {
-        alert(`${userName} removed successfully.`)
+        toast.success(`${deleteUserTarget.name} removed successfully.`)
         fetchUsersAndGroups()
       }
+      setDeleteUserTarget(null)
     } catch (e) {
       console.error("Failed to remove user:", e)
+      toast.error("Failed to remove user.")
+    } finally {
+      setDeleteUserBusy(false)
     }
   }
 
@@ -903,7 +973,7 @@ export default function SettingsPage() {
         description: groupDesc
       })
       if (res.data) {
-        alert(`Group ${groupName} created successfully!`)
+        toast.success(`Group ${groupName} created successfully!`)
         setGroupName('')
         setGroupDesc('')
         setGroupModalOpen(false)
@@ -911,18 +981,26 @@ export default function SettingsPage() {
       }
     } catch (e) {
       console.error("Failed to create group:", e)
-      alert("Failed to create group.")
+      toast.error("Failed to create group.")
     }
   }
 
-  const handleDeleteGroup = async (groupId: string, groupName: string) => {
-    if (!confirm(`Delete "${groupName}"? Members in this group will become ungrouped — they are not removed.`)) return
+  const handleDeleteGroup = (groupId: string, groupName: string) => {
+    setDeleteGroupTarget({ id: groupId, name: groupName })
+  }
+
+  const confirmDeleteGroup = async () => {
+    if (!deleteGroupTarget) return
+    setDeleteGroupBusy(true)
     try {
-      await apiClient.delete(`/api/soar/settings/groups/${groupId}`)
+      await apiClient.delete(`/api/soar/settings/groups/${deleteGroupTarget.id}`)
       fetchUsersAndGroups()
+      setDeleteGroupTarget(null)
     } catch (e) {
       console.error("Failed to delete group:", e)
-      alert("Failed to delete group.")
+      toast.error("Failed to delete group.")
+    } finally {
+      setDeleteGroupBusy(false)
     }
   }
 
@@ -978,12 +1056,12 @@ export default function SettingsPage() {
       setRolesSaving(true)
       const res = await apiClient.put(`/api/soar/settings/roles/${activeRole.id}`, activeRole)
       if (res.data) {
-        alert(`Role ${activeRole.name} updated successfully!`)
+        toast.success(`Role ${activeRole.name} updated successfully!`)
         await fetchRoles()
       }
     } catch (e) {
       console.error("Failed to update role:", e)
-      alert("Failed to update role.")
+      toast.error("Failed to update role.")
     } finally {
       setRolesSaving(false)
     }
@@ -1004,7 +1082,7 @@ export default function SettingsPage() {
       }
     } catch (e) {
       console.error("Failed to create role:", e)
-      alert("Failed to create role.")
+      toast.error("Failed to create role.")
     }
   }
 
@@ -1072,7 +1150,7 @@ export default function SettingsPage() {
       setGdEditing(false)
       await fetchGuardDutyConfig()
     } catch (e: any) {
-      alert(e?.response?.data?.error?.message || 'Failed to save AWS GuardDuty configuration')
+      toast.error(e?.response?.data?.error?.message || 'Failed to save AWS GuardDuty configuration')
     } finally {
       setGdSaving(false)
     }
@@ -1095,8 +1173,12 @@ export default function SettingsPage() {
     }
   }
 
-  const handleDeleteGuardDuty = async () => {
-    if (!confirm('Remove the AWS GuardDuty integration? ACIS will stop polling for findings.')) return
+  const handleDeleteGuardDuty = () => {
+    setGdDeleteConfirmOpen(true)
+  }
+
+  const confirmDeleteGuardDuty = async () => {
+    setGdDeleteBusy(true)
     try {
       await apiClient.delete('/api/soar/settings/guardduty')
       setGdConfigured(false)
@@ -1105,8 +1187,12 @@ export default function SettingsPage() {
       setGdSecretAccessKey('')
       setGdEditing(true)
       setGdTestResult(null)
+      setGdDeleteConfirmOpen(false)
     } catch (e) {
       console.error('Failed to delete AWS GuardDuty config:', e)
+      toast.error('Failed to remove AWS GuardDuty integration.')
+    } finally {
+      setGdDeleteBusy(false)
     }
   }
 
@@ -1152,7 +1238,7 @@ export default function SettingsPage() {
       setAsEditing(false)
       await fetchAzureSentinelConfig()
     } catch (e: any) {
-      alert(e?.response?.data?.error?.message || 'Failed to save Azure Sentinel configuration')
+      toast.error(e?.response?.data?.error?.message || 'Failed to save Azure Sentinel configuration')
     } finally {
       setAsSaving(false)
     }
@@ -1178,16 +1264,24 @@ export default function SettingsPage() {
     }
   }
 
-  const handleDeleteAzureSentinel = async () => {
-    if (!confirm('Remove the Azure Sentinel integration? ACIS will stop polling for incidents.')) return
+  const handleDeleteAzureSentinel = () => {
+    setAsDeleteConfirmOpen(true)
+  }
+
+  const confirmDeleteAzureSentinel = async () => {
+    setAsDeleteBusy(true)
     try {
       await apiClient.delete('/api/soar/settings/azuresentinel')
       setAsConfigured(false)
       setAsClientSecret('')
       setAsEditing(true)
       setAsTestResult(null)
+      setAsDeleteConfirmOpen(false)
     } catch (e) {
       console.error('Failed to delete Azure Sentinel config:', e)
+      toast.error('Failed to remove Azure Sentinel integration.')
+    } finally {
+      setAsDeleteBusy(false)
     }
   }
 
@@ -1227,7 +1321,7 @@ export default function SettingsPage() {
       setAdEditing(false)
       await fetchAzureAdConfig()
     } catch (e: any) {
-      alert(e?.response?.data?.error?.message || 'Failed to save Azure AD configuration')
+      toast.error(e?.response?.data?.error?.message || 'Failed to save Azure AD configuration')
     } finally {
       setAdSaving(false)
     }
@@ -1250,16 +1344,24 @@ export default function SettingsPage() {
     }
   }
 
-  const handleDeleteAzureAd = async () => {
-    if (!confirm('Remove the Azure AD integration? ACIS will stop polling for sign-in logs.')) return
+  const handleDeleteAzureAd = () => {
+    setAdDeleteConfirmOpen(true)
+  }
+
+  const confirmDeleteAzureAd = async () => {
+    setAdDeleteBusy(true)
     try {
       await apiClient.delete('/api/soar/settings/azuread')
       setAdConfigured(false)
       setAdClientSecret('')
       setAdEditing(true)
       setAdTestResult(null)
+      setAdDeleteConfirmOpen(false)
     } catch (e) {
       console.error('Failed to delete Azure AD config:', e)
+      toast.error('Failed to remove Azure AD integration.')
+    } finally {
+      setAdDeleteBusy(false)
     }
   }
 
@@ -1288,20 +1390,28 @@ export default function SettingsPage() {
       setSyPort(res.data.port)
       setSyEnabled(true)
     } catch (e: any) {
-      alert(e?.response?.data?.error?.message || 'Failed to allocate a syslog port')
+      toast.error(e?.response?.data?.error?.message || 'Failed to allocate a syslog port')
     } finally {
       setSyCreating(false)
     }
   }
 
-  const handleDeleteSyslogSource = async () => {
-    if (!confirm('Remove the syslog source? The assigned port will stop accepting traffic and be released.')) return
+  const handleDeleteSyslogSource = () => {
+    setSyDeleteConfirmOpen(true)
+  }
+
+  const confirmDeleteSyslogSource = async () => {
+    setSyDeleteBusy(true)
     try {
       await apiClient.delete('/api/soar/settings/syslog')
       setSyConfigured(false)
       setSyPort(null)
+      setSyDeleteConfirmOpen(false)
     } catch (e) {
       console.error('Failed to delete syslog source:', e)
+      toast.error('Failed to remove syslog source.')
+    } finally {
+      setSyDeleteBusy(false)
     }
   }
 
@@ -1330,13 +1440,22 @@ export default function SettingsPage() {
   }
 
   // Revoke API Key
-  const handleRevokeKey = async (id: string) => {
-    if (!confirm("Are you sure you want to revoke this API access key?")) return
+  const handleRevokeKey = (id: string) => {
+    setRevokeKeyTarget(id)
+  }
+
+  const confirmRevokeKey = async () => {
+    if (!revokeKeyTarget) return
+    setRevokeKeyBusy(true)
     try {
-      await apiClient.put(`/api/soar/settings/keys/${id}/revoke`)
+      await apiClient.put(`/api/soar/settings/keys/${revokeKeyTarget}/revoke`)
       fetchData()
+      setRevokeKeyTarget(null)
     } catch (e) {
       console.error(e)
+      toast.error('Failed to revoke API access key.')
+    } finally {
+      setRevokeKeyBusy(false)
     }
   }
 
@@ -1356,6 +1475,7 @@ export default function SettingsPage() {
       fetchData()
     } catch (e) {
       console.error(e)
+      toast.error('Failed to generate API key.')
     }
   }
 
@@ -1390,7 +1510,7 @@ export default function SettingsPage() {
       setCfEditing(false)
       await fetchCloudflareConfig()
     } catch (e: any) {
-      alert(e?.response?.data?.error?.message || 'Failed to save Cloudflare configuration')
+      toast.error(e?.response?.data?.error?.message || 'Failed to save Cloudflare configuration')
     } finally {
       setCfSaving(false)
     }
@@ -1412,8 +1532,12 @@ export default function SettingsPage() {
     }
   }
 
-  const handleDeleteCloudflare = async () => {
-    if (!confirm('Remove the Cloudflare integration? SOAR "block" playbook steps will stop applying real blocks until it is reconfigured.')) return
+  const handleDeleteCloudflare = () => {
+    setCfDeleteConfirmOpen(true)
+  }
+
+  const confirmDeleteCloudflare = async () => {
+    setCfDeleteBusy(true)
     try {
       await apiClient.delete('/api/soar/settings/cloudflare')
       setCfConfigured(false)
@@ -1421,8 +1545,12 @@ export default function SettingsPage() {
       setCfApiToken('')
       setCfEditing(true)
       setCfTestResult(null)
+      setCfDeleteConfirmOpen(false)
     } catch (e) {
       console.error('Failed to delete Cloudflare config:', e)
+      toast.error('Failed to remove Cloudflare integration.')
+    } finally {
+      setCfDeleteBusy(false)
     }
   }
 
@@ -1460,7 +1588,7 @@ export default function SettingsPage() {
       setPaEditing(false)
       await fetchPaloAltoConfig()
     } catch (e: any) {
-      alert(e?.response?.data?.error?.message || 'Failed to save Palo Alto configuration')
+      toast.error(e?.response?.data?.error?.message || 'Failed to save Palo Alto configuration')
     } finally {
       setPaSaving(false)
     }
@@ -1482,8 +1610,12 @@ export default function SettingsPage() {
     }
   }
 
-  const handleDeletePaloAlto = async () => {
-    if (!confirm('Remove the Palo Alto integration? ACIS will stop polling this firewall for logs.')) return
+  const handleDeletePaloAlto = () => {
+    setPaDeleteConfirmOpen(true)
+  }
+
+  const confirmDeletePaloAlto = async () => {
+    setPaDeleteBusy(true)
     try {
       await apiClient.delete('/api/soar/settings/paloalto')
       setPaConfigured(false)
@@ -1491,8 +1623,12 @@ export default function SettingsPage() {
       setPaApiKey('')
       setPaEditing(true)
       setPaTestResult(null)
+      setPaDeleteConfirmOpen(false)
     } catch (e) {
       console.error('Failed to delete Palo Alto config:', e)
+      toast.error('Failed to remove Palo Alto integration.')
+    } finally {
+      setPaDeleteBusy(false)
     }
   }
 
@@ -1534,7 +1670,7 @@ export default function SettingsPage() {
       setWzEditing(false)
       await fetchWazuhConfig()
     } catch (e: any) {
-      alert(e?.response?.data?.error?.message || 'Failed to save Wazuh configuration')
+      toast.error(e?.response?.data?.error?.message || 'Failed to save Wazuh configuration')
     } finally {
       setWzSaving(false)
     }
@@ -1557,8 +1693,12 @@ export default function SettingsPage() {
     }
   }
 
-  const handleDeleteWazuh = async () => {
-    if (!confirm('Remove the Wazuh integration? ACIS will stop polling this indexer for alerts.')) return
+  const handleDeleteWazuh = () => {
+    setWzDeleteConfirmOpen(true)
+  }
+
+  const confirmDeleteWazuh = async () => {
+    setWzDeleteBusy(true)
     try {
       await apiClient.delete('/api/soar/settings/wazuh')
       setWzConfigured(false)
@@ -1566,8 +1706,12 @@ export default function SettingsPage() {
       setWzPassword('')
       setWzEditing(true)
       setWzTestResult(null)
+      setWzDeleteConfirmOpen(false)
     } catch (e) {
       console.error('Failed to delete Wazuh config:', e)
+      toast.error('Failed to remove Wazuh integration.')
+    } finally {
+      setWzDeleteBusy(false)
     }
   }
 
@@ -1605,7 +1749,7 @@ export default function SettingsPage() {
       setS1Editing(false)
       await fetchSentinelOneConfig()
     } catch (e: any) {
-      alert(e?.response?.data?.error?.message || 'Failed to save SentinelOne configuration')
+      toast.error(e?.response?.data?.error?.message || 'Failed to save SentinelOne configuration')
     } finally {
       setS1Saving(false)
     }
@@ -1627,8 +1771,12 @@ export default function SettingsPage() {
     }
   }
 
-  const handleDeleteSentinelOne = async () => {
-    if (!confirm('Remove the SentinelOne integration? ACIS will stop polling for threats.')) return
+  const handleDeleteSentinelOne = () => {
+    setS1DeleteConfirmOpen(true)
+  }
+
+  const confirmDeleteSentinelOne = async () => {
+    setS1DeleteBusy(true)
     try {
       await apiClient.delete('/api/soar/settings/sentinelone')
       setS1Configured(false)
@@ -1636,8 +1784,12 @@ export default function SettingsPage() {
       setS1ApiToken('')
       setS1Editing(true)
       setS1TestResult(null)
+      setS1DeleteConfirmOpen(false)
     } catch (e) {
       console.error('Failed to delete SentinelOne config:', e)
+      toast.error('Failed to remove SentinelOne integration.')
+    } finally {
+      setS1DeleteBusy(false)
     }
   }
 
@@ -1648,6 +1800,7 @@ export default function SettingsPage() {
       fetchData()
     } catch (e) {
       console.error(e)
+      toast.error('Failed to update integration status.')
     }
   }
 
@@ -1667,6 +1820,7 @@ export default function SettingsPage() {
       fetchData()
     } catch (e) {
       console.error(e)
+      toast.error('Failed to add integration.')
     }
   }
 
@@ -3870,7 +4024,7 @@ export default function SettingsPage() {
                             </button>
                           ) : (
                             <button
-                              onClick={() => alert("Key is already revoked")}
+                              onClick={() => toast.info("Key is already revoked")}
                               className="text-text-muted font-semibold text-small focus:outline-none cursor-not-allowed"
                             >
                               Revoked
@@ -3946,12 +4100,6 @@ export default function SettingsPage() {
                         )}>
                           {int.status}
                         </span>
-                      </button>
-                      <button
-                        onClick={() => alert("Configuration settings options")}
-                        className="text-text-muted hover:text-text-primary transition-colors focus:outline-none text-label uppercase"
-                      >
-                        Configure
                       </button>
                     </div>
                   </div>
@@ -4797,6 +4945,170 @@ export default function SettingsPage() {
           </div>
         </div>
       )}
+
+      <ConfirmDialog
+        open={!!rollbackTarget}
+        title="Rollback Classifier Version"
+        message={rollbackTarget ? `Roll back the live classifier to version ${rollbackTarget}? This immediately replaces the active model.` : ''}
+        confirmLabel="Rollback"
+        danger
+        busy={rollbackVersionLoading === rollbackTarget}
+        onConfirm={confirmRollback}
+        onCancel={() => setRollbackTarget(null)}
+      />
+
+      <ConfirmDialog
+        open={!!removeAgentTarget}
+        title="Remove Agent"
+        message="Remove this agent from the fleet? It will reappear on its next heartbeat if the machine is still running the installer."
+        confirmLabel="Remove"
+        danger
+        busy={removeAgentBusy}
+        onConfirm={confirmRemoveAgent}
+        onCancel={() => setRemoveAgentTarget(null)}
+      />
+
+      <ConfirmDialog
+        open={deleteOrgConfirmOpen}
+        title="Delete Organization"
+        message="WARNING: This action is irreversible. Are you sure you want to permanently delete and reset this organization?"
+        confirmLabel="Delete"
+        danger
+        busy={deleteOrgBusy}
+        onConfirm={confirmDeleteOrganization}
+        onCancel={() => setDeleteOrgConfirmOpen(false)}
+      />
+
+      <ConfirmDialog
+        open={!!changePlanTarget}
+        title="Change Plan"
+        message={changePlanTarget ? `Are you sure you want to change your plan to ${changePlanTarget}?` : ''}
+        confirmLabel="Change Plan"
+        busy={licenseChanging}
+        onConfirm={confirmChangePlan}
+        onCancel={() => setChangePlanTarget(null)}
+      />
+
+      <ConfirmDialog
+        open={!!deleteUserTarget}
+        title="Remove User"
+        message={deleteUserTarget ? `Are you sure you want to remove ${deleteUserTarget.name} from this organization?` : ''}
+        confirmLabel="Remove"
+        danger
+        busy={deleteUserBusy}
+        onConfirm={confirmDeleteUser}
+        onCancel={() => setDeleteUserTarget(null)}
+      />
+
+      <ConfirmDialog
+        open={!!deleteGroupTarget}
+        title="Delete Group"
+        message={deleteGroupTarget ? `Delete "${deleteGroupTarget.name}"? Members in this group will become ungrouped — they are not removed.` : ''}
+        confirmLabel="Delete"
+        danger
+        busy={deleteGroupBusy}
+        onConfirm={confirmDeleteGroup}
+        onCancel={() => setDeleteGroupTarget(null)}
+      />
+
+      <ConfirmDialog
+        open={!!revokeKeyTarget}
+        title="Revoke API Key"
+        message="Are you sure you want to revoke this API access key?"
+        confirmLabel="Revoke"
+        danger
+        busy={revokeKeyBusy}
+        onConfirm={confirmRevokeKey}
+        onCancel={() => setRevokeKeyTarget(null)}
+      />
+
+      <ConfirmDialog
+        open={gdDeleteConfirmOpen}
+        title="Remove AWS GuardDuty Integration"
+        message="Remove the AWS GuardDuty integration? ACIS will stop polling for findings."
+        confirmLabel="Remove"
+        danger
+        busy={gdDeleteBusy}
+        onConfirm={confirmDeleteGuardDuty}
+        onCancel={() => setGdDeleteConfirmOpen(false)}
+      />
+
+      <ConfirmDialog
+        open={asDeleteConfirmOpen}
+        title="Remove Azure Sentinel Integration"
+        message="Remove the Azure Sentinel integration? ACIS will stop polling for incidents."
+        confirmLabel="Remove"
+        danger
+        busy={asDeleteBusy}
+        onConfirm={confirmDeleteAzureSentinel}
+        onCancel={() => setAsDeleteConfirmOpen(false)}
+      />
+
+      <ConfirmDialog
+        open={adDeleteConfirmOpen}
+        title="Remove Azure AD Integration"
+        message="Remove the Azure AD integration? ACIS will stop polling for sign-in logs."
+        confirmLabel="Remove"
+        danger
+        busy={adDeleteBusy}
+        onConfirm={confirmDeleteAzureAd}
+        onCancel={() => setAdDeleteConfirmOpen(false)}
+      />
+
+      <ConfirmDialog
+        open={syDeleteConfirmOpen}
+        title="Remove Syslog Source"
+        message="Remove the syslog source? The assigned port will stop accepting traffic and be released."
+        confirmLabel="Remove"
+        danger
+        busy={syDeleteBusy}
+        onConfirm={confirmDeleteSyslogSource}
+        onCancel={() => setSyDeleteConfirmOpen(false)}
+      />
+
+      <ConfirmDialog
+        open={cfDeleteConfirmOpen}
+        title="Remove Cloudflare Integration"
+        message='Remove the Cloudflare integration? SOAR "block" playbook steps will stop applying real blocks until it is reconfigured.'
+        confirmLabel="Remove"
+        danger
+        busy={cfDeleteBusy}
+        onConfirm={confirmDeleteCloudflare}
+        onCancel={() => setCfDeleteConfirmOpen(false)}
+      />
+
+      <ConfirmDialog
+        open={paDeleteConfirmOpen}
+        title="Remove Palo Alto Integration"
+        message="Remove the Palo Alto integration? ACIS will stop polling this firewall for logs."
+        confirmLabel="Remove"
+        danger
+        busy={paDeleteBusy}
+        onConfirm={confirmDeletePaloAlto}
+        onCancel={() => setPaDeleteConfirmOpen(false)}
+      />
+
+      <ConfirmDialog
+        open={wzDeleteConfirmOpen}
+        title="Remove Wazuh Integration"
+        message="Remove the Wazuh integration? ACIS will stop polling this indexer for alerts."
+        confirmLabel="Remove"
+        danger
+        busy={wzDeleteBusy}
+        onConfirm={confirmDeleteWazuh}
+        onCancel={() => setWzDeleteConfirmOpen(false)}
+      />
+
+      <ConfirmDialog
+        open={s1DeleteConfirmOpen}
+        title="Remove SentinelOne Integration"
+        message="Remove the SentinelOne integration? ACIS will stop polling for threats."
+        confirmLabel="Remove"
+        danger
+        busy={s1DeleteBusy}
+        onConfirm={confirmDeleteSentinelOne}
+        onCancel={() => setS1DeleteConfirmOpen(false)}
+      />
 
     </div>
   )

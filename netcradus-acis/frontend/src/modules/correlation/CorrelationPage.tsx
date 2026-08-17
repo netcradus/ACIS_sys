@@ -2,6 +2,8 @@ import React, { useState, useEffect, useMemo } from 'react'
 import { Plus, Search, X, Trash2, Copy, Edit3, AlertTriangle, CheckCircle, Sliders } from 'lucide-react'
 import apiClient from '@/lib/apiClient'
 import { useCanWrite, MODULES } from '@/store/permissionsStore'
+import ConfirmDialog from '@/components/ui/ConfirmDialog'
+import { toast } from '@/store/toastStore'
 import { clsx } from 'clsx'
 import './CorrelationPage.css'
 
@@ -141,6 +143,8 @@ export default function CorrelationPage() {
   const [isLoading, setIsLoading] = useState(false)
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editingRuleId, setEditingRuleId] = useState<string | null>(null)
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null)
+  const [deleteBusy, setDeleteBusy] = useState(false)
 
   // Form State for New/Edit Rule
   const [newRuleName, setNewRuleName] = useState('')
@@ -224,18 +228,27 @@ export default function CorrelationPage() {
     }
   }
 
-  const handleDelete = async (id: string, e: React.MouseEvent) => {
+  const handleDelete = (id: string, e: React.MouseEvent) => {
     e.stopPropagation()
-    if (!window.confirm('Are you sure you want to delete this correlation rule?')) return
+    setDeleteTarget(id)
+  }
+
+  const confirmDelete = async () => {
+    if (!deleteTarget) return
+    setDeleteBusy(true)
     try {
-      await apiClient.delete(`/api/correlation/rules/${id}`)
-      setRules(prev => prev.filter(r => r.id !== id))
-      if (selectedRuleId === id) {
+      await apiClient.delete(`/api/correlation/rules/${deleteTarget}`)
+      setRules(prev => prev.filter(r => r.id !== deleteTarget))
+      if (selectedRuleId === deleteTarget) {
         setSelectedRuleId(null)
       }
       fetchRulesAndStats()
+      setDeleteTarget(null)
     } catch (error) {
       console.error('Failed to delete rule:', error)
+      toast.error('Failed to delete correlation rule.')
+    } finally {
+      setDeleteBusy(false)
     }
   }
 
@@ -1061,6 +1074,17 @@ export default function CorrelationPage() {
           </div>
         </div>
       )}
+
+      <ConfirmDialog
+        open={!!deleteTarget}
+        title="Delete Correlation Rule"
+        message="Are you sure you want to delete this correlation rule? This cannot be undone."
+        confirmLabel="Delete"
+        danger
+        busy={deleteBusy}
+        onConfirm={confirmDelete}
+        onCancel={() => setDeleteTarget(null)}
+      />
     </div>
   )
 }

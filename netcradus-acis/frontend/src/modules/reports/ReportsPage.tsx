@@ -3,6 +3,8 @@ import { FileText, Printer, Download, Settings, Search, Plus, X, CheckCircle2, C
 import { clsx } from 'clsx'
 import apiClient from '@/lib/apiClient'
 import { useCanWrite, useCanAdmin, MODULES } from '@/store/permissionsStore'
+import ConfirmDialog from '@/components/ui/ConfirmDialog'
+import { toast } from '@/store/toastStore'
 import './ReportsPage.css'
 
 interface ReportSchedule {
@@ -61,6 +63,18 @@ export default function ReportsPage() {
   const [newFormat, setNewFormat] = useState('PDF')
   const [newFrequency, setNewFrequency] = useState('Weekly Mon 08:00')
   const [newRecipients, setNewRecipients] = useState('4 recipients')
+  const [deleteScheduleId, setDeleteScheduleId] = useState<string | null>(null)
+  const [deleteScheduleBusy, setDeleteScheduleBusy] = useState(false)
+
+  // Opens the real "Add Export Schedule" modal pre-filled for one of the
+  // report preview cards below — reuses the same create-schedule flow/API
+  // rather than a separate, fake "layout options" concept that has no
+  // backend support (ReportSchedule has no layout field).
+  const openScheduleModalFor = (reportName: string, format: string) => {
+    setNewReportName(reportName)
+    setNewFormat(format)
+    setIsModalOpen(true)
+  }
 
   const fetchData = async () => {
     try {
@@ -95,6 +109,7 @@ export default function ReportsPage() {
       fetchData()
     } catch (e) {
       console.error(e)
+      toast.error('Failed to update schedule status.')
     }
   }
 
@@ -112,20 +127,31 @@ export default function ReportsPage() {
       await apiClient.post('/api/soar/reports/schedules', payload)
       setIsModalOpen(false)
       setNewReportName('')
+      toast.success('Export schedule created.')
       fetchData()
     } catch (e) {
       console.error(e)
+      toast.error('Failed to create export schedule.')
     }
   }
 
   // Delete Schedule
-  const handleDeleteSchedule = async (id: string) => {
-    if (!confirm("Are you sure you want to delete this scheduled export?")) return
+  const handleDeleteSchedule = (id: string) => {
+    setDeleteScheduleId(id)
+  }
+
+  const confirmDeleteSchedule = async () => {
+    if (!deleteScheduleId) return
+    setDeleteScheduleBusy(true)
     try {
-      await apiClient.delete(`/api/soar/reports/schedules/${id}`)
+      await apiClient.delete(`/api/soar/reports/schedules/${deleteScheduleId}`)
+      setDeleteScheduleId(null)
       fetchData()
     } catch (e) {
       console.error(e)
+      toast.error('Failed to delete scheduled export.')
+    } finally {
+      setDeleteScheduleBusy(false)
     }
   }
 
@@ -283,7 +309,7 @@ export default function ReportsPage() {
                 Download
               </button>
               <button
-                onClick={() => alert("Configure layout options")}
+                onClick={() => openScheduleModalFor("Weekly Executive Summary", "PDF")}
                 className="btn-action justify-center py-2 text-small"
               >
                 Configure
@@ -327,7 +353,7 @@ export default function ReportsPage() {
                 Download
               </button>
               <button
-                onClick={() => alert("Configure layout options")}
+                onClick={() => openScheduleModalFor("Incident Board Pack", "PPTX")}
                 className="btn-action justify-center py-2 text-small"
               >
                 Configure
@@ -373,7 +399,7 @@ export default function ReportsPage() {
                 Download
               </button>
               <button
-                onClick={() => alert("Configure layout options")}
+                onClick={() => openScheduleModalFor("Detection Coverage Report", "CSV")}
                 className="btn-action justify-center py-2 text-small"
               >
                 Configure
@@ -552,6 +578,17 @@ export default function ReportsPage() {
           </div>
         </div>
       )}
+
+      <ConfirmDialog
+        open={!!deleteScheduleId}
+        title="Delete Scheduled Export"
+        message="Are you sure you want to delete this scheduled export? This cannot be undone."
+        confirmLabel="Delete"
+        danger
+        busy={deleteScheduleBusy}
+        onConfirm={confirmDeleteSchedule}
+        onCancel={() => setDeleteScheduleId(null)}
+      />
     </div>
   )
 }
