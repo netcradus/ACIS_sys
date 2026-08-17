@@ -443,11 +443,20 @@ async def health_check():
 
 @app.post("/ai/mitre")
 async def mitre_map(request: QueryRequest):
-    # Map a free-text description to a MITRE ATT&CK technique using the FAISS index if available
+    """Maps a free-text description to a MITRE ATT&CK technique via the real
+    FAISS similarity index. Same rule as every other feature in this file
+    (see _unavailable_response above): a genuinely unavailable index or a
+    failed lookup returns a real error, never a fabricated technique -
+    a caller that doesn't check X-ACIS-AI-Mode would otherwise display a
+    fake "Spearphishing Attachment, 93% confidence" result for arbitrary
+    unrelated input."""
     query = request.query
     if getattr(app.state, 'faiss_index', None) is None or app.state.mitre_data is None:
-        # Fallback mock response
-        return JSONResponse(content={"technique_id": "T1566.001", "technique_name": "Spearphishing Attachment", "tactic": "initial-access", "similarity": 0.93}, headers={"X-ACIS-AI-Mode": "mock"})
+        return JSONResponse(
+            status_code=503,
+            content={"success": False, "mode": "unavailable", "error": "MITRE technique index failed to load at startup."},
+            headers={"X-ACIS-AI-Mode": "unavailable"},
+        )
 
     try:
         import numpy as np
@@ -463,13 +472,11 @@ async def mitre_map(request: QueryRequest):
         }
     except Exception as e:
         logger.error(f"MITRE mapping failed: {e}")
-        return JSONResponse(content={"technique_id": "T1566.001", "technique_name": "Spearphishing Attachment", "tactic": "initial-access", "similarity": 0.0}, headers={"X-ACIS-AI-Mode": "mock"})
-# gRPC will be started independently below if `__name__ == '__main__'`
-def serve_grpc():
-    import grpc
-    from concurrent import futures
-    # In a full build, we map grpc stubs to Threat Intel logic.
-    pass
+        return JSONResponse(
+            status_code=502,
+            content={"success": False, "mode": "unavailable", "error": "MITRE technique lookup failed."},
+            headers={"X-ACIS-AI-Mode": "unavailable"},
+        )
 
 if __name__ == "__main__":
     import uvicorn
