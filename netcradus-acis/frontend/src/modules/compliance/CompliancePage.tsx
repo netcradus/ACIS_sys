@@ -43,26 +43,29 @@ export default function CompliancePage() {
   const [frameworks, setFrameworks] = useState<ComplianceFramework[]>([])
   const [auditTrail, setAuditTrail] = useState<AuditTrailEntry[]>([])
   const [isLoading, setIsLoading] = useState(true)
+  const [complianceError, setComplianceError] = useState<string | null>(null)
   const [isReportLoading, setIsReportLoading] = useState(false)
 
-  useEffect(() => {
-    const loadCompliance = async () => {
-      setIsLoading(true)
-      try {
-        const [postureRes, auditRes] = await Promise.all([
-          apiClient.get<ComplianceFramework[]>('/api/compliance/posture'),
-          apiClient.get<AuditTrailEntry[]>('/api/compliance/audit-trail'),
-        ])
+  const loadCompliance = async () => {
+    setIsLoading(true)
+    setComplianceError(null)
+    try {
+      const [postureRes, auditRes] = await Promise.all([
+        apiClient.get<ComplianceFramework[]>('/api/compliance/posture'),
+        apiClient.get<AuditTrailEntry[]>('/api/compliance/audit-trail'),
+      ])
 
-        setFrameworks(postureRes.data ?? [])
-        setAuditTrail(auditRes.data ?? [])
-      } catch (error) {
-        console.error('Failed to load compliance data:', error)
-      } finally {
-        setIsLoading(false)
-      }
+      setFrameworks(postureRes.data ?? [])
+      setAuditTrail(auditRes.data ?? [])
+    } catch (error) {
+      console.error('Failed to load compliance data:', error)
+      setComplianceError('Unable to load compliance data. Please try again.')
+    } finally {
+      setIsLoading(false)
     }
+  }
 
+  useEffect(() => {
     loadCompliance()
   }, [])
 
@@ -119,6 +122,15 @@ export default function CompliancePage() {
                 style={{ height: '320px' }}
               />
             ))
+          ) : complianceError ? (
+            <div className="comp-card flex flex-col items-center justify-center gap-2 py-8" style={{ minHeight: '160px' }}>
+              <span>Unable to load compliance frameworks. Please try again.</span>
+              <button className="btn-mission text-small px-3 py-1.5" onClick={loadCompliance}>Retry</button>
+            </div>
+          ) : frameworks.length === 0 ? (
+            <div className="comp-card flex items-center justify-center py-8" style={{ minHeight: '160px' }}>
+              <span>No compliance frameworks configured.</span>
+            </div>
           ) : (
             frameworks.map((fw) => (
               <div key={fw.name} className="comp-card">

@@ -21,6 +21,7 @@ import { useNavigate } from 'react-router-dom'
 import HeatmapGrid from '@/components/viz/HeatmapGrid'
 import StepExecutionTimeline, { type ExecutionStep, type StepStatus } from '@/components/viz/StepExecutionTimeline'
 import ConfirmDialog from '@/components/ui/ConfirmDialog'
+import { toast } from '@/store/toastStore'
 import './RedTeamPage.css'
 
 interface Simulation {
@@ -130,6 +131,8 @@ export default function RedTeamPage() {
   const [simulations, setSimulations] = useState<Simulation[]>([])
   const [executions, setExecutions] = useState<ExecutionView[]>([])
   const [loading, setLoading] = useState(true)
+  const [simulationsError, setSimulationsError] = useState<string | null>(null)
+  const [executionsError, setExecutionsError] = useState<string | null>(null)
   const [query, setQuery] = useState('')
   const [startingId, setStartingId] = useState<string | null>(null)
   const [selectedExecutionId, setSelectedExecutionId] = useState<string | null>(null)
@@ -137,22 +140,26 @@ export default function RedTeamPage() {
   const navigate = useNavigate()
 
   const fetchSimulations = async () => {
+    setSimulationsError(null)
     try {
       const response = await apiClient.get<Simulation[]>('/api/red-team/simulations')
       setSimulations(response.data || [])
     } catch (err) {
       console.error("Failed to fetch simulations", err)
+      setSimulationsError('Unable to load red team simulations. Please try again.')
     } finally {
       setLoading(false)
     }
   }
 
   const fetchExecutions = async () => {
+    setExecutionsError(null)
     try {
       const response = await apiClient.get<ExecutionView[]>('/api/red-team/executions')
       setExecutions(response.data || [])
     } catch (err) {
       console.error("Failed to fetch executions", err)
+      setExecutionsError('Unable to load execution history. Please try again.')
     }
   }
 
@@ -173,6 +180,7 @@ export default function RedTeamPage() {
       fetchSimulations()
     } catch (err) {
       console.error(err)
+      toast.error('Failed to start simulation.')
     } finally {
       setStartingId(null)
       setConfirmingStartId(null)
@@ -359,6 +367,18 @@ export default function RedTeamPage() {
         ) : (
           <>
             {/* Simulations grid lists */}
+            {simulationsError ? (
+              <div style={{ background: 'var(--card-bg)', border: '1px solid var(--border-soft)', borderRadius: '14px', padding: '20px' }} className="mb-5">
+                <div className="flex flex-col items-center gap-2 py-4">
+                  <span style={{ color: 'var(--dim)' }}>Unable to load simulations. Please try again.</span>
+                  <button className="btn-mission text-small px-3 py-1.5" onClick={fetchSimulations}>Retry</button>
+                </div>
+              </div>
+            ) : filteredSimulations.length === 0 ? (
+              <div style={{ background: 'var(--card-bg)', border: '1px solid var(--border-soft)', borderRadius: '14px', padding: '24px 0', textAlign: 'center', color: 'var(--dim)' }} className="mb-5">
+                No simulations yet — create one to get started.
+              </div>
+            ) : (
             <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mb-5">
               {filteredSimulations.map((simulation) => {
                 const stepCount = parseSteps(simulation.steps)
@@ -493,6 +513,7 @@ export default function RedTeamPage() {
                 )
               })}
             </div>
+            )}
 
             {/* MITRE Coverage + Execution history table columns */}
             <div className="two-col">
@@ -530,7 +551,16 @@ export default function RedTeamPage() {
                     <span>STATUS</span>
                   </div>
 
-                  {executionHistory.map((row) => (
+                  {executionsError && (
+                    <div style={{ padding: '24px 0', textAlign: 'center', color: 'var(--dim)' }}>
+                      <div className="flex flex-col items-center gap-2">
+                        <span>Unable to load execution history. Please try again.</span>
+                        <button className="btn-mission text-small px-3 py-1.5" onClick={fetchExecutions}>Retry</button>
+                      </div>
+                    </div>
+                  )}
+
+                  {!executionsError && executionHistory.map((row) => (
                     <div
                       key={row.id}
                       onClick={() => setSelectedExecutionId(row.id)}
@@ -550,7 +580,7 @@ export default function RedTeamPage() {
                     </div>
                   ))}
 
-                  {executionHistory.length === 0 && (
+                  {!executionsError && executionHistory.length === 0 && (
                     <div style={{ padding: '24px 0', textAlign: 'center', color: 'var(--dim)' }}>
                       No executions recorded yet.
                     </div>

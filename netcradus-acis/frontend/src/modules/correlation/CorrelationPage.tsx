@@ -141,6 +141,7 @@ export default function CorrelationPage() {
   const [searchTerm, setSearchTerm] = useState('')
   const [alertsToday, setAlertsToday] = useState<number>(0)
   const [isLoading, setIsLoading] = useState(false)
+  const [rulesError, setRulesError] = useState<string | null>(null)
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editingRuleId, setEditingRuleId] = useState<string | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null)
@@ -169,6 +170,7 @@ export default function CorrelationPage() {
 
   const fetchRulesAndStats = async () => {
     setIsLoading(true)
+    setRulesError(null)
     try {
       const [rulesRes, statsRes, alertsSummaryRes] = await Promise.all([
         apiClient.get('/api/correlation/rules'),
@@ -191,6 +193,7 @@ export default function CorrelationPage() {
       }
     } catch (error) {
       console.error('Failed to fetch data:', error)
+      setRulesError('Unable to load correlation rules. Please try again.')
     } finally {
       setIsLoading(false)
     }
@@ -225,6 +228,7 @@ export default function CorrelationPage() {
       }
     } catch (error) {
       console.error('Failed to toggle rule:', error)
+      toast.error('Failed to toggle correlation rule.')
     }
   }
 
@@ -268,6 +272,7 @@ export default function CorrelationPage() {
       fetchRulesAndStats()
     } catch (error) {
       console.error('Failed to duplicate rule:', error)
+      toast.error('Failed to duplicate correlation rule.')
     }
   }
 
@@ -293,6 +298,7 @@ export default function CorrelationPage() {
       fetchRulesAndStats()
     } catch (error) {
       console.error('Failed to save rule:', error)
+      toast.error(editingRuleId ? 'Failed to save changes to correlation rule.' : 'Failed to create correlation rule.')
     }
   }
 
@@ -642,7 +648,20 @@ export default function CorrelationPage() {
                 </tr>
               </thead>
               <tbody>
-                {paginatedRules.length > 0 ? (
+                {isLoading && (
+                  <tr><td colSpan={7} className="text-center text-text-muted py-6">Loading...</td></tr>
+                )}
+                {!isLoading && rulesError && (
+                  <tr>
+                    <td colSpan={7}>
+                      <div className="flex flex-col items-center gap-2 py-4">
+                        <span>Unable to load correlation rules. Please try again.</span>
+                        <button className="btn-mission text-small px-3 py-1.5" onClick={fetchRulesAndStats}>Retry</button>
+                      </div>
+                    </td>
+                  </tr>
+                )}
+                {!isLoading && !rulesError && paginatedRules.length > 0 ? (
                   paginatedRules.map((rule) => {
                     const isSelected = selectedRuleId === rule.id
                     const isChecked = !!selectedRuleIds[rule.id]
@@ -709,11 +728,13 @@ export default function CorrelationPage() {
                     )
                   })
                 ) : (
-                  <tr>
-                    <td colSpan={7} style={{ textAlign: 'center', padding: '30px', color: 'var(--dim)' }}>
-                      No correlation rules found
-                    </td>
-                  </tr>
+                  !isLoading && !rulesError && (
+                    <tr>
+                      <td colSpan={7} style={{ textAlign: 'center', padding: '30px', color: 'var(--dim)' }}>
+                        No correlation rules found
+                      </td>
+                    </tr>
+                  )
                 )}
               </tbody>
             </table>

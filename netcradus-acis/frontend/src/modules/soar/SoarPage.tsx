@@ -5,6 +5,7 @@ import apiClient from '@/lib/apiClient'
 import { useCanWrite, MODULES } from '@/store/permissionsStore'
 import StepExecutionTimeline, { type ExecutionStep, type StepStatus } from '@/components/viz/StepExecutionTimeline'
 import ConfirmDialog from '@/components/ui/ConfirmDialog'
+import { toast } from '@/store/toastStore'
 import './SoarPage.css'
 
 function normalizeSoarStatus(raw: string | undefined): StepStatus {
@@ -65,6 +66,7 @@ export default function SoarPage() {
   const [executions, setExecutions] = useState<Execution[]>([])
   const [selectedExecutionId, setSelectedExecutionId] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
+  const [dataError, setDataError] = useState<string | null>(null)
   const [searchTerm, setSearchTerm] = useState('')
   const [isModalOpen, setIsModalOpen] = useState(false)
 
@@ -82,6 +84,7 @@ export default function SoarPage() {
   const [runBusy, setRunBusy] = useState(false)
 
   const fetchData = async () => {
+    setDataError(null)
     try {
       const [playbooksRes, executionsRes, dependenciesRes, indicatorsRes] = await Promise.all([
         apiClient.get('/api/soar/playbooks'),
@@ -118,6 +121,7 @@ export default function SoarPage() {
       }
     } catch (err) {
       console.error("Failed to fetch SOAR data", err)
+      setDataError('Unable to load SOAR playbooks and executions. Please try again.')
     } finally {
       setLoading(false)
     }
@@ -136,6 +140,7 @@ export default function SoarPage() {
       fetchData()
     } catch (err) {
       console.error("Failed to trigger playbook:", err)
+      toast.error('Failed to run playbook.')
     } finally {
       setRunBusy(false)
       setConfirmingRunPlaybookId(null)
@@ -165,6 +170,7 @@ export default function SoarPage() {
       fetchData()
     } catch (e) {
       console.error("Failed to save playbook:", e)
+      toast.error(editingPlaybookId ? 'Failed to save playbook changes.' : 'Failed to create playbook.')
     }
   }
 
@@ -368,7 +374,27 @@ export default function SoarPage() {
               </tr>
             </thead>
             <tbody>
-              {filteredPlaybooks.map((pb) => {
+              {loading && (
+                <tr><td colSpan={9} className="text-center text-text-muted py-6">Loading...</td></tr>
+              )}
+              {!loading && dataError && (
+                <tr>
+                  <td colSpan={9}>
+                    <div className="flex flex-col items-center gap-2 py-4">
+                      <span>Unable to load SOAR playbooks. Please try again.</span>
+                      <button className="btn-mission text-small px-3 py-1.5" onClick={fetchData}>Retry</button>
+                    </div>
+                  </td>
+                </tr>
+              )}
+              {!loading && !dataError && filteredPlaybooks.length === 0 && (
+                <tr>
+                  <td colSpan={9} style={{ textAlign: 'center', padding: '30px', color: 'var(--dim)' }}>
+                    No playbooks configured yet — create one to get started.
+                  </td>
+                </tr>
+              )}
+              {!loading && !dataError && filteredPlaybooks.map((pb) => {
                 const isHigh = pb.name.includes('Isolate') || pb.name.includes('Reset')
                 const isSuccess = pb.successCount === pb.runCount && pb.runCount > 0
                 return (
@@ -500,7 +526,27 @@ export default function SoarPage() {
                 </tr>
               </thead>
               <tbody>
-                {executions.map((exec) => {
+                {loading && (
+                  <tr><td colSpan={5} className="text-center text-text-muted py-6">Loading...</td></tr>
+                )}
+                {!loading && dataError && (
+                  <tr>
+                    <td colSpan={5}>
+                      <div className="flex flex-col items-center gap-2 py-4">
+                        <span>Unable to load executions. Please try again.</span>
+                        <button className="btn-mission text-small px-3 py-1.5" onClick={fetchData}>Retry</button>
+                      </div>
+                    </td>
+                  </tr>
+                )}
+                {!loading && !dataError && executions.length === 0 && (
+                  <tr>
+                    <td colSpan={5} style={{ textAlign: 'center', padding: '30px', color: 'var(--dim)' }}>
+                      No executions recorded yet.
+                    </td>
+                  </tr>
+                )}
+                {!loading && !dataError && executions.map((exec) => {
                   const pbName = getPlaybookName(exec.playbookId)
                   return (
                     <tr

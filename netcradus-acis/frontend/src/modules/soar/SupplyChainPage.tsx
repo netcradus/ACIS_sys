@@ -37,10 +37,14 @@ export default function SupplyChainPage() {
   const [scanningDeps, setScanningDeps] = useState(false)
   const [scanningSecrets, setScanningSecrets] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [findingsLoading, setFindingsLoading] = useState(true)
+  const [findingsError, setFindingsError] = useState<string | null>(null)
   const depInputRef = useRef<HTMLInputElement>(null)
   const secretInputRef = useRef<HTMLInputElement>(null)
 
   const fetchFindings = async () => {
+    setFindingsLoading(true)
+    setFindingsError(null)
     try {
       const [depsRes, secretsRes] = await Promise.all([
         apiClient.get('/api/soar/supply-chain/dependency-findings'),
@@ -50,6 +54,9 @@ export default function SupplyChainPage() {
       setSecretFindings(secretsRes.data || [])
     } catch (err) {
       console.error('Failed to fetch supply-chain findings', err)
+      setFindingsError('Unable to load supply-chain findings. Please try again.')
+    } finally {
+      setFindingsLoading(false)
     }
   }
 
@@ -142,9 +149,23 @@ export default function SupplyChainPage() {
         <table className="table-enterprise w-full">
           <thead><tr><th>PACKAGE</th><th>VERSION</th><th>VULNERABILITY</th><th>SEVERITY</th><th>FIXED IN</th><th>SUMMARY</th></tr></thead>
           <tbody>
-            {depFindings.length === 0 ? (
+            {findingsLoading && (
+              <tr><td colSpan={6} className="text-center text-text-muted py-6">Loading...</td></tr>
+            )}
+            {!findingsLoading && findingsError && (
+              <tr className="empty-row">
+                <td colSpan={6}>
+                  <div className="flex flex-col items-center gap-2 py-4">
+                    <span>{findingsError}</span>
+                    <button className="btn-mission text-small px-3 py-1.5" onClick={fetchFindings}>Retry</button>
+                  </div>
+                </td>
+              </tr>
+            )}
+            {!findingsLoading && !findingsError && depFindings.length === 0 && (
               <tr><td colSpan={6} className="text-center text-text-muted py-6">No dependency findings yet.</td></tr>
-            ) : depFindings.map((f) => (
+            )}
+            {!findingsLoading && !findingsError && depFindings.map((f) => (
               <tr key={f.id}>
                 <td className="font-mono text-small">{f.packageName}</td>
                 <td>{f.version}</td>
@@ -163,9 +184,23 @@ export default function SupplyChainPage() {
         <table className="table-enterprise w-full">
           <thead><tr><th>SOURCE</th><th>LINE</th><th>RULE</th><th>SEVERITY</th><th>PREVIEW</th></tr></thead>
           <tbody>
-            {secretFindings.length === 0 ? (
+            {findingsLoading && (
+              <tr><td colSpan={5} className="text-center text-text-muted py-6">Loading...</td></tr>
+            )}
+            {!findingsLoading && findingsError && (
+              <tr className="empty-row">
+                <td colSpan={5}>
+                  <div className="flex flex-col items-center gap-2 py-4">
+                    <span>{findingsError}</span>
+                    <button className="btn-mission text-small px-3 py-1.5" onClick={fetchFindings}>Retry</button>
+                  </div>
+                </td>
+              </tr>
+            )}
+            {!findingsLoading && !findingsError && secretFindings.length === 0 && (
               <tr><td colSpan={5} className="text-center text-text-muted py-6">No secret findings yet.</td></tr>
-            ) : secretFindings.map((f) => (
+            )}
+            {!findingsLoading && !findingsError && secretFindings.map((f) => (
               <tr key={f.id}>
                 <td className="font-mono text-small">{f.sourceName}</td>
                 <td>{f.lineNumber}</td>

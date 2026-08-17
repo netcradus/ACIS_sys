@@ -4,6 +4,7 @@ import { clsx } from 'clsx'
 import apiClient from '@/lib/apiClient'
 import { useCanWrite, MODULES } from '@/store/permissionsStore'
 import ConfirmDialog from '@/components/ui/ConfirmDialog'
+import { toast } from '@/store/toastStore'
 import './EndpointsPage.css'
 
 interface Asset {
@@ -134,6 +135,7 @@ export default function EndpointsPage() {
       fetchEndpoints()
     } catch (err) {
       console.error(err)
+      toast.error('Failed to isolate endpoint.')
     } finally {
       setProcessingId(null)
       setConfirmTarget(null)
@@ -152,6 +154,7 @@ export default function EndpointsPage() {
       fetchEndpoints()
     } catch (err) {
       console.error(err)
+      toast.error('Failed to release endpoint.')
     } finally {
       setProcessingId(null)
       setConfirmTarget(null)
@@ -170,6 +173,7 @@ export default function EndpointsPage() {
       fetchEndpoints()
     } catch (err) {
       console.error(err)
+      toast.error('Failed to roll back endpoint.')
     } finally {
       setProcessingId(null)
       setConfirmTarget(null)
@@ -203,6 +207,7 @@ export default function EndpointsPage() {
       fetchEndpoints()
     } catch (e) {
       console.error(e)
+      toast.error('Failed to roll back all pending endpoints.')
     } finally {
       setRollbackAllBusy(false)
       setConfirmingRollbackAll(false)

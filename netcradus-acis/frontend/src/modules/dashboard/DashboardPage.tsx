@@ -124,6 +124,7 @@ export default function DashboardPage() {
   const [severityCounts, setSeverityCounts] = useState<{ critical: number; high: number; medium: number; low: number } | null>(null)
   const [responseReadiness, setResponseReadiness] = useState<number | null>(null)
   const [isLoading, setIsLoading] = useState(true)
+  const [dataError, setDataError] = useState<string | null>(null)
 
   // Simulation State Machine
   const [simState, setSimState] = useState<'idle' | 'simulating'>('idle')
@@ -313,6 +314,7 @@ export default function DashboardPage() {
   const cpuUsage = Math.round(ingestStats?.cpuUsagePercent ?? 0)
 
   const fetchData = async () => {
+    setDataError(null)
     try {
       const [statsRes, alertsRes] = await Promise.all([
         apiClient.get('/api/alerts/dashboard/summary'),
@@ -343,6 +345,7 @@ export default function DashboardPage() {
       setIncidents(recent)
     } catch (error) {
       console.error('Failed to fetch dashboard data:', error)
+      setDataError('Unable to load dashboard data. Please try again.')
     } finally {
       setIsLoading(false)
     }
@@ -760,6 +763,13 @@ export default function DashboardPage() {
           </button>
         </div>
       </div>
+
+      {dataError && (
+        <div className="panel flex flex-wrap items-center justify-between gap-3" style={{ borderColor: 'var(--soc-red, #f43f5e)' }}>
+          <span className="text-small text-[var(--soc-red,#f43f5e)]">{dataError}</span>
+          <button className="btn-mission text-small px-3 py-1.5" onClick={fetchData}>Retry</button>
+        </div>
+      )}
 
       {activeTab === 'architecture' ? (
         <div className="space-y-6">

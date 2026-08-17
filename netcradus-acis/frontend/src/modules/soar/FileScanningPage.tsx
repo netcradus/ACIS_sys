@@ -3,6 +3,7 @@ import { UploadCloud, ShieldCheck, ShieldAlert, ShieldQuestion, Loader2 } from '
 import apiClient from '@/lib/apiClient'
 import { useCanWrite, MODULES } from '@/store/permissionsStore'
 import ConfirmDialog from '@/components/ui/ConfirmDialog'
+import { toast } from '@/store/toastStore'
 
 interface FileScanResult {
   id: string
@@ -40,17 +41,20 @@ export default function FileScanningPage() {
   const canWrite = useCanWrite(MODULES.SOAR_PLAYBOOKS)
   const [results, setResults] = useState<FileScanResult[]>([])
   const [loading, setLoading] = useState(true)
+  const [resultsError, setResultsError] = useState<string | null>(null)
   const [uploading, setUploading] = useState(false)
   const [uploadError, setUploadError] = useState<string | null>(null)
   const [releaseTargetId, setReleaseTargetId] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const fetchResults = async () => {
+    setResultsError(null)
     try {
       const res = await apiClient.get('/api/soar/files')
       setResults(res.data || [])
     } catch (err) {
       console.error('Failed to fetch file scan results', err)
+      setResultsError('Unable to load file scan results. Please try again.')
     } finally {
       setLoading(false)
     }
@@ -91,6 +95,7 @@ export default function FileScanningPage() {
       await fetchResults()
     } catch (err) {
       console.error('Failed to release file from quarantine', err)
+      toast.error('Failed to release file from quarantine.')
     } finally {
       setReleaseTargetId(null)
     }
@@ -143,6 +148,15 @@ export default function FileScanningPage() {
           <tbody>
             {loading ? (
               <tr><td colSpan={7} className="text-center text-text-muted py-6">Loading...</td></tr>
+            ) : resultsError ? (
+              <tr className="empty-row">
+                <td colSpan={7}>
+                  <div className="flex flex-col items-center gap-2 py-4">
+                    <span>{resultsError}</span>
+                    <button className="btn-mission text-small px-3 py-1.5" onClick={fetchResults}>Retry</button>
+                  </div>
+                </td>
+              </tr>
             ) : results.length === 0 ? (
               <tr><td colSpan={7} className="text-center text-text-muted py-6">No files scanned yet.</td></tr>
             ) : (

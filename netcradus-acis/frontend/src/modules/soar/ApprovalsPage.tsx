@@ -1,8 +1,9 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useState, useRef } from 'react'
 import { ShieldCheck, ShieldX, Undo2, MegaphoneIcon } from 'lucide-react'
 import apiClient from '@/lib/apiClient'
 import { useCanWrite, MODULES } from '@/store/permissionsStore'
 import ConfirmDialog from '@/components/ui/ConfirmDialog'
+import { toast } from '@/store/toastStore'
 
 interface Approval {
   id: string
@@ -36,6 +37,9 @@ export default function ApprovalsPage() {
   const [rejectTargetId, setRejectTargetId] = useState<string | null>(null)
   const [rollbackTargetId, setRollbackTargetId] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [fetchError, setFetchError] = useState<string | null>(null)
+  const hasShownFetchErrorRef = useRef(false)
 
   const fetchData = async () => {
     try {
@@ -45,8 +49,17 @@ export default function ApprovalsPage() {
       ])
       setApprovals(approvalsRes.data || [])
       setActions(actionsRes.data || [])
+      setFetchError(null)
+      hasShownFetchErrorRef.current = false
     } catch (err) {
       console.error('Failed to fetch approvals/containment data', err)
+      setFetchError('Unable to load approvals and containment actions.')
+      if (!hasShownFetchErrorRef.current) {
+        toast.error('Unable to load containment approvals. Retrying automatically.')
+        hasShownFetchErrorRef.current = true
+      }
+    } finally {
+      setLoading(false)
     }
   }
 
@@ -73,6 +86,7 @@ export default function ApprovalsPage() {
       await fetchData()
     } catch (err) {
       console.error('Failed to reject approval', err)
+      toast.error('Failed to reject containment approval.')
     } finally {
       setRejectTargetId(null)
     }
@@ -85,6 +99,7 @@ export default function ApprovalsPage() {
       await fetchData()
     } catch (err) {
       console.error('Failed to roll back containment action', err)
+      toast.error('Failed to roll back containment action.')
     } finally {
       setRollbackTargetId(null)
     }
@@ -110,9 +125,23 @@ export default function ApprovalsPage() {
         <table className="table-enterprise w-full">
           <thead><tr><th>PLAYBOOK</th><th>REQUESTED BY</th><th>RISK</th><th>SUMMARY</th><th style={{ textAlign: 'right' }}>ACTIONS</th></tr></thead>
           <tbody>
-            {pending.length === 0 ? (
+            {loading && (
+              <tr><td colSpan={5} className="text-center text-text-muted py-6">Loading...</td></tr>
+            )}
+            {!loading && fetchError && (
+              <tr>
+                <td colSpan={5}>
+                  <div className="flex flex-col items-center gap-2 py-4">
+                    <span>Unable to load pending approvals. Please try again.</span>
+                    <button className="btn-mission text-small px-3 py-1.5" onClick={fetchData}>Retry</button>
+                  </div>
+                </td>
+              </tr>
+            )}
+            {!loading && !fetchError && pending.length === 0 && (
               <tr><td colSpan={5} className="text-center text-text-muted py-6">No pending approvals.</td></tr>
-            ) : pending.map((a) => (
+            )}
+            {!loading && !fetchError && pending.map((a) => (
               <tr key={a.id}>
                 <td style={{ fontWeight: 600 }}>{a.playbookName}</td>
                 <td>{a.requestedByName}</td>
@@ -139,9 +168,23 @@ export default function ApprovalsPage() {
         <table className="table-enterprise w-full">
           <thead><tr><th>PLAYBOOK</th><th>REQUESTED BY</th><th>STATUS</th><th>DECIDED BY</th><th>DECIDED AT</th></tr></thead>
           <tbody>
-            {decided.length === 0 ? (
+            {loading && (
+              <tr><td colSpan={5} className="text-center text-text-muted py-6">Loading...</td></tr>
+            )}
+            {!loading && fetchError && (
+              <tr>
+                <td colSpan={5}>
+                  <div className="flex flex-col items-center gap-2 py-4">
+                    <span>Unable to load decision history. Please try again.</span>
+                    <button className="btn-mission text-small px-3 py-1.5" onClick={fetchData}>Retry</button>
+                  </div>
+                </td>
+              </tr>
+            )}
+            {!loading && !fetchError && decided.length === 0 && (
               <tr><td colSpan={5} className="text-center text-text-muted py-6">No decisions yet.</td></tr>
-            ) : decided.map((a) => (
+            )}
+            {!loading && !fetchError && decided.map((a) => (
               <tr key={a.id}>
                 <td>{a.playbookName}</td>
                 <td>{a.requestedByName}</td>
@@ -161,9 +204,23 @@ export default function ApprovalsPage() {
         <table className="table-enterprise w-full">
           <thead><tr><th>TYPE</th><th>TARGET</th><th>PERFORMED BY</th><th>WHEN</th><th style={{ textAlign: 'right' }}>ROLLBACK</th></tr></thead>
           <tbody>
-            {actions.length === 0 ? (
+            {loading && (
+              <tr><td colSpan={5} className="text-center text-text-muted py-6">Loading...</td></tr>
+            )}
+            {!loading && fetchError && (
+              <tr>
+                <td colSpan={5}>
+                  <div className="flex flex-col items-center gap-2 py-4">
+                    <span>Unable to load containment action history. Please try again.</span>
+                    <button className="btn-mission text-small px-3 py-1.5" onClick={fetchData}>Retry</button>
+                  </div>
+                </td>
+              </tr>
+            )}
+            {!loading && !fetchError && actions.length === 0 && (
               <tr><td colSpan={5} className="text-center text-text-muted py-6">No containment actions taken yet.</td></tr>
-            ) : actions.map((act) => (
+            )}
+            {!loading && !fetchError && actions.map((act) => (
               <tr key={act.id}>
                 <td className="font-mono text-small">{act.actionType}</td>
                 <td>{act.targetDescription}</td>

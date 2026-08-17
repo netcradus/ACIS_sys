@@ -6,6 +6,7 @@ import { usePivotSeed, useEntityPivot } from '@/hooks/useEntityPivot'
 import SeverityBadge, { toSeverity } from '@/components/viz/SeverityBadge'
 import PivotChip from '@/components/ui/PivotChip'
 import ConfirmDialog from '@/components/ui/ConfirmDialog'
+import { toast } from '@/store/toastStore'
 import { clsx } from 'clsx'
 import './AssetsPage.css'
 
@@ -136,6 +137,7 @@ export default function AssetsPage() {
       setIdentities(response.data)
     } catch (error) {
       console.error('Failed to fetch identities:', error)
+      toast.error('Failed to load identities.')
     }
   }
 
@@ -145,6 +147,7 @@ export default function AssetsPage() {
       setAlerts(response.data)
     } catch (error) {
       console.error('Failed to fetch alerts:', error)
+      toast.error('Failed to load alerts.')
     }
   }
 
@@ -168,6 +171,7 @@ export default function AssetsPage() {
       fetchIdentities()
     } catch (e) {
       console.error('Failed to add identity:', e)
+      toast.error('Failed to add identity.')
     }
   }
 
@@ -177,6 +181,7 @@ export default function AssetsPage() {
       setIdentities(prev => prev.filter(i => i.id !== identityId))
     } catch (e) {
       console.error('Failed to delete identity:', e)
+      toast.error('Failed to delete identity.')
     }
   }
 
@@ -210,6 +215,7 @@ export default function AssetsPage() {
       fetchAssets()
     } catch (e) {
       console.error('Failed to create asset:', e)
+      toast.error('Failed to create asset.')
     }
   }
 
@@ -228,6 +234,7 @@ export default function AssetsPage() {
       setAssets(prev => prev.map(a => a.id === asset.id ? { ...a, isolationStatus: newIsolated, status: newIsolated ? 'INACTIVE' : 'ACTIVE', health: newIsolated ? 'CRITICAL' : 'OK' } : a))
     } catch (e) {
       console.error('Failed to isolate asset:', e)
+      toast.error(`Failed to ${asset.isolationStatus ? 're-instate' : 'isolate'} asset "${asset.name}".`)
     } finally {
       setIsolateBusy(false)
       setConfirmingIsolateAsset(null)

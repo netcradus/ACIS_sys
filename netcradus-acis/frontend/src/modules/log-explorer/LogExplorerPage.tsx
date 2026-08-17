@@ -5,6 +5,7 @@ import wsClient from '@/lib/wsClient'
 import { LogEntry } from '@/types/log'
 import { clsx } from 'clsx'
 import { usePivotSeed, useEntityPivot } from '@/hooks/useEntityPivot'
+import { toast } from '@/store/toastStore'
 import './LogExplorerPage.css'
 
 function HeroGlobe() {
@@ -261,6 +262,7 @@ export default function LogExplorerPage() {
           setLogs(response.data?.content || [])
         } catch (e) {
           console.error('Failed to load initial live logs:', e)
+          toast.error('Unable to load live logs. Please try again.')
         }
       }
       loadLiveLogs()

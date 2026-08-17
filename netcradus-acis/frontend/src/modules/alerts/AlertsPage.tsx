@@ -63,6 +63,7 @@ export default function AlertsPage() {
   const [selectedAlert, setSelectedAlert] = useState<Alert | null>(null)
   const [selectedIncident, setSelectedIncident] = useState<Incident | null>(null)
   const [isLoading, setIsLoading] = useState(false)
+  const [alertsError, setAlertsError] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState<'ALERTS' | 'INCIDENTS'>('ALERTS')
   const [searchTerm, setSearchTerm] = useState('')
   const [severityFilter, setSeverityFilter] = useState<'ALL' | 'CRITICAL' | 'HIGH' | 'OPEN'>('ALL')
@@ -94,14 +95,17 @@ export default function AlertsPage() {
 
   const [incidents, setIncidents] = useState<Incident[]>([])
   const [incidentsLoading, setIncidentsLoading] = useState(true)
+  const [incidentsError, setIncidentsError] = useState<string | null>(null)
 
   const fetchIncidents = async () => {
     try {
       setIncidentsLoading(true)
+      setIncidentsError(null)
       const res = await apiClient.get('/api/incidents')
       setIncidents(Array.isArray(res.data) ? res.data : [])
     } catch (e) {
       console.error('Failed to fetch incidents:', e)
+      setIncidentsError('Unable to load incidents. Please try again.')
     } finally {
       setIncidentsLoading(false)
     }
@@ -109,16 +113,18 @@ export default function AlertsPage() {
 
   const fetchAlerts = async () => {
     setIsLoading(true)
+    setAlertsError(null)
     try {
       const response = await apiClient.get('/api/alerts')
       const sortedAlerts = response.data.sort((a: Alert, b: Alert) => b.id.localeCompare(a.id))
       setAlerts(sortedAlerts)
-      
+
       if (sortedAlerts.length > 0 && !selectedAlert) {
         setSelectedAlert(sortedAlerts[0])
       }
     } catch (error) {
       console.error('Failed to fetch alerts:', error)
+      setAlertsError('Unable to load alerts. Please try again.')
     } finally {
       setIsLoading(false)
     }
@@ -156,6 +162,7 @@ export default function AlertsPage() {
       }
     } catch (e) {
       console.error('Failed to assign alert:', e)
+      toast.error('Failed to assign alert to you.')
     }
   }
 
@@ -184,6 +191,7 @@ export default function AlertsPage() {
       setSelectedIncident(prev => prev && prev.id === incidentId ? res.data : prev)
     } catch (e) {
       console.error('Failed to update incident status:', e)
+      toast.error('Failed to mark incident as mitigated.')
     }
   }
 
@@ -194,6 +202,7 @@ export default function AlertsPage() {
       setSelectedIncident(prev => prev && prev.id === incidentId ? res.data : prev)
     } catch (e) {
       console.error('Failed to update checklist:', e)
+      toast.error('Failed to update checklist item.')
     }
   }
 
@@ -206,6 +215,7 @@ export default function AlertsPage() {
       }
     } catch (e) {
       console.error('Failed to update status:', e)
+      toast.error('Failed to dismiss alert.')
     }
   }
 
@@ -540,8 +550,33 @@ export default function AlertsPage() {
                   )}
                 </thead>
                 <tbody>
-                  {activeTab === 'ALERTS' ? (
-                    filteredAlerts.map((alert) => {
+                  {activeTab === 'ALERTS' && isLoading && (
+                    <tr><td colSpan={7} className="text-center text-text-muted py-6">Loading...</td></tr>
+                  )}
+                  {activeTab === 'ALERTS' && !isLoading && alertsError && (
+                    <tr>
+                      <td colSpan={7}>
+                        <div className="flex flex-col items-center gap-2 py-4">
+                          <span>Unable to load alerts. Please try again.</span>
+                          <button className="btn-mission text-small px-3 py-1.5" onClick={fetchAlerts}>Retry</button>
+                        </div>
+                      </td>
+                    </tr>
+                  )}
+                  {activeTab === 'INCIDENTS' && incidentsLoading && (
+                    <tr><td colSpan={7} className="text-center text-text-muted py-6">Loading...</td></tr>
+                  )}
+                  {activeTab === 'INCIDENTS' && !incidentsLoading && incidentsError && (
+                    <tr>
+                      <td colSpan={7}>
+                        <div className="flex flex-col items-center gap-2 py-4">
+                          <span>Unable to load incidents. Please try again.</span>
+                          <button className="btn-mission text-small px-3 py-1.5" onClick={fetchIncidents}>Retry</button>
+                        </div>
+                      </td>
+                    </tr>
+                  )}
+                  {activeTab === 'ALERTS' && !isLoading && !alertsError && filteredAlerts.map((alert) => {
                       const isSelected = selectedAlert?.id === alert.id
                       const severity = (alert.severity || 'LOW').toLowerCase()
                       const badgeChar = severity === 'critical' ? '◉' : (severity === 'high' ? '⚡' : '●')
@@ -607,9 +642,8 @@ export default function AlertsPage() {
                           </td>
                         </tr>
                       )
-                    })
-                  ) : (
-                    filteredIncidents.map((inc) => {
+                    })}
+                  {activeTab === 'INCIDENTS' && !incidentsLoading && !incidentsError && filteredIncidents.map((inc) => {
                       const isSelected = selectedIncident?.id === inc.id
                       const severity = (inc.severity || 'LOW').toLowerCase()
                       const badgeChar = severity === 'critical' ? '◉' : (severity === 'high' ? '⚡' : '●')
@@ -648,12 +682,18 @@ export default function AlertsPage() {
                           </td>
                         </tr>
                       )
-                    })
-                  )}
-                  {((activeTab === 'ALERTS' && filteredAlerts.length === 0) || (activeTab === 'INCIDENTS' && filteredIncidents.length === 0)) && (
+                    })}
+                  {activeTab === 'ALERTS' && !isLoading && !alertsError && filteredAlerts.length === 0 && (
                     <tr>
                       <td colSpan={7} style={{ textAlign: 'center', padding: '30px', color: 'var(--dim)' }}>
-                        No notable alerts or incidents found
+                        No notable alerts found
+                      </td>
+                    </tr>
+                  )}
+                  {activeTab === 'INCIDENTS' && !incidentsLoading && !incidentsError && filteredIncidents.length === 0 && (
+                    <tr>
+                      <td colSpan={7} style={{ textAlign: 'center', padding: '30px', color: 'var(--dim)' }}>
+                        No incidents found
                       </td>
                     </tr>
                   )}

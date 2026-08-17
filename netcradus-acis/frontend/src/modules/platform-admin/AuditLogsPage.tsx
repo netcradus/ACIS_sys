@@ -82,7 +82,10 @@ export default function AuditLogsPage() {
     Promise.all([listTenants(), getAuditActions()]).then(([t, a]) => {
       setTenants(t)
       setActions(a)
-    }).catch(() => {})
+    }).catch((e) => {
+      console.error('Failed to load audit filter options:', e)
+      showToast('error', 'Failed to load filter options.')
+    })
   }, [])
 
   const buildParams = useCallback((): AuditSearchParams => ({

@@ -10,25 +10,22 @@ export default function PlatformDashboardPage() {
   const [error, setError] = useState<string | null>(null)
   const navigate = useNavigate()
 
+  const load = async () => {
+    setIsLoading(true)
+    setError(null)
+    try {
+      const data = await listTenants()
+      setTenants(data)
+    } catch (e) {
+      console.error('Failed to fetch tenants:', e)
+      setError('Failed to load platform data. Check that acis-platform-admin is reachable.')
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
   useEffect(() => {
-    let cancelled = false
-    async function load() {
-      setIsLoading(true)
-      setError(null)
-      try {
-        const data = await listTenants()
-        if (!cancelled) setTenants(data)
-      } catch (e) {
-        console.error('Failed to fetch tenants:', e)
-        if (!cancelled) setError('Failed to load platform data. Check that acis-platform-admin is reachable.')
-      } finally {
-        if (!cancelled) setIsLoading(false)
-      }
-    }
     load()
-    return () => {
-      cancelled = true
-    }
   }, [])
 
   const stats = useMemo(() => {
@@ -55,8 +52,14 @@ export default function PlatformDashboardPage() {
       </div>
 
       {error && (
-        <div className="bg-danger/10 border border-danger/30 rounded-lg p-4 text-small text-danger font-semibold">
-          {error}
+        <div className="bg-danger/10 border border-danger/30 rounded-lg p-4 text-small text-danger font-semibold flex items-center justify-between gap-3">
+          <span>{error}</span>
+          <button
+            onClick={load}
+            className="bg-danger/10 hover:bg-danger/20 border border-danger/30 text-danger font-semibold px-3 py-1.5 rounded-lg text-small transition-colors flex-shrink-0"
+          >
+            Retry
+          </button>
         </div>
       )}
 

@@ -169,7 +169,15 @@ export default function TenantListPage() {
       </div>
 
       {error && (
-        <div className="bg-danger/10 border border-danger/30 rounded-lg p-4 text-small text-danger font-semibold">{error}</div>
+        <div className="bg-danger/10 border border-danger/30 rounded-lg p-4 text-small text-danger font-semibold flex items-center justify-between gap-3">
+          <span>{error}</span>
+          <button
+            onClick={fetchTenants}
+            className="bg-danger/10 hover:bg-danger/20 border border-danger/30 text-danger font-semibold px-3 py-1.5 rounded-lg text-small transition-colors flex-shrink-0"
+          >
+            Retry
+          </button>
+        </div>
       )}
 
       {isLoading ? (

@@ -58,6 +58,7 @@ export default function AiAnalystPage() {
   const [errorMsg, setErrorMsg] = useState<string | null>(null)
   const [results, setResults] = useState<LogEntry[]>([])
   const [playbooks, setPlaybooks] = useState<Playbook[]>([])
+  const [playbooksError, setPlaybooksError] = useState<string | null>(null)
   const [triggering, setTriggering] = useState<string | null>(null)
 
   useEffect(() => {
@@ -65,8 +66,11 @@ export default function AiAnalystPage() {
       try {
         const res = await apiClient.get('/api/soar/playbooks')
         setPlaybooks(res.data || [])
+        setPlaybooksError(null)
       } catch (e) {
         console.error('Failed to load playbooks:', e)
+        setPlaybooksError('Unable to load playbooks.')
+        toast.error('Unable to load playbooks.')
       }
     }
     fetchPlaybooks()
@@ -199,8 +203,9 @@ export default function AiAnalystPage() {
         </div>
 
         {errorMsg && (
-          <div className="bg-danger/10 border border-danger/30 text-danger px-4 py-3 rounded-lg text-small font-semibold mb-5">
-            {errorMsg}
+          <div className="bg-danger/10 border border-danger/30 text-danger px-4 py-3 rounded-lg text-small font-semibold mb-5 flex items-center justify-between gap-3">
+            <span>{errorMsg}</span>
+            <button className="btn-mission text-small px-3 py-1.5" onClick={() => handleGenerate(query)}>Retry</button>
           </div>
         )}
 
@@ -307,7 +312,9 @@ export default function AiAnalystPage() {
 
               <div className="border-t border-fire-border pt-4">
                 <span className="text-label text-text-muted uppercase block mb-3" style={{ fontSize: '11px', fontWeight: 700 }}>Run a Playbook</span>
-                {playbooks.length === 0 ? (
+                {playbooksError ? (
+                  <p className="text-small text-danger">{playbooksError}</p>
+                ) : playbooks.length === 0 ? (
                   <p className="text-small text-text-muted">No playbooks available.</p>
                 ) : (
                   <div className="space-y-2">

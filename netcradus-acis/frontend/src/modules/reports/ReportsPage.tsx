@@ -55,6 +55,7 @@ export default function ReportsPage() {
   const [redTeamSimulations, setRedTeamSimulations] = useState<RedTeamSimulation[]>([])
   const [redTeamExecutions, setRedTeamExecutions] = useState<RedTeamExecutionSummary[]>([])
   const [loading, setLoading] = useState(true)
+  const [dataError, setDataError] = useState<string | null>(null)
   const [searchTerm, setSearchTerm] = useState('')
 
   // Modal State
@@ -77,6 +78,8 @@ export default function ReportsPage() {
   }
 
   const fetchData = async () => {
+    setLoading(true)
+    setDataError(null)
     try {
       const [schedulesRes, alertsRes, incidentsRes, simsRes, execsRes] = await Promise.all([
         apiClient.get('/api/soar/reports/schedules'),
@@ -92,6 +95,7 @@ export default function ReportsPage() {
       setRedTeamExecutions(execsRes.data || [])
     } catch (err) {
       console.error("Failed to fetch reports details", err)
+      setDataError('Unable to load reports data. Please try again.')
     } finally {
       setLoading(false)
     }
@@ -434,7 +438,20 @@ export default function ReportsPage() {
                 </tr>
               </thead>
               <tbody>
-                {filteredSchedules.map(sched => (
+                {loading && (
+                  <tr><td colSpan={6} className="text-center text-text-muted py-6">Loading...</td></tr>
+                )}
+                {!loading && dataError && (
+                  <tr className="empty-row">
+                    <td colSpan={6}>
+                      <div className="flex flex-col items-center gap-2 py-4">
+                        <span>Unable to load scheduled exports. Please try again.</span>
+                        <button className="btn-action text-small" onClick={fetchData}>Retry</button>
+                      </div>
+                    </td>
+                  </tr>
+                )}
+                {!loading && !dataError && filteredSchedules.map(sched => (
                   <tr key={sched.id} className="group">
                     <td className="font-semibold text-text-secondary">
                       <div className="flex items-center justify-between">
@@ -483,7 +500,7 @@ export default function ReportsPage() {
                     </td>
                   </tr>
                 ))}
-                {filteredSchedules.length === 0 && (
+                {!loading && !dataError && filteredSchedules.length === 0 && (
                   <tr>
                     <td colSpan={6} className="py-12 text-center text-text-muted text-label uppercase">
                       No report schedules found
