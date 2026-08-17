@@ -7,11 +7,18 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Profile;
 import org.springframework.core.annotation.Order;
 
 import java.util.List;
 
+// Same convention as TenantSeeder/AssetDataSeeder - added during the
+// production-readiness audit. This inserts demo alert rows on every fresh
+// (empty-table) boot with no guard at all; a production deployment's first
+// startup has an empty alerts table too, so without this it would silently
+// seed fake demo alerts into a real tenant's incident queue.
 @Configuration
+@Profile("!prod")
 @RequiredArgsConstructor
 @Slf4j
 @Order(0) // must run before RlsConfig's enableRowLevelSecurity runner (Order 1000)

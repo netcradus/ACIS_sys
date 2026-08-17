@@ -10,8 +10,8 @@
   },
   "dependencies": {
     "@stomp/stompjs": "^7.0.0",
-    "ag-grid-community": "^31.3.2",
-    "ag-grid-react": "^31.3.2",
+    "ag-grid-community": "^31.3.4",
+    "ag-grid-react": "^31.3.4",
     "axios": "^1.19.0",
     "clsx": "^2.1.1",
     "cmdk": "^1.1.1",

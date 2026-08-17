@@ -111,6 +111,13 @@ services:
     expose:
       - "8090"
       - "50051"
+    # No container in this file had any resource limit before this audit -
+    # on a single VM, one runaway container can OOM the host and take
+    # everything down, including Postgres/Keycloak. ai-service (torch/scipy/
+    # scikit-learn) and Elasticsearch are the two most memory-hungry
+    # processes here, so they're the priority; the lighter JVM microservices
+    # are a reasonable follow-up rather than bundled into this same change.
+    mem_limit: 2g
     restart: always
 
   # 2b. OPTIONAL — Kiro Gateway (unofficial, community-maintained proxy —
@@ -162,6 +169,7 @@ services:
       interval: 5s
       timeout: 5s
       retries: 10
+    mem_limit: 1g
     restart: always
 
   # 4. Keycloak Identity Provider — production mode, Postgres-backed, TLS
@@ -201,6 +209,7 @@ services:
       timeout: 5s
       retries: 12
       start_period: 90s
+    mem_limit: 768m
     restart: always
 
   # 5. Kafka Event Broker — internal only
@@ -237,6 +246,7 @@ services:
       timeout: 10s
       retries: 10
       start_period: 30s
+    mem_limit: 1g
     restart: always
 
   # Redis — internal only. Backs the gateway's real distributed rate limiter
@@ -291,6 +301,10 @@ services:
       timeout: 5s
       retries: 10
       start_period: 30s
+    # Container headroom above the 1g JVM heap (ES_JAVA_OPTS above) for
+    # off-heap memory (Lucene file buffers, JVM overhead) - an ES container
+    # capped at exactly its heap size OOMs almost immediately.
+    mem_limit: 2g
     restart: always
 
   # ---- Backend microservices — all internal only, reached via the gateway ----
@@ -315,8 +329,21 @@ services:
       PLATFORM_ADMIN_SERVICE_URL: http://platform-admin:8088
       REDIS_HOST: redis
       REDIS_PORT: "6379"
+      # Caddy -> nginx -> gateway = 2 real proxy hops, each appending its own
+      # view of the client IP to X-Forwarded-For - required for the rate
+      # limiters to key on the real client rather than a spoofable header
+      # value or (if unset) all traffic sharing one bucket. See
+      # RateLimiterFilter/PreAuthRateLimiterFilter.resolveIp.
+      TRUSTED_PROXY_HOPS: "2"
     expose:
       - "8080"
+    healthcheck:
+      test: ["CMD", "curl", "-s", "-o", "/dev/null", "--max-time", "3", "http://localhost:8080/actuator/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 45s
+    mem_limit: 512m
     depends_on:
       keycloak:
         condition: service_healthy
@@ -345,8 +372,18 @@ services:
       # InternalServiceKeyMatcher/RbacEnforcementFilter. Must be identical
       # across every backend service in this file.
       INTERNAL_SERVICE_KEY: ${INTERNAL_SERVICE_KEY:?Set INTERNAL_SERVICE_KEY in .env, generated via openssl rand -base64 32}
+      # Suppresses AlertDataSeeder's demo alert seeding on first boot - same
+      # convention platform-admin/asset-service already use.
+      SPRING_PROFILES_ACTIVE: prod
     expose:
       - "8081"
+    healthcheck:
+      test: ["CMD", "curl", "-s", "-o", "/dev/null", "--max-time", "3", "http://localhost:8081/actuator/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 45s
+    mem_limit: 512m
     depends_on:
       postgres:
         condition: service_healthy
@@ -383,6 +420,13 @@ services:
       INTERNAL_SERVICE_KEY: ${INTERNAL_SERVICE_KEY:?Set INTERNAL_SERVICE_KEY in .env, generated via openssl rand -base64 32}
     expose:
       - "8082"
+    healthcheck:
+      test: ["CMD", "curl", "-s", "-o", "/dev/null", "--max-time", "3", "http://localhost:8082/actuator/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 45s
+    mem_limit: 512m
     depends_on:
       postgres:
         condition: service_healthy
@@ -410,8 +454,17 @@ services:
       KEYCLOAK_URL: http://keycloak:8080
       KEYCLOAK_REALM: ${KEYCLOAK_REALM:-acis}
       INTERNAL_SERVICE_KEY: ${INTERNAL_SERVICE_KEY:?Set INTERNAL_SERVICE_KEY in .env, generated via openssl rand -base64 32}
+      # Suppresses CorrelationRuleDataSeeder's demo rule seeding on first boot.
+      SPRING_PROFILES_ACTIVE: prod
     expose:
       - "8083"
+    healthcheck:
+      test: ["CMD", "curl", "-s", "-o", "/dev/null", "--max-time", "3", "http://localhost:8083/actuator/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 45s
+    mem_limit: 512m
     depends_on:
       postgres:
         condition: service_healthy
@@ -450,6 +503,13 @@ services:
     ports:
       - "20514-20563:20514-20563/udp"
       - "20514-20563:20514-20563/tcp"
+    healthcheck:
+      test: ["CMD", "curl", "-s", "-o", "/dev/null", "--max-time", "3", "http://localhost:8084/actuator/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 45s
+    mem_limit: 512m
     depends_on:
       postgres:
         condition: service_healthy
@@ -506,6 +566,10 @@ services:
       # Where the invitation email's accept link points — the tenant
       # console's real public origin, not the API gateway.
       FRONTEND_URL: https://${PUBLIC_APP_DOMAIN:-localhost}
+      # Suppresses SeedConfig's demo Organization/License/Invoice/ApiKey/
+      # UserMember seeding on first boot - without this a fresh prod
+      # deployment would get a real, usable demo admin account and API key.
+      SPRING_PROFILES_ACTIVE: prod
       # Real malware scanning (FileScanService -> ClamAvClient's INSTREAM
       # protocol against clamd) and where scanned/quarantined file bytes are
       # persisted — mounted to a named volume below so they survive redeploys.
@@ -516,6 +580,13 @@ services:
       - file_storage_data:/app/file-storage
     expose:
       - "8085"
+    healthcheck:
+      test: ["CMD", "curl", "-s", "-o", "/dev/null", "--max-time", "3", "http://localhost:8085/actuator/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 45s
+    mem_limit: 512m
     depends_on:
       postgres:
         condition: service_healthy
@@ -549,8 +620,21 @@ services:
       # ComplianceService already uses to call acis-asset-service.
       ALERTS_SERVICE_URL: http://alerts:8081
       INTERNAL_SERVICE_KEY: ${INTERNAL_SERVICE_KEY:?Set INTERNAL_SERVICE_KEY in .env, generated via openssl rand -base64 32}
+      # Suppresses AssetDataSeeder's demo asset seeding (and the unscoped
+      # deleteAll() that precedes it, since it runs before RLS is active) -
+      # same convention platform-admin's TenantSeeder already uses. Without
+      # this, every restart of this service would wipe every tenant's real
+      # asset inventory - see AssetDataSeeder's @Profile("!prod") guard.
+      SPRING_PROFILES_ACTIVE: prod
     expose:
       - "8086"
+    healthcheck:
+      test: ["CMD", "curl", "-s", "-o", "/dev/null", "--max-time", "3", "http://localhost:8086/actuator/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 45s
+    mem_limit: 512m
     depends_on:
       postgres:
         condition: service_healthy
@@ -599,6 +683,13 @@ services:
       FRONTEND_URL: https://${PUBLIC_APP_DOMAIN:-localhost}
     expose:
       - "8088"
+    healthcheck:
+      test: ["CMD", "curl", "-s", "-o", "/dev/null", "--max-time", "3", "http://localhost:8088/actuator/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 45s
+    mem_limit: 512m
     depends_on:
       postgres:
         condition: service_healthy
@@ -623,8 +714,18 @@ services:
       AI_SERVICE_GRPC_HOST: ai-service
       AI_SERVICE_GRPC_PORT: "50051"
       INTERNAL_SERVICE_KEY: ${INTERNAL_SERVICE_KEY:?Set INTERNAL_SERVICE_KEY in .env, generated via openssl rand -base64 32}
+      # Suppresses ThreatIntelligenceService.initMockData's demo indicator
+      # seeding on first boot.
+      SPRING_PROFILES_ACTIVE: prod
     expose:
       - "8087"
+    healthcheck:
+      test: ["CMD", "curl", "-s", "-o", "/dev/null", "--max-time", "3", "http://localhost:8087/actuator/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 45s
+    mem_limit: 512m
     depends_on:
       postgres:
         condition: service_healthy

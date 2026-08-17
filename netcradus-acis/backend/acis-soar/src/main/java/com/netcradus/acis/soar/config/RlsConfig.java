@@ -64,7 +64,19 @@ public class RlsConfig {
                 "user_groups",
                 "agent_endpoints",
                 "agent_policies",
-                "report_schedules");
+                "report_schedules",
+                // Added during the production-readiness audit - these six
+                // tables (WAF policies, malware-scan results, dependency/
+                // secret findings, containment actions/approvals) all have a
+                // real tenant_id column and were missed when each feature
+                // shipped, leaving tenant isolation resting entirely on
+                // every repository query remembering to filter by tenant.
+                "waf_policies",
+                "file_scan_results",
+                "dependency_findings",
+                "secret_findings",
+                "containment_actions",
+                "containment_approvals");
     }
 
     /**

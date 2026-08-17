@@ -9,13 +9,26 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Profile;
 import org.springframework.core.annotation.Order;
 
 import java.util.List;
 
+/**
+ * @Profile("!prod") — same convention acis-platform-admin's TenantSeeder
+ * already uses for the identical reason: this seeder's deleteAll() runs
+ * before RlsConfig's row-level-security runner (see the @Order comment
+ * below), so on every restart it is genuinely unscoped and would delete
+ * EVERY tenant's real asset inventory, not just demo data, if it ever ran
+ * against a production database. Confirmed missing here and fixed as part
+ * of the production-readiness audit - docker-compose.prod.yml must set
+ * SPRING_PROFILES_ACTIVE=prod on this service for the guard to take effect,
+ * matching how platform-admin's TenantSeeder is already protected.
+ */
 @Configuration
 @RequiredArgsConstructor
 @Slf4j
+@Profile("!prod")
 @Order(0) // must run before RlsConfig's enableRowLevelSecurity runner (Order 1000)
 public class AssetDataSeeder implements CommandLineRunner {
 

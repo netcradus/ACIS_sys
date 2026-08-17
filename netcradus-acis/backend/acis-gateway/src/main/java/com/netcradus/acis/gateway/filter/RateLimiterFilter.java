@@ -44,10 +44,13 @@ public class RateLimiterFilter implements GlobalFilter, Ordered {
 
     private final ReactiveStringRedisTemplate redisTemplate;
     private final ObjectMapper objectMapper;
+    private final int trustedProxyHops;
 
-    public RateLimiterFilter(ReactiveStringRedisTemplate redisTemplate, ObjectMapper objectMapper) {
+    public RateLimiterFilter(ReactiveStringRedisTemplate redisTemplate, ObjectMapper objectMapper,
+            @org.springframework.beans.factory.annotation.Value("${acis.trusted-proxy-hops:0}") int trustedProxyHops) {
         this.redisTemplate = redisTemplate;
         this.objectMapper = objectMapper;
+        this.trustedProxyHops = trustedProxyHops;
     }
 
     @Override
@@ -95,11 +98,23 @@ public class RateLimiterFilter implements GlobalFilter, Ordered {
                 .onErrorReturn("ip:" + resolveIp(exchange));
     }
 
+    /**
+     * See PreAuthRateLimiterFilter.resolveIp's javadoc for the full
+     * explanation - both proxies in front of this gateway APPEND to
+     * X-Forwarded-For rather than replace it, so the first entry is
+     * attacker-controlled and must never be trusted directly. Trusts exactly
+     * acis.trusted-proxy-hops entries from the end (0 by default = ignore
+     * XFF, use the raw TCP peer).
+     */
     private String resolveIp(ServerWebExchange exchange) {
-        // Prefer X-Forwarded-For if behind a proxy; fallback to remote addr
-        String xff = exchange.getRequest().getHeaders().getFirst("X-Forwarded-For");
-        if (xff != null && !xff.isBlank()) {
-            return xff.split(",")[0].trim();
+        if (trustedProxyHops > 0) {
+            String xff = exchange.getRequest().getHeaders().getFirst("X-Forwarded-For");
+            if (xff != null && !xff.isBlank()) {
+                String[] parts = xff.split(",");
+                if (parts.length >= trustedProxyHops) {
+                    return parts[parts.length - trustedProxyHops].trim();
+                }
+            }
         }
         InetSocketAddress remote = exchange.getRequest().getRemoteAddress();
         return remote != null ? remote.getAddress().getHostAddress() : "unknown";

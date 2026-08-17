@@ -90,6 +90,12 @@ spring:
 
 acis:
   internal-service-key: ${INTERNAL_SERVICE_KEY:local-dev-internal-key}
+  # Number of reverse-proxy hops in front of this gateway that are trusted to
+  # append their own view of the client IP to X-Forwarded-For (Caddy + nginx
+  # in prod = 2). Defaults to 0 (ignore X-Forwarded-For entirely, use the raw
+  # TCP peer) so an unconfigured deployment can never trust a client-spoofed
+  # header - see RateLimiterFilter/PreAuthRateLimiterFilter.resolveIp.
+  trusted-proxy-hops: ${TRUSTED_PROXY_HOPS:0}
   waf:
     soar-service-url: ${SOAR_SERVICE_URL:http://localhost:8085}
     policy-poll-interval-ms: ${WAF_POLICY_POLL_INTERVAL_MS:30000}

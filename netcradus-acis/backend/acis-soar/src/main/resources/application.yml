@@ -70,6 +70,15 @@ acis:
     server-url: ${KEYCLOAK_URL:http://localhost:8180}
     realm: ${KEYCLOAK_REALM:acis}
     admin-client-id: acis-backend
+    # "acis-backend-secret" is a LOCAL-DEV-ONLY value - it's the literal
+    # secret baked into infra/keycloak/realm-acis.json's dev realm import, so
+    # it's already public/non-sensitive in that context. docker-compose.prod.yml
+    # requires KEYCLOAK_BACKEND_CLIENT_SECRET with no fallback
+    # (${VAR:?Set...}), so this default can never silently activate in the
+    # documented prod deployment path - but if this jar is ever run outside
+    # that compose file (bare java -jar, a different orchestrator) without
+    # setting the env var, it WOULD activate. Rotate the real Keycloak client
+    # secret if that ever happens.
     admin-client-secret: ${KEYCLOAK_BACKEND_CLIENT_SECRET:acis-backend-secret}
   # Shared secret real internal service-to-service callers (no end-user JWT
   # to present — ComplianceService.fetchAssetManagementSignal,

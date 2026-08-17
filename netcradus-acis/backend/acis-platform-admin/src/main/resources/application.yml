@@ -66,6 +66,10 @@ acis:
     server-url: ${KEYCLOAK_URL:http://localhost:8180}
     realm: ${KEYCLOAK_REALM:acis}
     admin-client-id: acis-backend
+    # See the identical property in acis-soar's application.yml for why this
+    # local-dev-only default is safe: it's already the public dev-realm
+    # secret, and docker-compose.prod.yml requires the real env var with no
+    # fallback.
     admin-client-secret: ${KEYCLOAK_BACKEND_CLIENT_SECRET:acis-backend-secret}
   mail:
     from-email: ${MAIL_FROM_EMAIL:info@netcradus.com}

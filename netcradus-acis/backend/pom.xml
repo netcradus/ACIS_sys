@@ -7,7 +7,15 @@
   <parent>
     <groupId>org.springframework.boot</groupId>
     <artifactId>spring-boot-starter-parent</artifactId>
-    <version>3.3.5</version>
+    <!-- 3.3.5 had GHSA-rc42-6c7j-7h5r (EndpointRequest.to() builds the wrong
+         matcher for non-exposed actuator endpoints) - fixed in 3.3.11, a
+         same-minor-line patch bump with no breaking API changes per Spring
+         Boot's own versioning policy. A second real CVE (GHSA-wwpq-f5c3-7hvx,
+         predictable temp directory) has no fix within the 3.3.x line at all -
+         it needs 3.5.14+/4.0.6, a materially larger upgrade (Spring Cloud
+         train compatibility, broader regression surface) intentionally left
+         for a dedicated, separately-tested upgrade rather than bundled here. -->
+    <version>3.3.11</version>
     <relativePath/>
   </parent>
 

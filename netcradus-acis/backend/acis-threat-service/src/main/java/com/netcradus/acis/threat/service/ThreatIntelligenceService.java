@@ -7,6 +7,7 @@ import com.netcradus.acis.threat.repository.ThreatIndicatorRepository;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
@@ -25,9 +26,21 @@ public class ThreatIntelligenceService {
     private static final String DEMO_TENANT_ID = "11111111-1111-4111-8111-111111111111";
 
     private final ThreatIndicatorRepository repository;
+    private final Environment environment;
 
     @PostConstruct
     public void initMockData() {
+        // Added during the production-readiness audit: this method's only
+        // guard was repository.count()==0, which is exactly as true on a
+        // real production database's first boot as it is in local dev - a
+        // fresh prod deployment would otherwise get real demo threat
+        // indicators seeded permanently. Same "!prod" convention
+        // TenantSeeder/AssetDataSeeder/SeedConfig use, applied here to just
+        // this method since the rest of this service does real enrichment
+        // work needed in prod too.
+        if (!environment.matchesProfiles("!prod")) {
+            return;
+        }
         // RLS (enabled by RlsConfig) is a permanent DB-level setting that
         // survives restarts — on every run after the first, repository.count()
         // and the seed insert both need a tenant context.

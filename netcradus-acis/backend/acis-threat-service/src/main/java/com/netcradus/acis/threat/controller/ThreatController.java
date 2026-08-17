@@ -37,6 +37,12 @@ public class ThreatController {
     public ResponseEntity<Map<String, Object>> enrichIndicator(@RequestBody Map<String, String> payload,
             @RequestHeader("X-Tenant-ID") String tenantId) {
         String indicator = payload.get("indicator");
+        if (indicator == null || indicator.isBlank()) {
+            // grpcClient.enrich would otherwise pass null into a protobuf
+            // string field, which rejects null with an NPE that surfaced as
+            // an uncaught 500 instead of a real 400 validation error.
+            return ResponseEntity.badRequest().body(Map.of("error", "\"indicator\" is required"));
+        }
         String type = payload.getOrDefault("type", "UNKNOWN");
         EnrichIocResponse response = grpcClient.enrich(indicator, type);
 

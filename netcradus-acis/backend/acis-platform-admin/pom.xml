@@ -83,7 +83,9 @@
     <dependency>
       <groupId>org.apache.poi</groupId>
       <artifactId>poi-ooxml</artifactId>
-      <version>5.2.5</version>
+      <!-- 5.2.5 had GHSA-gmg8-593g-7mv3 (improper input validation parsing
+           malicious OOXML files, DoS-class) - fixed in 5.4.0. -->
+      <version>5.4.0</version>
     </dependency>
 
     <!-- Lombok -->

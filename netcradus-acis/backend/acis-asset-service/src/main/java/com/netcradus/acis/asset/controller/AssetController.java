@@ -3,6 +3,7 @@ package com.netcradus.acis.asset.controller;
 import com.netcradus.acis.asset.model.Asset;
 import com.netcradus.acis.asset.service.AssetService;
 import com.netcradus.acis.common.audit.AuditEventPublisher;
+import com.netcradus.acis.common.exception.NotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -49,16 +50,30 @@ public class AssetController {
                                               @RequestHeader("X-Tenant-ID") String tenantId) {
         try {
             return ResponseEntity.ok(assetService.update(id, tenantId, asset));
-        } catch (RuntimeException e) {
+        } catch (NotFoundException e) {
+            // Only a genuine "no such asset" is a 404 - any other RuntimeException
+            // (a bad field on the request body, a DB constraint violation) must
+            // surface as a real error instead of being misreported as "not found".
             return ResponseEntity.notFound().build();
         }
     }
 
     @PutMapping("/{id}/status")
-    public ResponseEntity<Asset> updateAssetStatus(@PathVariable String id,
+    public ResponseEntity<?> updateAssetStatus(@PathVariable String id,
                                                     @RequestBody java.util.Map<String, Object> statusUpdate,
                                                     @RequestHeader("X-Tenant-ID") String tenantId) {
-        return assetService.findById(id, tenantId).map(asset -> {
+        // Real type validation instead of unchecked casts - a client sending
+        // "isolated": "true" (string, not boolean) or a non-string health
+        // value previously threw an uncaught ClassCastException -> raw 500.
+        if (statusUpdate.containsKey("health") && statusUpdate.get("health") != null
+                && !(statusUpdate.get("health") instanceof String)) {
+            return ResponseEntity.badRequest().body("\"health\" must be a string");
+        }
+        if (statusUpdate.containsKey("isolated") && statusUpdate.get("isolated") != null
+                && !(statusUpdate.get("isolated") instanceof Boolean)) {
+            return ResponseEntity.badRequest().body("\"isolated\" must be a boolean");
+        }
+        return assetService.findById(id, tenantId).<ResponseEntity<?>>map(asset -> {
             if (statusUpdate.containsKey("health")) {
                 asset.setHealth((String) statusUpdate.get("health"));
             }

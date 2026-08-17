@@ -37,6 +37,12 @@ RUN mvn -q -B package -pl ${SERVICE} -am -DskipTests \
 
 # ---- Stage 2: minimal JRE runtime, non-root ----
 FROM eclipse-temurin:21-jre-alpine AS production
+# curl is not in this base image by default - needed for the real actuator
+# healthcheck each service defines in docker-compose.prod.yml (added during
+# the production-readiness audit; previously the gateway and every backend
+# microservice had none, so `depends_on: condition: service_healthy` could
+# only ever be used for the 6 infra services that already had one).
+RUN apk add --no-cache curl
 RUN addgroup -S appgroup && adduser -S appuser -G appgroup
 WORKDIR /app
 COPY --from=builder /build/app.jar app.jar

@@ -25,5 +25,16 @@ COPY --from=build /app/dist /usr/share/nginx/html
 # in docker-compose — so /api and /ws reach the real backend instead of 404ing.
 COPY infra/docker/nginx.conf.template /etc/nginx/templates/default.conf.template
 
+# The master process (config parsing, binding port 80) starts as root — this
+# is the official nginx image's own documented default and is required to
+# bind a privileged (<1024) port at all. The WORKER processes, which handle
+# every real client request, already drop to the unprivileged built-in
+# "nginx" user via this base image's default `user nginx;` directive - no
+# request is ever actually served as root. Moving the master process off
+# root too would mean a coordinated change across this file, nginx.conf.template's
+# listen port, and docker-compose.prod.yml/Caddyfile's proxied port, which
+# needs testing against the real prod proxy chain (Caddy -> nginx -> gateway)
+# rather than changed blind - flagged as a real, low-severity, deferred
+# hardening item during the production-readiness audit.
 EXPOSE 80
 CMD ["nginx", "-g", "daemon off;"]

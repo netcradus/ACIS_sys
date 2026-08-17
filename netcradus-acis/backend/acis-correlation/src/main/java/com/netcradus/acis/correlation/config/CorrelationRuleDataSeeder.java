@@ -6,12 +6,18 @@ import com.netcradus.acis.correlation.repository.CorrelationRuleRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.CommandLineRunner;
+import org.springframework.context.annotation.Profile;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
 
+// Same convention as TenantSeeder/AssetDataSeeder - added during the
+// production-readiness audit. Without this, a fresh production deployment's
+// first (empty-table) boot silently seeds demo correlation rules into a
+// real tenant.
 @Component
+@Profile("!prod")
 @RequiredArgsConstructor
 @Slf4j
 @Order(0) // must run before RlsConfig's enableRowLevelSecurity runner (Order 1000)

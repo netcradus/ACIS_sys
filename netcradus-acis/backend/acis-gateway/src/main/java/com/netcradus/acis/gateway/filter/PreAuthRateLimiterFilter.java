@@ -49,10 +49,13 @@ public class PreAuthRateLimiterFilter implements GlobalFilter, Ordered {
 
     private final ReactiveStringRedisTemplate redisTemplate;
     private final ObjectMapper objectMapper;
+    private final int trustedProxyHops;
 
-    public PreAuthRateLimiterFilter(ReactiveStringRedisTemplate redisTemplate, ObjectMapper objectMapper) {
+    public PreAuthRateLimiterFilter(ReactiveStringRedisTemplate redisTemplate, ObjectMapper objectMapper,
+            @org.springframework.beans.factory.annotation.Value("${acis.trusted-proxy-hops:0}") int trustedProxyHops) {
         this.redisTemplate = redisTemplate;
         this.objectMapper = objectMapper;
+        this.trustedProxyHops = trustedProxyHops;
     }
 
     // Runs before RateLimiterFilter (-20) so an abusive pre-auth caller gets
@@ -96,10 +99,33 @@ public class PreAuthRateLimiterFilter implements GlobalFilter, Ordered {
         return false;
     }
 
+    /**
+     * Real client IP, resistant to X-Forwarded-For spoofing. Both proxies in
+     * front of this gateway in prod (Caddy, then nginx — see
+     * infra/caddy/Caddyfile and infra/docker/nginx.conf.template) APPEND to
+     * X-Forwarded-For rather than replace it, so naively trusting the FIRST
+     * entry (the previous behavior) let any client set
+     * "X-Forwarded-For: &lt;anything&gt;" and have it used verbatim as the rate-
+     * limit key — a real, confirmed bypass of the very limiter this class
+     * exists to enforce (fixed during the production-readiness audit).
+     *
+     * The fix trusts exactly acis.trusted-proxy-hops entries counted from the
+     * END of the list (each real proxy hop appends one, so the Nth-from-last
+     * is the innermost proxy's own view of the real client) and ignores
+     * everything before that, which is attacker-controlled. Defaults to 0
+     * (ignore X-Forwarded-For entirely, use the raw TCP peer) so an
+     * unconfigured deployment fails SAFE rather than trusting a spoofable
+     * header — set TRUSTED_PROXY_HOPS=2 in prod (Caddy + nginx).
+     */
     private String resolveIp(ServerWebExchange exchange) {
-        String xff = exchange.getRequest().getHeaders().getFirst("X-Forwarded-For");
-        if (xff != null && !xff.isBlank()) {
-            return xff.split(",")[0].trim();
+        if (trustedProxyHops > 0) {
+            String xff = exchange.getRequest().getHeaders().getFirst("X-Forwarded-For");
+            if (xff != null && !xff.isBlank()) {
+                String[] parts = xff.split(",");
+                if (parts.length >= trustedProxyHops) {
+                    return parts[parts.length - trustedProxyHops].trim();
+                }
+            }
         }
         InetSocketAddress remote = exchange.getRequest().getRemoteAddress();
         return remote != null ? remote.getAddress().getHostAddress() : "unknown";

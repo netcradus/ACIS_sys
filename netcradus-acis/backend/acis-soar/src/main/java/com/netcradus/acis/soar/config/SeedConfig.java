@@ -28,6 +28,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Profile;
 import org.springframework.core.annotation.Order;
 
 import java.nio.charset.StandardCharsets;
@@ -38,7 +39,19 @@ import java.time.OffsetDateTime;
 import java.util.HexFormat;
 import java.util.UUID;
 
+/**
+ * @Profile("!prod") — added during the production-readiness audit. Every
+ * count()==0/isEmpty() guard below only checks "is this table empty", which
+ * is exactly as true on a real production database's first boot as it is in
+ * local dev — without this profile guard, a fresh production deployment
+ * would silently get a real, usable demo Organization/License/Invoice, a
+ * real demo ApiKey, and a real demo admin UserMember on first startup. Same
+ * convention TenantSeeder/AssetDataSeeder already use for the identical
+ * reason - docker-compose.prod.yml sets SPRING_PROFILES_ACTIVE=prod on this
+ * service for the guard to take effect.
+ */
 @Configuration
+@Profile("!prod")
 @RequiredArgsConstructor
 @Slf4j
 public class SeedConfig {
