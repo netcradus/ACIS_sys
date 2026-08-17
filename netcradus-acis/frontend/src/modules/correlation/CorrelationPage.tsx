@@ -393,7 +393,7 @@ export default function CorrelationPage() {
     setSelectedRuleIds(updated)
   }
 
-  const toggleSelectRule = (id: string, e: React.MouseEvent) => {
+  const toggleSelectRule = (id: string, e: React.ChangeEvent<HTMLInputElement>) => {
     e.stopPropagation()
     setSelectedRuleIds(prev => ({
       ...prev,

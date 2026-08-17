@@ -551,7 +551,7 @@ export default function RedTeamPage() {
                   ))}
 
                   {executionHistory.length === 0 && (
-                    <div style={{ padding: '24px 0', textAllign: 'center', color: 'var(--dim)' }}>
+                    <div style={{ padding: '24px 0', textAlign: 'center', color: 'var(--dim)' }}>
                       No executions recorded yet.
                     </div>
                   )}

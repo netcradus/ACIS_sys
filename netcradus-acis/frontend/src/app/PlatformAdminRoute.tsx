@@ -19,7 +19,7 @@ export default function PlatformAdminRoute() {
 
   useEffect(() => {
     if (keycloakReady && !isUserAuthenticated) {
-      keycloak.login({ pkceMethod: 'S256', redirectUri: window.location.href })
+      keycloak.login({ redirectUri: window.location.href })
     }
   }, [keycloakReady, isUserAuthenticated])
 

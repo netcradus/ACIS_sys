@@ -17,7 +17,6 @@ export default function SignupPage() {
 
   const goToLogin = () => {
     keycloak.login({
-      pkceMethod: 'S256',
       redirectUri: `${window.location.origin}/dashboard`,
     })
   }
