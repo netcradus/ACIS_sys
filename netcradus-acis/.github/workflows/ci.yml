@@ -41,7 +41,12 @@ jobs:
           if-no-files-found: ignore
 
   frontend:
-    name: Frontend (lint + build)
+    # No ESLint config exists in this project yet - "lint" was in this job's
+    # name previously with no lint step actually present. Renamed to match
+    # what this job actually does rather than adding an unreviewed lint
+    # config under time pressure (see the final production-readiness
+    # report's Remaining section for this as a real, tracked follow-up).
+    name: Frontend (typecheck + build)
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -59,7 +64,18 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Type-check + build
+      - name: Type-check
+        # A real, separate step - `npm run build` (below) does NOT
+        # typecheck (vite/esbuild only transpiles, it doesn't run tsc), so
+        # this step existing under the name "Type-check + build" previously
+        # meant type errors were never actually caught by CI. This also
+        # depends on tsconfig.json's `ignoreDeprecations` being a value tsc
+        # itself accepts ("5.0", not "6.0") - see tsconfig.json's history;
+        # with the old, invalid value every tsc invocation failed before
+        # type-checking ever started, silently masking real type errors.
+        run: npx tsc --noEmit
+
+      - name: Build
         run: npm run build
 
       - name: Dependency vulnerability audit (informational)
