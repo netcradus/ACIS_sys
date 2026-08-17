@@ -28,6 +28,14 @@ const CIRCUMFERENCE = Math.PI * RADIUS // half-circle arc
  * colored arc. A half-circle sweep (180°) reads clearly at small sizes,
  * matching the compact gauges CrowdStrike/Sentinel-style consoles use for
  * single-metric tiles.
+ *
+ * Status (reviewed during a production-readiness audit): built for the
+ * documented SOC command-center redesign plan's "Part 1 — evolved design
+ * language" component set. Not yet wired into DashboardPage.tsx (which
+ * still uses its own hand-rolled gauge markup). Deliberately left as-is
+ * rather than either force-wiring it now (out of scope for that audit) or
+ * deleting it (the redesign plan is still active) — see that plan for the
+ * intended integration point.
  */
 export default function Gauge({ value, max = 100, label, unit, thresholds, size = 120, className }: GaugeProps) {
   const colors = useChartColors()

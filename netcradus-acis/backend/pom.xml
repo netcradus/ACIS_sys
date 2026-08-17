@@ -69,4 +69,42 @@
       </dependency>
     </dependencies>
   </dependencyManagement>
+
+  <build>
+    <plugins>
+      <!-- Real dependency CVE scanning (NVD database) - not bound to any
+           default lifecycle phase (`mvn clean install`/`mvn test` are
+           unaffected), run explicitly via:
+             mvn org.owasp:dependency-check-maven:aggregate
+           against the whole reactor at once (one combined report covering
+           every module's dependencies, dependency-check-report.html /
+           dependency-check-report.json in this directory). See ci.yml's
+           "Backend dependency security scan" step and
+           SECURITY_SCAN_FINDINGS.md for this project's own documented,
+           individually-reviewed findings and suppressions - failing the
+           whole build on an unreviewed CVE match (including ones this repo
+           has already investigated and deliberately deferred, like
+           GHSA-wwpq-f5c3-7hvx noted above) is not the goal here; a real,
+           readable report that gets looked at is. -->
+      <plugin>
+        <groupId>org.owasp</groupId>
+        <artifactId>dependency-check-maven</artifactId>
+        <version>10.0.4</version>
+        <configuration>
+          <format>ALL</format>
+          <!-- Suppressions are reviewed individually, never blanket -
+               see suppressions.xml's own entries for the reasoning behind
+               each one. -->
+          <suppressionFiles>
+            <suppressionFile>${maven.multiModuleProjectDirectory}/dependency-check-suppressions.xml</suppressionFile>
+          </suppressionFiles>
+          <!-- Only fail the build (non-zero exit) for CVSS >= 9 (Critical) -
+               High/Medium/Low findings still appear in the report for
+               human review rather than silently blocking every build on
+               something that needs investigation, not an automatic gate. -->
+          <failBuildOnCVSS>9</failBuildOnCVSS>
+        </configuration>
+      </plugin>
+    </plugins>
+  </build>
 </project>

@@ -1,0 +1,23 @@
+# Never baked into the image - found during a production-readiness audit
+# that Dockerfile's `COPY . .` had no exclusions at all, so a build could
+# accidentally ship a local dev virtualenv, log files, or (most
+# importantly) whichever locally-trained classifier snapshot happened to
+# exist in models/ on the build machine at build time. Real prod deploys
+# mount ai_models_data as a Docker volume (docker-compose.prod.yml) and
+# should start from the synthetic bootstrap classifier, not an accidental
+# copy of someone's local dev training run.
+venv/
+__pycache__/
+*.pyc
+*.log
+.git/
+.pytest_cache/
+
+# Local dev-only trained model artifacts - the real ai_models_data volume
+# (docker-compose.prod.yml) mounts over this path at runtime regardless of
+# what (if anything) exists here at image-build time.
+models/
+
+# Standalone manual dev script (see grpc_client.py's own header comment) -
+# never part of the served application, no reason to ship it.
+scripts/

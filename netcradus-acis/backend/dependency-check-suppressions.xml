@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  OWASP dependency-check suppressions — each entry MUST have a real,
+  reviewed justification. Never add a blanket/wildcard suppression to make
+  noise disappear; suppress one specific CVE against one specific,
+  investigated dependency.
+
+  Schema: https://jeremylong.github.io/DependencyCheck/dependency-suppression.1.1.xsd
+-->
+<suppressions xmlns="https://jeremylong.github.io/DependencyCheck/dependency-suppression.1.1.xsd">
+</suppressions>

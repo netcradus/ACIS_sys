@@ -30,6 +30,14 @@ interface TimelineTrackProps {
  * Vertical connected-node event track — the shared "threat timeline"
  * primitive for Dashboard's live feed and any investigation view that needs
  * a chronological, severity-colored event list instead of a plain table row.
+ *
+ * Status (reviewed during a production-readiness audit): built for the
+ * documented SOC command-center redesign plan's "Part 1 — evolved design
+ * language" component set. Not yet wired into DashboardPage.tsx (which
+ * still has its own hand-rolled "Live Threat Feed" markup). Deliberately
+ * left as-is rather than either force-wiring it now (out of scope for that
+ * audit) or deleting it (the redesign plan is still active) — see that
+ * plan for the intended integration point.
  */
 export default function TimelineTrack({ events, onEventClick, limit, emptyLabel = 'No recent activity', className }: TimelineTrackProps) {
   const shown = limit ? events.slice(0, limit) : events
