@@ -33,3 +33,9 @@ node_modules/
 .env.development.local
 .env.test.local
 .env.production.local
+
+# Playwright E2E output — real browser test artifacts (screenshots, traces,
+# HTML report) generated locally, not source.
+/test-results/
+/playwright-report/
+/blob-report/

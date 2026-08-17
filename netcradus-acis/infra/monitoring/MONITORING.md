@@ -12,10 +12,17 @@
   (Elasticsearch cluster health). 30-day retention on the `prometheus_data`
   volume. Rules in `alert-rules.yml` are loaded and evaluated continuously.
 - **Alertmanager** (`alertmanager`, internal only) — receives firing alerts
-  from Prometheus, groups/dedupes them, and would forward to a real
-  notification channel once you configure one (see `alertmanager.yml`'s own
-  header comment — it ships with NO receiver configured, deliberately,
-  rather than a fake webhook URL).
+  from Prometheus, groups/dedupes them, and sends real email notifications
+  (via the same SMTP credentials `acis-soar`/`acis-platform-admin` already
+  use for invitation emails — no new email account to provision) plus
+  optionally Slack. `infra/monitoring/alertmanager.yml.template` is the
+  committed source; `infra/scripts/deploy.sh` renders it into
+  `infra/monitoring/alertmanager.yml` (gitignored — contains real SMTP
+  credentials once rendered) using `ALERTMANAGER_ALERT_EMAIL` (required) and
+  `ALERTMANAGER_SLACK_WEBHOOK_URL` (optional) from `.env`. Re-render manually
+  after changing `.env` without a full redeploy:
+  `sh infra/scripts/render-alertmanager-config.sh`. Verified against real
+  `amtool check-config` with both the email-only and email+Slack branches.
 - **Grafana** (`grafana`, exposed at `https://<PUBLIC_APP_DOMAIN>:8444`) —
   Prometheus datasource and the "ACIS Production Overview" dashboard are
   both provisioned automatically on first boot (`provisioning/`,

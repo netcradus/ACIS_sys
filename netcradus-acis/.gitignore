@@ -17,3 +17,8 @@ secrets/
 # files + manifest.json), same role as the ai_models_data Docker volume in
 # prod. Never source-controlled.
 ai-service/models/
+
+# Rendered from alertmanager.yml.template by infra/scripts/deploy.sh -
+# contains real SMTP credentials once rendered, never commit it. The
+# .template (placeholders only) IS committed.
+infra/monitoring/alertmanager.yml

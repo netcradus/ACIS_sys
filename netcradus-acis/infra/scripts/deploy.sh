@@ -42,6 +42,9 @@ for svc in frontend ai-service keycloak gateway alerts log-service correlation i
   docker tag "acis/${svc}:${GIT_SHA}" "acis/${svc}:latest"
 done
 
+echo "[deploy] Rendering infra/monitoring/alertmanager.yml from its template..."
+sh infra/scripts/render-alertmanager-config.sh
+
 docker compose -f docker-compose.prod.yml up -d
 
 echo "$(date -u +%Y-%m-%dT%H:%M:%SZ) DEPLOY  ${GIT_SHA}  $(git log -1 --format='%s' "$GIT_SHA" 2>/dev/null | head -c 100)" >> infra/scripts/deploy-history.log

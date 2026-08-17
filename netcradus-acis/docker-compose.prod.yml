@@ -802,6 +802,10 @@ services:
   alertmanager:
     image: prom/alertmanager:v0.27.0
     volumes:
+      # Generated from alertmanager.yml.template by
+      # infra/scripts/render-alertmanager-config.sh (deploy.sh runs this
+      # automatically) - not committed, contains real SMTP credentials once
+      # rendered. See infra/monitoring/MONITORING.md.
       - ./infra/monitoring/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
       - alertmanager_data:/alertmanager
     expose:

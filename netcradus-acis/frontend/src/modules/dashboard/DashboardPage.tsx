@@ -906,7 +906,7 @@ export default function DashboardPage() {
               <div className="card-tag teal">LAYER 2</div>
               <div className="card-head">
                 <div className="card-title">Autonomous SOAR</div>
-                <svg className="gear animate-pulse" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <svg className="gear animate-pulse" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                   <path d="M12 2l2.4 6.9L21 12l-6.6 3.1L12 22l-2.4-6.9L3 12l6.6-3.1z"/>
                 </svg>
               </div>

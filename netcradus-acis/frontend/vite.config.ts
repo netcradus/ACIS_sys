@@ -1,3 +1,4 @@
+/// <reference types="vitest/config" />
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import path from 'path'
@@ -9,6 +10,18 @@ export default defineConfig({
     alias: {
       '@': path.resolve(__dirname, './src'),
     },
+  },
+  test: {
+    environment: 'jsdom',
+    globals: true,
+    setupFiles: ['./src/test/setup.ts'],
+    css: false,
+    // Vitest's default include glob (**/*.{test,spec}.*) otherwise also
+    // picks up e2e/*.spec.ts - real Playwright specs, not Vitest tests -
+    // and fails to collect them ("did not expect test.describe() to be
+    // called here") since they call Playwright's own `test`/`describe`,
+    // not Vitest's.
+    exclude: ['**/node_modules/**', '**/dist/**', '**/e2e/**'],
   },
   build: {
     rollupOptions: {
