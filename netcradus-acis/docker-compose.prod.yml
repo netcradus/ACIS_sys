@@ -46,6 +46,12 @@ services:
 
   # 1. ACIS Web Frontend (nginx, proxies /api + /ws to the gateway) — internal only, fronted by Caddy
   frontend:
+    # image: pins what `docker compose up -d` (no --build) actually runs to
+    # a specific, named, immutable tag instead of an anonymous build-cache
+    # hash — see infra/scripts/deploy.sh / ROLLBACK.md. Defaults to
+    # ":latest" so a bare `docker compose up -d --build` still works exactly
+    # as before for anyone not using the versioned deploy scripts.
+    image: acis/frontend:${IMAGE_TAG:-latest}
     build:
       context: .
       dockerfile: frontend/Dockerfile
@@ -66,6 +72,7 @@ services:
   # honest mock mode (tagged X-ACIS-AI-Mode: mock) until you both set it AND
   # start the optional kiro-gateway service below.
   ai-service:
+    image: acis/ai-service:${IMAGE_TAG:-latest}
     build:
       context: ./ai-service
       dockerfile: Dockerfile
@@ -172,6 +179,30 @@ services:
     mem_limit: 1g
     restart: always
 
+  # 3b. Automated Postgres backups — real pg_dump of both `acis` and
+  # `keycloak` on a schedule, retained on a named volume (survives container
+  # recreation) with age-based pruning. See infra/scripts/BACKUP_RESTORE.md
+  # for the documented, tested restore procedure — this service only takes
+  # backups, it never runs a restore automatically.
+  backup:
+    image: postgres:16-alpine
+    environment:
+      PGHOST: postgres
+      PGPORT: "5432"
+      PGUSER: acis
+      PGPASSWORD: ${POSTGRES_ADMIN_PASSWORD:?Set POSTGRES_ADMIN_PASSWORD in .env}
+      BACKUP_RETENTION_DAYS: ${BACKUP_RETENTION_DAYS:-14}
+      BACKUP_HOUR_UTC: ${BACKUP_HOUR_UTC:-2}
+    entrypoint: ["/bin/sh", "/scripts/backup-entrypoint.sh"]
+    volumes:
+      - ./infra/scripts:/scripts:ro
+      - backup_data:/backups
+    depends_on:
+      postgres:
+        condition: service_healthy
+    mem_limit: 256m
+    restart: always
+
   # 4. Keycloak Identity Provider — production mode, Postgres-backed, TLS
   # terminated at Caddy (:8443 -> here over plain HTTP internally).
   # `start` (not `start-dev`) + `--hostname-strict` (default true) means
@@ -179,6 +210,7 @@ services:
   # is what makes the token `iss` claim consistent regardless of which
   # internal service validates it (see backend application.yml jwk-set-uri).
   keycloak:
+    image: acis/keycloak:${IMAGE_TAG:-latest}
     build:
       context: .
       dockerfile: infra/keycloak/Dockerfile
@@ -310,6 +342,7 @@ services:
   # ---- Backend microservices — all internal only, reached via the gateway ----
 
   gateway:
+    image: acis/gateway:${IMAGE_TAG:-latest}
     build:
       context: .
       dockerfile: infra/docker/Dockerfile.backend
@@ -352,6 +385,7 @@ services:
     restart: always
 
   alerts:
+    image: acis/alerts:${IMAGE_TAG:-latest}
     build:
       context: .
       dockerfile: infra/docker/Dockerfile.backend
@@ -394,6 +428,7 @@ services:
     restart: always
 
   log-service:
+    image: acis/log-service:${IMAGE_TAG:-latest}
     build:
       context: .
       dockerfile: infra/docker/Dockerfile.backend
@@ -439,6 +474,7 @@ services:
     restart: always
 
   correlation:
+    image: acis/correlation:${IMAGE_TAG:-latest}
     build:
       context: .
       dockerfile: infra/docker/Dockerfile.backend
@@ -475,6 +511,7 @@ services:
     restart: always
 
   ingestion:
+    image: acis/ingestion:${IMAGE_TAG:-latest}
     build:
       context: .
       dockerfile: infra/docker/Dockerfile.backend
@@ -520,6 +557,7 @@ services:
     restart: always
 
   soar:
+    image: acis/soar:${IMAGE_TAG:-latest}
     build:
       context: .
       dockerfile: infra/docker/Dockerfile.backend
@@ -601,6 +639,7 @@ services:
     restart: always
 
   asset-service:
+    image: acis/asset-service:${IMAGE_TAG:-latest}
     build:
       context: .
       dockerfile: infra/docker/Dockerfile.backend
@@ -645,6 +684,7 @@ services:
     restart: always
 
   platform-admin:
+    image: acis/platform-admin:${IMAGE_TAG:-latest}
     build:
       context: .
       dockerfile: infra/docker/Dockerfile.backend
@@ -698,6 +738,7 @@ services:
     restart: always
 
   threat-service:
+    image: acis/threat-service:${IMAGE_TAG:-latest}
     build:
       context: .
       dockerfile: infra/docker/Dockerfile.backend
@@ -745,3 +786,4 @@ volumes:
   redis_data:
   clamav_data:
   file_storage_data:
+  backup_data:
