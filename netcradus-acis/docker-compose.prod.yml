@@ -812,7 +812,16 @@ services:
     restart: always
 
   alertmanager:
-    image: prom/alertmanager:v0.27.0
+    # v0.27.0 -> v0.34.0: found during the SMTP-remediation pass - v0.27.0's
+    # email notifier only supports STARTTLS (explicit TLS on connect, e.g.
+    # port 587) and has no way to speak implicit TLS (the whole connection
+    # is TLS from the first byte, e.g. port 465/RFC 8314), so every real
+    # send to a port-465 host like smtppro.zoho.eu failed with "'require_tls'
+    # is true (default) but ... does not advertise the STARTTLS extension".
+    # v0.34.0 adds force_implicit_tls (set below, in
+    # infra/monitoring/alertmanager.yml.template) plus auto-detection by
+    # port for exactly this case.
+    image: prom/alertmanager:v0.34.0
     volumes:
       # Generated from alertmanager.yml.template by
       # infra/scripts/render-alertmanager-config.sh (deploy.sh runs this

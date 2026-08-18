@@ -22,6 +22,15 @@ global:
   smtp_auth_username: '${SMTP_USERNAME}'
   smtp_auth_password: '${SMTP_PASSWORD}'
   smtp_require_tls: true
+  # Port 465 (this project's real SMTP host, smtppro.zoho.eu, included) is
+  # implicit TLS - the whole connection is TLS from the first byte (RFC
+  # 8314), never STARTTLS. smtp_require_tls above only controls the
+  # STARTTLS/opportunistic-TLS path; without this, v0.34.0's auto-detect
+  # covers port 465 already, but this is set explicitly rather than relied
+  # on implicitly (found the hard way: a real send to smtppro.zoho.eu:465
+  # failed under v0.27.0, which had no implicit-TLS support at all - see
+  # docker-compose.prod.yml's alertmanager image comment).
+  smtp_force_implicit_tls: true
 
 route:
   group_by: ['alertname', 'severity']
