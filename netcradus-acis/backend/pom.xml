@@ -7,15 +7,20 @@
   <parent>
     <groupId>org.springframework.boot</groupId>
     <artifactId>spring-boot-starter-parent</artifactId>
-    <!-- 3.3.5 had GHSA-rc42-6c7j-7h5r (EndpointRequest.to() builds the wrong
-         matcher for non-exposed actuator endpoints) - fixed in 3.3.11, a
-         same-minor-line patch bump with no breaking API changes per Spring
-         Boot's own versioning policy. A second real CVE (GHSA-wwpq-f5c3-7hvx,
-         predictable temp directory) has no fix within the 3.3.x line at all -
-         it needs 3.5.14+/4.0.6, a materially larger upgrade (Spring Cloud
-         train compatibility, broader regression surface) intentionally left
-         for a dedicated, separately-tested upgrade rather than bundled here. -->
-    <version>3.3.11</version>
+    <!-- Dedicated upgrade pass (see git history for the prior 3.3.5->3.3.11
+         patch and its since-superseded reasoning): Spring Boot 3.3.x reached
+         OSS end-of-life 2025-06-30 with 3.3.13 as its last free Maven
+         Central release - confirmed by direct query against
+         repo1.maven.org, not just secondary trackers. Two of this project's
+         own real-scanner-flagged Critical CVEs (Cassandra auto-config
+         hostname verification, Spring Security header-writing) only have
+         fixes published to VMware Tanzu's paid commercial support on the
+         3.3.x line, never to the public repo. 3.5.x is the only line still
+         under free OSS support (through 2027-07-31) and is Spring's own
+         designated "bridge release" to 4.0 (deprecates rather than removes
+         most of what 4.0 drops), making it the safer target than jumping
+         straight to a major version. -->
+    <version>3.5.16</version>
     <relativePath/>
   </parent>
 
@@ -40,12 +45,25 @@
 
   <properties>
     <java.version>21</java.version>
-    <spring-cloud.version>2023.0.3</spring-cloud.version>
+    <!-- Must track spring-boot-starter-parent's line: 2025.0.x is the
+         Spring-Cloud-Release-Train compatible with Boot 3.5.x (2023.0.x was
+         paired with Boot 3.3.x). -->
+    <spring-cloud.version>2025.0.3</spring-cloud.version>
     <!-- Matches the running quay.io/keycloak/keycloak:24.0 server (infra/docker-compose.yml) -->
     <keycloak.version>24.0.5</keycloak.version>
     <maven.compiler.source>21</maven.compiler.source>
     <maven.compiler.target>21</maven.compiler.target>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    <!-- Spring Boot 3.5.16's own BOM still ships tomcat 10.1.55 / netty
+         4.1.135.Final, each one patch release short of actually clearing
+         this project's own dependency-check findings (tomcat needs 10.1.57
+         for CVE-2026-59083/59084; netty needs 4.1.136.Final for
+         CVE-2026-56817/56820). Both are Spring Boot's own documented
+         override properties (see docs.spring.io "Version Properties") for
+         exactly this situation - a same-line patch ahead of what the BOM
+         has caught up to yet, not an unmanaged/unsupported combination. -->
+    <tomcat.version>10.1.57</tomcat.version>
+    <netty.version>4.1.137.Final</netty.version>
   </properties>
 
   <dependencyManagement>

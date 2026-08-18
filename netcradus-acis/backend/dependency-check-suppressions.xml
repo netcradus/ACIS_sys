@@ -8,4 +8,37 @@
   Schema: https://jeremylong.github.io/DependencyCheck/dependency-suppression.1.1.xsd
 -->
 <suppressions xmlns="https://jeremylong.github.io/DependencyCheck/dependency-suppression.1.1.xsd">
+  <!--
+    CVE-2026-33186 (CVSS 9.1) - confirmed FALSE POSITIVE, not a suppression
+    of inconvenience.
+
+    Investigated 2026-08-18 during the dependency-CVE remediation pass:
+    CVE-2026-33186 is an authorization-bypass in *gRPC-Go*
+    (google.golang.org/grpc, fixed in v1.79.3) caused by improper HTTP/2
+    ":path" pseudo-header validation in that Go implementation's own
+    routing logic. It has no relationship to grpc-java (io.grpc:*), which
+    this project actually uses (net.devh:grpc-client-spring-boot-starter ->
+    io.grpc:grpc-core / io.grpc:grpc-protobuf (plus their own io.grpc:*
+    transitive siblings - grpc-api, grpc-context, grpc-protobuf-lite, etc,
+    all the same 1.63.0 grpc-java release), used by acis-threat-service to
+    call the Python ai-service. dependency-check's
+    CPE matcher over-matched purely because both projects share the
+    generic "grpc:grpc" CPE vendor/product string in the NVD dictionary -
+    a documented, common false-positive pattern for this scanner, not a
+    real shared codebase, language, or vulnerable code path.
+
+    Compensating control: N/A - the vulnerable code (Go's grpc-go HTTP/2
+    ":path" routing) does not exist anywhere in this Java codebase.
+
+    Review: re-open only if a real grpc-java (io.grpc) CVE is ever filed
+    against 1.63.0 specifically - check NVD's grpc-java-specific CPE
+    (cpe:2.3:a:grpc:grpc-java) rather than the generic "grpc:grpc" one
+    this false match came from. No fixed expiration date since the
+    underlying fact (different language/ecosystem) cannot change.
+  -->
+  <suppress>
+    <notes>False positive: CVE-2026-33186 is a gRPC-Go (Go ecosystem) CVE incorrectly CPE-matched against grpc-java. See comment above suppressions block for full investigation.</notes>
+    <gav regex="true">^io\.grpc:grpc\-.*:.*$</gav>
+    <cve>CVE-2026-33186</cve>
+  </suppress>
 </suppressions>
