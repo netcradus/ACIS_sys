@@ -126,8 +126,15 @@ public class ThreatIntelligenceService {
      */
     @Transactional
     public int saveEnrichmentResultsBulk(String tenantId, List<BulkIndicatorRequest> requests) {
+        // `type` is a real NOT NULL column (see ThreatIndicator/schema) - a
+        // request missing it must be skipped here, same as a blank value,
+        // rather than reaching saveAll() and throwing
+        // DataIntegrityViolationException, which - since saveAll() batches
+        // the whole request - would abort every other valid record in the
+        // same batch too.
         List<BulkIndicatorRequest> valid = requests.stream()
                 .filter(r -> r.value() != null && !r.value().isBlank())
+                .filter(r -> r.type() != null && !r.type().isBlank())
                 .toList();
         if (valid.isEmpty()) {
             return 0;

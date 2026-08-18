@@ -1,0 +1,11 @@
+services:
+  # Restores this project's established local-dev port mapping for Postgres
+  # (15432 on the host -> 5432 in the container) — every backend service's
+  # application.yml defaults to DB_PORT=15432 for exactly this reason (see
+  # e.g. acis-asset-service/src/main/resources/application.yml), and this
+  # session's own tenant-isolation RLS integration test connects to
+  # localhost:15432 as well. The base docker-compose.yml maps 5432:5432;
+  # this override file is Docker Compose's standard, non-destructive
+  # mechanism for a local port remap without editing the tracked base file.
+  postgres:
+    ports: [ "15432:5432" ]
