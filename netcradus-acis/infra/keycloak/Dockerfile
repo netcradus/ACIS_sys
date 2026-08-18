@@ -19,7 +19,22 @@ FROM quay.io/keycloak/keycloak:24.0
 COPY --from=provider-build /build/target/acis-async-reset-email.jar /opt/keycloak/providers/acis-async-reset-email.jar
 
 # Pre-scans providers into the image so the new authenticator is registered
-# without a slower first-boot re-augmentation. Runtime flags (--db, hostname,
-# etc.) are still supplied via `start` at container start, same as before —
-# this only affects provider discovery, not runtime configuration.
-RUN /opt/keycloak/bin/kc.sh build
+# without a slower first-boot re-augmentation. Runtime flags (hostname,
+# proxy headers, db connection details, etc.) are still supplied via `start`
+# at container start, same as before — this only affects provider discovery,
+# not runtime configuration.
+#
+# --db=postgres MUST be passed here too (a real bug found during a
+# production-readiness deployment test, not a hypothetical): without it,
+# this bakes in the default `db=dev-file`, and docker-compose.*.yml's
+# runtime `start --db=postgres ...` command then disagrees with the image's
+# own build-time config on every single container start. Keycloak/Quarkus
+# reacts to that drift by silently re-running this exact build step again
+# at startup (visible in `docker logs` as "Changes detected in
+# configuration... Updating the server image") before the server can start
+# - a genuine, memory-hungry `java -Dkc.config.build-and-exit=true` process
+# that gets OOM-killed under this container's mem_limit (768m in
+# docker-compose.prod.yml), which then crash-loops forever and never
+# reaches healthy. Passing the same --db here that `start` uses at runtime
+# means the two configs already agree, so no re-augmentation ever happens.
+RUN /opt/keycloak/bin/kc.sh build --db=postgres
