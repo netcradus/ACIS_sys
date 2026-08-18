@@ -243,7 +243,19 @@ services:
       timeout: 5s
       retries: 12
       start_period: 90s
-    mem_limit: 768m
+    # 768m was too tight - a real bug found during production deployment
+    # testing, not a hypothetical. The `./infra/keycloak/themes/acis` volume
+    # mount above (intentional - live theme editing without a rebuild, see
+    # infra/keycloak/themes note on `down && up` vs `restart`) means the
+    # provider/theme files present at container start never exactly match
+    # what was fingerprinted into the image at build time, so Keycloak
+    # always runs its "Changes detected in configuration... Updating the
+    # server image" re-augmentation on every single container start - a
+    # real, memory-hungry `java -Dkc.config.build-and-exit=true` process
+    # that was being OOM-killed under 768m, crash-looping forever. This is
+    # not avoidable while the live-theme-mount design is in place; the fix
+    # is giving that startup re-augmentation enough room to actually finish.
+    mem_limit: 1536m
     restart: always
 
   # 5. Kafka Event Broker — internal only
