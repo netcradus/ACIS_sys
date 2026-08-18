@@ -25,7 +25,13 @@ ENV VITE_KEYCLOAK_URL=${VITE_KEYCLOAK_URL} \
 
 RUN npm run build
 
-FROM nginx:1.25-alpine
+# nginx:1.25-alpine pinned Alpine 3.19.1, which a real container vuln scan
+# (Trivy) flagged as no longer receiving distro security backports at all -
+# 3 CRITICAL + 17 HIGH, mostly libexpat/libxml2/libxslt. Verified 1.29-alpine
+# resolves to a current, still-supported Alpine (3.23.x): 0 CRITICAL, 11
+# HIGH remaining, all with upstream fixes (picked up on the image's next
+# routine rebuild once published).
+FROM nginx:1.29-alpine
 COPY --from=build /app/dist /usr/share/nginx/html
 # Rendered via nginx's built-in docker-entrypoint templating (envsubst) at
 # container start, using the GATEWAY_UPSTREAM env var — e.g. http://gateway:8080

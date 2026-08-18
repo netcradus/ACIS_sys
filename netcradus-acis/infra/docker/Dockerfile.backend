@@ -37,6 +37,14 @@ RUN mvn -q -B package -pl ${SERVICE} -am -DskipTests \
 
 # ---- Stage 2: minimal JRE runtime, non-root ----
 FROM eclipse-temurin:21-jre-alpine AS production
+# Base Alpine packages already present in the upstream JRE image (libexpat,
+# p11-kit, p11-kit-trust) can lag behind Alpine's own patched releases even
+# on a fresh pull - a container vuln scan (Trivy) found real, fixed-upstream
+# HIGH CVEs in these three that `apk add` alone doesn't touch (it only
+# installs the new package, it doesn't upgrade what's already there).
+# Verified this actually clears them: `apk update && apk upgrade --no-cache`
+# on a fresh eclipse-temurin:21-jre-alpine pull upgrades all three.
+RUN apk update && apk upgrade --no-cache
 # curl is not in this base image by default - needed for the real actuator
 # healthcheck each service defines in docker-compose.prod.yml (added during
 # the production-readiness audit; previously the gateway and every backend
