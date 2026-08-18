@@ -131,6 +131,38 @@ resource "aws_lb_listener" "https_keycloak" {
   }
 }
 
+# Keycloak's admin console must never be reachable from the public internet
+# (real production-readiness requirement - it's a live credential-stuffing/
+# brute-force target otherwise, and offers no benefit to real end users, who
+# only ever need /realms/* for login/OAuth). Verified safe to block: every
+# backend service reaches Keycloak's admin REST API via the internal Docker
+# network (KEYCLOAK_URL=http://keycloak:8080 in docker-compose.prod.yml),
+# never through this public ALB - only the browser-facing login flow
+# (VITE_KEYCLOAK_URL) uses the public 8443 listener, and that flow never
+# touches /admin/*. Real admin console access, when actually needed, goes
+# through `aws ssm start-session` + a local port-forward to the instance
+# instead - no SSH, no public exposure.
+resource "aws_lb_listener_rule" "keycloak_block_admin" {
+  count        = var.enable_https_listeners ? 1 : 0
+  listener_arn = aws_lb_listener.https_keycloak[0].arn
+  priority     = 1
+
+  action {
+    type = "fixed-response"
+    fixed_response {
+      content_type = "text/plain"
+      message_body = "Forbidden"
+      status_code  = "403"
+    }
+  }
+
+  condition {
+    path_pattern {
+      values = ["/admin", "/admin/*"]
+    }
+  }
+}
+
 # Grafana - HTTPS on 8444.
 resource "aws_lb_listener" "https_grafana" {
   count             = var.enable_https_listeners ? 1 : 0
