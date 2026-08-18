@@ -18,7 +18,18 @@ public class SecurityConfig {
             .cors(cors -> {}) // CORS handled by CorsConfig bean
             .authorizeExchange(exchanges -> exchanges
                 // Public endpoints
-                .pathMatchers("/actuator/health", "/actuator/info", "/ws/logs/**", "/ws/alerts/**").permitAll()
+                //
+                // /actuator/prometheus is unauthenticated for the same reason every
+                // other backend service already permits all of /actuator/** (see
+                // e.g. acis-alerts' SecurityConfig) — Prometheus has no JWT and
+                // this endpoint is only ever reachable from the internal Docker
+                // network, never routed to by Caddy (see infra/caddy/Caddyfile,
+                // which only reverse_proxys the frontend container). Found during
+                // a production-readiness monitoring audit: without this, the
+                // gateway — the single most critical routing component — was the
+                // only service in the fleet Prometheus couldn't scrape (401s),
+                // a real monitoring blind spot, not a hypothetical.
+                .pathMatchers("/actuator/health", "/actuator/info", "/actuator/prometheus", "/ws/logs/**", "/ws/alerts/**").permitAll()
                 // Self-service tenant signup (see TenantSignupController) — the
                 // gateway is the first thing a request reaches, so acis-platform-
                 // admin's own permitAll for this same path is not sufficient on
