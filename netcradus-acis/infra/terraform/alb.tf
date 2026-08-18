@@ -39,8 +39,18 @@ resource "aws_lb_target_group" "keycloak" {
   protocol = "HTTP"
   vpc_id   = aws_vpc.main.id
 
+  # /health/ready does not exist on this deployment - Keycloak only exposes
+  # it with --health-enabled=true, which docker-compose.prod.yml's actual
+  # `command:` never sets. Found via a real production smoke test: this
+  # target group reported unhealthy (404) even though the app itself was
+  # serving real traffic fine - the ALB was silently "failing open" because
+  # this target group has exactly one target and 100% of it was unhealthy
+  # (AWS ALB forwards anyway when a target group has zero healthy targets,
+  # rather than blackholing everything - real behavior observed, not
+  # assumed). Fixed to match the exact endpoint docker-compose's own
+  # container healthcheck already proves reliable for this image.
   health_check {
-    path                = "/health/ready"
+    path                = "/realms/master/.well-known/openid-configuration"
     healthy_threshold   = 2
     unhealthy_threshold = 3
     interval            = 15
