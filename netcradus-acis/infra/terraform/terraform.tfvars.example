@@ -1,0 +1,10 @@
+# Copy this file to terraform.tfvars (gitignored) and fill in real values.
+# Never commit terraform.tfvars itself.
+
+smtp_password = "CHANGE_ME_real_zoho_smtp_password"
+
+# Uncomment/override any of these if the defaults in variables.tf don't fit:
+# aws_region         = "ap-south-1"
+# domain_name        = "acis.netcradus.com"
+# app_instance_type  = "t3.xlarge"
+# db_instance_class  = "db.t3.medium"

@@ -22,3 +22,8 @@ ai-service/models/
 # contains real SMTP credentials once rendered, never commit it. The
 # .template (placeholders only) IS committed.
 infra/monitoring/alertmanager.yml
+
+# Regenerated from docker-compose.prod.yml by
+# infra/scripts/generate-aws-compose.py on every AWS deploy - never
+# hand-edited, never source-controlled.
+docker-compose.aws.yml

@@ -1,0 +1,17 @@
+# Terraform state contains real resource IDs and, transiently, real
+# secret values (random_password results) - never commit it, same
+# discipline as .env.
+*.tfstate
+*.tfstate.*
+.terraform/
+crash.log
+crash.*.log
+
+# Real secrets (SMTP password, etc) - never commit, see terraform.tfvars.example
+terraform.tfvars
+*.auto.tfvars
+
+# Binary plan artifact from `terraform plan -out=tfplan` - regenerable,
+# and may embed real state values in binary form. Never commit.
+tfplan
+*.tfplan

@@ -1,0 +1,140 @@
+#!/usr/bin/env python
+"""
+Generates docker-compose.aws.yml from docker-compose.prod.yml.
+
+Why a generated, standalone file rather than a docker-compose override
+file: docker compose override files can only ADD or OVERWRITE keys via
+merge, never DELETE one - and every DB-touching service in
+docker-compose.prod.yml has a `depends_on: postgres: condition:
+service_healthy` entry that would leave those services refusing to start
+(their depends_on target no longer exists) if postgres is simply dropped
+via an override. So instead: parse the real, raw compose file (${VAR}
+references stay as literal, uninterpolated strings - this is a plain
+YAML parse, not `docker compose config`, which would bake in this
+machine's local .env values), remove exactly the 3 services this AWS
+architecture replaces (postgres/postgres-exporter -> real RDS; caddy ->
+the ALB's own TLS termination), strip the now-dangling `depends_on:
+postgres` key from every other service, and republish frontend/keycloak/
+grafana's ports directly to the host (previously `expose:`-only,
+internal-only, since Caddy used to be the one thing reaching them -
+now the ALB's target groups need to reach the host ports directly).
+
+Everything else in the file is untouched.
+"""
+import sys
+import yaml
+
+SRC = "docker-compose.prod.yml"
+DST = "docker-compose.aws.yml"
+
+REMOVE_SERVICES = {"postgres", "caddy"}
+PUBLISH_PORTS = {
+    "frontend": ["80:80"],
+    "keycloak": ["8080:8080"],
+    "grafana": ["3000:3000"],
+}
+
+
+def main():
+    with open(SRC, "r", encoding="utf-8") as f:
+        compose = yaml.safe_load(f)
+
+    services = compose["services"]
+
+    for name in REMOVE_SERVICES:
+        services.pop(name, None)
+
+    for name, svc in services.items():
+        deps = svc.get("depends_on")
+        if isinstance(deps, dict) and "postgres" in deps:
+            del deps["postgres"]
+            if not deps:
+                del svc["depends_on"]
+        elif isinstance(deps, list) and "postgres" in deps:
+            deps.remove("postgres")
+            if not deps:
+                del svc["depends_on"]
+
+    for name, ports in PUBLISH_PORTS.items():
+        if name in services:
+            services[name].pop("expose", None)
+            services[name]["ports"] = ports
+
+    # Real RDS connection - overrides the hardcoded DB_HOST: postgres each
+    # of these services had.
+    db_services = [
+        "alerts", "log-service", "correlation", "ingestion", "soar",
+        "asset-service", "platform-admin", "threat-service",
+    ]
+    for name in db_services:
+        if name in services and "environment" in services[name]:
+            services[name]["environment"]["DB_HOST"] = "${DB_HOST_RDS}"
+
+    # postgres-exporter (DB health monitoring) stays, repointed at RDS
+    # instead of the now-removed local postgres container - found missing
+    # during a live monitoring-verification pass against the real AWS
+    # deployment (Prometheus showed it as a dangling/down target
+    # otherwise). RDS supports SSL, so sslmode=require rather than the
+    # local deployment's disable.
+    # backup service also hardcoded PGHOST: postgres / PGUSER: acis (the
+    # local superuser bootstrap name) - same gap as postgres-exporter,
+    # found the same way. RDS's master username is acis_admin (see
+    # infra/terraform/rds.tf), not acis.
+    if "backup" in services and "environment" in services["backup"]:
+        services["backup"]["environment"]["PGHOST"] = "${DB_HOST_RDS}"
+        services["backup"]["environment"]["PGUSER"] = "acis_admin"
+
+    if "postgres-exporter" in services:
+        services["postgres-exporter"]["environment"]["DATA_SOURCE_URI"] = (
+            "${DB_HOST_RDS}:5432/${DB_NAME:-acis}?sslmode=require"
+        )
+
+    # Keycloak's --db-url-host is a CLI flag, not an env var - the whole
+    # `command:` block needs to be redeclared with the real RDS host.
+    if "keycloak" in services:
+        services["keycloak"]["command"] = (
+            "start\n"
+            "--hostname=${PUBLIC_APP_DOMAIN:-localhost}\n"
+            "--hostname-port=8443\n"
+            "--http-enabled=true\n"
+            "--proxy-headers=xforwarded\n"
+            "--db=postgres\n"
+            "--db-url-host=${DB_HOST_RDS}\n"
+            "--db-url-database=keycloak\n"
+            "--db-username=keycloak\n"
+            "--db-password=${KEYCLOAK_DB_PASSWORD:?Set KEYCLOAK_DB_PASSWORD in .env}\n"
+        )
+
+    # postgres_data / postgres-init were only meaningful for the
+    # now-removed local postgres container.
+    compose.get("volumes", {}).pop("postgres_data", None)
+    compose.get("volumes", {}).pop("caddy_data", None)
+    compose.get("volumes", {}).pop("caddy_config", None)
+
+    header = (
+        "# GENERATED FILE - do not hand-edit. Regenerate with:\n"
+        "#   python infra/scripts/generate-aws-compose.py\n"
+        "# from docker-compose.prod.yml. See that script's own docstring for why\n"
+        "# this is a generated standalone file rather than a compose override.\n"
+        "#\n"
+        "# Usage on the AWS app host:\n"
+        "#   docker compose -f docker-compose.aws.yml up -d --build\n"
+        "#\n"
+        "# Differences from docker-compose.prod.yml:\n"
+        "#   - postgres / postgres-exporter removed - DB_HOST_RDS (real RDS\n"
+        "#     endpoint) replaces the local postgres container everywhere it\n"
+        "#     was referenced, including Keycloak's --db-url-host.\n"
+        "#   - caddy removed - the ALB terminates TLS now; frontend/keycloak/\n"
+        "#     grafana publish their real ports directly to the host instead.\n"
+        "\n"
+    )
+
+    with open(DST, "w", encoding="utf-8") as f:
+        f.write(header)
+        yaml.dump(compose, f, default_flow_style=False, sort_keys=False, width=100)
+
+    print(f"Wrote {DST}")
+
+
+if __name__ == "__main__":
+    main()
