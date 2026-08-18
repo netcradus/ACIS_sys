@@ -70,15 +70,20 @@
       <artifactId>grpc-client-spring-boot-starter</artifactId>
       <version>3.1.0.RELEASE</version>
     </dependency>
+    <!-- CVE-2024-7246: real, applicable grpc-java header-error-state bug -
+         fixed same-line at 1.63.2. (CVE-2024-11407, also flagged against
+         these jars, is a documented false positive - it's grpc-C++'s
+         GRPC_ARG_TCP_TX_ZEROCOPY_ENABLED, not grpc-java at all; see
+         dependency-check-suppressions.xml.) -->
     <dependency>
       <groupId>io.grpc</groupId>
       <artifactId>grpc-stub</artifactId>
-      <version>1.63.0</version>
+      <version>1.63.2</version>
     </dependency>
     <dependency>
       <groupId>io.grpc</groupId>
       <artifactId>grpc-protobuf</artifactId>
-      <version>1.63.0</version>
+      <version>1.63.2</version>
     </dependency>
     <dependency>
       <groupId>javax.annotation</groupId>
@@ -112,9 +117,9 @@
         <artifactId>protobuf-maven-plugin</artifactId>
         <version>0.6.1</version>
         <configuration>
-          <protocArtifact>com.google.protobuf:protoc:3.25.1:exe:${os.detected.classifier}</protocArtifact>
+          <protocArtifact>com.google.protobuf:protoc:3.25.5:exe:${os.detected.classifier}</protocArtifact>
           <pluginId>grpc-java</pluginId>
-          <pluginArtifact>io.grpc:protoc-gen-grpc-java:1.63.0:exe:${os.detected.classifier}</pluginArtifact>
+          <pluginArtifact>io.grpc:protoc-gen-grpc-java:1.63.2:exe:${os.detected.classifier}</pluginArtifact>
           <clearOutputDirectory>false</clearOutputDirectory>
         </configuration>
         <executions>

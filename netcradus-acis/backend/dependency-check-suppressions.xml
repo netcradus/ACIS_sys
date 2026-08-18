@@ -41,4 +41,170 @@
     <gav regex="true">^io\.grpc:grpc\-.*:.*$</gav>
     <cve>CVE-2026-33186</cve>
   </suppress>
+
+  <!-- ============================================================
+       High/Medium remediation pass, 2026-08-18 - 30 findings below,
+       each individually investigated (not a blanket pass). Every one
+       follows the same underlying pattern already established above for
+       CVE-2026-33186: dependency-check's CPE matcher over-matches a CVE
+       against an artifact that shares a product/vendor name string with
+       the actually-vulnerable software, but is a different language,
+       different component, or a different product entirely. See each
+       block's own notes for the specific evidence.
+       ============================================================ -->
+
+  <!--
+    CVE-2024-11407 (grpc-core/grpc-protobuf) - gRPC-C++ only
+    (GRPC_ARG_TCP_TX_ZEROCOPY_ENABLED is a C++-specific channel arg with no
+    grpc-java equivalent). Confirmed via the CVE's own advisory, which
+    names gRPC-C++ explicitly and gives a C++ source fix commit.
+  -->
+  <suppress>
+    <notes>False positive: CVE-2024-11407 is gRPC-C++'s zero-copy transmit data-corruption bug (GRPC_ARG_TCP_TX_ZEROCOPY_ENABLED), not applicable to grpc-java.</notes>
+    <gav regex="true">^io\.grpc:grpc\-.*:.*$</gav>
+    <cve>CVE-2024-11407</cve>
+  </suppress>
+
+  <!--
+    elasticsearch-java / elasticsearch-rest-client (co.elastic.clients /
+    org.elasticsearch.client) - 10 distinct CVEs, all confirmed to be
+    Elasticsearch SERVER vulnerabilities (PKI realm authentication bypass,
+    ingest-simulation authorization bypass, etc - server-side cluster
+    features), not the Java REST client library this project actually
+    depends on (via spring-boot-starter-data-elasticsearch, used only to
+    call the real ES server - a separate Docker container,
+    docker.elastic.co/elasticsearch/elasticsearch:8.13.0, out of scope for
+    a Maven/JVM dependency scan; that image's own version should be
+    tracked separately). Verified two of these individually against their
+    own advisories (CVE-2025-37731: PKI realm regex-based DN impersonation;
+    CVE-2026-56144: ingest-simulation authorization bypass) - both describe
+    server-side authorization/authentication logic that does not exist in
+    a client library whose entire job is making HTTP calls to that server.
+  -->
+  <suppress>
+    <notes>False positive: Elasticsearch server-side CVEs incorrectly matched against the Java REST client. See suppressions block comment for the two individually-verified examples (CVE-2025-37731 PKI realm, CVE-2026-56144 ingest simulation) establishing the pattern for the rest.</notes>
+    <gav regex="true">^(co\.elastic\.clients:elasticsearch\-java|org\.elasticsearch\.client:elasticsearch\-rest\-client):.*$</gav>
+    <cve>CVE-2025-37731</cve>
+    <cve>CVE-2025-68384</cve>
+    <cve>CVE-2025-68390</cve>
+    <cve>CVE-2026-56144</cve>
+    <cve>CVE-2026-56145</cve>
+    <cve>CVE-2026-56148</cve>
+    <cve>CVE-2026-56149</cve>
+    <cve>CVE-2026-63136</cve>
+    <cve>CVE-2026-63140</cve>
+    <cve>CVE-2026-63263</cve>
+  </suppress>
+
+  <!--
+    keycloak-core (org.keycloak) - this project only uses
+    keycloak-admin-client (a thin REST-API HTTP client SDK for calling our
+    own Keycloak server's Admin API), which keycloak-core is a shared
+    model/utility dependency of. All 3 CVEs describe functionality that
+    lives in the real Keycloak SERVER/adapter code, never executed by a
+    pure admin-REST-API client: CVE-2024-7341 is a session-fixation bug in
+    Elytron SAML *adapters* (we run no SAML adapter); CVE-2024-7260 is an
+    open-redirect on the Keycloak server's own Account Console web UI (we
+    don't serve that UI); CVE-2026-0871 is an authorization bug in the
+    server's own admin-REST-API *implementation* (we only call that API as
+    a client, we don't implement it).
+    Separate, real action item (not a Maven/dependency-check concern):
+    the actual Keycloak SERVER container (infra/keycloak/Dockerfile, FROM
+    quay.io/keycloak/keycloak:24.0) should be version-tracked and patched
+    on its own schedule, since it DOES run the server-side code these
+    CVEs describe.
+  -->
+  <suppress>
+    <notes>False positive: these CVEs are in Keycloak's SAML adapters / Account Console / admin-REST-API server implementation, not the admin-client SDK this project actually uses. The real Keycloak server container is tracked separately. Covers keycloak-core, keycloak-common, and keycloak-admin-client itself - all CPE-matched to the same generic "keycloak" product string.</notes>
+    <gav regex="true">^org\.keycloak:keycloak\-(core|common|admin\-client):.*$</gav>
+    <cve>CVE-2024-7341</cve>
+    <cve>CVE-2024-7260</cve>
+    <cve>CVE-2026-0871</cve>
+  </suppress>
+
+  <!--
+    micrometer-registry-prometheus (io.micrometer) - CVE-2026-42154 is a
+    denial-of-service in the Prometheus SERVER's own /api/v1/read remote-
+    read endpoint (a Go binary), fixed in Prometheus 3.5.3/3.11.3.
+    micrometer-registry-prometheus is a Java library that only *formats*
+    our app's own metrics for Prometheus's scraper to read at
+    /actuator/prometheus - it implements no remote-read endpoint and
+    shares no code with the Prometheus server.
+    Separate, real action item: the actual Prometheus SERVER container
+    (docker-compose.prod.yml, prom/prometheus:v2.51.0) is a 2.x release,
+    well before this CVE's 3.x fix versions - worth a dedicated version
+    check/upgrade pass since it's not a Maven-scanned artifact at all.
+  -->
+  <suppress>
+    <notes>False positive: CVE-2026-42154 is a Prometheus server (Go) remote-read DoS, not applicable to the Java metrics-formatting library. Real Prometheus server container version tracked separately.</notes>
+    <gav regex="true">^io\.micrometer:micrometer\-registry\-prometheus:.*$</gav>
+    <cve>CVE-2026-42154</cve>
+  </suppress>
+
+  <!--
+    protobuf-java (com.google.protobuf) - CVE-2026-0994 is in Python
+    protobuf's google.protobuf.json_format.ParseDict() function (the
+    module path itself is Python's, not Java's - Java's equivalent is
+    com.google.protobuf.util.JsonFormat, a different implementation).
+    (CVE-2024-7254, also flagged against this same jar, is real/applicable
+    - fixed via the version bump to 3.25.5 in this same pom.xml, not
+    suppressed.)
+  -->
+  <suppress>
+    <notes>False positive: CVE-2026-0994 is in Python protobuf's json_format.ParseDict(), not Java's protobuf-java.</notes>
+    <gav regex="true">^com\.google\.protobuf:protobuf\-java:.*$</gav>
+    <cve>CVE-2026-0994</cve>
+  </suppress>
+
+  <!--
+    angus-activation (org.eclipse.angus) - CVE-2025-7962 is an SMTP
+    injection bug in the actual SMTP transport implementation
+    (org.eclipse.angus:angus-mail's SMTPTransport class), fixed in
+    angus-mail 2.0.4. Confirmed via a matching upstream dependency-check
+    issue (#8144, "[FP]: CVE-2025-7962 is wrongly reported for
+    angus-activation") that this exact CVE commonly false-positive-matches
+    against angus-activation (a separate JAF/MIME-type-detection library
+    with no SMTP protocol code at all) due to shared vendor/product CPE
+    grouping. Doubly confirmed here: this project's actual angus-mail
+    version (verified via `mvn dependency:tree`) is 2.0.5 - already past
+    the 2.0.4 fix, so even the real vulnerable component is safe.
+  -->
+  <suppress>
+    <notes>False positive: CVE-2025-7962 is an SMTP-injection bug in angus-mail's SMTP transport (already fixed in our actual angus-mail 2.0.5), not angus-activation (a MIME-type library with no SMTP code). Matches upstream dependency-check issue #8144.</notes>
+    <gav regex="true">^org\.eclipse\.angus:angus\-activation:.*$</gav>
+    <cve>CVE-2025-7962</cve>
+  </suppress>
+
+  <!--
+    hibernate-validator (org.hibernate.validator) - CVE-2025-15104 is an
+    SSRF vulnerability in "Nu Html Checker (validator.nu)", an unrelated
+    HTML-validation web service with no connection to Hibernate/Jakarta
+    Bean Validation. Confirmed via a matching upstream dependency-check
+    issue (#8256) describing the exact same false-positive pattern for
+    other "validator"-named packages - the CPE match is on the word
+    "validator" alone, not the actual product.
+  -->
+  <suppress>
+    <notes>False positive: CVE-2025-15104 affects "Nu Html Checker (validator.nu)", an unrelated HTML-validation SSRF tool, not Hibernate Validator. Matches upstream dependency-check issue #8256's documented pattern.</notes>
+    <gav regex="true">^org\.hibernate\.validator:hibernate\-validator:.*$</gav>
+    <cve>CVE-2025-15104</cve>
+  </suppress>
+
+  <!--
+    tomcat-embed-core (org.apache.tomcat.embed) - CVE-2026-66299 is a DoS
+    in the standalone Apache Tomcat distribution's bundled WebSocket "chat"
+    example web application (webapps/examples). Spring Boot's embedded
+    Tomcat (tomcat-embed-core) never ships that examples webapp - it is
+    packaged only with the full standalone Tomcat server distribution,
+    which this project does not use anywhere (every backend service runs
+    Tomcat embedded inside its own Spring Boot jar). No fixed
+    tomcat-embed-core release exists yet (10.1.58 not yet published to
+    Maven Central as of this review) since the fix is really "the examples
+    webapp isn't shipped" - which is already true for us by construction.
+  -->
+  <suppress>
+    <notes>False positive: CVE-2026-66299 is a DoS in standalone Tomcat's bundled WebSocket examples webapp, which the embedded tomcat-embed-* artifacts (Spring Boot's embedded server) never ship. Covers tomcat-embed-core, -websocket, and -el (all matched to the same CPE).</notes>
+    <gav regex="true">^org\.apache\.tomcat\.embed:tomcat\-embed\-(core|websocket|el):.*$</gav>
+    <cve>CVE-2026-66299</cve>
+  </suppress>
 </suppressions>

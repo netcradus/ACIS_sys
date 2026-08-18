@@ -64,6 +64,16 @@
          has caught up to yet, not an unmanaged/unsupported combination. -->
     <tomcat.version>10.1.57</tomcat.version>
     <netty.version>4.1.137.Final</netty.version>
+    <!-- High/Medium dependency-CVE remediation pass (see
+         dependency-check-suppressions.xml for the ~30 findings determined
+         to be genuine false positives instead - CPE overmatches against a
+         different language/product sharing the same artifact name). These
+         are the real, applicable fixes: same-line patches only, each
+         verified against its actual CVE's fixed-version advisory before
+         bumping, not a blanket "upgrade everything" pass. -->
+    <log4j2.version>2.26.1</log4j2.version>
+    <postgresql.version>42.7.12</postgresql.version>
+    <commons-lang3.version>3.18.0</commons-lang3.version>
   </properties>
 
   <dependencyManagement>
@@ -84,6 +94,70 @@
         <groupId>org.keycloak</groupId>
         <artifactId>keycloak-admin-client</artifactId>
         <version>${keycloak.version}</version>
+      </dependency>
+      <!-- CVE-2024-7254: protobuf-java stack overflow parsing deeply-nested
+           untrusted input (real, applicable - fixed same-3.25.x-line).
+           CVE-2026-0994 (also flagged against this same jar) is a
+           documented false positive - see suppressions.xml, it's Python
+           protobuf's json_format module, not Java. -->
+      <dependency>
+        <groupId>com.google.protobuf</groupId>
+        <artifactId>protobuf-java</artifactId>
+        <version>3.25.5</version>
+      </dependency>
+      <!-- CVE-2024-21742: MIME4J DOM header injection when composing
+           messages - real, applicable to acis-soar's email sending path. -->
+      <dependency>
+        <groupId>org.apache.james</groupId>
+        <artifactId>apache-mime4j-core</artifactId>
+        <version>0.8.14</version>
+      </dependency>
+      <dependency>
+        <groupId>org.apache.james</groupId>
+        <artifactId>apache-mime4j-dom</artifactId>
+        <version>0.8.14</version>
+      </dependency>
+      <!-- CVE-2024-7246: grpc-core is ALSO pulled in transitively via
+           net.devh:grpc-common-spring-boot (a third path besides the
+           grpc-stub/grpc-protobuf declared directly in
+           acis-threat-service/pom.xml), independently resolving to the
+           old 1.63.0 even after those two were bumped - verified via
+           `mvn dependency:tree`, not assumed. -->
+      <dependency>
+        <groupId>io.grpc</groupId>
+        <artifactId>grpc-core</artifactId>
+        <version>1.63.2</version>
+      </dependency>
+      <dependency>
+        <groupId>io.grpc</groupId>
+        <artifactId>grpc-util</artifactId>
+        <version>1.63.2</version>
+      </dependency>
+      <dependency>
+        <groupId>io.grpc</groupId>
+        <artifactId>grpc-inprocess</artifactId>
+        <version>1.63.2</version>
+      </dependency>
+      <dependency>
+        <groupId>io.grpc</groupId>
+        <artifactId>grpc-netty-shaded</artifactId>
+        <version>1.63.2</version>
+      </dependency>
+      <!-- jackson.version/commons-io.version aren't Spring Boot BOM
+           property names it actually honors (verified: the property-based
+           override silently did nothing, still resolved 2.21.4/2.11.0 -
+           explicit dependencyManagement entries are the reliable
+           mechanism, unlike log4j2.version/postgresql.version/
+           commons-lang3.version above which Boot DOES recognize). -->
+      <dependency>
+        <groupId>com.fasterxml.jackson.core</groupId>
+        <artifactId>jackson-databind</artifactId>
+        <version>2.21.5</version>
+      </dependency>
+      <dependency>
+        <groupId>commons-io</groupId>
+        <artifactId>commons-io</artifactId>
+        <version>2.20.0</version>
       </dependency>
     </dependencies>
   </dependencyManagement>
