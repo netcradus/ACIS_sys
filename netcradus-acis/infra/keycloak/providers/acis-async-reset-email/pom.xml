@@ -30,7 +30,15 @@
   <properties>
     <maven.compiler.release>17</maven.compiler.release>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-    <keycloak.version>24.0.0</keycloak.version>
+    <!-- Bumped 24.0.0 -> 26.7.0 alongside infra/keycloak/Dockerfile's base
+         image, to fix real CRITICAL container CVEs (CVE-2025-14813 in the
+         bundled BouncyCastle jars) and the bulk of the accumulated HIGH
+         findings in the 24.0.5 image. Authenticator/AuthenticatorFactory
+         (this provider's only SPI surface) is one of Keycloak's most
+         stable, long-standing extension points - verified via a real
+         local build+migration+login test against a backed-up copy of the
+         Keycloak DB before touching AWS production. -->
+    <keycloak.version>26.7.0</keycloak.version>
   </properties>
 
   <dependencies>

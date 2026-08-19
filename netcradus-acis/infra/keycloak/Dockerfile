@@ -15,7 +15,17 @@ COPY infra/keycloak/providers/acis-async-reset-email/pom.xml ./pom.xml
 COPY infra/keycloak/providers/acis-async-reset-email/src ./src
 RUN mvn -B -q clean package
 
-FROM quay.io/keycloak/keycloak:24.0
+# 24.0.5 -> 26.7.0: fixes CVE-2025-14813 (BouncyCastle GOST28147 CTR
+# keystream reuse - present in bundled bcprov-jdk18on 1.77, not reachable
+# via any code path this deployment actually exercises since GOST ciphers
+# are never configured, but eliminated for real rather than only
+# risk-accepted) and the bulk of the 73 HIGH findings accumulated from
+# running 2+ years behind current (bundled Netty/Jackson/Quarkus/
+# keycloak-services CVEs, all with fixes at or below 26.6.4). Verified via
+# a real local staging test (backup -> upgrade -> migration -> realm/
+# login/RBAC validation) before this was applied to AWS production - see
+# the Keycloak Upgrade section of the production readiness report.
+FROM quay.io/keycloak/keycloak:26.7.0
 COPY --from=provider-build /build/target/acis-async-reset-email.jar /opt/keycloak/providers/acis-async-reset-email.jar
 
 # Pre-scans providers into the image so the new authenticator is registered
