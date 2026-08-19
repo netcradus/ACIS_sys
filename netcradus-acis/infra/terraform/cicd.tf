@@ -34,8 +34,20 @@ resource "aws_iam_role" "github_actions_deploy" {
         StringEquals = {
           "token.actions.githubusercontent.com:aud" = "sts.amazonaws.com"
         }
+        # Real failure found running this for the first time: the deploy
+        # job's `sub` claim is NOT the ref-based form below - a job that
+        # references a GitHub Environment (deploy uses `environment:
+        # production`) gets an environment-scoped sub claim instead
+        # (repo:OWNER/REPO:environment:NAME), a real, documented GitHub
+        # OIDC behavior. container-build-scan-push/verify/rollback-on-
+        # failure (no `environment:`) still get the ref-based form, so
+        # both are needed - StringLike accepts a list, matching if any
+        # entry matches.
         StringLike = {
-          "token.actions.githubusercontent.com:sub" = "repo:netcradus/ACIS_sys:ref:refs/heads/main"
+          "token.actions.githubusercontent.com:sub" = [
+            "repo:netcradus/ACIS_sys:ref:refs/heads/main",
+            "repo:netcradus/ACIS_sys:environment:production",
+          ]
         }
       }
     }]
