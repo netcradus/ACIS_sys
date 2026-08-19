@@ -24,6 +24,20 @@ on:
   pull_request:
     branches: [main]
 
+# Real duplicate-run collision hit on this pipeline's third run: a single
+# push somehow produced two simultaneous workflow runs for the identical
+# commit SHA, and the container-build-scan-push matrix jobs raced to push
+# the same immutable git-SHA image tags to ECR - whichever run lost the
+# race for a given service failed with "tag ... already exists ... tag is
+# immutable" (real ECR error, not a flaky one - see PUSH_ECR_IDEMPOTENT
+# handling below for the complementary defense-in-depth fix). This
+# concurrency group cancels any older in-flight run for the same ref
+# the moment a newer one starts, so only one run per branch is ever
+# actually building/pushing/deploying at a time.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 permissions:
   contents: read
   id-token: write # required for AWS OIDC - no long-lived AWS keys anywhere in this repo
@@ -270,7 +284,18 @@ jobs:
         run: |
           aws ecr get-login-password --region "$AWS_REGION" | docker login --username AWS --password-stdin "$ECR_REGISTRY"
           docker tag "acis/${{ matrix.name }}:${{ github.sha }}" "$ECR_REGISTRY/acis/${{ matrix.name }}:${{ github.sha }}"
-          docker push "$ECR_REGISTRY/acis/${{ matrix.name }}:${{ github.sha }}"
+          # Idempotent: if this exact git-SHA tag already exists in ECR
+          # (immutable tags - see infra/terraform/ecr.tf), some other run
+          # already pushed the identical commit's image, which is exactly
+          # equivalent to this push succeeding. The concurrency group
+          # above should prevent this from ever actually happening now,
+          # but this is real, cheap defense-in-depth rather than relying
+          # on that alone.
+          if aws ecr describe-images --region "$AWS_REGION" --repository-name "acis/${{ matrix.name }}" --image-ids imageTag=${{ github.sha }} >/dev/null 2>&1; then
+            echo "Tag ${{ github.sha }} already present in ECR for ${{ matrix.name }} - treating as already pushed."
+          else
+            docker push "$ECR_REGISTRY/acis/${{ matrix.name }}:${{ github.sha }}"
+          fi
 
   deploy:
     name: Deploy to AWS production
