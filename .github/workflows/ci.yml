@@ -3,10 +3,21 @@ name: CI / Deploy to Production
 # Real build -> test -> scan -> push -> deploy -> verify pipeline. Runs on
 # every push/PR to main so a broken build/test/lint/scan is caught before
 # merge; only a genuine push to main (never a PR, never a fork) reaches
-# the deploy/verify/rollback-on-failure jobs - see infra/terraform/cicd.tf's
-# OIDC trust policy, which enforces the same restriction independently at
-# the AWS side (a forged workflow run from any other ref cannot assume the
-# deploy role even if this YAML were somehow bypassed).
+# the deploy/verify/rollback-on-failure jobs - see netcradus-acis/infra/
+# terraform/cicd.tf's OIDC trust policy, which enforces the same
+# restriction independently at the AWS side (a forged workflow run from
+# any other ref cannot assume the deploy role even if this YAML were
+# somehow bypassed).
+#
+# All paths below are prefixed with netcradus-acis/ - that subdirectory,
+# not this repo's own root, is where the actual ACIS application lives
+# (this repo root holds other, unrelated legacy content alongside it).
+# This file must live at the true repo root's .github/workflows/ - GitHub
+# Actions does not discover workflow files nested any deeper than that,
+# which is exactly why an earlier copy of this file placed under
+# netcradus-acis/.github/workflows/ never actually ran (found via
+# `gh api repos/.../actions/workflows` returning zero registered
+# workflows despite real commits having been pushed).
 on:
   push:
     branches: [main]
@@ -20,6 +31,7 @@ permissions:
 env:
   AWS_REGION: ap-south-1
   ECR_REGISTRY: "113058466902.dkr.ecr.ap-south-1.amazonaws.com"
+  APP_DIR: netcradus-acis
 
 jobs:
   backend:
@@ -36,11 +48,11 @@ jobs:
           cache: maven
 
       - name: Build all modules
-        working-directory: backend
+        working-directory: netcradus-acis/backend
         run: mvn -B clean install -DskipTests
 
       - name: Run tests
-        working-directory: backend
+        working-directory: netcradus-acis/backend
         run: mvn -B test
 
       - name: Publish test results
@@ -48,7 +60,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: backend-surefire-reports
-          path: backend/*/target/surefire-reports
+          path: netcradus-acis/backend/*/target/surefire-reports
           if-no-files-found: ignore
 
   frontend:
@@ -56,7 +68,7 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: frontend
+        working-directory: netcradus-acis/frontend
     steps:
       - uses: actions/checkout@v4
 
@@ -65,7 +77,7 @@ jobs:
         with:
           node-version: "20"
           cache: npm
-          cache-dependency-path: frontend/package-lock.json
+          cache-dependency-path: netcradus-acis/frontend/package-lock.json
 
       - name: Install dependencies
         run: npm ci
@@ -116,7 +128,7 @@ jobs:
       # dependency-check-suppressions.xml, never blanket - see that file
       # for the documented reasoning behind each one.
       - name: Run OWASP dependency-check (aggregate, whole reactor)
-        working-directory: backend
+        working-directory: netcradus-acis/backend
         run: mvn -B org.owasp:dependency-check-maven:aggregate
 
       - name: Publish dependency-check report
@@ -124,7 +136,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: dependency-check-report
-          path: backend/target/dependency-check-report.*
+          path: netcradus-acis/backend/target/dependency-check-report.*
           if-no-files-found: warn
 
   container-build-scan-push:
@@ -136,49 +148,49 @@ jobs:
       matrix:
         include:
           - name: frontend
-            dockerfile: frontend/Dockerfile
-            context: .
+            dockerfile: netcradus-acis/frontend/Dockerfile
+            context: netcradus-acis
           - name: ai-service
-            dockerfile: ai-service/Dockerfile
-            context: ai-service
+            dockerfile: netcradus-acis/ai-service/Dockerfile
+            context: netcradus-acis/ai-service
           - name: keycloak
-            dockerfile: infra/keycloak/Dockerfile
-            context: .
+            dockerfile: netcradus-acis/infra/keycloak/Dockerfile
+            context: netcradus-acis
           - name: gateway
-            dockerfile: infra/docker/Dockerfile.backend
-            context: .
+            dockerfile: netcradus-acis/infra/docker/Dockerfile.backend
+            context: netcradus-acis
             build_arg: acis-gateway
           - name: alerts
-            dockerfile: infra/docker/Dockerfile.backend
-            context: .
+            dockerfile: netcradus-acis/infra/docker/Dockerfile.backend
+            context: netcradus-acis
             build_arg: acis-alerts
           - name: log-service
-            dockerfile: infra/docker/Dockerfile.backend
-            context: .
+            dockerfile: netcradus-acis/infra/docker/Dockerfile.backend
+            context: netcradus-acis
             build_arg: acis-log-service
           - name: correlation
-            dockerfile: infra/docker/Dockerfile.backend
-            context: .
+            dockerfile: netcradus-acis/infra/docker/Dockerfile.backend
+            context: netcradus-acis
             build_arg: acis-correlation
           - name: ingestion
-            dockerfile: infra/docker/Dockerfile.backend
-            context: .
+            dockerfile: netcradus-acis/infra/docker/Dockerfile.backend
+            context: netcradus-acis
             build_arg: acis-ingestion
           - name: soar
-            dockerfile: infra/docker/Dockerfile.backend
-            context: .
+            dockerfile: netcradus-acis/infra/docker/Dockerfile.backend
+            context: netcradus-acis
             build_arg: acis-soar
           - name: asset-service
-            dockerfile: infra/docker/Dockerfile.backend
-            context: .
+            dockerfile: netcradus-acis/infra/docker/Dockerfile.backend
+            context: netcradus-acis
             build_arg: acis-asset-service
           - name: platform-admin
-            dockerfile: infra/docker/Dockerfile.backend
-            context: .
+            dockerfile: netcradus-acis/infra/docker/Dockerfile.backend
+            context: netcradus-acis
             build_arg: acis-platform-admin
           - name: threat-service
-            dockerfile: infra/docker/Dockerfile.backend
-            context: .
+            dockerfile: netcradus-acis/infra/docker/Dockerfile.backend
+            context: netcradus-acis
             build_arg: acis-threat-service
     steps:
       - uses: actions/checkout@v4
@@ -249,6 +261,9 @@ jobs:
     needs: [container-build-scan-push]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     environment: production
+    defaults:
+      run:
+        working-directory: netcradus-acis
     steps:
       - uses: actions/checkout@v4
 
@@ -271,6 +286,11 @@ jobs:
         env:
           ECR_REGISTRY: ${{ env.ECR_REGISTRY }}
 
+      # `git archive HEAD` run with CWD inside netcradus-acis/ implicitly
+      # scopes to just that subtree (git treats CWD as a pathspec) -
+      # matches exactly what the manual deploy-to-aws.sh path already does
+      # locally, so the packaged tree's internal layout is identical
+      # either way.
       - name: Package config tree (no source needed - images already in ECR)
         run: |
           mkdir -p /tmp/deploy-tree
@@ -380,16 +400,16 @@ jobs:
         with:
           node-version: "20"
           cache: npm
-          cache-dependency-path: frontend/package-lock.json
+          cache-dependency-path: netcradus-acis/frontend/package-lock.json
 
       - name: Install Playwright
-        working-directory: frontend
+        working-directory: netcradus-acis/frontend
         run: |
           npm ci
           npx playwright install --with-deps chromium
 
       - name: Real production E2E (login, invalid login, RBAC)
-        working-directory: frontend
+        working-directory: netcradus-acis/frontend
         env:
           SMOKE_ADMIN_PASS: ${{ secrets.SMOKE_TEST_ADMIN_PASSWORD }}
           SMOKE_ANALYST_PASS: ${{ secrets.SMOKE_TEST_ANALYST_PASSWORD }}
