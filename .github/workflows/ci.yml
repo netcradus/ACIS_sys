@@ -181,6 +181,21 @@ jobs:
           - name: frontend
             dockerfile: netcradus-acis/frontend/Dockerfile
             context: netcradus-acis
+            # Vite inlines VITE_* vars into the static bundle at BUILD
+            # time (see frontend/Dockerfile's own comment) - without
+            # these, the Dockerfile's ARG defaults apply instead
+            # (VITE_KEYCLOAK_URL=http://localhost:8180), which is exactly
+            # what happened on this pipeline's first real deploy: the
+            # live frontend bundle had localhost:8180 baked in, so every
+            # real login attempt failed with a browser-side connection
+            # refused trying to reach a Keycloak that doesn't exist in
+            # that browser's network. Found via the `verify` job's own
+            # real E2E test failing, then confirmed directly by curling
+            # the actual deployed JS bundle for the literal string.
+            build_args: |
+              VITE_KEYCLOAK_URL=https://acis.netcradus.com:8443
+              VITE_KEYCLOAK_REALM=acis
+              VITE_KEYCLOAK_CLIENT_ID=acis-frontend
           - name: ai-service
             dockerfile: netcradus-acis/ai-service/Dockerfile
             context: netcradus-acis/ai-service
@@ -233,7 +248,7 @@ jobs:
         with:
           context: ${{ matrix.context }}
           file: ${{ matrix.dockerfile }}
-          build-args: ${{ matrix.build_arg && format('SERVICE={0}', matrix.build_arg) || '' }}
+          build-args: ${{ matrix.build_args || (matrix.build_arg && format('SERVICE={0}', matrix.build_arg)) || '' }}
           push: false
           load: true
           tags: acis/${{ matrix.name }}:${{ github.sha }}
