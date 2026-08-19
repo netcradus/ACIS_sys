@@ -11,7 +11,9 @@ crash.*.log
 terraform.tfvars
 *.auto.tfvars
 
-# Binary plan artifact from `terraform plan -out=tfplan` - regenerable,
-# and may embed real state values in binary form. Never commit.
+# Binary plan artifact from `terraform plan -out=tfplan` (or
+# -out=tfplan-<name> for a scoped, named plan) - regenerable, and may
+# embed real state values in binary form. Never commit.
 tfplan
+tfplan-*
 *.tfplan

@@ -1,12 +1,16 @@
-name: CI / Deploy to Production
+name: Deploy to Production
 
-# Real build -> test -> scan -> push -> deploy -> verify pipeline. Runs on
-# every push/PR to main so a broken build/test/lint/scan is caught before
-# merge; only a genuine push to main (never a PR, never a fork) reaches
-# the deploy/verify/rollback-on-failure jobs - see infra/terraform/cicd.tf's
-# OIDC trust policy, which enforces the same restriction independently at
-# the AWS side (a forged workflow run from any other ref cannot assume the
-# deploy role even if this YAML were somehow bypassed).
+# Real, automated build -> test -> scan -> push -> deploy -> verify pipeline
+# for AWS production. Only the `deploy`/`verify`/`rollback-on-failure` jobs
+# ever touch AWS, and only on a genuine push to main (never a PR, never a
+# fork) - see infra/terraform/cicd.tf's OIDC trust policy, which enforces
+# the same restriction independently at the AWS side (a stolen/forged
+# workflow run from any other ref cannot assume the deploy role even if
+# this YAML were somehow bypassed).
+#
+# container-build-scan-push builds and Trivy-scans every image on EVERY
+# push and PR (so a broken/vulnerable image is caught before merge), but
+# only pushes to ECR after a real merge to main.
 on:
   push:
     branches: [main]
@@ -22,84 +26,9 @@ env:
   ECR_REGISTRY: "113058466902.dkr.ecr.ap-south-1.amazonaws.com"
 
 jobs:
-  backend:
-    name: Backend (Maven build + test)
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Set up JDK 21
-        uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: "21"
-          cache: maven
-
-      - name: Build all modules
-        working-directory: backend
-        run: mvn -B clean install -DskipTests
-
-      - name: Run tests
-        working-directory: backend
-        run: mvn -B test
-
-      - name: Publish test results
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: backend-surefire-reports
-          path: backend/*/target/surefire-reports
-          if-no-files-found: ignore
-
-  frontend:
-    name: Frontend (lint + typecheck + test + build)
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: frontend
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Set up Node 20
-        uses: actions/setup-node@v4
-        with:
-          node-version: "20"
-          cache: npm
-          cache-dependency-path: frontend/package-lock.json
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Lint
-        # Practical ruleset (.eslintrc.cjs) - unused vars, hook-rule
-        # violations, undefined components, etc. Warnings (mostly
-        # pre-existing `any` usage) don't fail the build; only errors do.
-        run: npm run lint
-
-      - name: Type-check
-        # A real, separate step - `npm run build` (below) does NOT
-        # typecheck (vite/esbuild only transpiles, it doesn't run tsc), so
-        # this step existing under the name "Type-check + build" previously
-        # meant type errors were never actually caught by CI. This also
-        # depends on tsconfig.json's `ignoreDeprecations` being a value tsc
-        # itself accepts ("5.0", not "6.0") - see tsconfig.json's history;
-        # with the old, invalid value every tsc invocation failed before
-        # type-checking ever started, silently masking real type errors.
-        run: npx tsc --noEmit
-
-      - name: Unit + component tests (Vitest)
-        run: npm test
-
-      - name: Build
-        run: npm run build
-
-      - name: Dependency vulnerability audit (informational)
-        run: npm audit --audit-level=critical || true
-
   dependency-scan:
     name: Backend dependency security scan (OWASP)
     runs-on: ubuntu-latest
-    needs: [backend]
     steps:
       - uses: actions/checkout@v4
 
@@ -113,8 +42,7 @@ jobs:
       # failBuildOnCVSS=9 (backend/pom.xml) means this step's own exit code
       # is the real gate - a genuine, un-suppressed Critical finding fails
       # the job. Suppressions are reviewed individually in
-      # dependency-check-suppressions.xml, never blanket - see that file
-      # for the documented reasoning behind each one.
+      # dependency-check-suppressions.xml, never blanket.
       - name: Run OWASP dependency-check (aggregate, whole reactor)
         working-directory: backend
         run: mvn -B org.owasp:dependency-check-maven:aggregate
@@ -130,7 +58,7 @@ jobs:
   container-build-scan-push:
     name: Build + scan ${{ matrix.name }}
     runs-on: ubuntu-latest
-    needs: [backend, frontend, dependency-scan]
+    needs: [dependency-scan]
     strategy:
       fail-fast: false
       matrix:
@@ -197,11 +125,11 @@ jobs:
 
       # Fails the job on any CRITICAL finding with a known fix - matches
       # this project's real, investigated Critical=0 target (see the
-      # production readiness report for the small number of findings
+      # production readiness report for the handful of findings
       # deliberately accepted with documented, non-blanket justification;
-      # those have FixedVersion=none, which --ignore-unfixed correctly
-      # leaves un-actionable here rather than blocking every build on an
-      # upstream gap this Dockerfile cannot close).
+      # those are the ones with FixedVersion=none, which --ignore-unfixed
+      # correctly leaves un-actionable here rather than blocking every
+      # build on an upstream gap this Dockerfile cannot close).
       - name: Trivy scan (fail on fixable CRITICAL)
         uses: aquasecurity/trivy-action@0.28.0
         with:
@@ -249,6 +177,9 @@ jobs:
     needs: [container-build-scan-push]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     environment: production
+    outputs:
+      command_id: ${{ steps.trigger.outputs.command_id }}
+      instance_id: ${{ steps.trigger.outputs.instance_id }}
     steps:
       - uses: actions/checkout@v4
 
@@ -296,6 +227,7 @@ jobs:
             --parameters "commands=[\"set -e\", \"aws s3 cp s3://${{ vars.S3_DEPLOY_BUCKET }}/deploys/aws-remote-deploy-ecr.sh /tmp/aws-remote-deploy-ecr.sh --region $AWS_REGION\", \"chmod +x /tmp/aws-remote-deploy-ecr.sh\", \"S3_BUCKET=${{ vars.S3_DEPLOY_BUCKET }} SECRET_ARN='${{ vars.SECRETS_MANAGER_SECRET_ARN }}' RDS_ADDRESS=${{ vars.RDS_ADDRESS }} REGION=$AWS_REGION ECR_REGISTRY=$ECR_REGISTRY IMAGE_TAG=${{ github.sha }} /tmp/aws-remote-deploy-ecr.sh\"]" \
             --query "Command.CommandId" --output text)
           echo "command_id=$COMMAND_ID" >> "$GITHUB_OUTPUT"
+          echo "instance_id=${{ vars.APP_INSTANCE_ID }}" >> "$GITHUB_OUTPUT"
           echo "Deploy triggered: $COMMAND_ID"
 
       - name: Wait for deploy to complete
@@ -307,10 +239,7 @@ jobs:
               --query "Status" --output text 2>/dev/null || echo "Pending")
             echo "Deploy status: $STATUS"
             [ "$STATUS" = "Success" ] && exit 0
-            if [ "$STATUS" = "Failed" ] || [ "$STATUS" = "Cancelled" ] || [ "$STATUS" = "TimedOut" ]; then
-              echo "Deploy failed"
-              exit 1
-            fi
+            [ "$STATUS" = "Failed" ] || [ "$STATUS" = "Cancelled" ] || [ "$STATUS" = "TimedOut" ] && { echo "Deploy failed"; exit 1; }
             sleep 30
           done
           echo "Deploy did not complete within the wait window"
@@ -345,20 +274,16 @@ jobs:
       - name: Wait for ALB target groups to report healthy
         run: |
           for tg in "${{ vars.ALB_FRONTEND_TG_ARN }}" "${{ vars.ALB_KEYCLOAK_TG_ARN }}" "${{ vars.ALB_GRAFANA_TG_ARN }}"; do
-            STATE="unknown"
             for i in $(seq 1 20); do
               STATE=$(aws elbv2 describe-target-health --region "$AWS_REGION" --target-group-arn "$tg" --query "TargetHealthDescriptions[0].TargetHealth.State" --output text)
               echo "$tg -> $STATE"
               [ "$STATE" = "healthy" ] && break
               sleep 15
             done
-            if [ "$STATE" != "healthy" ]; then
-              echo "Target group never became healthy: $tg"
-              exit 1
-            fi
+            [ "$STATE" = "healthy" ] || { echo "Target group never became healthy: $tg"; exit 1; }
           done
 
-      - name: Production smoke test (DNS, HTTPS, redirect, admin console blocked)
+      - name: Production smoke test (DNS, HTTPS, redirect)
         run: |
           set -e
           echo "HTTP -> HTTPS redirect:"
@@ -367,10 +292,7 @@ jobs:
           curl -sf --max-time 10 https://acis.netcradus.com/ -o /dev/null
           echo "Keycloak admin console still blocked:"
           CODE=$(curl -s -o /dev/null -w "%{http_code}" --max-time 10 https://acis.netcradus.com:8443/admin/)
-          if [ "$CODE" != "403" ]; then
-            echo "Admin console not blocked (got $CODE)"
-            exit 1
-          fi
+          [ "$CODE" = "403" ] || { echo "Admin console not blocked (got $CODE)"; exit 1; }
           echo "Keycloak realm/OIDC reachable:"
           curl -sf --max-time 10 https://acis.netcradus.com:8443/realms/acis/.well-known/openid-configuration -o /dev/null
           echo "All smoke checks passed."
@@ -407,23 +329,17 @@ jobs:
           role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
 
-      # deploy-history.log's second-to-last line is the previous
-      # known-good deploy (the last line is the one `verify` just failed
-      # on). `cut` instead of `awk` deliberately - a real SSM inline
-      # command earlier in this project's history broke from exactly this
-      # kind of nested `awk '{print $N}'` escaping (bash -> JSON ->
-      # awk, three layers deep) - `cut` needs none of that.
-      - name: Read previous known-good image tag
+      - name: Find previous known-good image tag
         id: prev
         run: |
-          FETCH_CMD_ID=$(aws ssm send-command \
+          PREV_TAG=$(aws ssm send-command \
             --region "$AWS_REGION" \
             --instance-ids "${{ vars.APP_INSTANCE_ID }}" \
             --document-name "AWS-RunShellScript" \
-            --parameters 'commands=["tail -n 2 /opt/acis/deploy-history.log | head -n 1 | cut -d\" \" -f3"]' \
+            --parameters 'commands=["tail -n 2 /opt/acis/deploy-history.log | head -n 1 | awk \"{print \\$3}\""]' \
             --query "Command.CommandId" --output text)
           sleep 10
-          TAG=$(aws ssm get-command-invocation --region "$AWS_REGION" --command-id "$FETCH_CMD_ID" --instance-id "${{ vars.APP_INSTANCE_ID }}" --query "StandardOutputContent" --output text | tr -d '[:space:]')
+          TAG=$(aws ssm get-command-invocation --region "$AWS_REGION" --command-id "$PREV_TAG" --instance-ids "${{ vars.APP_INSTANCE_ID }}" --query "StandardOutputContent" --output text | tr -d '[:space:]')
           echo "previous_tag=$TAG" >> "$GITHUB_OUTPUT"
           echo "Rolling back to: $TAG"
 

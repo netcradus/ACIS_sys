@@ -20,12 +20,25 @@ internal-only, since Caddy used to be the one thing reaching them -
 now the ALB's target groups need to reach the host ports directly).
 
 Everything else in the file is untouched.
+
+ECR mode: if the ECR_REGISTRY env var is set (e.g.
+"113058466902.dkr.ecr.ap-south-1.amazonaws.com"), every `acis/<service>`
+image reference is rewritten to `<ECR_REGISTRY>/acis/<service>`, keeping
+the same `${IMAGE_TAG:-latest}` suffix convention. This is what the CI/CD
+pipeline uses (infra/scripts/aws-remote-deploy-ecr.sh pulls pre-built,
+pre-scanned images instead of building on the instance); the manual
+deploy-to-aws.sh path leaves ECR_REGISTRY unset and keeps building
+on-host exactly as before - no change to that existing, already-proven
+flow.
 """
+import os
+import re
 import sys
 import yaml
 
 SRC = "docker-compose.prod.yml"
 DST = "docker-compose.aws.yml"
+ECR_REGISTRY = os.environ.get("ECR_REGISTRY", "").strip()
 
 REMOVE_SERVICES = {"postgres", "caddy"}
 PUBLISH_PORTS = {
@@ -43,6 +56,18 @@ def main():
 
     for name in REMOVE_SERVICES:
         services.pop(name, None)
+
+    if ECR_REGISTRY:
+        for name, svc in services.items():
+            image = svc.get("image", "")
+            if isinstance(image, str) and image.startswith("acis/"):
+                svc["image"] = re.sub(r"^acis/", f"{ECR_REGISTRY}/acis/", image)
+                # ECR mode pulls pre-built images (CI already built, scanned,
+                # and pushed them) - no `build:` section needed, and none of
+                # the Dockerfile build contexts are even present on the
+                # instance for this deploy path (aws-remote-deploy-ecr.sh
+                # only ships this one generated file, not the full repo).
+                svc.pop("build", None)
 
     for name, svc in services.items():
         deps = svc.get("depends_on")
@@ -111,14 +136,20 @@ def main():
     compose.get("volumes", {}).pop("caddy_data", None)
     compose.get("volumes", {}).pop("caddy_config", None)
 
+    usage_line = (
+        "#   docker compose -f docker-compose.aws.yml pull && docker compose -f docker-compose.aws.yml up -d\n"
+        if ECR_REGISTRY else
+        "#   docker compose -f docker-compose.aws.yml up -d --build\n"
+    )
     header = (
         "# GENERATED FILE - do not hand-edit. Regenerate with:\n"
         "#   python infra/scripts/generate-aws-compose.py\n"
         "# from docker-compose.prod.yml. See that script's own docstring for why\n"
         "# this is a generated standalone file rather than a compose override.\n"
         "#\n"
+        f"# Image source: {'ECR (' + ECR_REGISTRY + ')' if ECR_REGISTRY else 'built on-host'}\n"
         "# Usage on the AWS app host:\n"
-        "#   docker compose -f docker-compose.aws.yml up -d --build\n"
+        f"{usage_line}"
         "#\n"
         "# Differences from docker-compose.prod.yml:\n"
         "#   - postgres / postgres-exporter removed - DB_HOST_RDS (real RDS\n"
