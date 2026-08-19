@@ -216,10 +216,16 @@ services:
     build:
       context: .
       dockerfile: infra/keycloak/Dockerfile
+    # Keycloak 26's "hostname v2" config removed the standalone
+    # --hostname-port flag entirely (real production failure found during
+    # the 24->26 upgrade: "Unknown option: '--hostname-port'", which never
+    # surfaced in local staging testing because that test used a
+    # hand-simplified command without it). --hostname now takes the full
+    # public URL including scheme and port in one string; hostname-strict
+    # is implied true whenever --hostname is a full URL.
     command: >
       start
-      --hostname=${PUBLIC_APP_DOMAIN:-localhost}
-      --hostname-port=8443
+      --hostname=https://${PUBLIC_APP_DOMAIN:-localhost}:8443
       --http-enabled=true
       --proxy-headers=xforwarded
       --db=postgres

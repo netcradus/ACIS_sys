@@ -116,11 +116,13 @@ def main():
 
     # Keycloak's --db-url-host is a CLI flag, not an env var - the whole
     # `command:` block needs to be redeclared with the real RDS host.
+    # --hostname is the full public URL (Keycloak 26 "hostname v2" - see
+    # docker-compose.prod.yml's own Keycloak service comment for why
+    # --hostname-port no longer exists as a separate flag).
     if "keycloak" in services:
         services["keycloak"]["command"] = (
             "start\n"
-            "--hostname=${PUBLIC_APP_DOMAIN:-localhost}\n"
-            "--hostname-port=8443\n"
+            "--hostname=https://${PUBLIC_APP_DOMAIN:-localhost}:8443\n"
             "--http-enabled=true\n"
             "--proxy-headers=xforwarded\n"
             "--db=postgres\n"
