@@ -491,11 +491,37 @@ jobs:
 
       - name: Redeploy previous tag (pull-based, no rebuild)
         run: |
-          aws ssm send-command \
+          # Real bug found and fixed: this step used to be fire-and-forget
+          # (send-command, capture the command ID, never check whether it
+          # actually succeeded). On a live run, the rollback silently
+          # failed - `docker compose pull` couldn't find the target tag
+          # in ECR (it predated this CI/CD pipeline's ECR-push path,
+          # having only ever been built directly on the instance by the
+          # older manual deploy path) - and the workflow still reported
+          # "Automatic rollback" green because the SSM command was merely
+          # *sent* successfully, not because the rollback itself worked.
+          # Now actually waits for and checks the real outcome.
+          COMMAND_ID=$(aws ssm send-command \
             --region "$AWS_REGION" \
             --instance-ids "${{ vars.APP_INSTANCE_ID }}" \
             --document-name "AWS-RunShellScript" \
             --comment "acis-cicd-rollback" \
             --timeout-seconds 1800 \
             --parameters "commands=[\"set -e\", \"aws s3 cp s3://${{ vars.S3_DEPLOY_BUCKET }}/deploys/aws-remote-deploy-ecr.sh /tmp/aws-remote-deploy-ecr.sh --region $AWS_REGION\", \"chmod +x /tmp/aws-remote-deploy-ecr.sh\", \"S3_BUCKET=${{ vars.S3_DEPLOY_BUCKET }} SECRET_ARN='${{ vars.SECRETS_MANAGER_SECRET_ARN }}' RDS_ADDRESS=${{ vars.RDS_ADDRESS }} REGION=$AWS_REGION ECR_REGISTRY=$ECR_REGISTRY IMAGE_TAG=${{ steps.prev.outputs.previous_tag }} /tmp/aws-remote-deploy-ecr.sh\"]" \
-            --query "Command.CommandId" --output text
+            --query "Command.CommandId" --output text)
+          echo "Rollback command: $COMMAND_ID"
+          for i in $(seq 1 60); do
+            STATUS=$(aws ssm get-command-invocation --region "$AWS_REGION" \
+              --command-id "$COMMAND_ID" --instance-id "${{ vars.APP_INSTANCE_ID }}" \
+              --query "Status" --output text 2>/dev/null || echo "Pending")
+            echo "Rollback status: $STATUS"
+            [ "$STATUS" = "Success" ] && exit 0
+            if [ "$STATUS" = "Failed" ] || [ "$STATUS" = "Cancelled" ] || [ "$STATUS" = "TimedOut" ]; then
+              echo "::error::Rollback to ${{ steps.prev.outputs.previous_tag }} FAILED - production is left running whatever the failed deploy left behind. Manual intervention required."
+              aws ssm get-command-invocation --region "$AWS_REGION" --command-id "$COMMAND_ID" --instance-id "${{ vars.APP_INSTANCE_ID }}" --query "StandardErrorContent" --output text
+              exit 1
+            fi
+            sleep 30
+          done
+          echo "::error::Rollback did not complete within the wait window"
+          exit 1

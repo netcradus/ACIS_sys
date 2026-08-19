@@ -139,6 +139,19 @@ resource "aws_iam_role_policy" "github_actions_s3" {
 
 # ELB: read-only, to verify target group health after a deploy - the
 # pipeline's own health-gate before declaring success.
+#
+# Resource = "*" here is a real, verified AWS API limitation, not a
+# design choice: the original scoped-to-the-3-target-group-ARNs version
+# of this policy produced a real AccessDenied on a live pipeline run
+# ("no identity-based policy allows the elasticloadbalancing:
+# DescribeTargetHealth action") despite the ARNs matching exactly -
+# elasticloadbalancing:DescribeTargetHealth/DescribeTargetGroups do not
+# support resource-level IAM restriction at all (same class of AWS
+# limitation as ecr:GetAuthorizationToken and ssm:GetCommandInvocation
+# elsewhere in this file, which is why those are also Resource = "*").
+# Still real least privilege in every way that matters here: read-only,
+# cannot modify anything, and this role has no other elasticloadbalancing
+# permissions at all.
 resource "aws_iam_role_policy" "github_actions_elb_read" {
   name = "elb-health-read"
   role = aws_iam_role.github_actions_deploy.id
@@ -146,14 +159,10 @@ resource "aws_iam_role_policy" "github_actions_elb_read" {
   policy = jsonencode({
     Version = "2012-10-17"
     Statement = [{
-      Sid    = "DescribeTargetHealth"
-      Effect = "Allow"
-      Action = ["elasticloadbalancing:DescribeTargetHealth", "elasticloadbalancing:DescribeTargetGroups"]
-      Resource = [
-        aws_lb_target_group.frontend.arn,
-        aws_lb_target_group.keycloak.arn,
-        aws_lb_target_group.grafana.arn,
-      ]
+      Sid      = "DescribeTargetHealth"
+      Effect   = "Allow"
+      Action   = ["elasticloadbalancing:DescribeTargetHealth", "elasticloadbalancing:DescribeTargetGroups"]
+      Resource = "*"
     }]
   })
 }
