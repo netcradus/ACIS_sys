@@ -11,6 +11,17 @@
   "duplicateEmailsAllowed": false,
   "resetPasswordAllowed": true,
   "editUsernameAllowed": true,
+  "smtpServer": {
+    "host": "smtppro.zoho.eu",
+    "port": "465",
+    "ssl": "true",
+    "starttls": "false",
+    "auth": "true",
+    "user": "info@netcradus.com",
+    "password": "REPLACE_WITH_REAL_SMTP_PASSWORD",
+    "from": "info@netcradus.com",
+    "fromDisplayName": "Acis NetCradus"
+  },
   "accessTokenLifespan": 300,
   "ssoSessionIdleTimeout": 1800,
   "ssoSessionMaxLifespan": 36000,
