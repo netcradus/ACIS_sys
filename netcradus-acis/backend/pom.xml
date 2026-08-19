@@ -195,6 +195,28 @@
                human review rather than silently blocking every build on
                something that needs investigation, not an automatic gate. -->
           <failBuildOnCVSS>9</failBuildOnCVSS>
+          <!-- Real CI failure found running this for the first time
+               (GitHub Actions): "Invalid credentials provided for OSS
+               Index (401)" - the whole build failed on this even though
+               it's a supplementary data source, not the actual NVD-based
+               scan the failBuildOnCVSS gate above relies on. Sonatype's
+               OSS Index has its own separate (optional) auth/rate-limit
+               system unrelated to NVD; disabling it here means CVE
+               detection still runs against NVD, CISA KEV, and RetireJS
+               exactly as before, just without this one extra data source
+               that has no working credentials configured anywhere in
+               this pipeline.
+          -->
+          <ossindexAnalyzerEnabled>false</ossindexAnalyzerEnabled>
+          <!-- Explicit, stable path (rather than the plugin's own
+               version-tucked default under ~/.m2) so CI can cache it
+               directly with actions/cache - see .github/workflows/ci.yml.
+               Without a cache, a cold run has to download the entire NVD
+               CVE database from scratch, which really did take ~59
+               minutes on a fresh GitHub Actions runner (observed, not
+               estimated) even though the actual dependency scan itself
+               only takes ~16 seconds once the data is present. -->
+          <dataDirectory>${user.home}/.dependency-check-data</dataDirectory>
         </configuration>
       </plugin>
     </plugins>

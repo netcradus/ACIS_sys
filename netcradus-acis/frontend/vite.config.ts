@@ -17,11 +17,13 @@ export default defineConfig({
     setupFiles: ['./src/test/setup.ts'],
     css: false,
     // Vitest's default include glob (**/*.{test,spec}.*) otherwise also
-    // picks up e2e/*.spec.ts - real Playwright specs, not Vitest tests -
-    // and fails to collect them ("did not expect test.describe() to be
-    // called here") since they call Playwright's own `test`/`describe`,
-    // not Vitest's.
-    exclude: ['**/node_modules/**', '**/dist/**', '**/e2e/**'],
+    // picks up e2e/*.spec.ts and e2e-prod/*.spec.cjs - real Playwright
+    // specs, not Vitest tests - and fails to collect them ("did not
+    // expect test() to be called here") since they call Playwright's own
+    // `test`/`describe`, not Vitest's. Real CI failure hit this exact
+    // gap for e2e-prod/ (added later than e2e/, and not added here at
+    // the same time) on this pipeline's first real run.
+    exclude: ['**/node_modules/**', '**/dist/**', '**/e2e/**', '**/e2e-prod/**'],
   },
   build: {
     rollupOptions: {

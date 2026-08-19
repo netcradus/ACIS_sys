@@ -122,6 +122,23 @@ jobs:
           java-version: "21"
           cache: maven
 
+      - name: Compute cache week key
+        id: date
+        run: echo "week=$(date -u +%Y-W%V)" >> "$GITHUB_OUTPUT"
+
+      # A cold run has to download the entire NVD CVE database from
+      # scratch - really took ~59 minutes on a real first run (observed,
+      # not estimated), separate from and far larger than the ~16s the
+      # actual scan itself takes once the data is present. Weekly key so
+      # the cache still refreshes regularly rather than going stale
+      # indefinitely.
+      - name: Cache OWASP dependency-check NVD data
+        uses: actions/cache@v4
+        with:
+          path: ~/.dependency-check-data
+          key: dependency-check-data-${{ steps.date.outputs.week }}
+          restore-keys: dependency-check-data-
+
       # failBuildOnCVSS=9 (backend/pom.xml) means this step's own exit code
       # is the real gate - a genuine, un-suppressed Critical finding fails
       # the job. Suppressions are reviewed individually in
