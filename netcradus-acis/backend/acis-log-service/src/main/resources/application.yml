@@ -61,6 +61,20 @@ spring:
 acis:
   ai-service:
     url: ${AI_SERVICE_URL:http://localhost:8090}
+  # Real bug found on a live production test: EnrichmentClient was routing
+  # through the shared gateway-facing WebClient (WebClientConfig, baseUrl =
+  # acis.gateway.url), but acis-gateway's own SecurityConfig has no concept
+  # of X-Internal-Service-Key at all (.anyExchange().authenticated() catches
+  # everything not explicitly listed) - the gateway rejected these calls
+  # with 401 before they ever reached asset-service/threat-service's own
+  # permissive SecurityConfig. Every other real internal service-to-service
+  # caller in this codebase (e.g. AssetDriftDetectionService's
+  # acis.alerts-service.url) calls its target directly instead, bypassing
+  # the gateway entirely - this follows that same established pattern.
+  asset-service:
+    url: ${ASSET_SERVICE_URL:http://localhost:8086}
+  threat-service:
+    url: ${THREAT_SERVICE_URL:http://localhost:8087}
   # Shared secret real internal service-to-service callers (no end-user JWT
   # to present) attach as X-Internal-Service-Key — see
   # InternalServiceKeyMatcher/RbacEnforcementFilter. Must be identical

@@ -460,6 +460,15 @@ services:
       KEYCLOAK_URL: http://keycloak:8080
       KEYCLOAK_REALM: ${KEYCLOAK_REALM:-acis}
       AI_SERVICE_URL: http://ai-service:8090
+      # Real direct-to-service calls for EnrichmentClient (asset/threat-intel
+      # lookups) — bypasses the gateway entirely, matching the same pattern
+      # AssetDriftDetectionService's ALERTS_SERVICE_URL already uses. The
+      # gateway's own SecurityConfig has no X-Internal-Service-Key bypass at
+      # all, so routing this through it (the previous approach) got 401'd
+      # before ever reaching asset-service/threat-service's own permissive
+      # config.
+      ASSET_SERVICE_URL: http://asset-service:8086
+      THREAT_SERVICE_URL: http://threat-service:8087
       # Synthetic demo log generator — leave unset/false in real deployments;
       # it exists only to populate the log explorer before real log sources
       # (syslog/agents/cloud log forwarders) are wired into acis-ingestion.
