@@ -5,9 +5,13 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import jakarta.persistence.CollectionTable;
+import jakarta.persistence.ElementCollection;
+import jakarta.persistence.JoinColumn;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Entity
 @Table(name = "alerts")
@@ -66,6 +70,20 @@ public class Alert {
     private Double anomalyScore;
     private Boolean isAnomaly;
     private String anomalyFeatures;
+
+    /** Rule-authored risk score (CorrelationRule.riskScore), copied through at trigger time. Null for alerts with no backing rule (e.g. IOC-only alerts) - never a fabricated number. */
+    private Integer riskScore;
+
+    @ElementCollection
+    @CollectionTable(name = "alert_mitre_techniques", joinColumns = @JoinColumn(name = "alert_id"))
+    @Column(name = "technique")
+    private List<String> mitreTechniques;
+
+    /** Set only when this alert was caused by a red-team simulation's synthetic event - powers the detection-validation loop. */
+    private String redTeamExecutionId;
+    private Boolean iocMatched;
+    private String iocSeverity;
+    private String iocSource;
 
     @PrePersist
     protected void onCreate() {

@@ -6,6 +6,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Data
 @Builder
@@ -38,4 +39,14 @@ public class AlertDto {
     private Boolean isAnomaly;
     /** Comma-joined top contributing feature names from ai-service's response, e.g. "lolbin_signal,severity_weight". */
     private String anomalyFeatures;
+
+    /** Rule-authored risk score (CorrelationRule.riskScore) copied through at trigger time — null for alerts with no backing rule (e.g. IOC-only alerts), never a fabricated number. */
+    private Integer riskScore;
+    /** Union of the triggering rule's declared techniques (if any) and the source event's own technique tag, deduped. */
+    private List<String> mitreTechniques;
+    /** Set only when this alert was caused by a red-team simulation's synthetic event — powers the detection-validation loop. */
+    private String redTeamExecutionId;
+    private Boolean iocMatched;
+    private String iocSeverity;
+    private String iocSource;
 }

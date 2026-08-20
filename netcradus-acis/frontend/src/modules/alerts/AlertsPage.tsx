@@ -28,6 +28,11 @@ interface Alert {
   anomalyScore: number | null
   isAnomaly: boolean | null
   anomalyFeatures: string | null
+  riskScore: number | null
+  mitreTechniques: string[] | null
+  iocMatched: boolean | null
+  iocSeverity: string | null
+  iocSource: string | null
 }
 
 // Real classifier categories the AI model predicts and trains on — kept in
@@ -598,6 +603,34 @@ export default function AlertsPage() {
                                 ⚠ Anomaly
                               </span>
                             )}
+                            {alert.riskScore != null && (
+                              <span
+                                className="sev-badge medium"
+                                style={{ marginLeft: 6, fontSize: '0.7em', verticalAlign: 'middle' }}
+                                title="Rule-authored risk score"
+                              >
+                                Risk {alert.riskScore}
+                              </span>
+                            )}
+                            {alert.mitreTechniques?.map((t) => (
+                              <span
+                                key={t}
+                                className="sev-badge medium"
+                                style={{ marginLeft: 6, fontSize: '0.7em', verticalAlign: 'middle' }}
+                                title="MITRE ATT&CK technique"
+                              >
+                                {t}
+                              </span>
+                            ))}
+                            {alert.iocMatched && (
+                              <span
+                                className="sev-badge critical"
+                                style={{ marginLeft: 6, fontSize: '0.7em', verticalAlign: 'middle' }}
+                                title={`Known threat indicator — ${alert.iocSeverity ?? '—'} (${alert.iocSource ?? 'threat intel'})`}
+                              >
+                                ⚠ IOC Match
+                              </span>
+                            )}
                           </td>
                           <td>
                             <span className={clsx("sev-badge", severity)}>{badgeChar}</span>
@@ -719,6 +752,25 @@ export default function AlertsPage() {
                         title={selectedAlert.anomalyFeatures ? `Drivers: ${selectedAlert.anomalyFeatures}` : undefined}
                       >
                         ⚠ Anomaly ({selectedAlert.anomalyScore?.toFixed(2) ?? '—'})
+                      </span>
+                    )}
+                    {selectedAlert.riskScore != null && (
+                      <span className="sev-badge medium" style={{ fontSize: '0.75em' }} title="Rule-authored risk score">
+                        Risk {selectedAlert.riskScore}
+                      </span>
+                    )}
+                    {selectedAlert.mitreTechniques?.map((t) => (
+                      <span key={t} className="sev-badge medium" style={{ fontSize: '0.75em' }} title="MITRE ATT&CK technique">
+                        {t}
+                      </span>
+                    ))}
+                    {selectedAlert.iocMatched && (
+                      <span
+                        className="sev-badge critical"
+                        style={{ fontSize: '0.75em' }}
+                        title={`Known threat indicator — ${selectedAlert.iocSeverity ?? '—'} (${selectedAlert.iocSource ?? 'threat intel'})`}
+                      >
+                        ⚠ IOC Match
                       </span>
                     )}
                   </div>

@@ -52,6 +52,22 @@ interface ExecutionView {
   stepLogs: string
   startedAt: string | null
   completedAt: string | null
+  totalTechniqueCount: number | null
+  detectedTechniqueCount: number
+  detectionLogs: string
+  firstDetectedAt: string | null
+  mttdSeconds: number | null
+  detectionStatus: 'PENDING' | 'DETECTING' | 'UNDETECTED' | 'PARTIALLY_DETECTED' | 'FULLY_DETECTED'
+}
+
+/** A real, backend-recorded detection — written by RedTeamDetectionConsumer only when ACIS's own correlation engine actually raised a matching alert. Never fabricated client-side. */
+interface DetectionLogEntry {
+  technique: string | null
+  alertId: string
+  alertTitle: string
+  severity: string
+  detectedAt: string
+  mttdSeconds?: number
 }
 
 type MatrixCellState = 'executed' | 'declared' | 'running'
@@ -87,6 +103,32 @@ function parseExecutionSteps(stepLogsJson: string): ExecutionStep[] {
     timestamp: s.timestamp ? new Date(s.timestamp).toLocaleTimeString() : undefined,
     output: s.technique || undefined,
   }))
+}
+
+function parseDetectionLogs(detectionLogsJson: string | null | undefined): DetectionLogEntry[] {
+  if (!detectionLogsJson) return []
+  try {
+    const parsed = JSON.parse(detectionLogsJson)
+    return Array.isArray(parsed) ? parsed : []
+  } catch {
+    return []
+  }
+}
+
+function formatMttd(seconds: number | null): string {
+  if (seconds == null) return '—'
+  if (seconds < 60) return `${seconds}s`
+  return `${Math.floor(seconds / 60)}m ${seconds % 60}s`
+}
+
+/** Real detected/total counts + MTTD from the backend's own detection-validation loop — replaces the old fabricated "N steps logged" indicator, which only ever reflected what the simulator emitted, not what ACIS actually detected. */
+function formatDetectionLabel(e: ExecutionView): string {
+  if (!e.totalTechniqueCount) {
+    return e.detectedTechniqueCount > 0 ? `${e.detectedTechniqueCount} technique(s) detected` : 'No techniques declared'
+  }
+  if (e.status === 'running' && e.detectedTechniqueCount === 0) return 'No detections yet'
+  const pct = `${e.detectedTechniqueCount}/${e.totalTechniqueCount} techniques detected`
+  return e.mttdSeconds != null ? `${pct} · MTTD ${formatMttd(e.mttdSeconds)}` : pct
 }
 
 function parseSteps(stepsJson: string) {
@@ -215,12 +257,15 @@ export default function RedTeamPage() {
     return map
   }, [executions])
 
+  // Real detections only — sourced from detectionLogs (written by the
+  // backend's RedTeamDetectionConsumer only when ACIS's own correlation
+  // engine actually raised a matching alert), never from stepLogs (which
+  // only records what the simulator emitted, not what was caught).
   const executedTechniques = useMemo(() => {
     const set = new Set<string>()
     for (const execution of executions) {
-      if (execution.status !== 'completed') continue
-      for (const step of parseStepLogs(execution.stepLogs)) {
-        if (step.technique) set.add(step.technique)
+      for (const entry of parseDetectionLogs(execution.detectionLogs)) {
+        if (entry.technique) set.add(entry.technique)
       }
     }
     return set
@@ -263,13 +308,12 @@ export default function RedTeamPage() {
       .filter((e) => simulationIds.has(e.simulationId))
       .slice(0, 8)
       .map((execution) => {
-        const stepCount = parseStepLogs(execution.stepLogs).length
         return {
           id: execution.id,
           simulation: execution.simulationName,
           status: execution.status,
           duration: formatDuration(execution.startedAt, execution.completedAt),
-          detected: `${stepCount} steps logged`,
+          detected: formatDetectionLabel(execution),
           date: formatWhen(execution.startedAt),
           accent: execution.status === 'completed' ? 'text-success' : execution.status === 'failed' ? 'text-danger' : 'text-info',
         }
@@ -392,13 +436,15 @@ export default function RedTeamPage() {
                     : latestExecution.status === 'failed'
                       ? 'text-danger'
                       : 'text-info'
+                // Real detection status (did ACIS's own correlation engine
+                // actually catch this run), not the old step-count-only
+                // indicator - execution progress (executedSteps/stepCount)
+                // is a genuinely different concept, shown separately below.
                 const detectionLabel = !latestExecution
                   ? 'Not yet run'
-                  : latestExecution.status === 'completed'
-                    ? `Completed — ${executedSteps} of ${stepCount} steps logged`
-                    : latestExecution.status === 'failed'
-                      ? `Failed after ${executedSteps} of ${stepCount} steps`
-                      : `Running — ${executedSteps} of ${stepCount} steps logged so far`
+                  : latestExecution.status === 'failed'
+                    ? `Failed after ${executedSteps} of ${stepCount} steps`
+                    : formatDetectionLabel(latestExecution)
 
                 return (
                   <article
@@ -596,6 +642,38 @@ export default function RedTeamPage() {
                 <h4 className="text-label text-text-muted uppercase mb-3">
                   Execution Detail — {selectedExecution.simulationName} ({formatWhen(selectedExecution.startedAt)})
                 </h4>
+
+                {/* Real detection outcome — did ACIS's own correlation engine
+                    actually catch this run, not just "did the simulator emit
+                    steps" (that's StepExecutionTimeline below, a genuinely
+                    different concept: stage-execution progress). Sourced
+                    entirely from detectionLogs, written only when a real
+                    alert with a matching redTeamExecutionId arrived. */}
+                <div style={{ marginBottom: '18px', padding: '14px', borderRadius: '10px', background: 'var(--surface-2, rgba(255,255,255,0.03))', border: '1px solid var(--border-soft)' }}>
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-label text-text-muted uppercase">Detection Validation</span>
+                    <span className={clsx('mitre-chip', selectedExecution.detectedTechniqueCount > 0 ? 'executed' : 'declared')} style={{ fontSize: '0.72em' }}>
+                      {selectedExecution.detectionStatus.replace(/_/g, ' ')}
+                    </span>
+                  </div>
+                  <p className="text-small text-text-secondary" style={{ margin: 0 }}>
+                    {formatDetectionLabel(selectedExecution)}
+                  </p>
+                  {parseDetectionLogs(selectedExecution.detectionLogs).length > 0 && (
+                    <div className="mitre-chip-grid" style={{ marginTop: '10px' }}>
+                      {parseDetectionLogs(selectedExecution.detectionLogs).map((entry, idx) => (
+                        <span
+                          key={`${entry.alertId}-${idx}`}
+                          className="mitre-chip executed"
+                          title={`Alert ${entry.alertId}: ${entry.alertTitle} (${entry.severity})${entry.mttdSeconds != null ? ` — MTTD ${formatMttd(entry.mttdSeconds)}` : ''}`}
+                        >
+                          {entry.technique ?? 'Detected'}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
                 <StepExecutionTimeline
                   steps={parseExecutionSteps(selectedExecution.stepLogs)}
                   mode={selectedExecution.status === 'running' ? 'live' : 'historical'}

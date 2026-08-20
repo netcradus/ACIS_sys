@@ -15,6 +15,7 @@ import org.springframework.stereotype.Service;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.ArrayDeque;
+import java.util.ArrayList;
 import java.util.Deque;
 import java.util.List;
 import java.util.Map;
@@ -50,6 +51,10 @@ public class CorrelationEngine {
     // Real per-rule predicate-evaluation timing, accumulated across every event each rule is checked against.
     private final Map<String, AtomicLong> ruleEvalNanosTotal = new ConcurrentHashMap<>();
     private final Map<String, AtomicLong> ruleEvalCount = new ConcurrentHashMap<>();
+    // tenantId|srcIp -> last time an implicit IOC-hit alert was fired for that pair, so a
+    // persistently-beaconing malicious IP doesn't create an alert storm (see maybeTriggerIocAlert).
+    private final Map<String, Instant> iocAlertCooldown = new ConcurrentHashMap<>();
+    private static final long IOC_ALERT_COOLDOWN_MINUTES = 15;
 
     {
         for (int i = 0; i < 8; i++) {
@@ -108,6 +113,10 @@ public class CorrelationEngine {
         try {
             TenantContext.setTenantId(event.getTenantId());
 
+            // A known-bad IP must never be silently ignored just because no
+            // analyst has authored a rule that happens to match it yet.
+            maybeTriggerIocAlert(event);
+
             // Only evaluate rules owned by the same tenant as the event — otherwise
             // one tenant's rule definitions would run against every other tenant's
             // events and could tag alerts onto tenants that never authored the rule.
@@ -152,13 +161,60 @@ public class CorrelationEngine {
         String user = event.getUser() != null ? event.getUser().toLowerCase() : "";
         String sourceType = event.getSourceType() != null ? event.getSourceType().toLowerCase() : "";
         String action = event.getAction() != null ? event.getAction().toLowerCase() : "";
+        // Lets a rule author opt into matching on IOC severity / MITRE technique
+        // via an ordinary field="value" predicate, at no extra syntax cost.
+        String iocSeverity = event.getIocSeverity() != null ? event.getIocSeverity().toLowerCase() : "";
+        String technique = event.getMitreTechnique() != null ? event.getMitreTechnique().toLowerCase() : "";
 
         for (String term : terms) {
-            if (raw.contains(term) || user.contains(term) || sourceType.contains(term) || action.contains(term)) {
+            if (raw.contains(term) || user.contains(term) || sourceType.contains(term) || action.contains(term)
+                    || iocSeverity.contains(term) || technique.contains(term)) {
                 return true;
             }
         }
         return false;
+    }
+
+    /**
+     * Guarantees a real threat-intel hit is never silently dropped just
+     * because no analyst has yet authored a correlation rule that happens to
+     * match it — independent of the authored-rule loop above. Cooldown keyed
+     * per tenant+srcIp so a persistently-beaconing malicious IP doesn't
+     * create an alert storm. riskScore is deliberately left null: no
+     * authored rule backs a number here, and inventing one would be exactly
+     * the kind of fabrication AlertDto.anomalyScore's own contract avoids.
+     */
+    private void maybeTriggerIocAlert(NormalizedEvent event) {
+        if (!Boolean.TRUE.equals(event.getIocMatched()) || event.getSrcIp() == null) {
+            return;
+        }
+
+        String cooldownKey = event.getTenantId() + "|" + event.getSrcIp();
+        Instant now = Instant.now();
+        Instant lastFired = iocAlertCooldown.get(cooldownKey);
+        if (lastFired != null && lastFired.isAfter(now.minusSeconds(IOC_ALERT_COOLDOWN_MINUTES * 60))) {
+            return;
+        }
+        iocAlertCooldown.put(cooldownKey, now);
+
+        log.info("IOC hit! Triggering threat-intel alert for tenant: {} ip: {}", event.getTenantId(), event.getSrcIp());
+
+        AlertDto alert = AlertDto.builder()
+                .tenantId(event.getTenantId())
+                .title("Known threat indicator matched: " + event.getSrcIp())
+                .severity(event.getIocSeverity() != null ? event.getIocSeverity() : "MEDIUM")
+                .source("Threat Intelligence")
+                .status("OPEN")
+                .eventOccurredAt(event.getTimestamp())
+                .createdAt(LocalDateTime.now())
+                .redTeamExecutionId(event.getRedTeamExecutionId())
+                .iocMatched(true)
+                .iocSeverity(event.getIocSeverity())
+                .iocSource(event.getIocSource())
+                .mitreTechniques(event.getMitreTechnique() != null ? List.of(event.getMitreTechnique()) : List.of())
+                .build();
+
+        kafkaTemplate.send("acis.alerts", alert);
     }
 
     private List<String> extractSignalTerms(String splQuery) {
@@ -221,6 +277,11 @@ public class CorrelationEngine {
     private void triggerAlert(CorrelationRule rule, NormalizedEvent event) {
         log.info("Rule matched! Triggering alert: {} for tenant: {}", rule.getName(), event.getTenantId());
 
+        List<String> techniques = new ArrayList<>();
+        if (event.getMitreTechnique() != null) {
+            techniques.add(event.getMitreTechnique());
+        }
+
         AlertDto alert = AlertDto.builder()
                 .tenantId(event.getTenantId())
                 .title("Detection: " + rule.getName())
@@ -231,6 +292,18 @@ public class CorrelationEngine {
                 // NormalizedEvent.timestamp (LogIngestionService). Powers a
                 // real MTTD (createdAt - eventOccurredAt), not a fabricated one.
                 .eventOccurredAt(event.getTimestamp())
+                // Real alert-fired time - previously never set here, so any
+                // Kafka consumer of acis.alerts other than AlertConsumer
+                // (e.g. RedTeamDetectionConsumer) saw a null timestamp.
+                .createdAt(LocalDateTime.now())
+                // Previously computed on the rule but discarded before ever
+                // reaching the alert - dead field, now actually used.
+                .riskScore(rule.getRiskScore())
+                .mitreTechniques(techniques)
+                .redTeamExecutionId(event.getRedTeamExecutionId())
+                .iocMatched(event.getIocMatched())
+                .iocSeverity(event.getIocSeverity())
+                .iocSource(event.getIocSource())
                 .build();
 
         kafkaTemplate.send("acis.alerts", alert);

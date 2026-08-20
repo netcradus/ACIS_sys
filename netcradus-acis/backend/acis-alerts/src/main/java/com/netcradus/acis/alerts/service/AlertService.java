@@ -35,6 +35,12 @@ public class AlertService {
                 .status("OPEN")
                 .rawEvent(dto.getRawEvent())
                 .eventOccurredAt(dto.getEventOccurredAt())
+                .riskScore(dto.getRiskScore())
+                .mitreTechniques(dto.getMitreTechniques())
+                .redTeamExecutionId(dto.getRedTeamExecutionId())
+                .iocMatched(dto.getIocMatched())
+                .iocSeverity(dto.getIocSeverity())
+                .iocSource(dto.getIocSource())
                 .build();
 
         anomalyScoringService.score(dto).ifPresent(result -> {
@@ -78,6 +84,12 @@ public class AlertService {
                 .anomalyScore(alert.getAnomalyScore())
                 .isAnomaly(alert.getIsAnomaly())
                 .anomalyFeatures(alert.getAnomalyFeatures())
+                .riskScore(alert.getRiskScore())
+                .mitreTechniques(alert.getMitreTechniques())
+                .redTeamExecutionId(alert.getRedTeamExecutionId())
+                .iocMatched(alert.getIocMatched())
+                .iocSeverity(alert.getIocSeverity())
+                .iocSource(alert.getIocSource())
                 .build();
     }
 }

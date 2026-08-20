@@ -26,6 +26,19 @@ public class RedTeamService {
     private final org.springframework.kafka.core.KafkaTemplate<String, Object> kafkaTemplate;
     private final com.fasterxml.jackson.databind.ObjectMapper objectMapper;
 
+    /**
+     * Stage metadata for a real synthetic event - carries both the technique
+     * tag (already existed) and the owning execution's id (new), so a
+     * resulting alert can be traced back to this run by
+     * RedTeamDetectionConsumer once it flows through NormalizedEvent/AlertDto.
+     */
+    private java.util.Map<String, Object> stageMetadata(String technique, UUID executionId) {
+        return java.util.Map.of(
+                "technique", technique,
+                "category", "RED_TEAM_SIM",
+                "executionId", executionId.toString());
+    }
+
     public List<RedTeamSimulation> getSimulations(UUID tenantId) {
         return simulationRepository.findByTenantId(tenantId);
     }
@@ -75,7 +88,7 @@ public class RedTeamService {
                     .level("INFO")
                     .service("email-service")
                     .host("smtp.acme.local")
-                    .metadata(java.util.Map.of("technique", "T1566.001", "category", "RED_TEAM_SIM"))
+                    .metadata(stageMetadata("T1566.001", executionId))
                     .build());
                 stages.add(SyntheticLogEvent.builder()
                     .id(UUID.randomUUID().toString())
@@ -85,7 +98,7 @@ public class RedTeamService {
                     .level("WARN")
                     .service("endpoint-service")
                     .host("laptop-332.acme.local")
-                    .metadata(java.util.Map.of("technique", "T1204.002", "category", "RED_TEAM_SIM"))
+                    .metadata(stageMetadata("T1204.002", executionId))
                     .build());
                 stages.add(SyntheticLogEvent.builder()
                     .id(UUID.randomUUID().toString())
@@ -95,7 +108,7 @@ public class RedTeamService {
                     .level("CRITICAL")
                     .service("edr-agent")
                     .host("laptop-332.acme.local")
-                    .metadata(java.util.Map.of("technique", "T1059.001", "category", "RED_TEAM_SIM"))
+                    .metadata(stageMetadata("T1059.001", executionId))
                     .build());
                 stages.add(SyntheticLogEvent.builder()
                     .id(UUID.randomUUID().toString())
@@ -105,7 +118,7 @@ public class RedTeamService {
                     .level("CRITICAL")
                     .service("firewall")
                     .host("gateway-01.acme.local")
-                    .metadata(java.util.Map.of("technique", "T1071.001", "category", "RED_TEAM_SIM"))
+                    .metadata(stageMetadata("T1071.001", executionId))
                     .build());
             } else if (name.contains("lateral")) {
                 stages.add(SyntheticLogEvent.builder()
@@ -116,7 +129,7 @@ public class RedTeamService {
                     .level("WARN")
                     .service("endpoint-service")
                     .host("workstation-88.acme.local")
-                    .metadata(java.util.Map.of("technique", "T1021.002", "category", "RED_TEAM_SIM"))
+                    .metadata(stageMetadata("T1021.002", executionId))
                     .build());
                 stages.add(SyntheticLogEvent.builder()
                     .id(UUID.randomUUID().toString())
@@ -126,7 +139,7 @@ public class RedTeamService {
                     .level("CRITICAL")
                     .service("edr-agent")
                     .host("laptop-332.acme.local")
-                    .metadata(java.util.Map.of("technique", "T1047", "category", "RED_TEAM_SIM"))
+                    .metadata(stageMetadata("T1047", executionId))
                     .build());
                 stages.add(SyntheticLogEvent.builder()
                     .id(UUID.randomUUID().toString())
@@ -136,7 +149,7 @@ public class RedTeamService {
                     .level("CRITICAL")
                     .service("edr-agent")
                     .host("laptop-332.acme.local")
-                    .metadata(java.util.Map.of("technique", "T1076", "category", "RED_TEAM_SIM"))
+                    .metadata(stageMetadata("T1076", executionId))
                     .build());
                 stages.add(SyntheticLogEvent.builder()
                     .id(UUID.randomUUID().toString())
@@ -146,7 +159,7 @@ public class RedTeamService {
                     .level("CRITICAL")
                     .service("edr-agent")
                     .host("laptop-332.acme.local")
-                    .metadata(java.util.Map.of("technique", "T1003.001", "category", "RED_TEAM_SIM"))
+                    .metadata(stageMetadata("T1003.001", executionId))
                     .build());
             } else {
                 stages.add(SyntheticLogEvent.builder()
@@ -157,7 +170,7 @@ public class RedTeamService {
                     .level("INFO")
                     .service("endpoint-service")
                     .host("laptop-332.acme.local")
-                    .metadata(java.util.Map.of("technique", "T1074.001", "category", "RED_TEAM_SIM"))
+                    .metadata(stageMetadata("T1074.001", executionId))
                     .build());
                 stages.add(SyntheticLogEvent.builder()
                     .id(UUID.randomUUID().toString())
@@ -167,7 +180,7 @@ public class RedTeamService {
                     .level("CRITICAL")
                     .service("ids-ips")
                     .host("dns-server.acme.local")
-                    .metadata(java.util.Map.of("technique", "T1048.003", "category", "RED_TEAM_SIM"))
+                    .metadata(stageMetadata("T1048.003", executionId))
                     .build());
                 stages.add(SyntheticLogEvent.builder()
                     .id(UUID.randomUUID().toString())
@@ -177,8 +190,26 @@ public class RedTeamService {
                     .level("CRITICAL")
                     .service("firewall")
                     .host("gateway-01.acme.local")
-                    .metadata(java.util.Map.of("technique", "T1041", "category", "RED_TEAM_SIM"))
+                    .metadata(stageMetadata("T1041", executionId))
                     .build());
+            }
+
+            // Coverage denominator computed from the stages actually built
+            // above - not simulation.getMitreTechniques() (the user-declared
+            // list), which can legitimately diverge from what this run really
+            // emits since scenario selection is a substring match on the
+            // simulation's name, not its declared techniques.
+            long totalTechniques = stages.stream()
+                    .map(s -> s.getMetadata() != null ? s.getMetadata().get("technique") : null)
+                    .filter(java.util.Objects::nonNull)
+                    .distinct()
+                    .count();
+            try {
+                RedTeamExecution execWithCount = executionRepository.findById(executionId).orElseThrow();
+                execWithCount.setTotalTechniqueCount((int) totalTechniques);
+                executionRepository.save(execWithCount);
+            } catch (Exception ex) {
+                log.warn("Failed to set totalTechniqueCount: {}", ex.getMessage());
             }
 
             java.util.List<java.util.Map<String, Object>> logList = new java.util.ArrayList<>();
@@ -269,8 +300,33 @@ public class RedTeamService {
             view.put("stepLogs", execution.getStepLogs());
             view.put("startedAt", execution.getStartedAt());
             view.put("completedAt", execution.getCompletedAt());
+            view.put("totalTechniqueCount", execution.getTotalTechniqueCount());
+            view.put("detectedTechniqueCount", execution.getDetectedTechniqueCount());
+            view.put("detectionLogs", execution.getDetectionLogs());
+            view.put("firstDetectedAt", execution.getFirstDetectedAt());
+            view.put("mttdSeconds", execution.getMttdSeconds());
+            view.put("detectionStatus", computeDetectionStatus(execution));
             views.add(view);
         }
         return views;
+    }
+
+    /**
+     * Computed live, never persisted - deriving from the real counters keeps
+     * this from ever drifting out of sync with them (see RedTeamExecution's
+     * comment on why no detectionStatus column exists).
+     */
+    private String computeDetectionStatus(RedTeamExecution execution) {
+        int detected = execution.getDetectedTechniqueCount() != null ? execution.getDetectedTechniqueCount() : 0;
+        Integer total = execution.getTotalTechniqueCount();
+        if (!"completed".equals(execution.getStatus()) && !"failed".equals(execution.getStatus())) {
+            return detected > 0 ? "DETECTING" : "PENDING";
+        }
+        if (total == null || total == 0) {
+            return detected > 0 ? "PARTIALLY_DETECTED" : "UNDETECTED";
+        }
+        if (detected == 0) return "UNDETECTED";
+        if (detected >= total) return "FULLY_DETECTED";
+        return "PARTIALLY_DETECTED";
     }
 }

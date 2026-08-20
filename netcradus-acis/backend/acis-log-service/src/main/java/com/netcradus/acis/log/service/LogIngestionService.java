@@ -36,8 +36,13 @@ public class LogIngestionService {
         }
 
         // --- Phase 3: Dynamic Enrichment ---
+        // Lifted out of the try block below so the same IP that was actually
+        // enriched/matched can be carried onto NormalizedEvent.srcIp further
+        // down - previously computed here and then discarded, which meant a
+        // real IOC hit had no address to key an alert/cooldown on.
+        String extractedIp = extractIp(logDocument);
         try {
-            String ip = extractIp(logDocument);
+            String ip = extractedIp;
             if (ip != null) {
                 // Enrich with Asset Data
                 enrichmentClient.getAssetByIp(ip)
@@ -78,6 +83,20 @@ public class LogIngestionService {
 
         // --- Publish to acis.raw.events for Correlation Engine ---
         String tenantId = logDocument.getTenantId() != null ? logDocument.getTenantId() : DEMO_TENANT_ID;
+
+        // Real technique/execution tags carried by the source event's own
+        // metadata (currently only red-team synthetic events set these — see
+        // RedTeamService.stageMetadata) - previously silently dropped here,
+        // so a resulting alert could never be traced back to its origin.
+        String technique = null;
+        String redTeamExecutionId = null;
+        if (logDocument.getMetadata() != null) {
+            Object t = logDocument.getMetadata().get("technique");
+            if (t != null) technique = String.valueOf(t);
+            Object execId = logDocument.getMetadata().get("executionId");
+            if (execId != null) redTeamExecutionId = String.valueOf(execId);
+        }
+
         com.netcradus.acis.common.dto.NormalizedEvent normalizedEvent = com.netcradus.acis.common.dto.NormalizedEvent.builder()
             .eventId(logDocument.getId())
             .tenantId(tenantId)
@@ -89,6 +108,16 @@ public class LogIngestionService {
             .sourceType(logDocument.getService())
             .raw(logDocument.getMessage())
             .severity(logDocument.getLevel())
+            .srcIp(extractedIp)
+            .mitreTechnique(technique)
+            .redTeamExecutionId(redTeamExecutionId)
+            // Real threat-intel enrichment result computed synchronously
+            // above (lines ~50-56) - previously only ever attached to the
+            // Elasticsearch-bound LogDocument, so a known-bad IP could never
+            // influence detection. Carried through here for real.
+            .iocMatched(logDocument.getThreatSeverity() != null)
+            .iocSeverity(logDocument.getThreatSeverity())
+            .iocSource(logDocument.getThreatSource())
             .build();
 
         if (logDocument.getMessage() != null && logDocument.getMessage().toLowerCase().contains("login")) {
