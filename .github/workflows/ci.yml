@@ -490,6 +490,15 @@ jobs:
       # command earlier in this project's history broke from exactly this
       # kind of nested `awk '{print $N}'` escaping (bash -> JSON ->
       # awk, three layers deep) - `cut` needs none of that.
+      #
+      # Real bug found on a live rollback run: deploy-history.log's lines
+      # use double spaces as field separators (e.g. "DEPLOY  <tag>  (mode)"),
+      # and `cut -d" " -f3` treats each repeated delimiter as its own empty
+      # field, so field 3 came back "" instead of the tag - the rollback
+      # then failed with "IMAGE_TAG must be set for an ECR-mode deploy"
+      # while reporting a real (empty) command success up to that point.
+      # `tr -s " "` squeezes the repeated spaces down to one before `cut`
+      # runs, without reintroducing the awk-escaping problem above.
       - name: Read previous known-good image tag
         id: prev
         run: |
@@ -497,7 +506,7 @@ jobs:
             --region "$AWS_REGION" \
             --instance-ids "${{ vars.APP_INSTANCE_ID }}" \
             --document-name "AWS-RunShellScript" \
-            --parameters 'commands=["tail -n 2 /opt/acis/deploy-history.log | head -n 1 | cut -d\" \" -f3"]' \
+            --parameters 'commands=["tail -n 2 /opt/acis/deploy-history.log | head -n 1 | tr -s \" \" | cut -d\" \" -f3"]' \
             --query "Command.CommandId" --output text)
           sleep 10
           TAG=$(aws ssm get-command-invocation --region "$AWS_REGION" --command-id "$FETCH_CMD_ID" --instance-id "${{ vars.APP_INSTANCE_ID }}" --query "StandardOutputContent" --output text | tr -d '[:space:]')

@@ -35,6 +35,11 @@ public class LogIngestionService {
             logDocument.setTimestamp(Instant.now());
         }
 
+        // Needed before enrichment now (see EnrichmentClient) - real
+        // service-to-service calls to asset-service/threat-service must
+        // carry X-Tenant-ID for their RLS-scoped queries to see anything.
+        String tenantId = logDocument.getTenantId() != null ? logDocument.getTenantId() : DEMO_TENANT_ID;
+
         // --- Phase 3: Dynamic Enrichment ---
         // Lifted out of the try block below so the same IP that was actually
         // enriched/matched can be carried onto NormalizedEvent.srcIp further
@@ -45,7 +50,7 @@ public class LogIngestionService {
             String ip = extractedIp;
             if (ip != null) {
                 // Enrich with Asset Data
-                enrichmentClient.getAssetByIp(ip)
+                enrichmentClient.getAssetByIp(ip, tenantId)
                     .doOnNext(asset -> {
                         logDocument.setAssetName((String) asset.get("name"));
                         logDocument.setAssetType((String) asset.get("type"));
@@ -53,7 +58,7 @@ public class LogIngestionService {
                     .block(java.time.Duration.ofMillis(500)); // Short timeout for safety
 
                 // Enrich with Threat Intel
-                enrichmentClient.getThreatIntel(ip)
+                enrichmentClient.getThreatIntel(ip, tenantId)
                     .doOnNext(threat -> {
                         logDocument.setThreatSeverity((String) threat.get("severity"));
                         logDocument.setThreatSource((String) threat.get("source"));
@@ -82,7 +87,6 @@ public class LogIngestionService {
         ingestMetricsService.recordLag(logDocument.getTimestamp());
 
         // --- Publish to acis.raw.events for Correlation Engine ---
-        String tenantId = logDocument.getTenantId() != null ? logDocument.getTenantId() : DEMO_TENANT_ID;
 
         // Real technique/execution tags carried by the source event's own
         // metadata (currently only red-team synthetic events set these — see

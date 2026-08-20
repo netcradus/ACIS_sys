@@ -29,7 +29,21 @@ public class AlertKafkaConsumerConfig {
         JsonDeserializer<AlertDto> deserializer = new JsonDeserializer<>(AlertDto.class);
         deserializer.addTrustedPackages("*");
         deserializer.setUseTypeHeaders(false);
+        // Real crash found on a live deploy: kafkaProperties.buildConsumerProperties()
+        // carries the whole spring.kafka.consumer.properties block, including
+        // application.yml's spring.json.* keys (set there for the OTHER
+        // consumer, AuditEventConsumer's AuditEvent default-type). Spring
+        // Kafka's JsonDeserializer.configure() hard-rejects being configured
+        // both that way AND via the explicit setter calls above ("must be
+        // configured with property setters, or via configuration properties;
+        // not both") - it doesn't just prefer one, it throws and the whole
+        // service fails to start. Strip the JSON-deserializer-specific keys
+        // so only the explicit setters above apply, keeping the rest of the
+        // shared connection properties (bootstrap-servers etc.) intact.
         Map<String, Object> props = kafkaProperties.buildConsumerProperties(null);
+        props.remove("spring.json.value.default.type");
+        props.remove("spring.json.use.type.headers");
+        props.remove("spring.json.trusted.packages");
         return new DefaultKafkaConsumerFactory<>(props, new StringDeserializer(), deserializer);
     }
 
