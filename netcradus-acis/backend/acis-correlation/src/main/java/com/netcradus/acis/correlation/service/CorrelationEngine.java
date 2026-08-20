@@ -14,6 +14,7 @@ import org.springframework.stereotype.Service;
 
 import java.time.Instant;
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Deque;
@@ -206,7 +207,15 @@ public class CorrelationEngine {
                 .source("Threat Intelligence")
                 .status("OPEN")
                 .eventOccurredAt(event.getTimestamp())
-                .createdAt(LocalDateTime.now())
+                // Real bug found on a live production test: bare LocalDateTime.now()
+                // uses the JVM's default zone, which is IST here despite the
+                // container OS's own `date` command showing UTC (confirmed via a
+                // real MTTD that came back ~5.5h too high - exactly the IST
+                // offset). Every other LocalDateTime in this codebase represents
+                // UTC wall-clock time (see LogIngestionService's explicit
+                // LocalDateTime.ofInstant(ts, ZoneOffset.UTC)) - this now matches
+                // that convention instead of silently violating it.
+                .createdAt(LocalDateTime.now(ZoneOffset.UTC))
                 .redTeamExecutionId(event.getRedTeamExecutionId())
                 .iocMatched(true)
                 .iocSeverity(event.getIocSeverity())
@@ -295,7 +304,15 @@ public class CorrelationEngine {
                 // Real alert-fired time - previously never set here, so any
                 // Kafka consumer of acis.alerts other than AlertConsumer
                 // (e.g. RedTeamDetectionConsumer) saw a null timestamp.
-                .createdAt(LocalDateTime.now())
+                // Real bug found on a live production test: bare LocalDateTime.now()
+                // uses the JVM's default zone, which is IST here despite the
+                // container OS's own `date` command showing UTC (confirmed via a
+                // real MTTD that came back ~5.5h too high - exactly the IST
+                // offset). Every other LocalDateTime in this codebase represents
+                // UTC wall-clock time (see LogIngestionService's explicit
+                // LocalDateTime.ofInstant(ts, ZoneOffset.UTC)) - this now matches
+                // that convention instead of silently violating it.
+                .createdAt(LocalDateTime.now(ZoneOffset.UTC))
                 // Previously computed on the rule but discarded before ever
                 // reaching the alert - dead field, now actually used.
                 .riskScore(rule.getRiskScore())
