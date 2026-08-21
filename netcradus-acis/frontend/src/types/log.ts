@@ -21,3 +21,22 @@ export interface LogSearchFilters {
   startTime?: string;
   endTime?: string;
 }
+
+export interface FieldTopValue {
+  value: string;
+  count: number;
+}
+
+export interface FieldSummary {
+  field: string;
+  type: string;
+  topValues: FieldTopValue[];
+}
+
+export interface SavedSearch {
+  id: string;
+  name: string;
+  query: string;
+  createdAt: string;
+  updatedAt: string;
+}

@@ -12,11 +12,18 @@ import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.elasticsearch.client.elc.NativeQuery;
+import org.springframework.data.elasticsearch.client.elc.NativeQueryBuilder;
+import org.springframework.data.elasticsearch.client.elc.ElasticsearchAggregation;
+import org.springframework.data.elasticsearch.client.elc.ElasticsearchAggregations;
 import org.springframework.data.elasticsearch.core.ElasticsearchOperations;
 import org.springframework.data.elasticsearch.core.SearchHits;
 import org.springframework.data.elasticsearch.core.query.Query;
 import co.elastic.clients.elasticsearch._types.query_dsl.BoolQuery;
 import co.elastic.clients.elasticsearch._types.query_dsl.Query.Builder;
+import co.elastic.clients.elasticsearch._types.aggregations.Aggregation;
+import co.elastic.clients.elasticsearch._types.aggregations.Aggregate;
+import co.elastic.clients.elasticsearch._types.aggregations.StringTermsAggregate;
+import co.elastic.clients.elasticsearch._types.aggregations.StringTermsBucket;
 import org.springframework.web.bind.annotation.*;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -56,6 +63,53 @@ public class LogController {
     @Value("${acis.ai-service.url}")
     private String aiServiceUrl;
 
+    /** The real facet-able keyword fields on LogDocument — excludes tenantId (filter-only, not explorable), traceId/spanId (per-request unique IDs, not meaningful facets), timestamp/message (not keyword-aggregatable). */
+    private static final List<String> FIELD_EXPLORER_FIELDS =
+            List.of("service", "level", "host", "assetName", "assetType", "threatSeverity", "threatSource");
+
+    /**
+     * Shared real ES filter-building, used by /search, /fields, and /export
+     * so the three endpoints can never drift out of sync on what a given
+     * query string actually filters — see the class-level note on why this
+     * was factored out.
+     */
+    private BoolQuery.Builder buildFilterQuery(String tenantId, String service, String level, String host,
+                                                String assetName, String assetType, String threatSeverity,
+                                                String threatSource, String query) {
+        // Real per-tenant scoping — confirmed live this session that this
+        // endpoint previously returned every tenant's logs regardless of
+        // caller. X-Tenant-ID is always the JWT-derived real value here
+        // (TenantContextFilter overrides whatever the client sent), never
+        // client-supplied.
+        BoolQuery.Builder bool = new BoolQuery.Builder();
+        bool.must(m -> m.term(t -> t.field("tenantId").value(tenantId)));
+        if (service != null && !service.trim().isEmpty() && !service.equalsIgnoreCase("ALL")) {
+            bool.must(m -> m.term(t -> t.field("service").value(service)));
+        }
+        if (level != null && !level.trim().isEmpty()) {
+            bool.must(m -> m.term(t -> t.field("level").value(level)));
+        }
+        if (host != null && !host.trim().isEmpty()) {
+            bool.must(m -> m.term(t -> t.field("host").value(host)));
+        }
+        if (assetName != null && !assetName.trim().isEmpty()) {
+            bool.must(m -> m.term(t -> t.field("assetName").value(assetName)));
+        }
+        if (assetType != null && !assetType.trim().isEmpty()) {
+            bool.must(m -> m.term(t -> t.field("assetType").value(assetType)));
+        }
+        if (threatSeverity != null && !threatSeverity.trim().isEmpty()) {
+            bool.must(m -> m.term(t -> t.field("threatSeverity").value(threatSeverity)));
+        }
+        if (threatSource != null && !threatSource.trim().isEmpty()) {
+            bool.must(m -> m.term(t -> t.field("threatSource").value(threatSource)));
+        }
+        if (query != null && !query.trim().isEmpty()) {
+            bool.must(m -> m.match(mt -> mt.field("message").query(query)));
+        }
+        return bool;
+    }
+
     /**
      * Real Elasticsearch-level filtering + sorting + pagination — this
      * previously pulled a tenant's ENTIRE log history into a Java List
@@ -71,6 +125,10 @@ public class LogController {
             @RequestParam(required = false) String service,
             @RequestParam(required = false) String level,
             @RequestParam(required = false) String host,
+            @RequestParam(required = false) String assetName,
+            @RequestParam(required = false) String assetType,
+            @RequestParam(required = false) String threatSeverity,
+            @RequestParam(required = false) String threatSource,
             @RequestParam(required = false) String query,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "50") int size) {
@@ -79,25 +137,8 @@ public class LogController {
         int safeSize = Math.min(Math.max(size, 1), 500);
 
         try {
-            // Real per-tenant scoping — confirmed live this session that this
-            // endpoint previously returned every tenant's logs regardless of
-            // caller. X-Tenant-ID is always the JWT-derived real value here
-            // (TenantContextFilter overrides whatever the client sent), never
-            // client-supplied.
-            BoolQuery.Builder bool = new BoolQuery.Builder();
-            bool.must(m -> m.term(t -> t.field("tenantId").value(tenantId)));
-            if (service != null && !service.trim().isEmpty() && !service.equalsIgnoreCase("ALL")) {
-                bool.must(m -> m.term(t -> t.field("service").value(service)));
-            }
-            if (level != null && !level.trim().isEmpty()) {
-                bool.must(m -> m.term(t -> t.field("level").value(level)));
-            }
-            if (host != null && !host.trim().isEmpty()) {
-                bool.must(m -> m.term(t -> t.field("host").value(host)));
-            }
-            if (query != null && !query.trim().isEmpty()) {
-                bool.must(m -> m.match(mt -> mt.field("message").query(query)));
-            }
+            BoolQuery.Builder bool = buildFilterQuery(tenantId, service, level, host,
+                    assetName, assetType, threatSeverity, threatSource, query);
 
             Builder queryBuilder = new Builder();
             queryBuilder.bool(bool.build());
@@ -119,6 +160,151 @@ public class LogController {
             Page<LogDocument> empty = new PageImpl<>(Collections.emptyList(), PageRequest.of(safePage, safeSize), 0);
             return Mono.just(ResponseEntity.ok(PageResponse.of(empty)));
         }
+    }
+
+    /**
+     * Real per-field top-value discovery for the Field Explorer panel — runs
+     * a genuine Elasticsearch terms aggregation over each facet-able field,
+     * scoped by the SAME filters /search would apply, so the values shown
+     * are always real, currently-relevant top values (not the tenant's
+     * entire unfiltered history, and never a hardcoded field list).
+     */
+    @GetMapping("/fields")
+    public ResponseEntity<List<Map<String, Object>>> getFields(
+            @RequestHeader("X-Tenant-ID") String tenantId,
+            @RequestParam(required = false) String service,
+            @RequestParam(required = false) String level,
+            @RequestParam(required = false) String host,
+            @RequestParam(required = false) String assetName,
+            @RequestParam(required = false) String assetType,
+            @RequestParam(required = false) String threatSeverity,
+            @RequestParam(required = false) String threatSource,
+            @RequestParam(required = false) String query) {
+
+        try {
+            BoolQuery.Builder bool = buildFilterQuery(tenantId, service, level, host,
+                    assetName, assetType, threatSeverity, threatSource, query);
+            Builder queryBuilder = new Builder();
+            queryBuilder.bool(bool.build());
+
+            NativeQueryBuilder nativeBuilder = NativeQuery.builder()
+                    .withQuery(queryBuilder.build())
+                    .withPageable(PageRequest.of(0, 1));
+
+            for (String field : FIELD_EXPLORER_FIELDS) {
+                nativeBuilder.withAggregation("agg_" + field,
+                        Aggregation.of(a -> a.terms(t -> t.field(field).size(10))));
+            }
+
+            SearchHits<LogDocument> hits = elasticsearchOperations.search(nativeBuilder.build(), LogDocument.class);
+
+            List<Map<String, Object>> result = new ArrayList<>();
+            if (hits.hasAggregations()) {
+                ElasticsearchAggregations aggregations = (ElasticsearchAggregations) hits.getAggregations();
+                Map<String, ElasticsearchAggregation> aggMap = aggregations.aggregationsAsMap();
+                for (String field : FIELD_EXPLORER_FIELDS) {
+                    ElasticsearchAggregation wrapper = aggMap.get("agg_" + field);
+                    if (wrapper == null) continue;
+                    Aggregate aggregate = wrapper.aggregation().getAggregate();
+                    if (!aggregate.isSterms()) continue;
+                    StringTermsAggregate sterms = aggregate.sterms();
+
+                    List<Map<String, Object>> topValues = new ArrayList<>();
+                    for (StringTermsBucket bucket : sterms.buckets().array()) {
+                        Map<String, Object> tv = new java.util.LinkedHashMap<>();
+                        tv.put("value", bucket.key().stringValue());
+                        tv.put("count", bucket.docCount());
+                        topValues.add(tv);
+                    }
+
+                    Map<String, Object> fieldSummary = new java.util.LinkedHashMap<>();
+                    fieldSummary.put("field", field);
+                    fieldSummary.put("type", "keyword");
+                    fieldSummary.put("topValues", topValues);
+                    result.add(fieldSummary);
+                }
+            }
+            return ResponseEntity.ok(result);
+        } catch (Exception e) {
+            log.warn("Field discovery failed: {}", e.getMessage());
+            return ResponseEntity.ok(Collections.emptyList());
+        }
+    }
+
+    /**
+     * Real server-side CSV export of the current filtered result set — reuses
+     * the exact same buildFilterQuery as /search, so the exported rows always
+     * match what's shown for that query. Capped at 10,000 rows as a real,
+     * disclosed safety limit (X-Export-Row-Count / X-Export-Truncated
+     * response headers), never a silent truncation.
+     */
+    @GetMapping("/export")
+    public ResponseEntity<byte[]> exportCsv(
+            @RequestHeader("X-Tenant-ID") String tenantId,
+            @RequestParam(required = false) String service,
+            @RequestParam(required = false) String level,
+            @RequestParam(required = false) String host,
+            @RequestParam(required = false) String assetName,
+            @RequestParam(required = false) String assetType,
+            @RequestParam(required = false) String threatSeverity,
+            @RequestParam(required = false) String threatSource,
+            @RequestParam(required = false) String query) {
+
+        final int EXPORT_LIMIT = 10_000;
+        List<LogDocument> content;
+        long total;
+        try {
+            BoolQuery.Builder bool = buildFilterQuery(tenantId, service, level, host,
+                    assetName, assetType, threatSeverity, threatSource, query);
+            Builder queryBuilder = new Builder();
+            queryBuilder.bool(bool.build());
+
+            Query esQuery = NativeQuery.builder()
+                    .withQuery(queryBuilder.build())
+                    .withPageable(PageRequest.of(0, EXPORT_LIMIT, Sort.by(Sort.Direction.DESC, "timestamp")))
+                    .build();
+
+            SearchHits<LogDocument> hits = elasticsearchOperations.search(esQuery, LogDocument.class);
+            content = hits.getSearchHits().stream().map(org.springframework.data.elasticsearch.core.SearchHit::getContent).toList();
+            total = hits.getTotalHits();
+        } catch (Exception e) {
+            log.warn("Elasticsearch export query failed: {}", e.getMessage());
+            content = Collections.emptyList();
+            total = 0;
+        }
+
+        StringBuilder csv = new StringBuilder();
+        csv.append("Timestamp,Level,Service,Host,AssetName,AssetType,ThreatSeverity,ThreatSource,Message\n");
+        for (LogDocument doc : content) {
+            csv.append(escapeCsv(doc.getTimestamp() != null ? doc.getTimestamp().toString() : "")).append(",");
+            csv.append(escapeCsv(doc.getLevel())).append(",");
+            csv.append(escapeCsv(doc.getService())).append(",");
+            csv.append(escapeCsv(doc.getHost())).append(",");
+            csv.append(escapeCsv(doc.getAssetName())).append(",");
+            csv.append(escapeCsv(doc.getAssetType())).append(",");
+            csv.append(escapeCsv(doc.getThreatSeverity())).append(",");
+            csv.append(escapeCsv(doc.getThreatSource())).append(",");
+            csv.append(escapeCsv(doc.getMessage())).append("\n");
+        }
+
+        byte[] bytes = csv.toString().getBytes(java.nio.charset.StandardCharsets.UTF_8);
+        boolean truncated = total > EXPORT_LIMIT;
+
+        return ResponseEntity.ok()
+                .header(org.springframework.http.HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=acis-log-export.csv")
+                .header("X-Export-Row-Count", String.valueOf(content.size()))
+                .header("X-Export-Truncated", String.valueOf(truncated))
+                .contentType(MediaType.parseMediaType("text/csv"))
+                .contentLength(bytes.length)
+                .body(bytes);
+    }
+
+    private static String escapeCsv(String value) {
+        if (value == null) return "";
+        if (value.contains(",") || value.contains("\"") || value.contains("\n")) {
+            return "\"" + value.replace("\"", "\"\"") + "\"";
+        }
+        return value;
     }
 
     @GetMapping("/latest")

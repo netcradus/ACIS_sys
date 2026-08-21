@@ -2,7 +2,8 @@ import React, { useState, useEffect, useMemo } from 'react'
 import { ShieldCheck, Download, Save } from 'lucide-react'
 import apiClient from '@/lib/apiClient'
 import wsClient from '@/lib/wsClient'
-import { LogEntry } from '@/types/log'
+import keycloak from '@/lib/keycloak'
+import { LogEntry, FieldSummary, SavedSearch } from '@/types/log'
 import { clsx } from 'clsx'
 import { usePivotSeed, useEntityPivot } from '@/hooks/useEntityPivot'
 import { toast } from '@/store/toastStore'
@@ -100,7 +101,13 @@ export default function LogExplorerPage() {
   const [isTranslating, setIsTranslating] = useState(false)
   const [aiTranslateError, setAiTranslateError] = useState<string | null>(null)
   const [aiStatus, setAiStatus] = useState<'checking' | 'ready' | 'offline'>('checking')
-  const [savedSearches, setSavedSearches] = useState<string[]>([])
+  const [savedSearches, setSavedSearches] = useState<SavedSearch[]>([])
+  const [isSavingSearch, setIsSavingSearch] = useState(false)
+  const [savedSearchesOpen, setSavedSearchesOpen] = useState(false)
+  const [fieldExplorerOpen, setFieldExplorerOpen] = useState(false)
+  const [fieldSummaries, setFieldSummaries] = useState<FieldSummary[]>([])
+  const [isLoadingFields, setIsLoadingFields] = useState(false)
+  const [isExporting, setIsExporting] = useState(false)
   const { pivotTo } = useEntityPivot()
 
   // Trend chart and tooltip interactions
@@ -143,6 +150,14 @@ export default function LogExplorerPage() {
         filters.level = part.replace('level=', '').trim()
       } else if (part.startsWith('host=')) {
         filters.host = part.replace('host=', '').trim()
+      } else if (part.startsWith('assetName=')) {
+        filters.assetName = part.replace('assetName=', '').trim()
+      } else if (part.startsWith('assetType=')) {
+        filters.assetType = part.replace('assetType=', '').trim()
+      } else if (part.startsWith('threatSeverity=')) {
+        filters.threatSeverity = part.replace('threatSeverity=', '').trim()
+      } else if (part.startsWith('threatSource=')) {
+        filters.threatSource = part.replace('threatSource=', '').trim()
       } else if (part.startsWith('search ')) {
         const term = part.substring(7).replace(/"/g, '').trim()
         if (term) textTerms.push(term)
@@ -160,32 +175,124 @@ export default function LogExplorerPage() {
     return filters
   }
 
-  const handleExportCSV = () => {
-    if (logs.length === 0) return
-    const headers = ['timestamp', 'service', 'level', 'message', 'host', 'threatSeverity']
-    const csvContent = [
-      headers.join(','),
-      ...logs.map(log => headers.map(header => {
-        const val = log[header as keyof LogEntry] || ''
-        return `"${String(val).replace(/"/g, '""')}"`
-      }).join(','))
-    ].join('\n')
+  /**
+   * Real server-side export — hits /api/logs/export with the CURRENT parsed
+   * query filters, so the CSV always reflects a live, filter-matching query
+   * (not whatever happened to already be sitting in the `logs` React state).
+   * Raw fetch + Bearer token (not apiClient) since this is a binary blob
+   * response, not JSON — same pattern as AuditLogsPage's downloadExport.
+   */
+  const handleExportCSV = async () => {
+    setIsExporting(true)
+    try {
+      const filters = parseQuery(query)
+      const params = new URLSearchParams()
+      Object.entries(filters).forEach(([k, v]) => {
+        if (v !== undefined && v !== null && String(v).trim() !== '') params.set(k, String(v))
+      })
+      const url = `/api/logs/export?${params.toString()}`
+      const res = await fetch(url, { headers: { Authorization: `Bearer ${keycloak.token}` } })
+      if (!res.ok) throw new Error(`Export failed (${res.status})`)
 
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
-    const url = URL.createObjectURL(blob)
-    const link = document.createElement('a')
-    link.setAttribute('href', url)
-    link.setAttribute('download', `acis_logs_${new Date().toISOString().split('T')[0]}.csv`)
-    document.body.appendChild(link)
-    link.click()
-    document.body.removeChild(link)
+      const rowCount = res.headers.get('X-Export-Row-Count')
+      const truncated = res.headers.get('X-Export-Truncated') === 'true'
+      const blob = await res.blob()
+      const blobUrl = URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = blobUrl
+      link.setAttribute('download', `acis_logs_${new Date().toISOString().split('T')[0]}.csv`)
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      URL.revokeObjectURL(blobUrl)
+
+      if (truncated) {
+        toast.info(`Export capped at ${rowCount} rows — narrow your query to export the rest.`)
+      } else {
+        toast.success(`Exported ${rowCount ?? ''} log${rowCount === '1' ? '' : 's'} to CSV.`)
+      }
+    } catch (e: any) {
+      console.error('Export failed:', e)
+      toast.error(e?.message || 'Export failed. Please try again.')
+    } finally {
+      setIsExporting(false)
+    }
   }
 
-  const handleSaveSearch = () => {
+  /** Real backend-persisted saved searches — see SavedSearchController. Personal to the current user, survives refresh/device switch. */
+  const fetchSavedSearches = async () => {
+    try {
+      const response = await apiClient.get<SavedSearch[]>('/api/logs/saved-searches')
+      setSavedSearches(response.data || [])
+    } catch (e) {
+      console.error('Failed to load saved searches:', e)
+    }
+  }
+
+  const handleSaveSearch = async () => {
     if (!query.trim()) return
-    const updated = Array.from(new Set([query.trim(), ...savedSearches]))
-    setSavedSearches(updated)
-    localStorage.setItem('acis_saved_searches', JSON.stringify(updated))
+    const name = window.prompt('Name this search:')
+    if (!name || !name.trim()) return
+    setIsSavingSearch(true)
+    try {
+      await apiClient.post('/api/logs/saved-searches', { name: name.trim(), query: query.trim() })
+      toast.success(`Saved search "${name.trim()}"`)
+      await fetchSavedSearches()
+    } catch (e: any) {
+      toast.error(e?.message || 'Failed to save search')
+    } finally {
+      setIsSavingSearch(false)
+    }
+  }
+
+  const handleLoadSaved = (saved: SavedSearch) => {
+    setQuery(saved.query)
+    setSavedSearchesOpen(false)
+  }
+
+  const handleDeleteSaved = async (e: React.MouseEvent, saved: SavedSearch) => {
+    e.stopPropagation()
+    try {
+      await apiClient.delete(`/api/logs/saved-searches/${saved.id}`)
+      setSavedSearches(prev => prev.filter(s => s.id !== saved.id))
+      toast.success(`Deleted "${saved.name}"`)
+    } catch (e: any) {
+      toast.error(e?.message || 'Failed to delete saved search')
+    }
+  }
+
+  /**
+   * Real per-field top-value discovery — fetches /api/logs/fields scoped by
+   * the CURRENT query's filters (not the tenant's whole unfiltered history),
+   * so the values shown match what Run Search would actually return.
+   */
+  const toggleFieldExplorer = async () => {
+    const next = !fieldExplorerOpen
+    setFieldExplorerOpen(next)
+    if (!next) return
+    setIsLoadingFields(true)
+    try {
+      const filters = parseQuery(query)
+      const response = await apiClient.get<FieldSummary[]>('/api/logs/fields', { params: filters })
+      setFieldSummaries(response.data || [])
+    } catch (e) {
+      console.error('Failed to load fields:', e)
+      setFieldSummaries([])
+    } finally {
+      setIsLoadingFields(false)
+    }
+  }
+
+  const handleFieldValueClick = (field: string, value: string) => {
+    const term = `${field}=${value}`
+    setQuery(prev => {
+      const trimmed = prev.trim()
+      if (!trimmed) return term
+      const parts = trimmed.split('|').map(p => p.trim())
+      if (parts.includes(term)) return prev
+      return `${trimmed} | ${term}`
+    })
+    setFieldExplorerOpen(false)
   }
 
   const fetchLogs = async () => {
@@ -244,10 +351,7 @@ export default function LogExplorerPage() {
     checkAiStatus()
     const interval = setInterval(checkAiStatus, 15000)
 
-    const saved = localStorage.getItem('acis_saved_searches')
-    if (saved) {
-      setSavedSearches(JSON.parse(saved))
-    }
+    fetchSavedSearches()
 
     return () => clearInterval(interval)
   }, [])
@@ -437,32 +541,79 @@ export default function LogExplorerPage() {
               placeholder="service=acis-gateway | level=ERROR"
               spellCheck="false"
             />
-            <div className="field-explorer">Field Explorer <span>⌄</span></div>
+            <div className="field-explorer-wrap">
+              <div className="field-explorer" onClick={toggleFieldExplorer}>
+                Field Explorer <span>{fieldExplorerOpen ? '⌃' : '⌄'}</span>
+              </div>
+              {fieldExplorerOpen && (
+                <div className="field-explorer-panel">
+                  {isLoadingFields ? (
+                    <div className="field-explorer-empty">Discovering fields...</div>
+                  ) : fieldSummaries.length === 0 ? (
+                    <div className="field-explorer-empty">No field data for the current query.</div>
+                  ) : (
+                    fieldSummaries.map(fs => (
+                      <div key={fs.field} className="field-group">
+                        <div className="field-group-name">{fs.field}</div>
+                        <div className="field-group-values">
+                          {fs.topValues.length === 0 ? (
+                            <span className="field-value-empty">No values</span>
+                          ) : (
+                            fs.topValues.map(tv => (
+                              <span
+                                key={tv.value}
+                                className="field-value-chip"
+                                onClick={() => handleFieldValueClick(fs.field, tv.value)}
+                                title={`Filter ${fs.field}=${tv.value}`}
+                              >
+                                {tv.value} <span className="field-value-count">{tv.count}</span>
+                              </span>
+                            ))
+                          )}
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              )}
+            </div>
           </div>
 
           <div className="spl-buttons">
             <button onClick={fetchLogs} className="spl-btn run">▶ Run Search</button>
-            <button onClick={handleExportCSV} className="spl-btn outline">⬇ Export CSV</button>
-            <button onClick={handleSaveSearch} className="spl-btn outline">💾 Save Search</button>
+            <button onClick={handleExportCSV} className="spl-btn outline" disabled={isExporting} style={{ opacity: isExporting ? 0.6 : 1 }}>
+              ⬇ {isExporting ? 'Exporting...' : 'Export CSV'}
+            </button>
+            <button onClick={handleSaveSearch} className="spl-btn outline" disabled={isSavingSearch} style={{ opacity: isSavingSearch ? 0.6 : 1 }}>
+              💾 {isSavingSearch ? 'Saving...' : 'Save Search'}
+            </button>
 
             {savedSearches.length > 0 && (
-              <div className="select-pill source-select-wrap" style={{ marginLeft: 'auto' }}>
-                <select
-                  onChange={(e) => {
-                    if (e.target.value) {
-                      setQuery(e.target.value)
-                      e.target.value = ''
-                    }
-                  }}
-                >
-                  <option value="">Load Saved...</option>
-                  {savedSearches.map((s, idx) => (
-                    <option key={idx} value={s}>
-                      {s.length > 20 ? s.substring(0, 20) + '...' : s}
-                    </option>
-                  ))}
-                </select>
-                <span>⌄</span>
+              <div className="saved-searches-wrap" style={{ marginLeft: 'auto' }}>
+                <div className="select-pill source-select-wrap" onClick={() => setSavedSearchesOpen(o => !o)}>
+                  <span>▽</span>
+                  <span style={{ padding: '0 4px', cursor: 'pointer' }}>Load Saved ({savedSearches.length})</span>
+                  <span>{savedSearchesOpen ? '⌃' : '⌄'}</span>
+                </div>
+                {savedSearchesOpen && (
+                  <div className="saved-searches-panel">
+                    {savedSearches.map(s => (
+                      <div key={s.id} className="saved-search-row" onClick={() => handleLoadSaved(s)}>
+                        <div className="saved-search-info">
+                          <div className="saved-search-name">{s.name}</div>
+                          <div className="saved-search-query">{s.query}</div>
+                        </div>
+                        <button
+                          className="saved-search-delete"
+                          onClick={(e) => handleDeleteSaved(e, s)}
+                          title="Delete saved search"
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
           </div>
