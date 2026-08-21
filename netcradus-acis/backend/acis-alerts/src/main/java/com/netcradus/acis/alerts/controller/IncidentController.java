@@ -1,8 +1,11 @@
 package com.netcradus.acis.alerts.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.netcradus.acis.alerts.model.AuditEntryView;
 import com.netcradus.acis.alerts.model.Incident;
+import com.netcradus.acis.alerts.repository.AuditEntryViewRepository;
 import com.netcradus.acis.alerts.repository.IncidentRepository;
+import com.netcradus.acis.alerts.service.IncidentService;
 import com.netcradus.acis.common.audit.AuditEventPublisher;
 import com.netcradus.acis.common.exception.NotFoundException;
 import lombok.RequiredArgsConstructor;
@@ -10,6 +13,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 /**
  * Real, persisted incidents — replaces what used to be 5 hardcoded literal
@@ -23,6 +27,8 @@ import java.util.Map;
 public class IncidentController {
 
     private final IncidentRepository incidentRepository;
+    private final IncidentService incidentService;
+    private final AuditEntryViewRepository auditEntryViewRepository;
     private final AuditEventPublisher auditEventPublisher;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
@@ -54,7 +60,7 @@ public class IncidentController {
         incident.setAlertId(request.alertId());
         incident.setStatus("OPEN");
         incident.setChecklist(buildDefaultChecklist());
-        Incident saved = incidentRepository.save(incident);
+        Incident saved = incidentService.saveAndBroadcast(incident);
         auditEventPublisher.publish("INCIDENT_CREATE", "incident/" + saved.getId(), "created from alert=" + request.alertId());
         return saved;
     }
@@ -64,7 +70,7 @@ public class IncidentController {
         Incident incident = incidentRepository.findByIdAndTenantId(id, tenantId)
                 .orElseThrow(() -> new NotFoundException("Incident not found"));
         incident.setStatus(status);
-        Incident saved = incidentRepository.save(incident);
+        Incident saved = incidentService.saveAndBroadcast(incident);
         auditEventPublisher.publish("INCIDENT_STATUS_CHANGE", "incident/" + id, "status=" + status);
         return saved;
     }
@@ -86,7 +92,7 @@ public class IncidentController {
         } catch (Exception e) {
             throw new IllegalStateException("Failed to update checklist: " + e.getMessage(), e);
         }
-        Incident saved = incidentRepository.save(incident);
+        Incident saved = incidentService.saveAndBroadcast(incident);
         auditEventPublisher.publish("INCIDENT_CHECKLIST_UPDATE", "incident/" + id, "item=" + request.index());
         return saved;
     }
@@ -95,8 +101,16 @@ public class IncidentController {
     public void deleteIncident(@PathVariable String id, @RequestHeader("X-Tenant-ID") String tenantId) {
         Incident incident = incidentRepository.findByIdAndTenantId(id, tenantId)
                 .orElseThrow(() -> new NotFoundException("Incident not found"));
-        incidentRepository.delete(incident);
+        incidentService.delete(incident);
         auditEventPublisher.publish("INCIDENT_DELETE", "incident/" + id, "deleted");
+    }
+
+    /** Real per-incident investigation history — see AlertController.getTimeline for the full rationale (same audit_entries table, same RBAC-gating reason). */
+    @GetMapping("/{id}/timeline")
+    public List<AuditEntryView> getTimeline(@PathVariable String id, @RequestHeader("X-Tenant-ID") String tenantId) {
+        incidentRepository.findByIdAndTenantId(id, tenantId)
+                .orElseThrow(() -> new NotFoundException("Incident not found"));
+        return auditEntryViewRepository.findByTenantIdAndResourceOrderByTimestampAsc(UUID.fromString(tenantId), "incident/" + id);
     }
 
     private String buildDefaultChecklist() {

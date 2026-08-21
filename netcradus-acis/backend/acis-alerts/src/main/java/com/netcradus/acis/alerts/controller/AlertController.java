@@ -2,7 +2,9 @@ package com.netcradus.acis.alerts.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.netcradus.acis.alerts.model.Alert;
+import com.netcradus.acis.alerts.model.AuditEntryView;
 import com.netcradus.acis.alerts.repository.AlertRepository;
+import com.netcradus.acis.alerts.repository.AuditEntryViewRepository;
 import com.netcradus.acis.alerts.service.AlertService;
 import com.netcradus.acis.common.audit.AuditEventPublisher;
 import com.netcradus.acis.common.dto.AlertDto;
@@ -21,10 +23,17 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
+import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
+import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.TreeMap;
+import java.util.UUID;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.client.HttpStatusCodeException;
@@ -42,6 +51,7 @@ public class AlertController {
 
     private final AlertService alertService;
     private final AlertRepository alertRepository;
+    private final AuditEntryViewRepository auditEntryViewRepository;
     private final AuditEventPublisher auditEventPublisher;
     private final ObjectMapper objectMapper;
 
@@ -65,10 +75,7 @@ public class AlertController {
     @PutMapping("/{id}/status")
     public Alert updateStatus(@PathVariable String id, @RequestParam String status,
                                @RequestHeader("X-Tenant-ID") String tenantId) {
-        Alert alert = alertRepository.findByIdAndTenantId(id, tenantId)
-                .orElseThrow(() -> new NotFoundException("Alert not found"));
-        alert.setStatus(status);
-        Alert saved = alertRepository.save(alert);
+        Alert saved = alertService.updateStatus(id, status, tenantId);
         auditEventPublisher.publish("ALERT_STATUS_CHANGE", "alert/" + id, "status=" + status);
         return saved;
     }
@@ -106,7 +113,7 @@ public class AlertController {
                 alert.setLabeledAt(null);
             }
         }
-        Alert saved = alertRepository.save(alert);
+        Alert saved = alertService.saveAndBroadcast(alert);
         auditEventPublisher.publish("ALERT_UPDATE", "alert/" + id, "updated");
         return ResponseEntity.ok(saved);
     }
@@ -177,8 +184,103 @@ public class AlertController {
         summary.put("highAlerts", high);
         summary.put("openIncidents", open);
         summary.put("events24h", null); // Set to null to indicate "Still in development" in frontend
-        
+
         return summary;
+    }
+
+    /**
+     * Real severity/status/source aggregates plus a time-bucketed severity
+     * trend — feeds the Alerts &amp; Incidents panel's Severity Trend, Top
+     * Alert Sources, and Workflow Status charts from real GROUP BY queries
+     * instead of the client fabricating buckets or hardcoding chart data.
+     * Same TreeMap/epoch/bucketMs bucketing pattern as acis-log-service's
+     * LogController.getIngestVolumeErrors.
+     */
+    @GetMapping("/analytics")
+    public Map<String, Object> getAnalytics(
+            @RequestHeader("X-Tenant-ID") String tenantId,
+            @RequestParam(required = false) Long fromEpochMs,
+            @RequestParam(required = false) Long toEpochMs,
+            @RequestParam(defaultValue = "60") int bucketMinutes) {
+
+        Instant to = toEpochMs != null ? Instant.ofEpochMilli(toEpochMs) : Instant.now();
+        Instant from = fromEpochMs != null ? Instant.ofEpochMilli(fromEpochMs) : to.minus(24, ChronoUnit.HOURS);
+        long bucketMs = Math.max(1, bucketMinutes) * 60_000L;
+
+        Map<String, Long> severityCounts = new LinkedHashMap<>();
+        for (Object[] row : alertRepository.countBySeverity(tenantId)) {
+            severityCounts.put((String) row[0], (Long) row[1]);
+        }
+
+        Map<String, Long> statusCounts = new LinkedHashMap<>();
+        for (Object[] row : alertRepository.countByStatus(tenantId)) {
+            statusCounts.put((String) row[0], (Long) row[1]);
+        }
+
+        Map<String, Long> sourceCounts = new LinkedHashMap<>();
+        for (Object[] row : alertRepository.countBySource(tenantId)) {
+            if (row[0] != null) sourceCounts.put((String) row[0], (Long) row[1]);
+        }
+
+        List<Alert> rangeAlerts = alertRepository.findByTenantIdAndCreatedAtBetween(
+                tenantId, LocalDateTime.ofInstant(from, ZoneOffset.UTC), LocalDateTime.ofInstant(to, ZoneOffset.UTC));
+
+        Map<Long, Map<String, Long>> byBucket = new TreeMap<>();
+        for (Alert a : rangeAlerts) {
+            if (a.getCreatedAt() == null) continue;
+            long epochMilli = a.getCreatedAt().toInstant(ZoneOffset.UTC).toEpochMilli();
+            long bucketStart = (epochMilli / bucketMs) * bucketMs;
+            Map<String, Long> bucket = byBucket.computeIfAbsent(bucketStart, k -> new LinkedHashMap<>());
+            String sev = a.getSeverity() != null ? a.getSeverity() : "UNKNOWN";
+            bucket.merge(sev, 1L, Long::sum);
+        }
+        List<Map<String, Object>> buckets = new ArrayList<>();
+        for (Map.Entry<Long, Map<String, Long>> e : byBucket.entrySet()) {
+            Map<String, Object> b = new LinkedHashMap<>();
+            b.put("bucketStart", Instant.ofEpochMilli(e.getKey()).toString());
+            b.put("counts", e.getValue());
+            buckets.add(b);
+        }
+
+        Map<String, Object> trend = new LinkedHashMap<>();
+        trend.put("buckets", buckets);
+        trend.put("fromEpochMs", from.toEpochMilli());
+        trend.put("toEpochMs", to.toEpochMilli());
+        trend.put("bucketMinutes", bucketMinutes);
+
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("severityCounts", severityCounts);
+        result.put("statusCounts", statusCounts);
+        result.put("sourceCounts", sourceCounts);
+        result.put("trend", trend);
+        return result;
+    }
+
+    /** Real distinct Source/Status/Owner values actually present in this tenant's alerts — powers the panel's filter dropdowns. Never a hardcoded option list. */
+    @GetMapping("/filters")
+    public Map<String, Object> getFilterValues(@RequestHeader("X-Tenant-ID") String tenantId) {
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("sources", alertRepository.findDistinctSources(tenantId));
+        result.put("statuses", alertRepository.findDistinctStatuses(tenantId));
+        result.put("owners", alertRepository.findDistinctOwnerIds(tenantId));
+        return result;
+    }
+
+    /**
+     * Real per-alert investigation history — reads the same tamper-evident
+     * audit_entries table acis-soar's AuditEventConsumer already populates
+     * for every real ALERT_STATUS_CHANGE/ALERT_UPDATE/ALERT_LABELED action
+     * (resource="alert/{id}"). Deliberately NOT proxied through acis-soar's
+     * /api/compliance/audit-trail — that endpoint is gated under the
+     * "Reports & Compliance" RBAC module, different from this module's
+     * "Alerts & Correlation", so a role with alert access but no compliance
+     * access would otherwise 403 on their own alert's history.
+     */
+    @GetMapping("/{id}/timeline")
+    public List<AuditEntryView> getTimeline(@PathVariable String id, @RequestHeader("X-Tenant-ID") String tenantId) {
+        alertRepository.findByIdAndTenantId(id, tenantId)
+                .orElseThrow(() -> new NotFoundException("Alert not found"));
+        return auditEntryViewRepository.findByTenantIdAndResourceOrderByTimestampAsc(UUID.fromString(tenantId), "alert/" + id);
     }
 
     private final RestTemplate restTemplate = new RestTemplate();

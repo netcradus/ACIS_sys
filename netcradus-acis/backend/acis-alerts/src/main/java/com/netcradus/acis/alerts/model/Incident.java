@@ -6,6 +6,7 @@ import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.UUID;
 
 /**
@@ -56,13 +57,16 @@ public class Incident {
 
     @PrePersist
     protected void onCreate() {
-        createdAt = LocalDateTime.now();
-        updatedAt = LocalDateTime.now();
+        // Explicit UTC — see Alert.onCreate's identical fix; this container's
+        // JVM default zone is IST, and every LocalDateTime in this codebase
+        // is a UTC wall-clock value by convention.
+        createdAt = LocalDateTime.now(ZoneOffset.UTC);
+        updatedAt = createdAt;
         if (status == null) status = "OPEN";
     }
 
     @PreUpdate
     protected void onUpdate() {
-        updatedAt = LocalDateTime.now();
+        updatedAt = LocalDateTime.now(ZoneOffset.UTC);
     }
 }

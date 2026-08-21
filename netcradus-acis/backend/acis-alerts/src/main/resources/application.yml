@@ -26,6 +26,17 @@ spring:
       value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
       properties:
         spring.json.trusted.packages: "*"
+    producer:
+      # Without this, Spring Boot's auto-configured KafkaTemplate<String,Object>
+      # defaults to a plain StringSerializer for values — confirmed live: every
+      # real AuditEventPublisher.publish() call (ALERT_STATUS_CHANGE/UPDATE/
+      # LABELED, INCIDENT_*) was silently failing ("Can't convert value of
+      # class AuditEvent to class StringSerializer"), so audit_entries never
+      # received a single row from this service and the real Investigation
+      # Timeline had nothing to read. Matches the JsonSerializer already used
+      # for this service's own consumer above.
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
   security:
     oauth2:
       resourceserver:

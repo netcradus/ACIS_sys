@@ -11,6 +11,7 @@ import jakarta.persistence.JoinColumn;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.List;
 
 @Entity
@@ -87,8 +88,14 @@ public class Alert {
 
     @PrePersist
     protected void onCreate() {
-        createdAt = LocalDateTime.now();
-        updatedAt = LocalDateTime.now();
+        // Explicit UTC — this container's JVM default zone is IST, and every
+        // LocalDateTime in this codebase is a UTC wall-clock value by
+        // convention (see LogIngestionService). A bare .now() here silently
+        // stored createdAt ~5.5h ahead of true UTC, which excluded every
+        // recent alert from any real UTC-instant range query (confirmed live
+        // via AlertController.getAnalytics's severity-trend bucketing).
+        createdAt = LocalDateTime.now(ZoneOffset.UTC);
+        updatedAt = createdAt;
         if (status == null) {
             status = "OPEN";
         }
@@ -96,6 +103,6 @@ public class Alert {
 
     @PreUpdate
     protected void onUpdate() {
-        updatedAt = LocalDateTime.now();
+        updatedAt = LocalDateTime.now(ZoneOffset.UTC);
     }
 }

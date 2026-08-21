@@ -11,29 +11,8 @@ import PivotChip from '@/components/ui/PivotChip'
 import ConfirmDialog from '@/components/ui/ConfirmDialog'
 import { toast } from '@/store/toastStore'
 import { clsx } from 'clsx'
+import type { Alert, Incident, AlertAnalytics, AlertFilterValues, TimelineEntry } from '@/types/alert'
 import './AlertsPage.css'
-
-interface Alert {
-  id: string
-  title: string
-  severity: string
-  source: string
-  status: string
-  ownerId: string | null
-  rawEvent: string | null
-  createdAt: string
-  updatedAt: string
-  confirmedCategory: string | null
-  labeledAt: string | null
-  anomalyScore: number | null
-  isAnomaly: boolean | null
-  anomalyFeatures: string | null
-  riskScore: number | null
-  mitreTechniques: string[] | null
-  iocMatched: boolean | null
-  iocSeverity: string | null
-  iocSource: string | null
-}
 
 // Real classifier categories the AI model predicts and trains on — kept in
 // sync manually with ai-service's CLASSES list and AlertController's
@@ -47,18 +26,36 @@ const ALERT_CATEGORIES = [
   { value: 'benign', label: 'Benign' },
 ]
 
-interface Incident {
-  id: string
-  incidentNumber: string
-  title: string
-  severity: string
-  status: string
-  ownerId: string | null
-  ownerName: string | null
-  alertId: string | null
-  checklist: string | null
-  createdAt: string
+const EMPTY_FILTER_VALUES: AlertFilterValues = { sources: [], statuses: [], owners: [] }
+
+/** Defensive normalization — a test/mocked or malformed API response might not have this exact shape; never let a missing field crash the page. */
+function normalizeFilterValues(data: unknown): AlertFilterValues {
+  const d = data as Partial<AlertFilterValues> | null | undefined
+  return {
+    sources: Array.isArray(d?.sources) ? d!.sources : [],
+    statuses: Array.isArray(d?.statuses) ? d!.statuses : [],
+    owners: Array.isArray(d?.owners) ? d!.owners : [],
+  }
 }
+
+/** Defensive normalization — see normalizeFilterValues. A non-object response (e.g. a test's catch-all `{data: []}`) must never crash chart rendering. */
+function normalizeAnalytics(data: unknown): AlertAnalytics | null {
+  if (!data || typeof data !== 'object' || Array.isArray(data)) return null
+  const d = data as Partial<AlertAnalytics>
+  return {
+    severityCounts: d.severityCounts && typeof d.severityCounts === 'object' ? d.severityCounts : {},
+    statusCounts: d.statusCounts && typeof d.statusCounts === 'object' ? d.statusCounts : {},
+    sourceCounts: d.sourceCounts && typeof d.sourceCounts === 'object' ? d.sourceCounts : {},
+    trend: {
+      buckets: Array.isArray(d.trend?.buckets) ? d.trend!.buckets : [],
+      fromEpochMs: d.trend?.fromEpochMs ?? Date.now() - 24 * 60 * 60 * 1000,
+      toEpochMs: d.trend?.toEpochMs ?? Date.now(),
+      bucketMinutes: d.trend?.bucketMinutes ?? 60,
+    },
+  }
+}
+
+const DONUT_COLORS = ['var(--blue)', 'var(--cyan)', 'var(--amber)', 'var(--purple)', '#94a3b8']
 
 export default function AlertsPage() {
   const { user } = useAuthStore()
@@ -72,6 +69,17 @@ export default function AlertsPage() {
   const [activeTab, setActiveTab] = useState<'ALERTS' | 'INCIDENTS'>('ALERTS')
   const [searchTerm, setSearchTerm] = useState('')
   const [severityFilter, setSeverityFilter] = useState<'ALL' | 'CRITICAL' | 'HIGH' | 'OPEN'>('ALL')
+  const [sourceFilter, setSourceFilter] = useState('ALL')
+  const [statusFilter, setStatusFilter] = useState('ALL')
+  const [ownerFilter, setOwnerFilter] = useState('ALL')
+  const [filterOptions, setFilterOptions] = useState<AlertFilterValues>(EMPTY_FILTER_VALUES)
+
+  const [analytics, setAnalytics] = useState<AlertAnalytics | null>(null)
+  const [analyticsError, setAnalyticsError] = useState<string | null>(null)
+
+  const [timeline, setTimeline] = useState<TimelineEntry[]>([])
+  const [timelineLoading, setTimelineLoading] = useState(false)
+  const [timelineError, setTimelineError] = useState<string | null>(null)
 
   const [confirmingPlaybookAlertId, setConfirmingPlaybookAlertId] = useState<string | null>(null)
   const [playbookBusy, setPlaybookBusy] = useState(false)
@@ -135,27 +143,104 @@ export default function AlertsPage() {
     }
   }
 
+  const fetchFilterOptions = async () => {
+    try {
+      const res = await apiClient.get('/api/alerts/filters')
+      setFilterOptions(normalizeFilterValues(res.data))
+    } catch (e) {
+      console.error('Failed to fetch filter values:', e)
+      // Non-fatal — dropdowns just show "All X" only, never fake options.
+    }
+  }
+
+  const fetchAnalytics = async () => {
+    try {
+      const res = await apiClient.get('/api/alerts/analytics')
+      setAnalytics(normalizeAnalytics(res.data))
+      setAnalyticsError(null)
+    } catch (e) {
+      console.error('Failed to fetch alert analytics:', e)
+      setAnalyticsError('Unable to load analytics.')
+    }
+  }
+
   useEffect(() => {
     fetchAlerts()
     fetchIncidents()
+    fetchFilterOptions()
+    fetchAnalytics()
+
+    const pollInterval = setInterval(fetchAnalytics, 30000)
 
     const sub = wsClient.subscribe('/topic/alerts', (message) => {
       try {
-        const newAlert = JSON.parse(message.body)
+        const incoming: Alert = JSON.parse(message.body)
         setAlerts(prev => {
-          if (prev.some(a => a.id === newAlert.id)) return prev
-          return [newAlert, ...prev]
+          const idx = prev.findIndex(a => a.id === incoming.id)
+          if (idx === -1) return [incoming, ...prev]
+          const next = [...prev]
+          next[idx] = incoming
+          return next
         })
+        setSelectedAlert(prev => (prev && prev.id === incoming.id ? incoming : prev))
+        fetchAnalytics()
       } catch (e) {
         console.error('Malformed WebSocket message:', e)
         fetchAlerts()
       }
     })
-    
-    return () => { 
+
+    const incSub = wsClient.subscribe('/topic/incidents', (message) => {
+      try {
+        const incoming = JSON.parse(message.body)
+        if (incoming?.deleted) {
+          setIncidents(prev => prev.filter(i => i.id !== incoming.id))
+          setSelectedIncident(prev => (prev && prev.id === incoming.id ? null : prev))
+          return
+        }
+        setIncidents(prev => {
+          const idx = prev.findIndex(i => i.id === incoming.id)
+          if (idx === -1) return [incoming, ...prev]
+          const next = [...prev]
+          next[idx] = incoming
+          return next
+        })
+        setSelectedIncident(prev => (prev && prev.id === incoming.id ? incoming : prev))
+      } catch (e) {
+        console.error('Malformed WebSocket message:', e)
+        fetchIncidents()
+      }
+    })
+
+    return () => {
+      clearInterval(pollInterval)
       sub.then(s => s?.unsubscribe())
+      incSub.then(s => s?.unsubscribe())
     }
   }, [])
+
+  const fetchTimeline = () => {
+    const entityId = selectedAlert?.id ?? selectedIncident?.id
+    const kind = selectedAlert ? 'alerts' : selectedIncident ? 'incidents' : null
+    if (!entityId || !kind) {
+      setTimeline([])
+      setTimelineError(null)
+      return
+    }
+    setTimelineLoading(true)
+    setTimelineError(null)
+    apiClient.get(`/api/${kind}/${entityId}/timeline`)
+      .then(res => setTimeline(Array.isArray(res.data) ? res.data : []))
+      .catch((e) => {
+        console.error('Failed to fetch investigation timeline:', e)
+        setTimelineError('Unable to load investigation timeline.')
+      })
+      .finally(() => setTimelineLoading(false))
+  }
+
+  useEffect(() => {
+    fetchTimeline()
+  }, [selectedAlert?.id, selectedIncident?.id])
 
   const handleAssignToMe = async (alertId: string) => {
     try {
@@ -350,24 +435,29 @@ export default function AlertsPage() {
       const matchesSearch = a.title.toLowerCase().includes(searchTerm.toLowerCase()) || a.id.toLowerCase().includes(searchTerm.toLowerCase())
       if (!matchesSearch) return false
 
-      if (severityFilter === 'CRITICAL') return a.severity === 'CRITICAL'
-      if (severityFilter === 'HIGH') return a.severity === 'HIGH'
-      if (severityFilter === 'OPEN') return a.status === 'OPEN'
+      if (severityFilter === 'CRITICAL' && a.severity !== 'CRITICAL') return false
+      if (severityFilter === 'HIGH' && a.severity !== 'HIGH') return false
+      if (severityFilter === 'OPEN' && a.status !== 'OPEN') return false
+      if (sourceFilter !== 'ALL' && a.source !== sourceFilter) return false
+      if (statusFilter !== 'ALL' && a.status !== statusFilter) return false
+      if (ownerFilter !== 'ALL' && a.ownerId !== ownerFilter) return false
       return true
     })
-  }, [alerts, searchTerm, severityFilter])
+  }, [alerts, searchTerm, severityFilter, sourceFilter, statusFilter, ownerFilter])
 
   const filteredIncidents = useMemo(() => {
     return incidents.filter(i => {
       const matchesSearch = i.title.toLowerCase().includes(searchTerm.toLowerCase()) || i.incidentNumber.toLowerCase().includes(searchTerm.toLowerCase())
       if (!matchesSearch) return false
 
-      if (severityFilter === 'CRITICAL') return i.severity === 'CRITICAL'
-      if (severityFilter === 'HIGH') return i.severity === 'HIGH'
-      if (severityFilter === 'OPEN') return i.status === 'OPEN'
+      if (severityFilter === 'CRITICAL' && i.severity !== 'CRITICAL') return false
+      if (severityFilter === 'HIGH' && i.severity !== 'HIGH') return false
+      if (severityFilter === 'OPEN' && i.status !== 'OPEN') return false
+      if (statusFilter !== 'ALL' && i.status !== statusFilter) return false
+      if (ownerFilter !== 'ALL' && i.ownerId !== ownerFilter) return false
       return true
     })
-  }, [incidents, searchTerm, severityFilter])
+  }, [incidents, searchTerm, severityFilter, statusFilter, ownerFilter])
 
   const parsedEvent = useMemo(() => {
     if (!selectedAlert || !selectedAlert.rawEvent) return null
@@ -404,6 +494,15 @@ export default function AlertsPage() {
     return indicators
   }, [selectedAlert, parsedEvent])
 
+  /** Real per-action icon/color for the Investigation Timeline — derived from the actual audit action string, never a fixed sequence. */
+  const getTimelineIconMeta = (action: string) => {
+    if (action.includes('LABELED') || action.includes('MITIGAT')) return { icon: '↺', colorClass: 'green' }
+    if (action.includes('STATUS_CHANGE')) return { icon: '🔍', colorClass: 'amber' }
+    if (action.includes('CREATE')) return { icon: '👤', colorClass: 'blue' }
+    if (action.includes('DELETE')) return { icon: '⊘', colorClass: 'red' }
+    return { icon: '📝', colorClass: 'cyan' }
+  }
+
   const getStatusLabelClass = (status: string) => {
     const s = status?.toUpperCase() || 'OPEN'
     if (s === 'OPEN' || s === 'ACTIVE') return 'text-red font-semibold'
@@ -412,56 +511,68 @@ export default function AlertsPage() {
     return 'text-muted font-semibold'
   }
 
-  // Top Alert Sources donut calculations
-  const sources = useMemo(() => {
-    let explorer = 0, expCorr = 0, corr = 0, asset = 0, other = 0
-    alerts.forEach(a => {
-      const src = (a.source || '').toLowerCase()
-      if (src.includes('explorer') && src.includes('correlation')) expCorr++
-      else if (src.includes('explorer') || src.includes('spl')) explorer++
-      else if (src.includes('correlation') || src.includes('rule')) corr++
-      else if (src.includes('asset') || src.includes('intel') || src.includes('cmdb')) asset++
-      else other++
-    })
-    return { explorer, expCorr, corr, asset, other }
-  }, [alerts])
-
-  const donutSlices = useMemo(() => {
-    const total = sources.explorer + sources.expCorr + sources.corr + sources.asset + sources.other
-    const totalVal = total > 0 ? total : 1
+  // Top Alert Sources donut — real per-actual-source-value counts from the
+  // backend's GROUP BY aggregation, ranked, top 4 + "Other" so an arbitrary
+  // number of distinct real sources still renders legibly. Replaces the
+  // previous substring-heuristic buckets that didn't correspond to any real
+  // source value.
+  const sourceSlices = useMemo(() => {
+    if (!analytics) return []
+    const entries = Object.entries(analytics.sourceCounts).sort((a, b) => b[1] - a[1])
+    const top = entries.slice(0, 4)
+    const otherTotal = entries.slice(4).reduce((sum, [, c]) => sum + c, 0)
+    const all: [string, number][] = otherTotal > 0 ? [...top, ['Other', otherTotal]] : top
+    const total = all.reduce((sum, [, c]) => sum + c, 0) || 1
     const circ = 2 * Math.PI * 58 // ~364.42
+    let offsetAcc = 0
+    return all.map(([label, count], i) => {
+      const dash = (count / total) * circ
+      const slice = { label, count, dash, offset: -offsetAcc, color: DONUT_COLORS[i % DONUT_COLORS.length] }
+      offsetAcc += dash
+      return slice
+    })
+  }, [analytics])
+  const sourceSlicesCirc = 2 * Math.PI * 58
 
-    const expDash = (sources.explorer / totalVal) * circ
-    const expCorrDash = (sources.expCorr / totalVal) * circ
-    const corrDash = (sources.corr / totalVal) * circ
-    const assetDash = (sources.asset / totalVal) * circ
-    const otherDash = (sources.other / totalVal) * circ
-
-    return {
-      circ,
-      explorer: { dash: expDash, offset: 0 },
-      expCorr: { dash: expCorrDash, offset: -expDash },
-      corr: { dash: corrDash, offset: -(expDash + expCorrDash) },
-      asset: { dash: assetDash, offset: -(expDash + expCorrDash + corrDash) },
-      other: { dash: otherDash, offset: -(expDash + expCorrDash + corrDash + assetDash) }
-    }
-  }, [sources])
-
-  // Workflow status bars calculations
+  // Workflow status bars — real status counts from the backend's GROUP BY
+  // aggregation (single source of truth with Quick Summary's own counts).
   const workflowCounts = useMemo(() => {
-    const triage = alerts.filter(a => a.status === 'OPEN').length
-    const progress = alerts.filter(a => a.status === 'ASSIGNED' || a.status === 'INVESTIGATING').length
-    const fp = alerts.filter(a => a.status === 'DISMISSED').length
-    const remediated = alerts.filter(a => a.status === 'MITIGATED').length
+    const counts = analytics?.statusCounts || {}
+    const triage = counts['OPEN'] || 0
+    const progress = (counts['ASSIGNED'] || 0) + (counts['INVESTIGATING'] || 0)
+    const fp = counts['DISMISSED'] || 0
+    const remediated = counts['MITIGATED'] || 0
     const max = Math.max(triage, progress, fp, remediated, 1)
-    
+
     return {
       triage: (triage / max) * 100,
       progress: (progress / max) * 100,
       fp: (fp / max) * 100,
       remediated: (remediated / max) * 100
     }
-  }, [alerts])
+  }, [analytics])
+
+  // Real Severity Trend line points, computed from the backend's real
+  // time-bucketed counts — replaces the previous literal hardcoded
+  // <polyline> coordinates.
+  const trendPoints = useMemo(() => {
+    const buckets = analytics?.trend.buckets || []
+    if (buckets.length === 0) return { critical: '', high: '', medium: '' }
+    const max = Math.max(1, ...buckets.flatMap(b => Object.values(b.counts)))
+    const toY = (v: number) => 160 - (v / max) * 160
+    const toX = (i: number) => (buckets.length > 1 ? (i / (buckets.length - 1)) * 320 : 160)
+    const line = (sev: string) => buckets.map((b, i) => `${toX(i)},${toY(b.counts[sev] || 0)}`).join(' ')
+    return { critical: line('CRITICAL'), high: line('HIGH'), medium: line('MEDIUM') }
+  }, [analytics])
+
+  const trendAxisLabels = useMemo(() => {
+    const buckets = analytics?.trend.buckets || []
+    if (buckets.length === 0) return []
+    const step = Math.max(1, Math.ceil(buckets.length / 6))
+    return buckets
+      .map((b, i) => ({ i, label: new Date(b.bucketStart).toLocaleTimeString([], { hour: '2-digit' }) }))
+      .filter(({ i }) => i % step === 0 || i === buckets.length - 1)
+  }, [analytics])
 
   // Recent alerts ticker calculations
   const tickerAlerts = useMemo(() => {
@@ -517,9 +628,24 @@ export default function AlertsPage() {
                   : 'Incidents — high-priority security incidents escalated from investigations'}
               </p>
               <div className="filters">
-                <div className="select-pill">Source ⌄</div>
-                <div className="select-pill">Status ⌄</div>
-                <div className="select-pill">Owner ⌄</div>
+                <div className="select-pill">
+                  <select value={sourceFilter} onChange={(e) => setSourceFilter(e.target.value)}>
+                    <option value="ALL">All Sources</option>
+                    {filterOptions.sources.map(s => <option key={s} value={s}>{s}</option>)}
+                  </select>
+                </div>
+                <div className="select-pill">
+                  <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
+                    <option value="ALL">All Statuses</option>
+                    {filterOptions.statuses.map(s => <option key={s} value={s}>{s}</option>)}
+                  </select>
+                </div>
+                <div className="select-pill">
+                  <select value={ownerFilter} onChange={(e) => setOwnerFilter(e.target.value)}>
+                    <option value="ALL">All Owners</option>
+                    {filterOptions.owners.map(o => <option key={o} value={o}>{o}</option>)}
+                  </select>
+                </div>
                 <div className="chip-row">
                   <div className={clsx("chip", severityFilter === 'ALL' && "on")} onClick={() => setSeverityFilter('ALL')}>All</div>
                   <div className={clsx("chip", severityFilter === 'CRITICAL' && "on")} onClick={() => setSeverityFilter('CRITICAL')}>Critical</div>
@@ -531,6 +657,15 @@ export default function AlertsPage() {
 
             <div className="overflow-x-auto">
               <table>
+                <colgroup>
+                  <col style={{ width: '90px' }} />
+                  <col style={{ width: 'auto' }} />
+                  <col style={{ width: '80px' }} />
+                  <col style={{ width: '130px' }} />
+                  <col style={{ width: '120px' }} />
+                  <col style={{ width: '140px' }} />
+                  <col style={{ width: '150px' }} />
+                </colgroup>
                 <thead>
                   {activeTab === 'ALERTS' ? (
                     <tr>
@@ -592,52 +727,54 @@ export default function AlertsPage() {
                           className={clsx(isSelected && "selected")}
                         >
                           <td style={{ fontWeight: 700 }}>{alert.id}</td>
-                          <td style={{ fontWeight: 700 }}>
-                            {alert.title}
-                            {alert.isAnomaly && (
-                              <span
-                                className="sev-badge high"
-                                style={{ marginLeft: 6, fontSize: '0.7em', verticalAlign: 'middle' }}
-                                title={`Anomaly score ${alert.anomalyScore?.toFixed(2) ?? '—'} (ai-service)${alert.anomalyFeatures ? ` — drivers: ${alert.anomalyFeatures}` : ''}`}
-                              >
-                                ⚠ Anomaly
-                              </span>
-                            )}
-                            {alert.riskScore != null && (
-                              <span
-                                className="sev-badge medium"
-                                style={{ marginLeft: 6, fontSize: '0.7em', verticalAlign: 'middle' }}
-                                title="Rule-authored risk score"
-                              >
-                                Risk {alert.riskScore}
-                              </span>
-                            )}
-                            {alert.mitreTechniques?.map((t) => (
-                              <span
-                                key={t}
-                                className="sev-badge medium"
-                                style={{ marginLeft: 6, fontSize: '0.7em', verticalAlign: 'middle' }}
-                                title="MITRE ATT&CK technique"
-                              >
-                                {t}
-                              </span>
-                            ))}
-                            {alert.iocMatched && (
-                              <span
-                                className="sev-badge critical"
-                                style={{ marginLeft: 6, fontSize: '0.7em', verticalAlign: 'middle' }}
-                                title={`Known threat indicator — ${alert.iocSeverity ?? '—'} (${alert.iocSource ?? 'threat intel'})`}
-                              >
-                                ⚠ IOC Match
-                              </span>
-                            )}
+                          <td className="title-cell" style={{ fontWeight: 700 }}>
+                            <span className="title-text" title={alert.title}>{alert.title}</span>
+                            <div className="badge-row">
+                              {alert.isAnomaly && (
+                                <span
+                                  className="sev-badge high"
+                                  style={{ fontSize: '0.7em' }}
+                                  title={`Anomaly score ${alert.anomalyScore?.toFixed(2) ?? '—'} (ai-service)${alert.anomalyFeatures ? ` — drivers: ${alert.anomalyFeatures}` : ''}`}
+                                >
+                                  ⚠ Anomaly
+                                </span>
+                              )}
+                              {alert.riskScore != null && (
+                                <span
+                                  className="sev-badge medium"
+                                  style={{ fontSize: '0.7em' }}
+                                  title="Rule-authored risk score"
+                                >
+                                  Risk {alert.riskScore}
+                                </span>
+                              )}
+                              {alert.mitreTechniques?.map((t) => (
+                                <span
+                                  key={t}
+                                  className="sev-badge medium"
+                                  style={{ fontSize: '0.7em' }}
+                                  title="MITRE ATT&CK technique"
+                                >
+                                  {t}
+                                </span>
+                              ))}
+                              {alert.iocMatched && (
+                                <span
+                                  className="sev-badge critical"
+                                  style={{ fontSize: '0.7em' }}
+                                  title={`Known threat indicator — ${alert.iocSeverity ?? '—'} (${alert.iocSource ?? 'threat intel'})`}
+                                >
+                                  ⚠ IOC Match
+                                </span>
+                              )}
+                            </div>
                           </td>
                           <td>
                             <span className={clsx("sev-badge", severity)}>{badgeChar}</span>
                           </td>
-                          <td>{alert.source}</td>
+                          <td className="ellipsis-cell" title={alert.source || undefined}>{alert.source}</td>
                           <td className={getStatusLabelClass(alert.status)}>{alert.status}</td>
-                          <td className="owner-name font-mono">{alert.ownerId || '—'}</td>
+                          <td className="owner-name ellipsis-cell font-mono" title={alert.ownerName || alert.ownerId || undefined}>{alert.ownerName || alert.ownerId || '—'}</td>
                           <td onClick={(e) => e.stopPropagation()}>
                             <div className="row-actions">
                               <button
@@ -687,13 +824,15 @@ export default function AlertsPage() {
                           className={clsx(isSelected && "selected")}
                         >
                           <td style={{ fontWeight: 700 }}>{inc.incidentNumber}</td>
-                          <td style={{ fontWeight: 700 }}>{inc.title}</td>
+                          <td className="title-cell" style={{ fontWeight: 700 }}>
+                            <span className="title-text" title={inc.title}>{inc.title}</span>
+                          </td>
                           <td>
                             <span className={clsx("sev-badge", severity)}>{badgeChar}</span>
                           </td>
-                          <td>{inc.alertId ? `Alert ${inc.alertId}` : 'Manual'}</td>
+                          <td className="ellipsis-cell">{inc.alertId ? `Alert ${inc.alertId}` : 'Manual'}</td>
                           <td className={getStatusLabelClass(inc.status)}>{inc.status}</td>
-                          <td className="owner-name font-mono">{inc.ownerName || inc.ownerId || '—'}</td>
+                          <td className="owner-name ellipsis-cell font-mono" title={inc.ownerName || inc.ownerId || undefined}>{inc.ownerName || inc.ownerId || '—'}</td>
                           <td onClick={(e) => e.stopPropagation()}>
                             <div className="row-actions">
                               <button
@@ -1042,56 +1181,82 @@ export default function AlertsPage() {
           <div className="chart-card">
             <div className="chart-head">
               <h3>Alert Severity Trend</h3>
-              <div className="date-pill">📅 5 Jan, 24h - 24h, 2023</div>
-              <div className="range-pill">Past 24h ⌄</div>
+              {analytics && (
+                <div className="date-pill">
+                  📅 {new Date(analytics.trend.fromEpochMs).toLocaleDateString()} – {new Date(analytics.trend.toEpochMs).toLocaleDateString()}
+                </div>
+              )}
+              <div className="range-pill">Past 24h</div>
             </div>
-            <div style={{ display: 'flex', gap: '16px', alignItems: 'flex-start' }}>
-              <svg viewBox="0 0 320 200" width="100%" height="200" style={{ flex: 1 }}>
-                <line x1="0" y1="0" x2="320" y2="0" stroke="var(--svg-grid-line)" />
-                <line x1="0" y1="40" x2="320" y2="40" stroke="var(--svg-grid-line)" />
-                <line x1="0" y1="80" x2="320" y2="80" stroke="var(--svg-grid-line)" />
-                <line x1="0" y1="120" x2="320" y2="120" stroke="var(--svg-grid-line)" />
-                <line x1="0" y1="160" x2="320" y2="160" stroke="var(--svg-grid-line)" />
-                <polyline points="0,60 45,50 90,65 135,15 180,55 225,45 270,25 315,15" fill="none" stroke="var(--red)" strokeWidth="2.5" />
-                <polyline points="0,140 45,120 90,135 135,90 180,150 225,110 270,140 315,110" fill="none" stroke="var(--amber)" strokeWidth="2.5" />
-                <polyline points="0,155 45,150 90,158 135,140 180,152 225,148 270,155 315,150" fill="none" stroke="#facc15" strokeWidth="2" />
-              </svg>
-              <div className="legend-list" style={{ flex: 'none', paddingTop: '4px' }}>
-                <div><span className="d" style={{ background: 'var(--red)' }}></span>Critical</div>
-                <div><span className="d" style={{ background: 'var(--amber)' }}></span>High</div>
-                <div><span className="d" style={{ background: '#facc15' }}></span>Medium</div>
-                <div><span className="line" style={{ background: '#94a3b8' }}></span>Laser 24h</div>
+            {!analytics && !analyticsError && (
+              <div className="chart-empty-state">Loading trend…</div>
+            )}
+            {analyticsError && (
+              <div className="chart-empty-state">
+                <span>{analyticsError}</span>
+                <button className="btn-mission text-small px-3 py-1.5" onClick={fetchAnalytics}>Retry</button>
               </div>
-            </div>
-            <div style={{ display: 'flex', justifySelf: 'stretch', justifyContent: 'space-between', fontSize: '11px', color: 'var(--dim)', fontWeight: 700, marginTop: '4px' }}>
-              <span>Past 0</span><span>Pax 4</span><span>Pao 8</span><span>Pat 12</span><span>Pat 18</span><span>Pat 24</span>
-            </div>
+            )}
+            {analytics && !analyticsError && analytics.trend.buckets.length === 0 && (
+              <div className="chart-empty-state">No alert activity in this period</div>
+            )}
+            {analytics && !analyticsError && analytics.trend.buckets.length > 0 && (
+              <>
+                <div style={{ display: 'flex', gap: '16px', alignItems: 'flex-start' }}>
+                  <svg viewBox="0 0 320 200" width="100%" height="200" style={{ flex: 1 }}>
+                    <line x1="0" y1="0" x2="320" y2="0" stroke="var(--svg-grid-line)" />
+                    <line x1="0" y1="40" x2="320" y2="40" stroke="var(--svg-grid-line)" />
+                    <line x1="0" y1="80" x2="320" y2="80" stroke="var(--svg-grid-line)" />
+                    <line x1="0" y1="120" x2="320" y2="120" stroke="var(--svg-grid-line)" />
+                    <line x1="0" y1="160" x2="320" y2="160" stroke="var(--svg-grid-line)" />
+                    <polyline points={trendPoints.critical} fill="none" stroke="var(--red)" strokeWidth="2.5" />
+                    <polyline points={trendPoints.high} fill="none" stroke="var(--amber)" strokeWidth="2.5" />
+                    <polyline points={trendPoints.medium} fill="none" stroke="#facc15" strokeWidth="2" />
+                  </svg>
+                  <div className="legend-list" style={{ flex: 'none', paddingTop: '4px' }}>
+                    <div><span className="d" style={{ background: 'var(--red)' }}></span>Critical</div>
+                    <div><span className="d" style={{ background: 'var(--amber)' }}></span>High</div>
+                    <div><span className="d" style={{ background: '#facc15' }}></span>Medium</div>
+                  </div>
+                </div>
+                <div style={{ display: 'flex', justifySelf: 'stretch', justifyContent: 'space-between', fontSize: '11px', color: 'var(--dim)', fontWeight: 700, marginTop: '4px' }}>
+                  {trendAxisLabels.map(({ i, label }) => <span key={i}>{label}</span>)}
+                </div>
+              </>
+            )}
           </div>
 
           <div className="chart-card">
             <div className="chart-head">
               <h3>Top Alert Sources</h3>
             </div>
-            <div className="donut-row">
-              <svg viewBox="0 0 160 160" width="150" height="150" style={{ transform: 'rotate(-90deg)' }}>
-                <circle cx="80" cy="80" r="58" fill="none" stroke="var(--blue)" strokeWidth="24" strokeDasharray={`${donutSlices.explorer.dash} ${donutSlices.circ - donutSlices.explorer.dash}`} strokeDashoffset={donutSlices.explorer.offset} />
-                <circle cx="80" cy="80" r="58" fill="none" stroke="var(--cyan)" strokeWidth="24" strokeDasharray={`${donutSlices.expCorr.dash} ${donutSlices.circ - donutSlices.expCorr.dash}`} strokeDashoffset={donutSlices.expCorr.offset} />
-                <circle cx="80" cy="80" r="58" fill="none" stroke="var(--amber)" strokeWidth="24" strokeDasharray={`${donutSlices.corr.dash} ${donutSlices.circ - donutSlices.corr.dash}`} strokeDashoffset={donutSlices.corr.offset} />
-                <circle cx="80" cy="80" r="58" fill="none" stroke="var(--purple)" strokeWidth="24" strokeDasharray={`${donutSlices.asset.dash} ${donutSlices.circ - donutSlices.asset.dash}`} strokeDashoffset={donutSlices.asset.offset} />
-                <circle cx="80" cy="80" r="58" fill="none" stroke="#94a3b8" strokeWidth="24" strokeDasharray={`${donutSlices.other.dash} ${donutSlices.circ - donutSlices.other.dash}`} strokeDashoffset={donutSlices.other.offset} />
-              </svg>
-              <div className="legend-list">
-                <div><span className="d" style={{ background: 'var(--blue)' }}></span>Log Explorer<span className="n" style={{ marginLeft: '12px' }}>{sources.explorer}</span></div>
-                <div><span className="d" style={{ background: 'var(--cyan)' }}></span>Log &amp; Correlation<span className="n" style={{ marginLeft: '12px' }}>{sources.expCorr}</span></div>
-                <div><span className="d" style={{ background: 'var(--amber)' }}></span>Correlation<span className="n" style={{ marginLeft: '12px' }}>{sources.corr}</span></div>
-                <div><span className="d" style={{ background: 'var(--purple)' }}></span>Asset Intel<span className="n" style={{ marginLeft: '12px' }}>{sources.asset}</span></div>
-                <div><span className="d" style={{ background: '#94a3b8' }}></span>Others<span className="n" style={{ marginLeft: '12px' }}>{sources.other}</span></div>
+            {sourceSlices.length === 0 ? (
+              <div className="chart-empty-state">No alert sources yet</div>
+            ) : (
+              <div className="donut-row">
+                <svg viewBox="0 0 160 160" width="150" height="150" style={{ transform: 'rotate(-90deg)' }}>
+                  {sourceSlices.map(slice => (
+                    <circle
+                      key={slice.label}
+                      cx="80" cy="80" r="58" fill="none"
+                      stroke={slice.color}
+                      strokeWidth="24"
+                      strokeDasharray={`${slice.dash} ${sourceSlicesCirc - slice.dash}`}
+                      strokeDashoffset={slice.offset}
+                    />
+                  ))}
+                </svg>
+                <div className="legend-list">
+                  {sourceSlices.map(slice => (
+                    <div key={slice.label} className="ellipsis-cell" title={slice.label}>
+                      <span className="d" style={{ background: slice.color }}></span>
+                      {slice.label}
+                      <span className="n" style={{ marginLeft: '12px' }}>{slice.count}</span>
+                    </div>
+                  ))}
+                </div>
               </div>
-              <div className="donut-tooltip">
-                Past 24h
-                <div className="row"><span className="d"></span>Correlation {sources.corr}</div>
-              </div>
-            </div>
+            )}
           </div>
 
           <div className="chart-card">
@@ -1112,36 +1277,55 @@ export default function AlertsPage() {
           <div className="bottom-card">
             <h3>Live Alert Ticker</h3>
             <div className="ticker-list">
-              {tickerAlerts.map((item, idx) => (
-                <div key={idx} className="ticker-item">
-                  <span className="tdot"></span>
-                  <b>{item.title}:</b> {item.desc}
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div className="bottom-card">
-            <h3>Alert Workflow Status</h3>
-            <div className="bars-simple">
-              <div className="bcol"><div className="bar" style={{ height: `${workflowCounts.triage}%` }}></div><div className="lbl">Triage</div></div>
-              <div className="bcol"><div className="bar" style={{ height: `${workflowCounts.progress}%` }}></div><div className="lbl">In Progress</div></div>
-              <div className="bcol"><div className="bar" style={{ height: `${workflowCounts.fp}%` }}></div><div className="lbl">Closed-FP</div></div>
-              <div className="bcol"><div className="bar" style={{ height: `${workflowCounts.remediated}%` }}></div><div className="lbl">Mitigated</div></div>
+              {tickerAlerts.length === 0 ? (
+                <div className="chart-empty-state">No recent alerts</div>
+              ) : (
+                tickerAlerts.map((item, idx) => (
+                  <div key={idx} className="ticker-item">
+                    <span className="tdot"></span>
+                    <b>{item.title}:</b> {item.desc}
+                  </div>
+                ))
+              )}
             </div>
           </div>
 
           <div className="bottom-card">
             <h3>Alert Investigation Timeline</h3>
-            <div className="invest-flow">
-              <div className="invest-step"><div className="invest-icon blue">👤</div><div className="invest-lbl">Assignment Seen</div></div>
-              <div className="invest-arrow">→</div>
-              <div className="invest-step"><div className="invest-icon cyan">🔍</div><div className="invest-lbl">Investigation</div></div>
-              <div className="invest-arrow">→</div>
-              <div className="invest-step"><div className="invest-icon amber">⏱</div><div className="invest-lbl">Escalated</div></div>
-              <div className="invest-arrow">→</div>
-              <div className="invest-step"><div className="invest-icon red">↺</div><div className="invest-lbl">Remediate / Dismiss</div></div>
-            </div>
+            {!(selectedAlert || selectedIncident) && (
+              <div className="chart-empty-state">Select an alert or incident to view its history</div>
+            )}
+            {(selectedAlert || selectedIncident) && timelineLoading && (
+              <div className="chart-empty-state">Loading timeline…</div>
+            )}
+            {(selectedAlert || selectedIncident) && !timelineLoading && timelineError && (
+              <div className="chart-empty-state">
+                <span>{timelineError}</span>
+                <button className="btn-mission text-small px-3 py-1.5" onClick={fetchTimeline}>Retry</button>
+              </div>
+            )}
+            {(selectedAlert || selectedIncident) && !timelineLoading && !timelineError && timeline.length === 0 && (
+              <div className="chart-empty-state">No investigation activity recorded yet</div>
+            )}
+            {(selectedAlert || selectedIncident) && !timelineLoading && !timelineError && timeline.length > 0 && (
+              <div className="invest-flow">
+                {timeline.map((entry, idx) => {
+                  const meta = getTimelineIconMeta(entry.action)
+                  return (
+                    <React.Fragment key={entry.id}>
+                      {idx > 0 && <div className="invest-arrow">→</div>}
+                      <div
+                        className="invest-step"
+                        title={`${entry.action} by ${entry.user ?? 'unknown'} at ${new Date(entry.timestamp).toLocaleString()}`}
+                      >
+                        <div className={clsx('invest-icon', meta.colorClass)}>{meta.icon}</div>
+                        <div className="invest-lbl">{entry.action.replaceAll('_', ' ')}</div>
+                      </div>
+                    </React.Fragment>
+                  )
+                })}
+              </div>
+            )}
           </div>
         </div>
       </div>

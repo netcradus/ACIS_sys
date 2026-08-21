@@ -3,6 +3,7 @@ package com.netcradus.acis.alerts.service;
 import com.netcradus.acis.alerts.model.Alert;
 import com.netcradus.acis.alerts.repository.AlertRepository;
 import com.netcradus.acis.common.dto.AlertDto;
+import com.netcradus.acis.common.exception.NotFoundException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
@@ -64,6 +65,29 @@ public class AlertService {
         return results.stream()
                 .map(this::convertToDto)
                 .collect(Collectors.toList());
+    }
+
+    /**
+     * Real status-change write + broadcast — previously AlertController's
+     * updateStatus called alertRepository.save() directly, bypassing this
+     * service entirely, which is why only createAlert ever broadcast over
+     * WebSocket. Status/owner changes now reach /topic/alerts too, so the
+     * panel reflects them live instead of silently dropping the message.
+     */
+    @Transactional
+    public Alert updateStatus(String id, String status, String tenantId) {
+        Alert alert = repository.findByIdAndTenantId(id, tenantId)
+                .orElseThrow(() -> new NotFoundException("Alert not found"));
+        alert.setStatus(status);
+        return saveAndBroadcast(alert);
+    }
+
+    /** Real persist + broadcast for an already-mutated Alert — reused by AlertController's generic PUT /{id} after it applies/validates the requested field changes. */
+    @Transactional
+    public Alert saveAndBroadcast(Alert alert) {
+        Alert saved = repository.save(alert);
+        messagingTemplate.convertAndSend("/topic/alerts", convertToDto(saved));
+        return saved;
     }
 
     private AlertDto convertToDto(Alert alert) {
