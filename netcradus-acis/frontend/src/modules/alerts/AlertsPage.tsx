@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react'
-import { Plus, Search, X, Zap, Sparkles, ChevronRight, Sliders } from 'lucide-react'
+import { Search, X, Zap, Sparkles, User, Pencil, Ban } from 'lucide-react'
 import apiClient from '@/lib/apiClient'
 import wsClient from '@/lib/wsClient'
 import keycloak from '@/lib/keycloak'
@@ -618,8 +618,8 @@ export default function AlertsPage() {
           
           {/* Main Table */}
           <div className={clsx(
-            "table-panel transition-all duration-300",
-            (selectedAlert || selectedIncident) ? "md:col-span-8" : "md:col-span-12"
+            "table-panel transition-all duration-300 min-w-0",
+            (selectedAlert || selectedIncident) ? "md:col-span-12 lg:col-span-8" : "md:col-span-12"
           )}>
             <div className="table-top">
               <p>
@@ -658,13 +658,13 @@ export default function AlertsPage() {
             <div className="overflow-x-auto">
               <table>
                 <colgroup>
-                  <col style={{ width: '90px' }} />
-                  <col style={{ width: 'auto' }} />
-                  <col style={{ width: '80px' }} />
-                  <col style={{ width: '130px' }} />
-                  <col style={{ width: '120px' }} />
+                  <col style={{ width: '84px' }} />
+                  <col style={{ width: '34%' }} />
+                  <col style={{ width: '64px' }} />
+                  <col style={{ width: '15%' }} />
+                  <col style={{ width: '100px' }} />
+                  <col style={{ width: '15%' }} />
                   <col style={{ width: '140px' }} />
-                  <col style={{ width: '150px' }} />
                 </colgroup>
                 <thead>
                   {activeTab === 'ALERTS' ? (
@@ -732,8 +732,7 @@ export default function AlertsPage() {
                             <div className="badge-row">
                               {alert.isAnomaly && (
                                 <span
-                                  className="sev-badge high"
-                                  style={{ fontSize: '0.7em' }}
+                                  className="meta-badge tone-high"
                                   title={`Anomaly score ${alert.anomalyScore?.toFixed(2) ?? '—'} (ai-service)${alert.anomalyFeatures ? ` — drivers: ${alert.anomalyFeatures}` : ''}`}
                                 >
                                   ⚠ Anomaly
@@ -741,8 +740,7 @@ export default function AlertsPage() {
                               )}
                               {alert.riskScore != null && (
                                 <span
-                                  className="sev-badge medium"
-                                  style={{ fontSize: '0.7em' }}
+                                  className="meta-badge tone-medium"
                                   title="Rule-authored risk score"
                                 >
                                   Risk {alert.riskScore}
@@ -751,8 +749,7 @@ export default function AlertsPage() {
                               {alert.mitreTechniques?.map((t) => (
                                 <span
                                   key={t}
-                                  className="sev-badge medium"
-                                  style={{ fontSize: '0.7em' }}
+                                  className="meta-badge tone-info"
                                   title="MITRE ATT&CK technique"
                                 >
                                   {t}
@@ -760,8 +757,7 @@ export default function AlertsPage() {
                               ))}
                               {alert.iocMatched && (
                                 <span
-                                  className="sev-badge critical"
-                                  style={{ fontSize: '0.7em' }}
+                                  className="meta-badge tone-critical"
                                   title={`Known threat indicator — ${alert.iocSeverity ?? '—'} (${alert.iocSource ?? 'threat intel'})`}
                                 >
                                   ⚠ IOC Match
@@ -780,33 +776,37 @@ export default function AlertsPage() {
                               <button
                                 className="row-action-btn"
                                 title="Assign to Me"
+                                aria-label={`Assign alert ${alert.id} to me`}
                                 onClick={() => handleAssignToMe(alert.id)}
                                 disabled={alert.ownerId === currentUsername || !canWrite}
                               >
-                                👤
+                                <User className="w-3.5 h-3.5" />
                               </button>
                               <button
                                 className="row-action-btn"
                                 title="Details"
+                                aria-label={`View details for alert ${alert.id}`}
                                 onClick={() => { setSelectedAlert(alert); setSelectedIncident(null); }}
                               >
-                                ✎
+                                <Pencil className="w-3.5 h-3.5" />
                               </button>
                               <button
                                 className="row-action-btn"
                                 title="SOAR Playbook"
+                                aria-label={`Run SOAR playbook on alert ${alert.id}`}
                                 onClick={() => setConfirmingPlaybookAlertId(alert.id)}
                                 disabled={!canWrite}
                               >
-                                ⚙
+                                <Zap className="w-3.5 h-3.5" />
                               </button>
                               <button
                                 className="row-action-btn"
                                 title="Dismiss Alert"
+                                aria-label={`Dismiss alert ${alert.id}`}
                                 onClick={() => handleUpdateStatus(alert.id, 'DISMISSED')}
                                 disabled={!canWrite}
                               >
-                                ⊘
+                                <Ban className="w-3.5 h-3.5" />
                               </button>
                             </div>
                           </td>
@@ -838,17 +838,19 @@ export default function AlertsPage() {
                               <button
                                 className="row-action-btn"
                                 title="Details"
+                                aria-label={`View details for incident ${inc.incidentNumber}`}
                                 onClick={() => { setSelectedIncident(inc); setSelectedAlert(null); }}
                               >
-                                ✎
+                                <Pencil className="w-3.5 h-3.5" />
                               </button>
                               <button
                                 className="row-action-btn"
                                 title="Mark Mitigated"
+                                aria-label={`Mark incident ${inc.incidentNumber} as mitigated`}
                                 onClick={() => handleUpdateIncidentStatus(inc.id, 'MITIGATED')}
                                 disabled={inc.status === 'MITIGATED' || !canWrite}
                               >
-                                ⊘
+                                <Ban className="w-3.5 h-3.5" />
                               </button>
                             </div>
                           </td>
@@ -876,49 +878,55 @@ export default function AlertsPage() {
 
           {/* Right Side: Alert Response Detail Drawer */}
           {activeTab === 'ALERTS' && selectedAlert && (
-            <div className="md:col-span-4 bottom-card details-drawer flex flex-col justify-between space-y-5 animate-slide-in relative overflow-hidden">
+            <div className="md:col-span-12 lg:col-span-4 min-w-0 bottom-card details-drawer flex flex-col justify-between space-y-5 animate-slide-in relative overflow-hidden">
               <div className="absolute top-0 left-0 right-0 h-1" style={{ background: 'linear-gradient(90deg, var(--red), var(--amber))', zIndex: 10 }} />
               <div>
-                <div className="flex items-center justify-between border-b border-border-soft pb-3 pt-1">
-
-                  <div className="flex items-center gap-2.5">
-                    <span className="font-mono text-small font-bold text-red">{selectedAlert.id}</span>
+                <div className="border-b border-border-soft pb-3 pt-1 space-y-2.5">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <span className="font-mono text-small font-bold text-red truncate" title={selectedAlert.id}>{selectedAlert.id}</span>
                     <SeverityBadge severity={toSeverity(selectedAlert.severity)} label={selectedAlert.severity} size="sm" />
+                  </div>
+                  <button
+                    onClick={() => setSelectedAlert(null)}
+                    aria-label="Close alert details"
+                    className="shrink-0"
+                    style={{ background: 'transparent', border: 'none', cursor: 'pointer' }}
+                  >
+                    <X className="w-4 h-4 text-text-muted hover:text-text-primary" />
+                  </button>
+                </div>
+
+                {(selectedAlert.isAnomaly || selectedAlert.riskScore != null || selectedAlert.mitreTechniques?.length || selectedAlert.iocMatched) && (
+                  <div className="flex items-center flex-wrap gap-1.5">
                     {selectedAlert.isAnomaly && (
                       <span
-                        className="sev-badge high"
-                        style={{ fontSize: '0.75em' }}
+                        className="meta-badge tone-high"
                         title={selectedAlert.anomalyFeatures ? `Drivers: ${selectedAlert.anomalyFeatures}` : undefined}
                       >
                         ⚠ Anomaly ({selectedAlert.anomalyScore?.toFixed(2) ?? '—'})
                       </span>
                     )}
                     {selectedAlert.riskScore != null && (
-                      <span className="sev-badge medium" style={{ fontSize: '0.75em' }} title="Rule-authored risk score">
+                      <span className="meta-badge tone-medium" title="Rule-authored risk score">
                         Risk {selectedAlert.riskScore}
                       </span>
                     )}
                     {selectedAlert.mitreTechniques?.map((t) => (
-                      <span key={t} className="sev-badge medium" style={{ fontSize: '0.75em' }} title="MITRE ATT&CK technique">
+                      <span key={t} className="meta-badge tone-info" title="MITRE ATT&CK technique">
                         {t}
                       </span>
                     ))}
                     {selectedAlert.iocMatched && (
                       <span
-                        className="sev-badge critical"
-                        style={{ fontSize: '0.75em' }}
+                        className="meta-badge tone-critical"
                         title={`Known threat indicator — ${selectedAlert.iocSeverity ?? '—'} (${selectedAlert.iocSource ?? 'threat intel'})`}
                       >
                         ⚠ IOC Match
                       </span>
                     )}
                   </div>
-                  <button
-                    onClick={() => setSelectedAlert(null)}
-                    style={{ background: 'transparent', border: 'none', cursor: 'pointer' }}
-                  >
-                    <X className="w-4 h-4 text-text-muted hover:text-text-primary" />
-                  </button>
+                )}
                 </div>
 
                 <div className="mt-4 space-y-2">
@@ -1096,17 +1104,18 @@ export default function AlertsPage() {
 
           {/* Right Side: Incident Details Drawer */}
           {activeTab === 'INCIDENTS' && selectedIncident && (
-            <div className="md:col-span-4 bottom-card details-drawer flex flex-col justify-between space-y-5 animate-slide-in relative overflow-hidden">
+            <div className="md:col-span-12 lg:col-span-4 min-w-0 bottom-card details-drawer flex flex-col justify-between space-y-5 animate-slide-in relative overflow-hidden">
               <div className="absolute top-0 left-0 right-0 h-1" style={{ background: 'linear-gradient(90deg, var(--purple), var(--blue))', zIndex: 10 }} />
               <div>
-                <div className="flex items-center justify-between border-b border-border-soft pb-3 pt-1">
-
-                  <div className="flex items-center gap-2.5">
-                    <span className="font-mono text-small font-bold text-red">{selectedIncident.id}</span>
+                <div className="flex items-center justify-between gap-3 border-b border-border-soft pb-3 pt-1">
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <span className="font-mono text-small font-bold text-red truncate" title={selectedIncident.id}>{selectedIncident.id}</span>
                     <SeverityBadge severity={toSeverity(selectedIncident.severity)} label={selectedIncident.severity} size="sm" />
                   </div>
                   <button
                     onClick={() => setSelectedIncident(null)}
+                    aria-label="Close incident details"
+                    className="shrink-0"
                     style={{ background: 'transparent', border: 'none', cursor: 'pointer' }}
                   >
                     <X className="w-4 h-4 text-text-muted hover:text-text-primary" />

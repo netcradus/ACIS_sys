@@ -115,19 +115,23 @@
   margin-left: auto;
   display: flex;
   align-items: center;
-  gap: 20px;
+  flex-wrap: wrap;
+  gap: 10px 20px;
   background: var(--summary-bar-bg);
   border: 1px solid var(--border-soft);
   border-radius: 12px;
   padding: 14px 24px;
   font-size: 13.5px;
   font-weight: 700;
+  white-space: nowrap;
 }
 
 @media (max-width: 768px) {
   .alerts-page .summary-bar {
     margin-left: 0;
     width: 100%;
+    justify-content: space-between;
+    gap: 8px 16px;
   }
 }
 
@@ -271,7 +275,7 @@
 
 .alerts-page table {
   width: 100%;
-  min-width: 760px;
+  min-width: 980px;
   table-layout: fixed;
   border-collapse: collapse;
 }
@@ -304,7 +308,76 @@
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
-  margin-top: 4px;
+  margin-top: 6px;
+}
+
+/* Metadata pills (Risk score, MITRE technique IDs, Anomaly, IOC Match) —
+   these carry real text content (up to ~10 characters), unlike .sev-badge
+   which is a fixed 26x26 square built only for a single glyph. Reusing
+   .sev-badge for these forced multi-character labels into a 26px box,
+   which is what actually caused the "overlapping badges" — the pill sizes
+   itself to its content instead of clipping/overlapping. */
+.alerts-page .meta-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  height: 21px;
+  padding: 0 7px;
+  border-radius: 5px;
+  font-size: 10.5px;
+  font-weight: 800;
+  line-height: 1;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.alerts-page .meta-badge.tone-critical {
+  background: rgba(220, 38, 38, 0.15);
+  color: #f87171;
+  border: 1px solid rgba(220, 38, 38, 0.4);
+}
+
+.alerts-page .meta-badge.tone-high {
+  background: rgba(234, 88, 12, 0.15);
+  color: #fb923c;
+  border: 1px solid rgba(234, 88, 12, 0.4);
+}
+
+.alerts-page .meta-badge.tone-medium {
+  background: rgba(245, 158, 11, 0.15);
+  color: #fbbf24;
+  border: 1px solid rgba(245, 158, 11, 0.4);
+}
+
+.alerts-page .meta-badge.tone-info {
+  background: rgba(59, 130, 246, 0.12);
+  color: #60a5fa;
+  border: 1px solid rgba(59, 130, 246, 0.35);
+  font-family: 'JetBrains Mono', monospace;
+}
+
+:root[data-theme="light"] .alerts-page .meta-badge.tone-critical,
+[data-theme="light"] .alerts-page .meta-badge.tone-critical {
+  background: rgba(220, 38, 38, 0.1);
+  color: #b91c1c;
+}
+
+:root[data-theme="light"] .alerts-page .meta-badge.tone-high,
+[data-theme="light"] .alerts-page .meta-badge.tone-high {
+  background: rgba(234, 88, 12, 0.1);
+  color: #c2410c;
+}
+
+:root[data-theme="light"] .alerts-page .meta-badge.tone-medium,
+[data-theme="light"] .alerts-page .meta-badge.tone-medium {
+  background: rgba(217, 119, 6, 0.1);
+  color: #b45309;
+}
+
+:root[data-theme="light"] .alerts-page .meta-badge.tone-info,
+[data-theme="light"] .alerts-page .meta-badge.tone-info {
+  background: rgba(37, 99, 235, 0.08);
+  color: #1d4ed8;
 }
 
 .alerts-page td.ellipsis-cell {
@@ -340,6 +413,11 @@
 
 .alerts-page tbody tr {
   transition: background 0.15s ease;
+  /* Reserved on every row (transparent by default) so selecting a row only
+     ever changes color, never the box width — previously only .selected
+     had this border, which shifted every cell 3px right the moment a row
+     was selected. */
+  box-shadow: inset 3px 0 0 transparent;
 }
 
 .alerts-page tbody tr:hover {
@@ -348,7 +426,7 @@
 
 .alerts-page tbody tr.selected {
   background: var(--tr-hover);
-  border-left: 3px solid var(--blue);
+  box-shadow: inset 3px 0 0 var(--blue);
 }
 
 .alerts-page .sev-badge {
@@ -414,9 +492,9 @@
 
 .alerts-page .row-actions {
   display: flex;
-  gap: 14px;
+  align-items: center;
+  gap: 10px;
   color: var(--dim);
-  font-size: 14px;
   justify-content: flex-end;
 }
 
@@ -429,11 +507,20 @@
   border: none;
   color: inherit;
   cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px;
   transition: color 0.15s ease;
 }
 
 .alerts-page .row-action-btn:hover {
   color: var(--heading-color);
+}
+
+.alerts-page .row-action-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
 }
 
 /* ---- middle charts row ---- */
