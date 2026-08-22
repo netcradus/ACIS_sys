@@ -1,17 +1,6 @@
 /* ================= SOAR PLAYBOOKS PAGE ================= */
 .soar-page {
-  /* Default Dark Mode Theme */
-  --bg: #070b14;
-  --border-soft: #1b2540;
-  --text: #e7ecf7;
-  --muted: #7c88a8;
-  --dim: #54617f;
-  --blue: #3b82f6;
-  --cyan: #22d3ee;
-  --purple: #a855f7;
-  --green: #22c55e;
-  --amber: #f59e0b;
-  --red: #ef4444;
+  /* Shared color tokens now come from styles/contentTokens.css. */
 
   /* Card and Panel Backgrounds */
   --card-bg: linear-gradient(160deg, rgba(16, 23, 40, 0.85), rgba(9, 13, 24, 0.9));
@@ -23,14 +12,6 @@
   --tr-border: #171f36;
   --heading-color: #ffffff;
   --box-shadow: 0 10px 26px -18px rgba(0, 0, 0, 0.6);
-
-  /* Global Map color variables */
-  --map-dot-color: rgba(120, 150, 200, 0.3);
-  --map-path-color: rgba(217, 119, 6, 0.6);
-  --map-hotspot-color: #f59e0b;
-  --map-dot-center-color: #7a4508;
-  --map-dot-stroke: #f59e0b;
-  --map-play-fill: #fbbf24;
 
   /* Deps nodes */
   --deps-edge-active: rgba(94, 234, 212, 0.35);
@@ -51,18 +32,6 @@
 /* Light Mode Theme Overrides */
 :root[data-theme="light"] .soar-page,
 [data-theme="light"] .soar-page {
-  --bg: #f4f6fa;
-  --border-soft: #e2e7f1;
-  --text: #12182b;
-  --muted: #66708c;
-  --dim: #96a0ba;
-  --blue: #2563eb;
-  --cyan: #0891b2;
-  --purple: #9333ea;
-  --green: #16a34a;
-  --amber: #d97706;
-  --red: #dc2626;
-
   /* Card and Panel Backgrounds for Light Mode */
   --card-bg: #ffffff;
   --panel-bg: #ffffff;
@@ -73,14 +42,6 @@
   --tr-border: #eef1f9;
   --heading-color: #0e1526;
   --box-shadow: 0 8px 20px -16px rgba(30, 50, 110, 0.16);
-
-  /* Global Map color variables for Light Mode */
-  --map-dot-color: rgba(37, 99, 235, 0.25);
-  --map-path-color: rgba(217, 119, 6, 0.55);
-  --map-hotspot-color: rgba(245, 158, 11, 0.4);
-  --map-dot-center-color: #fde3b8;
-  --map-dot-stroke: #d97706;
-  --map-play-fill: #b45309;
 
   /* Deps nodes for Light Mode */
   --deps-edge-active: rgba(8, 145, 178, 0.3);
@@ -233,6 +194,9 @@
 
 .soar-page .new-playbook-btn {
   margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
   padding: 12px 24px;
   border-radius: 10px;
   border: none;
@@ -293,23 +257,6 @@
   color: #2563eb;
 }
 
-.soar-page .priority-dot {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  display: inline-block;
-  margin-right: 7px;
-}
-
-.soar-page .priority-dot.high {
-  background: #f59e0b;
-}
-
-.soar-page .priority-dot.medium {
-  background: #f59e0b;
-  opacity: 0.7;
-}
-
 .soar-page .status-badge {
   display: flex;
   align-items: center;
@@ -324,13 +271,44 @@
 }
 
 .soar-page .status-dot2.success {
-  background: #22d3ee;
-  box-shadow: 0 0 8px #22d3ee;
+  background: var(--green);
+  box-shadow: 0 0 8px var(--green);
 }
 
 .soar-page .status-dot2.failed {
-  background: #a855f7;
-  box-shadow: 0 0 8px #a855f7;
+  background: var(--red);
+  box-shadow: 0 0 8px var(--red);
+}
+
+.soar-page .status-dot2.idle {
+  background: var(--dim);
+}
+
+.soar-page .action-icons {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  justify-content: flex-end;
+}
+
+.soar-page .action-icon-btn {
+  background: transparent;
+  border: none;
+  color: var(--dim);
+  cursor: pointer;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  transition: color 0.15s ease;
+}
+
+.soar-page .action-icon-btn:hover {
+  color: var(--heading-color);
+}
+
+.soar-page .action-icon-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
 }
 
 .soar-page .run-btn {
@@ -343,6 +321,9 @@
   font-weight: 700;
   cursor: pointer;
   transition: all 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
 }
 
 .soar-page .run-btn:hover {
@@ -417,21 +398,21 @@
 }
 
 .soar-page .status-pill.success {
-  background: rgba(217, 119, 6, 0.15);
-  color: #fbbf24;
-  border: 1px solid rgba(217, 119, 6, 0.4);
+  background: rgba(34, 197, 94, 0.15);
+  color: #4ade80;
+  border: 1px solid rgba(34, 197, 94, 0.4);
 }
 
 .soar-page .status-pill.progress {
-  background: rgba(217, 119, 6, 0.15);
-  color: #fbbf24;
-  border: 1px solid rgba(217, 119, 6, 0.4);
+  background: rgba(59, 130, 246, 0.15);
+  color: #60a5fa;
+  border: 1px solid rgba(59, 130, 246, 0.4);
 }
 
 .soar-page .status-pill.failed {
-  background: rgba(168, 85, 247, 0.15);
-  color: #c084fc;
-  border: 1px solid rgba(168, 85, 247, 0.4);
+  background: rgba(239, 68, 68, 0.15);
+  color: #f87171;
+  border: 1px solid rgba(239, 68, 68, 0.4);
 }
 
 .soar-page .wbadge {

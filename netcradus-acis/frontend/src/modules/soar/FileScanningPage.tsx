@@ -29,12 +29,12 @@ function formatBytes(bytes: number): string {
 
 function VerdictBadge({ result }: { result: FileScanResult }) {
   if (result.verdict === 'CLEAN') {
-    return <span className="sev-badge low" style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><ShieldCheck className="w-3.5 h-3.5" /> Clean</span>
+    return <span className="badge-mission text-severity-low border-severity-low/30 bg-severity-low/10"><ShieldCheck className="w-3.5 h-3.5" /> Clean</span>
   }
   if (result.verdict === 'INFECTED') {
-    return <span className="sev-badge critical" style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><ShieldAlert className="w-3.5 h-3.5" /> Infected — {result.threatName}</span>
+    return <span className="badge-mission text-severity-critical border-severity-critical/30 bg-severity-critical/10"><ShieldAlert className="w-3.5 h-3.5" /> Infected — {result.threatName}</span>
   }
-  return <span className="sev-badge high" style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><ShieldQuestion className="w-3.5 h-3.5" /> Scan failed (quarantined)</span>
+  return <span className="badge-mission text-severity-high border-severity-high/30 bg-severity-high/10"><ShieldQuestion className="w-3.5 h-3.5" /> Scan failed (quarantined)</span>
 }
 
 export default function FileScanningPage() {
@@ -171,7 +171,7 @@ export default function FileScanningPage() {
                   <td>
                     {r.quarantined && !r.released && (
                       <button
-                        className="row-action-btn"
+                        className="text-accent hover:text-accent-dark font-semibold text-small transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                         title="Acknowledge risk and release from quarantine"
                         onClick={() => setReleaseTargetId(r.id)}
                         disabled={!canWrite}

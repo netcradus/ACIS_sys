@@ -13,10 +13,11 @@ interface PlatformToastState {
 }
 
 /**
- * Lightweight toast store scoped to the Platform Admin panel. The rest of
- * the app has no toast system (existing pages use bare alert()/console.error
- * — see SettingsPage/ReportsPage), so this is deliberately new and small
- * rather than retrofitted everywhere.
+ * Lightweight toast store scoped to the Platform Admin console. The tenant
+ * console has its own real toast system (see store/toastStore.ts) — kept as
+ * a separate store rather than merged, since the two consoles never render
+ * in the same tree and each already has its own container mounted in its
+ * own layout (ToastContainer.tsx vs modules/platform-admin/components/ToastContainer.tsx).
  */
 export const usePlatformToastStore = create<PlatformToastState>((set, get) => ({
   toasts: [],

@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react'
 import { FileCode2, KeyRound, Loader2 } from 'lucide-react'
 import apiClient from '@/lib/apiClient'
 import { useCanWrite, MODULES } from '@/store/permissionsStore'
+import SeverityBadge, { toSeverity } from '@/components/viz/SeverityBadge'
 
 interface DependencyFinding {
   id: string
@@ -26,8 +27,7 @@ interface SecretFinding {
 }
 
 function SeverityChip({ severity }: { severity: string }) {
-  const cls = severity === 'CRITICAL' ? 'critical' : severity === 'HIGH' ? 'high' : severity === 'MEDIUM' ? 'medium' : 'low'
-  return <span className={`sev-badge ${cls}`}>{severity}</span>
+  return <SeverityBadge severity={toSeverity(severity)} label={severity} size="sm" />
 }
 
 export default function SupplyChainPage() {

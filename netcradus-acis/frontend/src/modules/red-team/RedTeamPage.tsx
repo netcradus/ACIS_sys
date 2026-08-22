@@ -18,7 +18,6 @@ import { clsx } from 'clsx'
 import { useCanWrite, MODULES } from '@/store/permissionsStore'
 import apiClient from '@/lib/apiClient'
 import { useNavigate } from 'react-router-dom'
-import HeatmapGrid from '@/components/viz/HeatmapGrid'
 import StepExecutionTimeline, { type ExecutionStep, type StepStatus } from '@/components/viz/StepExecutionTimeline'
 import ConfirmDialog from '@/components/ui/ConfirmDialog'
 import { toast } from '@/store/toastStore'
@@ -339,8 +338,8 @@ export default function RedTeamPage() {
         <div className="hero-panel">
           <div className="hero-left">
             <div className="hero-tags">
-              <span className="hero-tag cyan">⊚ RED TEAM SIMULATOR</span>
-              <span className="hero-tag blue">⚡ CONTINUOUS ATTACK EMULATION</span>
+              <span className="hero-tag cyan"><Radar className="w-3.5 h-3.5" /> RED TEAM SIMULATOR</span>
+              <span className="hero-tag blue"><ShieldAlert className="w-3.5 h-3.5" /> CONTINUOUS ATTACK EMULATION</span>
             </div>
             <h1>Mission Control for Validation</h1>
             <p>Simulations, coverage, and execution telemetry for the ACIS red team lab.</p>
@@ -359,7 +358,7 @@ export default function RedTeamPage() {
               onClick={() => navigate('/dashboard/reports')}
               className="view-reports-btn"
             >
-              View Reports ↗
+              View Reports <ArrowUpRight className="w-3.5 h-3.5" />
             </button>
           </div>
         </div>
@@ -372,7 +371,7 @@ export default function RedTeamPage() {
               <div className="v">{summary.simulationsAvailable}</div>
               <div className="desc">{Math.max(summary.simulationsAvailable, 1)} active templates loaded</div>
             </div>
-            <div className="stat-icon-box">▦</div>
+            <div className="stat-icon-box"><LayoutGrid className="w-6 h-6" /></div>
           </div>
           <div className="stat-card highlight">
             <div className="stat-left">
@@ -380,7 +379,7 @@ export default function RedTeamPage() {
               <div className="v">{summary.techniquesCovered}</div>
               <div className="desc">Techniques with at least one completed run</div>
             </div>
-            <div className="stat-icon-box">◎</div>
+            <div className="stat-icon-box"><Target className="w-6 h-6" /></div>
           </div>
           <div className="stat-card highlight">
             <div className="stat-left">
@@ -388,18 +387,18 @@ export default function RedTeamPage() {
               <div className="v">{summary.activeSimulations}</div>
               <div className="desc">{summary.activeSimulations > 0 ? "Live execution jobs in progress" : "No live execution jobs in progress"}</div>
             </div>
-            <div className="stat-icon-box">↻</div>
+            <div className="stat-icon-box"><Activity className="w-6 h-6" /></div>
           </div>
         </div>
 
-        <div className="stat-row" style={{ gridTemplateColumns: '1fr 2.15fr' }}>
+        <div className="stat-row split">
           <div className="stat-card warn-card">
             <div className="stat-left">
               <div className="lbl">TECHNIQUES NOT YET VALIDATED</div>
               <div className="v">{summary.techniquesNotYetValidated}</div>
               <div className="desc">Declared in a simulation but never run to completion</div>
             </div>
-            <div className="stat-icon-box">⚠</div>
+            <div className="stat-icon-box"><TriangleAlert className="w-6 h-6" /></div>
           </div>
           <div />
         </div>
@@ -613,7 +612,12 @@ export default function RedTeamPage() {
                       className={clsx("exec-row cursor-pointer", selectedExecutionId === row.id && "bg-slate-800/20")}
                     >
                       <div className="exec-left">
-                        <div className="exec-icon blue">⚙</div>
+                        <div className={clsx(
+                          'exec-icon',
+                          row.status === 'completed' ? 'green' : row.status === 'failed' ? 'red' : 'blue'
+                        )}>
+                          {row.status === 'completed' ? <CheckCircle2 className="w-4 h-4" /> : row.status === 'failed' ? <TriangleAlert className="w-4 h-4" /> : <Activity className="w-4 h-4" />}
+                        </div>
                         <div>
                           <div className="exec-title">{row.simulation}</div>
                           <div className="exec-sub">{row.detected}</div>

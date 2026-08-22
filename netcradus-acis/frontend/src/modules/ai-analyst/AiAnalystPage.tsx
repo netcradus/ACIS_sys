@@ -149,7 +149,7 @@ export default function AiAnalystPage() {
         {/* Page Header */}
         <div className="page-head">
           <h1 className="flex items-center gap-2">
-            <Sparkles className="w-6 h-6 text-cyan" /> Compliance AI Analyst
+            <Sparkles className="w-6 h-6 text-cyan" /> AI Analyst
           </h1>
           <span className={clsx(
             "badge-top",

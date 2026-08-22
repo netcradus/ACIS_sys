@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useMemo } from 'react'
-import { FileText, Printer, Download, Settings, Search, Plus, X, CheckCircle2, Clock, Activity } from 'lucide-react'
+import { FileText, Download, Settings, Search, Plus, X, CheckCircle2, Clock, Activity } from 'lucide-react'
 import { clsx } from 'clsx'
 import apiClient from '@/lib/apiClient'
 import { useCanWrite, useCanAdmin, MODULES } from '@/store/permissionsStore'
@@ -104,6 +104,15 @@ export default function ReportsPage() {
   useEffect(() => {
     fetchData()
   }, [])
+
+  useEffect(() => {
+    if (!isModalOpen) return
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setIsModalOpen(false)
+    }
+    document.addEventListener('keydown', handleKey)
+    return () => document.removeEventListener('keydown', handleKey)
+  }, [isModalOpen])
 
   // Toggle Schedule Status
   const handleToggleStatus = async (id: string, currentStatus: string) => {
@@ -265,13 +274,13 @@ export default function ReportsPage() {
               disabled={!canWrite}
               className="btn-action"
             >
-              + Schedule
+              <Plus className="w-3.5 h-3.5" /> Schedule
             </button>
             <button
               onClick={() => triggerDownload("Weekly Executive Summary")}
               className="btn-action primary"
             >
-              Export PDF
+              <Download className="w-3.5 h-3.5" /> Export PDF
             </button>
           </div>
         </div>
@@ -310,13 +319,13 @@ export default function ReportsPage() {
                 onClick={() => triggerDownload("Weekly Executive Summary")}
                 className="btn-action primary justify-center py-2 text-small"
               >
-                Download
+                <Download className="w-3.5 h-3.5" /> Download
               </button>
               <button
                 onClick={() => openScheduleModalFor("Weekly Executive Summary", "PDF")}
                 className="btn-action justify-center py-2 text-small"
               >
-                Configure
+                <Settings className="w-3.5 h-3.5" /> Configure
               </button>
             </div>
           </div>
@@ -354,13 +363,13 @@ export default function ReportsPage() {
                 onClick={() => triggerDownload("Incident Board Pack")}
                 className="btn-action primary justify-center py-2 text-small"
               >
-                Download
+                <Download className="w-3.5 h-3.5" /> Download
               </button>
               <button
                 onClick={() => openScheduleModalFor("Incident Board Pack", "PPTX")}
                 className="btn-action justify-center py-2 text-small"
               >
-                Configure
+                <Settings className="w-3.5 h-3.5" /> Configure
               </button>
             </div>
           </div>
@@ -400,13 +409,13 @@ export default function ReportsPage() {
                 onClick={() => triggerDownload("Detection Coverage Report")}
                 className="btn-action primary justify-center py-2 text-small"
               >
-                Download
+                <Download className="w-3.5 h-3.5" /> Download
               </button>
               <button
                 onClick={() => openScheduleModalFor("Detection Coverage Report", "CSV")}
                 className="btn-action justify-center py-2 text-small"
               >
-                Configure
+                <Settings className="w-3.5 h-3.5" /> Configure
               </button>
             </div>
           </div>
@@ -515,12 +524,20 @@ export default function ReportsPage() {
 
       {/* Add Schedule Modal */}
       {isModalOpen && (
-        <div className="modal-overlay">
-          <div className="modal-box">
+        <div className="modal-overlay" onClick={() => setIsModalOpen(false)}>
+          <div
+            className="modal-box"
+            onClick={(e) => e.stopPropagation()}
+            role="dialog"
+            aria-modal="true"
+            aria-label="Add Export Schedule"
+          >
             <div className="modal-head">
               <h3>Add Export Schedule</h3>
               <button
+                type="button"
                 onClick={() => setIsModalOpen(false)}
+                aria-label="Close dialog"
                 style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text)' }}
               >
                 <X className="w-5 h-5" />

@@ -117,6 +117,15 @@ export default function AuditLogsPage() {
 
   useEffect(() => { fetchLogs() }, [fetchLogs])
 
+  useEffect(() => {
+    if (!detailEvent) return
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setDetailEvent(null)
+    }
+    document.addEventListener('keydown', handleKey)
+    return () => document.removeEventListener('keydown', handleKey)
+  }, [detailEvent])
+
   const downloadExport = (url: string, filename: string) => {
     fetch(url, { headers: { Authorization: `Bearer ${keycloak.token}` } })
       .then(r => r.blob())
@@ -237,11 +246,17 @@ export default function AuditLogsPage() {
 
       {/* Detail Modal */}
       {detailEvent && (
-        <div className="fixed inset-0 bg-background/85 backdrop-blur-sm flex items-center justify-center z-[110] p-4">
-          <div className="bg-surface border border-fire-border rounded-xl w-full max-w-lg overflow-hidden shadow-card animate-scale-in">
+        <div className="fixed inset-0 bg-background/85 backdrop-blur-sm flex items-center justify-center z-[110] p-4" onClick={() => setDetailEvent(null)}>
+          <div
+            className="bg-surface border border-fire-border rounded-xl w-full max-w-lg overflow-hidden shadow-card animate-scale-in"
+            onClick={(e) => e.stopPropagation()}
+            role="dialog"
+            aria-modal="true"
+            aria-label="Audit Event Detail"
+          >
             <div className="flex items-center justify-between p-4 border-b border-fire-border">
               <h3 className="text-h3 text-text-primary">Audit Event Detail</h3>
-              <button onClick={() => setDetailEvent(null)} className="text-text-muted hover:text-text-primary"><X className="w-4 h-4" /></button>
+              <button type="button" onClick={() => setDetailEvent(null)} aria-label="Close dialog" className="text-text-muted hover:text-text-primary"><X className="w-4 h-4" /></button>
             </div>
             <div className="p-4 space-y-2 max-h-[70vh] overflow-y-auto text-small">
               <DetailRow label="Timestamp" value={detailEvent.timestamp ? new Date(detailEvent.timestamp).toLocaleString() : ''} />

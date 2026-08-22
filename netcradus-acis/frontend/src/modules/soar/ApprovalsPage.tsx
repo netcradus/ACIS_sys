@@ -1,8 +1,10 @@
 import React, { useEffect, useState, useRef } from 'react'
-import { ShieldCheck, ShieldX, Undo2, MegaphoneIcon } from 'lucide-react'
+import { ShieldCheck, ShieldX, Undo2 } from 'lucide-react'
+import { clsx } from 'clsx'
 import apiClient from '@/lib/apiClient'
 import { useCanWrite, MODULES } from '@/store/permissionsStore'
 import ConfirmDialog from '@/components/ui/ConfirmDialog'
+import SeverityBadge, { toSeverity } from '@/components/viz/SeverityBadge'
 import { toast } from '@/store/toastStore'
 
 interface Approval {
@@ -145,14 +147,26 @@ export default function ApprovalsPage() {
               <tr key={a.id}>
                 <td style={{ fontWeight: 600 }}>{a.playbookName}</td>
                 <td>{a.requestedByName}</td>
-                <td><span className="sev-badge high">{a.riskLevel}</span></td>
+                <td><SeverityBadge severity={toSeverity(a.riskLevel)} label={a.riskLevel} size="sm" /></td>
                 <td className="text-small" style={{ maxWidth: 400 }}>{a.actionSummary}</td>
                 <td onClick={(e) => e.stopPropagation()}>
-                  <div className="row-actions" style={{ justifyContent: 'flex-end' }}>
-                    <button className="row-action-btn" title="Approve" onClick={() => handleApprove(a.id)} disabled={!canWrite}>
+                  <div className="flex items-center gap-3 justify-end text-text-muted">
+                    <button
+                      className="hover:text-success transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                      title="Approve"
+                      aria-label={`Approve ${a.playbookName} request`}
+                      onClick={() => handleApprove(a.id)}
+                      disabled={!canWrite}
+                    >
                       <ShieldCheck className="w-4 h-4" />
                     </button>
-                    <button className="row-action-btn" title="Reject" onClick={() => setRejectTargetId(a.id)} disabled={!canWrite}>
+                    <button
+                      className="hover:text-danger transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                      title="Reject"
+                      aria-label={`Reject ${a.playbookName} request`}
+                      onClick={() => setRejectTargetId(a.id)}
+                      disabled={!canWrite}
+                    >
                       <ShieldX className="w-4 h-4" />
                     </button>
                   </div>
@@ -189,7 +203,14 @@ export default function ApprovalsPage() {
                 <td>{a.playbookName}</td>
                 <td>{a.requestedByName}</td>
                 <td>
-                  <span className={`sev-badge ${a.status === 'APPROVED' ? 'low' : 'critical'}`}>{a.status}</span>
+                  <span className={clsx(
+                    'badge-mission',
+                    a.status === 'APPROVED'
+                      ? 'text-severity-low border-severity-low/30 bg-severity-low/10'
+                      : 'text-severity-critical border-severity-critical/30 bg-severity-critical/10'
+                  )}>
+                    {a.status}
+                  </span>
                 </td>
                 <td>{a.approvedByName}{a.rejectionReason ? ` — ${a.rejectionReason}` : ''}</td>
                 <td>{a.decidedAt ? new Date(a.decidedAt).toLocaleString() : '—'}</td>
@@ -230,7 +251,13 @@ export default function ApprovalsPage() {
                   {act.rolledBack ? (
                     <span className="text-small text-text-muted">Rolled back by {act.rolledBackBy}</span>
                   ) : act.reversible ? (
-                    <button className="row-action-btn" title="Roll back" onClick={() => setRollbackTargetId(act.id)} disabled={!canWrite}>
+                    <button
+                      className="text-text-muted hover:text-text-primary transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                      title="Roll back"
+                      aria-label={`Roll back ${act.actionType} on ${act.targetDescription}`}
+                      onClick={() => setRollbackTargetId(act.id)}
+                      disabled={!canWrite}
+                    >
                       <Undo2 className="w-4 h-4" />
                     </button>
                   ) : (

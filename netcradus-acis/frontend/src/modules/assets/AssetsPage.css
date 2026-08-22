@@ -1,17 +1,6 @@
 /* ================= ASSETS PAGE ================= */
 .assets-page {
-  /* Default Dark Mode Theme */
-  --bg: #070b14;
-  --border-soft: #1b2540;
-  --text: #e7ecf7;
-  --muted: #7c88a8;
-  --dim: #54617f;
-  --blue: #3b82f6;
-  --cyan: #22d3ee;
-  --purple: #a855f7;
-  --green: #22c55e;
-  --amber: #f59e0b;
-  --red: #ef4444;
+  /* Shared color tokens now come from styles/contentTokens.css. */
 
   /* Card and Panel Backgrounds */
   --card-bg: linear-gradient(160deg, rgba(16, 23, 40, 0.85), rgba(9, 13, 24, 0.9));
@@ -23,18 +12,6 @@
   --tr-border: #171f36;
   --heading-color: #ffffff;
   --box-shadow: 0 10px 26px -18px rgba(0, 0, 0, 0.6);
-
-  /* Specific widgets overrides */
-  --date-pill-bg: #0e1526;
-  --chip-on-bg: rgba(255, 255, 255, 0.08);
-  --chip-on-color: #ffffff;
-  --svg-grid-line: #171f36;
-  --workflow-bar-bg: linear-gradient(180deg, #5eead4, #0891b2);
-
-  /* Global Map color variables */
-  --map-dot-color: rgba(120, 160, 230, 0.35);
-  --map-path-color: rgba(94, 234, 212, 0.5);
-  --map-hotspot-color: #5eead4;
 
   background: var(--bg);
   color: var(--text);
@@ -48,18 +25,6 @@
 /* Light Mode Theme Overrides */
 :root[data-theme="light"] .assets-page,
 [data-theme="light"] .assets-page {
-  --bg: #f4f6fa;
-  --border-soft: #e2e7f1;
-  --text: #12182b;
-  --muted: #66708c;
-  --dim: #96a0ba;
-  --blue: #2563eb;
-  --cyan: #0891b2;
-  --purple: #9333ea;
-  --green: #16a34a;
-  --amber: #d97706;
-  --red: #dc2626;
-
   /* Card and Panel Backgrounds for Light Mode */
   --card-bg: #ffffff;
   --panel-bg: #ffffff;
@@ -71,17 +36,6 @@
   --heading-color: #0e1526;
   --box-shadow: 0 8px 20px -16px rgba(30, 50, 110, 0.16);
 
-  /* Specific widgets overrides for Light Mode */
-  --date-pill-bg: #f7f9fe;
-  --chip-on-bg: #e9edf5;
-  --chip-on-color: #101a30;
-  --svg-grid-line: #eef1f9;
-  --workflow-bar-bg: linear-gradient(180deg, #22d3ee, #0891b2);
-
-  /* Global Map color variables for Light Mode */
-  --map-dot-color: rgba(37, 99, 235, 0.3);
-  --map-path-color: rgba(8, 145, 178, 0.4);
-  --map-hotspot-color: #0891b2;
 }
 
 .assets-page .mono {
@@ -191,19 +145,6 @@
   text-transform: uppercase;
 }
 
-.assets-page .stat-chart {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 2px;
-}
-
-.assets-page .stat-chart .n {
-  font-size: 11px;
-  font-weight: 700;
-  color: var(--map-hotspot-color);
-}
-
 /* ---- assets table panel ---- */
 .assets-page .table-panel {
   background: var(--panel-bg);
@@ -252,6 +193,11 @@
 
 .assets-page .add-btn:hover {
   opacity: 0.9;
+}
+
+.assets-page .add-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .assets-page table {
@@ -440,54 +386,14 @@
   gap: 14px;
 }
 
-.assets-page .axis-y {
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  font-size: 9.5px;
-  color: var(--dim);
-  font-weight: 700;
-  height: 110px;
-  margin-top: 10px;
-}
-
-.assets-page .map-box {
-  position: relative;
-  border-radius: 10px;
-  overflow: hidden;
-  height: 180px;
-  background: radial-gradient(circle at 50% 40%, rgba(37, 99, 235, 0.10), transparent 65%);
-}
-
-:root[data-theme="light"] .assets-page .map-box,
-[data-theme="light"] .assets-page .map-box {
-  background: radial-gradient(circle at 50% 40%, rgba(37, 99, 235, 0.06), transparent 65%);
-  border: 1px solid var(--border-soft);
-}
-
-.assets-page .map-box svg {
-  width: 100%;
-  height: 100%;
-}
-
-.assets-page .map-icons {
-  position: absolute;
-  top: 10px;
-  right: 10px;
-  display: flex;
-  gap: 8px;
-  color: var(--dim);
-  font-size: 12px;
-}
-
 /* ---- bottom row ---- */
 .assets-page .bottom-row {
   display: grid;
-  grid-template-columns: 1fr 1fr 1.1fr;
+  grid-template-columns: 1fr 1fr;
   gap: 16px;
 }
 
-@media (max-width: 1024px) {
+@media (max-width: 768px) {
   .assets-page .bottom-row {
     grid-template-columns: 1fr;
   }
@@ -549,96 +455,6 @@
 :root[data-theme="light"] .assets-page .ticker-top .lnk,
 [data-theme="light"] .assets-page .ticker-top .lnk {
   color: #2563eb;
-}
-
-.assets-page .invest-flow {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 10px 0;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.assets-page .invest-step {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 8px;
-  flex: 1;
-}
-
-.assets-page .invest-icon {
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 16px;
-  border: 2px solid transparent;
-}
-
-.assets-page .invest-icon.blue {
-  background: rgba(59, 130, 246, 0.15);
-  color: #60a5fa;
-  border-color: rgba(59, 130, 246, 0.5);
-  box-shadow: 0 0 16px -6px rgba(59, 130, 246, 0.6);
-}
-
-:root[data-theme="light"] .assets-page .invest-icon.blue,
-[data-theme="light"] .assets-page .invest-icon.blue {
-  background: #e9f0ff;
-  color: #2563eb;
-  border-color: #bcd3fb;
-  box-shadow: none;
-}
-
-.assets-page .invest-icon.cyan {
-  background: rgba(34, 211, 238, 0.15);
-  color: #22d3ee;
-  border-color: rgba(34, 211, 238, 0.5);
-  box-shadow: 0 0 16px -6px rgba(34, 211, 238, 0.6);
-}
-
-:root[data-theme="light"] .assets-page .invest-icon.cyan,
-[data-theme="light"] .assets-page .invest-icon.cyan {
-  background: #e5fbfb;
-  color: #0891b2;
-  border-color: #a7ecec;
-  box-shadow: none;
-}
-
-.assets-page .invest-icon.amber {
-  background: rgba(245, 158, 11, 0.15);
-  color: #fbbf24;
-  border-color: rgba(245, 158, 11, 0.5);
-  box-shadow: 0 0 16px -6px rgba(245, 158, 11, 0.6);
-}
-
-:root[data-theme="light"] .assets-page .invest-icon.amber,
-[data-theme="light"] .assets-page .invest-icon.amber {
-  background: #fef3e2;
-  color: #d97706;
-  border-color: #fbdba0;
-  box-shadow: none;
-}
-
-.assets-page .invest-lbl {
-  font-size: 10px;
-  font-weight: 700;
-  color: #dbe2f5;
-  text-align: center;
-}
-
-:root[data-theme="light"] .assets-page .invest-lbl,
-[data-theme="light"] .assets-page .invest-lbl {
-  color: #28324a;
-}
-
-.assets-page .invest-arrow {
-  color: var(--dim);
-  font-size: 15px;
 }
 
 /* Drawer UI Enhancements */

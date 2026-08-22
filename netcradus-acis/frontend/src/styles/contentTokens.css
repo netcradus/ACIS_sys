@@ -1,0 +1,46 @@
+/* ─── Shared content-page design tokens ─────────────────────────────────
+   Consolidates the color tokens that 12 content pages (Alerts, LogExplorer,
+   Correlation, Soar, Assets, ThreatIntel, Compliance, RedTeam, Reports,
+   Endpoints, Settings, AiAnalyst) each independently copy-pasted into their
+   own page-scoped CSS block, verified byte-identical across every page
+   except LogExplorerPage.css (which had already drifted with an extra
+   --pink token) — a real, live sign the copy-paste-per-page approach was
+   already breaking down. Defined once here, globally, so every page's own
+   `.some-page { --bg: ...; }` block can be deleted entirely and its
+   `var(--bg)` usages fall through to this file with zero visual change.
+
+   This is a DIFFERENT, deliberately separate system from index.css's real
+   Tailwind-consumed --background/--accent/etc. RGB tokens (used by chrome +
+   platform-admin) and from index.css's --soc-* block (Dashboard's
+   marketing-style hero only) — those two remain as-is; see ChromeTokens.css
+   for how the chrome was reconciled with this same navy palette. */
+
+:root {
+  --bg: #070b14;
+  --border-soft: #1b2540;
+  --text: #e7ecf7;
+  --muted: #7c88a8;
+  --dim: #54617f;
+  --blue: #3b82f6;
+  --cyan: #22d3ee;
+  --purple: #a855f7;
+  --green: #22c55e;
+  --amber: #f59e0b;
+  --red: #ef4444;
+  --pink: #ec4899;
+}
+
+:root[data-theme="light"] {
+  --bg: #f4f6fa;
+  --border-soft: #e2e7f1;
+  --text: #12182b;
+  --muted: #66708c;
+  --dim: #96a0ba;
+  --blue: #2563eb;
+  --cyan: #0891b2;
+  --purple: #9333ea;
+  --green: #16a34a;
+  --amber: #d97706;
+  --red: #dc2626;
+  --pink: #db2777;
+}

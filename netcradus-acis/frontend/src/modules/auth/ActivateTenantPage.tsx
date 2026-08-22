@@ -164,6 +164,7 @@ export default function ActivateTenantPage() {
                     <button
                       type="button"
                       onClick={() => setShowPassword(!showPassword)}
+                      aria-label={showPassword ? 'Hide password' : 'Show password'}
                       className="absolute right-3.5 text-text-muted hover:text-text-primary transition-colors"
                     >
                       {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}

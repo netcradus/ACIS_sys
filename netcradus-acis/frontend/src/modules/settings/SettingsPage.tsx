@@ -15,6 +15,8 @@ import { useAuthStore } from '@/store/authStore'
 import { useCanWrite, useCanAdmin, MODULES } from '@/store/permissionsStore'
 import keycloak from '@/lib/keycloak'
 import ConfirmDialog from '@/components/ui/ConfirmDialog'
+import Modal from '@/components/ui/Modal'
+import Select from '@/components/ui/Select'
 import { toast } from '@/store/toastStore'
 import './SettingsPage.css'
 
@@ -60,7 +62,7 @@ export default function SettingsPage() {
   const tabParam = searchParams.get('tab')
   const [keys, setKeys] = useState<ApiKey[]>([])
   const [integrations, setIntegrations] = useState<Integration[]>([])
-  const [loading, setLoading] = useState(true)
+  const [keysLoading, setKeysLoading] = useState(true)
   const [activeTab, setActiveTab] = useState(tabParam || 'Profile')
   // The raw secret for a just-created key — shown exactly once, since the
   // backend never persists or returns it again after this response.
@@ -485,6 +487,17 @@ export default function SettingsPage() {
   const [newRoleName, setNewRoleName] = useState('')
   const [activeDropdownRow, setActiveDropdownRow] = useState<string | null>(null)
 
+  useEffect(() => {
+    if (!activeDropdownRow) return
+    const handleClickOutside = (e: MouseEvent) => {
+      if (!(e.target as HTMLElement).closest('.permission-dropdown-wrap')) {
+        setActiveDropdownRow(null)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [activeDropdownRow])
+
   // Organization states
   const [orgName, setOrgName] = useState('')
   const [orgIdString, setOrgIdString] = useState('')
@@ -496,6 +509,10 @@ export default function SettingsPage() {
   const [orgSaving, setOrgSaving] = useState(false)
   const [deleteOrgConfirmOpen, setDeleteOrgConfirmOpen] = useState(false)
   const [deleteOrgBusy, setDeleteOrgBusy] = useState(false)
+  const [transferModalOpen, setTransferModalOpen] = useState(false)
+  const [transferEmail, setTransferEmail] = useState('')
+  const [transferError, setTransferError] = useState<string | null>(null)
+  const [transferBusy, setTransferBusy] = useState(false)
 
   // License & Billing states
   const [license, setLicense] = useState<any>(null)
@@ -503,6 +520,9 @@ export default function SettingsPage() {
   const [licenseLoading, setLicenseLoading] = useState(true)
   const [licenseChanging, setLicenseChanging] = useState(false)
   const [changePlanTarget, setChangePlanTarget] = useState<string | null>(null)
+  const [paymentModalOpen, setPaymentModalOpen] = useState(false)
+  const [paymentBusy, setPaymentBusy] = useState(false)
+  const [paymentForm, setPaymentForm] = useState({ cardBrand: '', cardLast4: '', cardExpiry: '', billingDetails: '' })
 
   // Users & Groups states
   const [users, setUsers] = useState<any[]>([])
@@ -665,8 +685,9 @@ export default function SettingsPage() {
       setIntegrations(integrationsRes.data || [])
     } catch (e) {
       console.error("Failed to load settings data:", e)
+      toast.error("Failed to load API keys & integrations.")
     } finally {
-      setLoading(false)
+      setKeysLoading(false)
     }
   }
 
@@ -712,19 +733,33 @@ export default function SettingsPage() {
     }
   }
 
-  const handleTransferOwnership = async () => {
-    const email = prompt("Enter the email address of the administrator to transfer ownership to:")
-    if (!email) return
+  const openTransferModal = () => {
+    setTransferEmail('')
+    setTransferError(null)
+    setTransferModalOpen(true)
+  }
+
+  const handleTransferOwnership = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setTransferError(null)
+    if (!/^\S+@\S+\.\S+$/.test(transferEmail.trim())) {
+      setTransferError('Enter a valid email address.')
+      return
+    }
+    setTransferBusy(true)
     try {
-      const res = await apiClient.post('/api/soar/settings/organization/transfer', email, {
+      const res = await apiClient.post('/api/soar/settings/organization/transfer', transferEmail.trim(), {
         headers: { 'Content-Type': 'text/plain' }
       })
       if (res.data) {
         toast.success(typeof res.data === 'string' ? res.data : 'Ownership transferred successfully.')
       }
+      setTransferModalOpen(false)
     } catch (e) {
       console.error("Failed to transfer ownership:", e)
       toast.error("Failed to transfer ownership.")
+    } finally {
+      setTransferBusy(false)
     }
   }
 
@@ -767,12 +802,7 @@ export default function SettingsPage() {
     }
   }
 
-  const handleChangePlan = () => {
-    const plans = ["Enterprise Shield", "Growth Shield", "Standard Shield"]
-    const currentIdx = plans.indexOf(license?.planName || '')
-    const nextPlan = plans[(currentIdx + 1) % plans.length]
-    setChangePlanTarget(nextPlan)
-  }
+  const AVAILABLE_PLANS = ["Standard Shield", "Growth Shield", "Enterprise Shield"]
 
   const confirmChangePlan = async () => {
     if (!changePlanTarget) return
@@ -795,30 +825,31 @@ export default function SettingsPage() {
     }
   }
 
-  const handleUpdatePayment = async () => {
-    const brand = prompt("Enter Card Brand (e.g. VISA, MasterCard):", license?.cardBrand || 'VISA')
-    if (!brand) return
-    const last4 = prompt("Enter Card Last 4 digits (e.g. 4471):", license?.cardLast4 || '4471')
-    if (!last4) return
-    const expiry = prompt("Enter Card Expiry date (MM/YY, e.g. 08/28):", license?.cardExpiry || '08/28')
-    if (!expiry) return
-    const details = prompt("Enter Billing details (e.g. Billed to " + (orgName || 'Your Organization') + "):", license?.billingDetails || (orgName ? `Billed to ${orgName}` : ''))
-    if (!details) return
+  const openPaymentModal = () => {
+    setPaymentForm({
+      cardBrand: license?.cardBrand || '',
+      cardLast4: license?.cardLast4 || '',
+      cardExpiry: license?.cardExpiry || '',
+      billingDetails: license?.billingDetails || (orgName ? `Billed to ${orgName}` : ''),
+    })
+    setPaymentModalOpen(true)
+  }
 
+  const handleUpdatePayment = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setPaymentBusy(true)
     try {
-      const res = await apiClient.put('/api/soar/settings/license/payment-method', {
-        cardBrand: brand,
-        cardLast4: last4,
-        cardExpiry: expiry,
-        billingDetails: details
-      })
+      const res = await apiClient.put('/api/soar/settings/license/payment-method', paymentForm)
       if (res.data) {
         setLicense(res.data)
         toast.success("Payment method updated successfully!")
       }
+      setPaymentModalOpen(false)
     } catch (e) {
       console.error("Failed to update payment method:", e)
       toast.error("Failed to update payment method.")
+    } finally {
+      setPaymentBusy(false)
     }
   }
 
@@ -1825,7 +1856,7 @@ export default function SettingsPage() {
   }
 
   return (
-    <div className="settings-page flex bg-background text-text-secondary min-h-screen relative">
+    <div className="settings-page flex flex-col md:flex-row bg-background text-text-secondary min-h-screen relative">
       {/* Atmospheric Background for Dark Mode */}
       <div className="bg-fixed">
         <div className="nebula1" />
@@ -1835,6 +1866,28 @@ export default function SettingsPage() {
       </div>
 
       
+      {/* Settings Nav — mobile fallback (the sidebar below is hidden under md:) */}
+      <div className="md:hidden mb-4">
+        <Select
+          value={activeTab}
+          onChange={(tab) => handleTabClick(tab)}
+          aria-label="Settings section"
+          options={[
+            { value: 'Profile', label: 'Profile' },
+            { value: 'Organization', label: 'Organization' },
+            { value: 'License & Billing', label: 'License & Billing' },
+            { value: 'Users & Groups', label: 'Users & Groups' },
+            { value: 'Roles & Permissions', label: 'Roles & Permissions' },
+            { value: 'API Keys', label: 'API Keys' },
+            { value: 'Data Sources', label: 'Data Sources' },
+            { value: 'Integrations', label: 'Integrations' },
+            { value: 'Agent Deployment', label: 'Agent Deployment' },
+            { value: 'AI Model', label: 'AI Model' },
+            { value: 'Log Categories', label: 'Log Categories' },
+          ]}
+        />
+      </div>
+
       {/* Settings Sub-Sidebar */}
       <aside className="w-56 border-r border-fire-border pr-4 pt-2 space-y-6 shrink-0 hidden md:block">
         
@@ -2024,7 +2077,7 @@ export default function SettingsPage() {
                     <p className="text-small text-success/80">Your display name and preferences have been saved for real.</p>
                   </div>
                 </div>
-                <button onClick={() => setProfileSavedSuccess(false)} className="text-success hover:text-text-primary">
+                <button onClick={() => setProfileSavedSuccess(false)} className="text-success hover:text-text-primary" aria-label="Dismiss">
                   <X className="w-4 h-4" />
                 </button>
               </div>
@@ -2420,7 +2473,7 @@ export default function SettingsPage() {
                     <p className="text-small text-text-muted">Move this organization to another administrator</p>
                   </div>
                   <button
-                    onClick={handleTransferOwnership}
+                    onClick={openTransferModal}
                     className="btn-mission py-2 px-4 text-small"
                   >
                     Transfer
@@ -2458,20 +2511,21 @@ export default function SettingsPage() {
                 <div className="card-mission flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
                   <div className="space-y-2">
                     <span className="text-label text-accent uppercase block">Current Plan</span>
-                    <h3 className="text-h2 text-text-primary">{license?.planName || 'Enterprise Shield'}</h3>
-                    <p className="text-small text-text-muted">{license?.planFeatures || 'Unlimited endpoints · 24/7 SOC support · Renews 14 Aug 2026'}</p>
+                    <h3 className="text-h2 text-text-primary">{license?.planName || 'Not set'}</h3>
+                    <p className="text-small text-text-muted">{license?.planFeatures || 'No plan details on file.'}</p>
                   </div>
                   <div className="flex flex-col items-end gap-2.5 self-stretch md:self-auto border-t md:border-t-0 border-fire-border pt-4 md:pt-0">
                     <div className="text-h1 text-text-primary">
-                      {license?.planPrice || '₹1,84,999'}<span className="text-small text-text-muted lowercase">/mo</span>
+                      {license?.planPrice ? <>{license.planPrice}<span className="text-small text-text-muted lowercase">/mo</span></> : <span className="text-text-muted text-small">Not set</span>}
                     </div>
-                    <button
-                      onClick={handleChangePlan}
+                    <Select
+                      value=""
+                      onChange={(plan) => setChangePlanTarget(plan)}
                       disabled={licenseChanging}
-                      className="btn-mission py-2 px-4 text-small"
-                    >
-                      {licenseChanging ? 'Changing...' : 'Change plan'}
-                    </button>
+                      placeholder={licenseChanging ? 'Changing...' : 'Change plan'}
+                      options={AVAILABLE_PLANS.filter((p) => p !== license?.planName).map((p) => ({ value: p, label: p }))}
+                      aria-label="Change subscription plan"
+                    />
                   </div>
                 </div>
 
@@ -2482,12 +2536,16 @@ export default function SettingsPage() {
                   <div className="card-mission p-5 space-y-4">
                     <div className="text-label text-text-muted uppercase">Endpoints monitored</div>
                     <div className="text-h2 text-text-primary">
-                      {license?.endpointsMonitored || 642} <span className="text-text-muted text-small">/ {license?.endpointsLimit || 1000}</span>
+                      {license?.endpointsMonitored != null ? (
+                        <>{license.endpointsMonitored} <span className="text-text-muted text-small">/ {license?.endpointsLimit ?? '—'}</span></>
+                      ) : (
+                        <span className="text-text-muted text-small">Not set</span>
+                      )}
                     </div>
                     <div className="w-full bg-surface-3 h-1.5 rounded-full overflow-hidden">
                       <div
                         className="bg-accent h-full rounded-full transition-all duration-500"
-                        style={{ width: `${((license?.endpointsMonitored || 642) / (license?.endpointsLimit || 1000)) * 100}%` }}
+                        style={{ width: license?.endpointsMonitored != null && license?.endpointsLimit ? `${(license.endpointsMonitored / license.endpointsLimit) * 100}%` : '0%' }}
                       />
                     </div>
                   </div>
@@ -2496,12 +2554,16 @@ export default function SettingsPage() {
                   <div className="card-mission p-5 space-y-4">
                     <div className="text-label text-text-muted uppercase">Data ingestion</div>
                     <div className="text-h2 text-text-primary">
-                      {license?.dataIngestion || 1.8} <span className="text-text-muted text-small">TB / day of {license?.dataIngestionLimit || 2.5} TB</span>
+                      {license?.dataIngestion != null ? (
+                        <>{license.dataIngestion} <span className="text-text-muted text-small">TB / day of {license?.dataIngestionLimit ?? '—'} TB</span></>
+                      ) : (
+                        <span className="text-text-muted text-small">Not set</span>
+                      )}
                     </div>
                     <div className="w-full bg-surface-3 h-1.5 rounded-full overflow-hidden">
                       <div
                         className="bg-accent h-full rounded-full transition-all duration-500"
-                        style={{ width: `${((license?.dataIngestion || 1.8) / (license?.dataIngestionLimit || 2.5)) * 100}%` }}
+                        style={{ width: license?.dataIngestion != null && license?.dataIngestionLimit ? `${(license.dataIngestion / license.dataIngestionLimit) * 100}%` : '0%' }}
                       />
                     </div>
                   </div>
@@ -2510,12 +2572,16 @@ export default function SettingsPage() {
                   <div className="card-mission p-5 space-y-4">
                     <div className="text-label text-text-muted uppercase">API calls this month</div>
                     <div className="text-h2 text-text-primary">
-                      {formatNumberWithK(license?.apiCalls || 402000)} <span className="text-text-muted text-small">/ {formatNumberWithK(license?.apiCallsLimit || 1000000)}</span>
+                      {license?.apiCalls != null ? (
+                        <>{formatNumberWithK(license.apiCalls)} <span className="text-text-muted text-small">/ {license?.apiCallsLimit != null ? formatNumberWithK(license.apiCallsLimit) : '—'}</span></>
+                      ) : (
+                        <span className="text-text-muted text-small">Not set</span>
+                      )}
                     </div>
                     <div className="w-full bg-surface-3 h-1.5 rounded-full overflow-hidden">
                       <div
                         className="bg-accent h-full rounded-full transition-all duration-500"
-                        style={{ width: `${((license?.apiCalls || 402000) / (license?.apiCallsLimit || 1000000)) * 100}%` }}
+                        style={{ width: license?.apiCalls != null && license?.apiCallsLimit ? `${(license.apiCalls / license.apiCallsLimit) * 100}%` : '0%' }}
                       />
                     </div>
                   </div>
@@ -2583,26 +2649,32 @@ export default function SettingsPage() {
                       <p className="text-small text-text-muted mt-1">Used for monthly renewal</p>
                     </div>
                     <button
-                      onClick={handleUpdatePayment}
+                      onClick={openPaymentModal}
                       className="btn-mission py-2 px-4 text-small"
                     >
                       Update
                     </button>
                   </div>
 
-                  <div className="bg-surface-2 border border-fire-border rounded-xl p-4 flex items-center gap-4">
-                    <div className="bg-surface-3 px-3 py-1.5 rounded-lg border border-fire-border text-small font-bold text-accent">
-                      {license?.cardBrand || 'VISA'}
-                    </div>
-                    <div className="flex-1 space-y-1">
-                      <div className="text-small text-text-primary font-semibold">
-                        •••• •••• •••• {license?.cardLast4 || '4471'}
+                  {license?.cardBrand && license?.cardLast4 ? (
+                    <div className="bg-surface-2 border border-fire-border rounded-xl p-4 flex items-center gap-4">
+                      <div className="bg-surface-3 px-3 py-1.5 rounded-lg border border-fire-border text-small font-bold text-accent">
+                        {license.cardBrand}
                       </div>
-                      <div className="text-label text-text-muted">
-                        Expires {license?.cardExpiry || '08/28'} &middot; {license?.billingDetails || (orgName ? `Billed to ${orgName}` : 'Billing details not set')}
+                      <div className="flex-1 space-y-1">
+                        <div className="text-small text-text-primary font-semibold">
+                          •••• •••• •••• {license.cardLast4}
+                        </div>
+                        <div className="text-label text-text-muted">
+                          {license?.cardExpiry ? `Expires ${license.cardExpiry} · ` : ''}{license?.billingDetails || (orgName ? `Billed to ${orgName}` : 'Billing details not set')}
+                        </div>
                       </div>
                     </div>
-                  </div>
+                  ) : (
+                    <div className="bg-surface-2 border border-fire-border rounded-xl p-4 text-small text-text-muted">
+                      No payment method on file.
+                    </div>
+                  )}
                 </div>
               </>
             )}
@@ -2761,6 +2833,7 @@ export default function SettingsPage() {
                               onClick={() => handleDeleteGroup(group.id, group.name)}
                               disabled={!canAdminSettings}
                               title={!canAdminSettings ? "Your role doesn't have admin access to Settings" : "Delete group"}
+                              aria-label={`Delete group ${group.name}`}
                               className="text-text-muted hover:text-danger transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                             >
                               <X className="w-3.5 h-3.5" />
@@ -2787,7 +2860,7 @@ export default function SettingsPage() {
             <div className="bg-surface border border-fire-border rounded-xl w-full max-w-sm overflow-hidden shadow-card animate-scale-in">
               <div className="flex items-center justify-between p-5 border-b border-fire-border">
                 <h3 className="text-h3 text-text-primary">Invite user</h3>
-                <button onClick={() => setInviteModalOpen(false)} className="text-text-muted hover:text-text-primary transition-colors">
+                <button onClick={() => setInviteModalOpen(false)} className="text-text-muted hover:text-text-primary transition-colors" aria-label="Close dialog">
                   <X className="w-4 h-4" />
                 </button>
               </div>
@@ -2853,7 +2926,7 @@ export default function SettingsPage() {
             <div className="bg-surface border border-fire-border rounded-xl w-full max-w-sm overflow-hidden shadow-card animate-scale-in">
               <div className="flex items-center justify-between p-5 border-b border-fire-border">
                 <h3 className="text-h3 text-text-primary">New group</h3>
-                <button onClick={() => setGroupModalOpen(false)} className="text-text-muted hover:text-text-primary transition-colors">
+                <button onClick={() => setGroupModalOpen(false)} className="text-text-muted hover:text-text-primary transition-colors" aria-label="Close dialog">
                   <X className="w-4 h-4" />
                 </button>
               </div>
@@ -2978,7 +3051,7 @@ export default function SettingsPage() {
                                 {/* NONE column */}
                                 <td className="text-center align-middle">
                                   {level === 'NONE' && (
-                                    <div className="relative inline-block text-left">
+                                    <div className="relative inline-block text-left permission-dropdown-wrap">
                                       <button
                                         type="button"
                                         onClick={() => setActiveDropdownRow(activeDropdownRow === perm.moduleName ? null : perm.moduleName)}
@@ -2994,7 +3067,7 @@ export default function SettingsPage() {
                                 {/* READ column */}
                                 <td className="text-center align-middle">
                                   {level === 'READ' && (
-                                    <div className="relative inline-block text-left">
+                                    <div className="relative inline-block text-left permission-dropdown-wrap">
                                       <button
                                         type="button"
                                         onClick={() => setActiveDropdownRow(activeDropdownRow === perm.moduleName ? null : perm.moduleName)}
@@ -3010,7 +3083,7 @@ export default function SettingsPage() {
                                 {/* WRITE column */}
                                 <td className="text-center align-middle">
                                   {level === 'WRITE' && (
-                                    <div className="relative inline-block text-left">
+                                    <div className="relative inline-block text-left permission-dropdown-wrap">
                                       <button
                                         type="button"
                                         onClick={() => setActiveDropdownRow(activeDropdownRow === perm.moduleName ? null : perm.moduleName)}
@@ -3026,7 +3099,7 @@ export default function SettingsPage() {
                                 {/* ADMIN column */}
                                 <td className="text-center align-middle">
                                   {level === 'ADMIN' && (
-                                    <div className="relative inline-block text-left">
+                                    <div className="relative inline-block text-left permission-dropdown-wrap">
                                       <button
                                         type="button"
                                         onClick={() => setActiveDropdownRow(activeDropdownRow === perm.moduleName ? null : perm.moduleName)}
@@ -3075,7 +3148,7 @@ export default function SettingsPage() {
             <div className="bg-surface border border-fire-border rounded-xl w-full max-w-sm overflow-hidden shadow-card animate-scale-in">
               <div className="flex items-center justify-between p-5 border-b border-fire-border">
                 <h3 className="text-h3 text-text-primary">New role</h3>
-                <button onClick={() => setNewRoleModalOpen(false)} className="text-text-muted hover:text-text-primary transition-colors">
+                <button onClick={() => setNewRoleModalOpen(false)} className="text-text-muted hover:text-text-primary transition-colors" aria-label="Close dialog">
                   <X className="w-4 h-4" />
                 </button>
               </div>
@@ -3131,7 +3204,7 @@ export default function SettingsPage() {
 
               {!gdEditing && gdConfigured ? (
                 <div className="space-y-3">
-                  <div className="grid grid-cols-2 gap-4 text-small">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-small">
                     <div>
                       <span className="text-label text-text-muted uppercase block mb-1">Region</span>
                       <span className="font-mono text-text-secondary">{gdRegion}</span>
@@ -3161,7 +3234,7 @@ export default function SettingsPage() {
                 </div>
               ) : (
                 <form onSubmit={handleSaveGuardDuty} className="space-y-4">
-                  <div className="grid grid-cols-3 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                     <div className="space-y-1">
                       <label className="text-label text-text-muted uppercase block">Access Key ID</label>
                       <input type="text" value={gdAccessKeyId} onChange={(e) => setGdAccessKeyId(e.target.value)} className="input-field font-mono" required />
@@ -3220,7 +3293,7 @@ export default function SettingsPage() {
 
               {!asEditing && asConfigured ? (
                 <div className="space-y-3">
-                  <div className="grid grid-cols-2 gap-4 text-small">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-small">
                     <div>
                       <span className="text-label text-text-muted uppercase block mb-1">Workspace</span>
                       <span className="font-mono text-text-secondary">{asWorkspaceName}</span>
@@ -3250,7 +3323,7 @@ export default function SettingsPage() {
                 </div>
               ) : (
                 <form onSubmit={handleSaveAzureSentinel} className="space-y-4">
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div className="space-y-1">
                       <label className="text-label text-text-muted uppercase block">Azure Tenant ID</label>
                       <input type="text" value={asAzureTenantId} onChange={(e) => setAsAzureTenantId(e.target.value)} className="input-field font-mono" required />
@@ -3321,7 +3394,7 @@ export default function SettingsPage() {
 
               {!adEditing && adConfigured ? (
                 <div className="space-y-3">
-                  <div className="grid grid-cols-2 gap-4 text-small">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-small">
                     <div>
                       <span className="text-label text-text-muted uppercase block mb-1">Azure Tenant ID</span>
                       <span className="font-mono text-text-secondary">{adAzureTenantId}</span>
@@ -3351,7 +3424,7 @@ export default function SettingsPage() {
                 </div>
               ) : (
                 <form onSubmit={handleSaveAzureAd} className="space-y-4">
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div className="space-y-1">
                       <label className="text-label text-text-muted uppercase block">Azure Tenant ID</label>
                       <input type="text" value={adAzureTenantId} onChange={(e) => setAdAzureTenantId(e.target.value)} className="input-field font-mono" required />
@@ -3438,7 +3511,7 @@ export default function SettingsPage() {
 
               {syConfigured ? (
                 <div className="space-y-3">
-                  <div className="grid grid-cols-2 gap-4 text-small">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-small">
                     <div>
                       <span className="text-label text-text-muted uppercase block mb-1">Assigned Port (UDP + TCP)</span>
                       <span className="font-mono text-text-primary text-h3">{syPort}</span>
@@ -3963,8 +4036,13 @@ export default function SettingsPage() {
 
         {/* Tab 1: API Keys Panel */}
         {activeTab === 'API Keys' && (
-          <div className="space-y-6">
-            
+          <div className="space-y-6 animate-fade-in">
+            {keysLoading ? (
+              <div className="py-12 text-center text-small text-text-muted animate-pulse">
+                Loading API keys...
+              </div>
+            ) : (
+            <>
             {/* API Keys Table Card */}
             <div className="card-mission p-5 space-y-4">
               <div className="flex items-center justify-between border-b border-fire-border pb-3">
@@ -4044,14 +4122,20 @@ export default function SettingsPage() {
                 </table>
               </div>
             </div>
-
+            </>
+            )}
           </div>
         )}
 
         {/* Full Ingestion Integrations Panel */}
         {activeTab === 'Integrations' && (
           <div className="space-y-6 animate-fade-in">
-
+            {keysLoading ? (
+              <div className="py-12 text-center text-small text-text-muted animate-pulse">
+                Loading integrations...
+              </div>
+            ) : (
+            <>
             {/* Connected Integrations Card */}
             <div className="card-mission p-5 space-y-4">
               <div className="flex items-center justify-between border-b border-fire-border pb-3">
@@ -4129,7 +4213,7 @@ export default function SettingsPage() {
 
               {!cfEditing && cfConfigured ? (
                 <div className="space-y-3">
-                  <div className="grid grid-cols-2 gap-4 text-small">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-small">
                     <div>
                       <span className="text-label text-text-muted uppercase block mb-1">Zone ID</span>
                       <span className="font-mono text-text-secondary">{cfZoneId}</span>
@@ -4163,7 +4247,7 @@ export default function SettingsPage() {
                 </div>
               ) : (
                 <form onSubmit={handleSaveCloudflare} className="space-y-4">
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div className="space-y-1">
                       <label className="text-label text-text-muted uppercase block">API Token</label>
                       <input
@@ -4259,7 +4343,7 @@ export default function SettingsPage() {
 
               {!paEditing && paConfigured ? (
                 <div className="space-y-3">
-                  <div className="grid grid-cols-2 gap-4 text-small">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-small">
                     <div>
                       <span className="text-label text-text-muted uppercase block mb-1">Hostname</span>
                       <span className="font-mono text-text-secondary">{paHostname}</span>
@@ -4289,7 +4373,7 @@ export default function SettingsPage() {
                 </div>
               ) : (
                 <form onSubmit={handleSavePaloAlto} className="space-y-4">
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div className="space-y-1">
                       <label className="text-label text-text-muted uppercase block">Firewall Hostname / IP</label>
                       <input type="text" placeholder="fw.example.com" value={paHostname} onChange={(e) => setPaHostname(e.target.value)} className="input-field font-mono" required />
@@ -4344,7 +4428,7 @@ export default function SettingsPage() {
 
               {!wzEditing && wzConfigured ? (
                 <div className="space-y-3">
-                  <div className="grid grid-cols-2 gap-4 text-small">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-small">
                     <div>
                       <span className="text-label text-text-muted uppercase block mb-1">Indexer URL</span>
                       <span className="font-mono text-text-secondary">{wzBaseUrl}</span>
@@ -4374,7 +4458,7 @@ export default function SettingsPage() {
                 </div>
               ) : (
                 <form onSubmit={handleSaveWazuh} className="space-y-4">
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div className="space-y-1">
                       <label className="text-label text-text-muted uppercase block">Indexer Base URL</label>
                       <input type="text" placeholder="https://wazuh-indexer.example.com:9200" value={wzBaseUrl} onChange={(e) => setWzBaseUrl(e.target.value)} className="input-field font-mono" required />
@@ -4437,7 +4521,7 @@ export default function SettingsPage() {
 
               {!s1Editing && s1Configured ? (
                 <div className="space-y-3">
-                  <div className="grid grid-cols-2 gap-4 text-small">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-small">
                     <div>
                       <span className="text-label text-text-muted uppercase block mb-1">Console URL</span>
                       <span className="font-mono text-text-secondary">{s1ConsoleUrl}</span>
@@ -4467,7 +4551,7 @@ export default function SettingsPage() {
                 </div>
               ) : (
                 <form onSubmit={handleSaveSentinelOne} className="space-y-4">
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div className="space-y-1">
                       <label className="text-label text-text-muted uppercase block">Console URL</label>
                       <input type="text" placeholder="https://usea1-partners.sentinelone.net" value={s1ConsoleUrl} onChange={(e) => setS1ConsoleUrl(e.target.value)} className="input-field font-mono" required />
@@ -4505,7 +4589,8 @@ export default function SettingsPage() {
                 </form>
               )}
             </div>
-
+            </>
+            )}
           </div>
         )}
 
@@ -4522,7 +4607,7 @@ export default function SettingsPage() {
                   {retrainMessage.ok ? <CheckCircle2 className="w-5 h-5 shrink-0" /> : <ShieldAlert className="w-5 h-5 shrink-0" />}
                   {retrainMessage.message}
                 </div>
-                <button onClick={() => setRetrainMessage(null)} className="hover:text-text-primary">
+                <button onClick={() => setRetrainMessage(null)} className="hover:text-text-primary" aria-label="Dismiss">
                   <X className="w-4 h-4" />
                 </button>
               </div>
@@ -4687,7 +4772,7 @@ export default function SettingsPage() {
                   {categorySaveResult.ok ? <CheckCircle2 className="w-5 h-5 shrink-0" /> : <ShieldAlert className="w-5 h-5 shrink-0" />}
                   {categorySaveResult.message}
                 </div>
-                <button onClick={() => setCategorySaveResult(null)} className="hover:text-text-primary">
+                <button onClick={() => setCategorySaveResult(null)} className="hover:text-text-primary" aria-label="Dismiss">
                   <X className="w-4 h-4" />
                 </button>
               </div>
@@ -4784,6 +4869,7 @@ export default function SettingsPage() {
               <button
                 onClick={() => setIsKeyModalOpen(false)}
                 className="text-text-muted hover:text-text-primary transition-colors focus:outline-none"
+                aria-label="Close dialog"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -4843,6 +4929,7 @@ export default function SettingsPage() {
               <button
                 onClick={() => setRevealedKey(null)}
                 className="text-text-muted hover:text-text-primary transition-colors focus:outline-none"
+                aria-label="Close dialog"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -4859,6 +4946,7 @@ export default function SettingsPage() {
                 <button
                   onClick={handleCopyRevealedToken}
                   className="text-text-muted hover:text-text-primary transition-colors focus:outline-none shrink-0"
+                  aria-label={revealedTokenCopied ? 'Copied' : 'Copy key to clipboard'}
                 >
                   {revealedTokenCopied ? <Check className="w-4 h-4 text-success" /> : <Copy className="w-4 h-4" />}
                 </button>
@@ -4885,6 +4973,7 @@ export default function SettingsPage() {
               <button
                 onClick={() => setIsIntegrationModalOpen(false)}
                 className="text-text-muted hover:text-text-primary transition-colors focus:outline-none"
+                aria-label="Close dialog"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -4988,6 +5077,126 @@ export default function SettingsPage() {
         onConfirm={confirmChangePlan}
         onCancel={() => setChangePlanTarget(null)}
       />
+
+      <Modal
+        open={paymentModalOpen}
+        onClose={() => setPaymentModalOpen(false)}
+        title="Update Payment Method"
+        footer={
+          <>
+            <button
+              type="button"
+              className="btn-ghost py-2 px-4 text-small"
+              onClick={() => setPaymentModalOpen(false)}
+              disabled={paymentBusy}
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              form="payment-method-form"
+              className="btn-mission py-2 px-4 text-small"
+              disabled={paymentBusy}
+            >
+              {paymentBusy ? 'Saving...' : 'Save'}
+            </button>
+          </>
+        }
+      >
+        <form id="payment-method-form" onSubmit={handleUpdatePayment} className="space-y-4">
+          <div className="space-y-1.5">
+            <label className="text-small text-text-secondary font-semibold">Card Brand</label>
+            <input
+              type="text"
+              value={paymentForm.cardBrand}
+              onChange={(e) => setPaymentForm({ ...paymentForm, cardBrand: e.target.value })}
+              placeholder="e.g. VISA, MasterCard"
+              className="input-field"
+              required
+            />
+          </div>
+          <div className="space-y-1.5">
+            <label className="text-small text-text-secondary font-semibold">Card Last 4 Digits</label>
+            <input
+              type="text"
+              value={paymentForm.cardLast4}
+              onChange={(e) => setPaymentForm({ ...paymentForm, cardLast4: e.target.value })}
+              placeholder="e.g. 4471"
+              maxLength={4}
+              className="input-field"
+              required
+            />
+          </div>
+          <div className="space-y-1.5">
+            <label className="text-small text-text-secondary font-semibold">Expiry Date (MM/YY)</label>
+            <input
+              type="text"
+              value={paymentForm.cardExpiry}
+              onChange={(e) => setPaymentForm({ ...paymentForm, cardExpiry: e.target.value })}
+              placeholder="e.g. 08/28"
+              className="input-field"
+              required
+            />
+          </div>
+          <div className="space-y-1.5">
+            <label className="text-small text-text-secondary font-semibold">Billing Details</label>
+            <input
+              type="text"
+              value={paymentForm.billingDetails}
+              onChange={(e) => setPaymentForm({ ...paymentForm, billingDetails: e.target.value })}
+              placeholder={`e.g. Billed to ${orgName || 'Your Organization'}`}
+              className="input-field"
+            />
+          </div>
+        </form>
+      </Modal>
+
+      <Modal
+        open={transferModalOpen}
+        onClose={() => setTransferModalOpen(false)}
+        title="Transfer Ownership"
+        footer={
+          <>
+            <button
+              type="button"
+              className="btn-ghost py-2 px-4 text-small"
+              onClick={() => setTransferModalOpen(false)}
+              disabled={transferBusy}
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              form="transfer-ownership-form"
+              className="btn-mission py-2 px-4 text-small"
+              disabled={transferBusy}
+            >
+              {transferBusy ? 'Transferring...' : 'Transfer'}
+            </button>
+          </>
+        }
+      >
+        <form id="transfer-ownership-form" onSubmit={handleTransferOwnership} className="space-y-4">
+          <p className="text-small text-text-muted">
+            The administrator you transfer to becomes the organization owner. You will keep your current role and access.
+          </p>
+          {transferError && (
+            <div className="bg-danger/10 border border-danger/30 rounded-lg p-3 text-small text-danger font-semibold">{transferError}</div>
+          )}
+          <div className="space-y-1.5">
+            <label className="text-small text-text-secondary font-semibold">Administrator Email</label>
+            <input
+              type="email"
+              value={transferEmail}
+              onChange={(e) => setTransferEmail(e.target.value)}
+              placeholder="admin@company.com"
+              className="input-field"
+              required
+              autoFocus
+            />
+          </div>
+        </form>
+      </Modal>
 
       <ConfirmDialog
         open={!!deleteUserTarget}

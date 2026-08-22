@@ -1,17 +1,6 @@
 /* ================= AI ANALYST PAGE ================= */
 .ai-analyst-page {
-  /* Default Dark Mode Theme */
-  --bg: #070b14;
-  --border-soft: #1b2540;
-  --text: #e7ecf7;
-  --muted: #7c88a8;
-  --dim: #54617f;
-  --blue: #3b82f6;
-  --cyan: #22d3ee;
-  --purple: #a855f7;
-  --green: #22c55e;
-  --amber: #f59e0b;
-  --red: #ef4444;
+  /* Shared color tokens now come from styles/contentTokens.css. */
 
   /* Card and Panel Backgrounds */
   --card-bg: linear-gradient(160deg, rgba(16, 23, 40, 0.85), rgba(9, 13, 24, 0.9));
@@ -38,18 +27,6 @@
 /* Light Mode Theme Overrides */
 :root[data-theme="light"] .ai-analyst-page,
 [data-theme="light"] .ai-analyst-page {
-  --bg: #f4f6fa;
-  --border-soft: #e2e7f1;
-  --text: #12182b;
-  --muted: #66708c;
-  --dim: #96a0ba;
-  --blue: #2563eb;
-  --cyan: #0891b2;
-  --purple: #9333ea;
-  --green: #16a34a;
-  --amber: #d97706;
-  --red: #dc2626;
-
   /* Card and Panel Backgrounds for Light Mode */
   --card-bg: #ffffff;
   --panel-bg: #ffffff;

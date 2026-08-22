@@ -257,6 +257,14 @@ function CreateUserModal({
   const [submitting, setSubmitting] = useState(false)
   const [fieldError, setFieldError] = useState<string | null>(null)
 
+  useEffect(() => {
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose()
+    }
+    document.addEventListener('keydown', handleKey)
+    return () => document.removeEventListener('keydown', handleKey)
+  }, [onClose])
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setFieldError(null)
@@ -300,11 +308,17 @@ function CreateUserModal({
   }
 
   return (
-    <div className="fixed inset-0 bg-background/85 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <div className="bg-surface border border-fire-border rounded-xl w-full max-w-md overflow-hidden shadow-card animate-scale-in max-h-[90vh] overflow-y-auto">
+    <div className="fixed inset-0 bg-background/85 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={onClose}>
+      <div
+        className="bg-surface border border-fire-border rounded-xl w-full max-w-md shadow-card animate-scale-in max-h-[90vh] overflow-y-auto"
+        onClick={(e) => e.stopPropagation()}
+        role="dialog"
+        aria-modal="true"
+        aria-label="New User"
+      >
         <div className="flex items-center justify-between p-5 border-b border-fire-border">
           <h3 className="text-h3 text-text-primary">New User</h3>
-          <button onClick={onClose} className="text-text-muted hover:text-text-primary transition-colors focus:outline-none">
+          <button type="button" onClick={onClose} aria-label="Close dialog" className="text-text-muted hover:text-text-primary transition-colors focus:outline-none">
             <X className="w-5 h-5" />
           </button>
         </div>

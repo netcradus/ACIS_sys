@@ -384,24 +384,12 @@ export default function AssetsPage() {
               <div className="v">{totalAssetsCount}</div>
               <div className="l">Total Assets</div>
             </div>
-            <div className="stat-chart">
-              <svg viewBox="0 0 70 30" width="70" height="28">
-                <polyline points="0,22 12,18 24,20 36,10 48,14 60,4 70,6" fill="none" stroke="var(--cyan)" strokeWidth="2" />
-              </svg>
-              <span className="n">{totalAssetsCount}</span>
-            </div>
           </div>
 
           <div className="stat-card">
             <div>
               <div className="v">{highCriticalityCount}</div>
               <div className="l">High Criticality</div>
-            </div>
-            <div className="stat-chart">
-              <svg viewBox="0 0 70 30" width="70" height="28">
-                <polyline points="0,15 12,20 24,10 36,18 48,8 60,16 70,12" fill="none" stroke="var(--cyan)" strokeWidth="2" />
-              </svg>
-              <span className="n">{highCriticalityCount}</span>
             </div>
           </div>
 
@@ -410,24 +398,12 @@ export default function AssetsPage() {
               <div className="v">{quarantinedCount}</div>
               <div className="l">Quarantined</div>
             </div>
-            <div className="stat-chart">
-              <svg viewBox="0 0 70 30" width="70" height="28">
-                <polyline points="0,25 12,22 24,24 36,18 48,20 60,10 70,14" fill="none" stroke="var(--amber)" strokeWidth="2" />
-              </svg>
-              <span className="n">{quarantinedCount}</span>
-            </div>
           </div>
 
           <div className="stat-card">
             <div>
               <div className="v">{identityConflictsCount}</div>
               <div className="l">Identity Conflicts</div>
-            </div>
-            <div className="stat-chart">
-              <svg viewBox="0 0 70 30" width="70" height="28">
-                <polyline points="0,20 12,16 24,18 36,8 48,12 60,4 70,10" fill="none" stroke="var(--cyan)" strokeWidth="2" />
-              </svg>
-              <span className="n">{identityConflictsCount}</span>
             </div>
           </div>
         </div>
@@ -542,6 +518,7 @@ export default function AssetsPage() {
                   </div>
                   <button
                     onClick={() => setSelectedAssetId(null)}
+                    aria-label="Close asset details"
                     style={{ background: 'transparent', border: 'none', cursor: 'pointer' }}
                   >
                     <X className="w-4 h-4 text-text-muted hover:text-text-primary" />
@@ -553,7 +530,7 @@ export default function AssetsPage() {
                   <span className="text-label uppercase text-text-muted block border-b border-border-soft pb-1">Asset Profile</span>
                   <div className="grid grid-cols-3 gap-y-2">
                     <span className="text-text-muted font-medium">Owner:</span>
-                    <span className="col-span-2 text-text-secondary font-semibold font-mono">{selectedAsset.owner}@netcradus.local</span>
+                    <span className="col-span-2 text-text-secondary font-semibold font-mono">{selectedAsset.owner || '—'}</span>
 
                     <span className="text-text-muted font-medium">IP Address:</span>
                     <span className="col-span-2 font-semibold">
@@ -602,7 +579,8 @@ export default function AssetsPage() {
                           {canWrite && (
                             <button
                               onClick={() => handleDeleteIdentity(user.id)}
-                              className="text-text-muted hover:text-red transition-colors opacity-0 group-hover:opacity-100"
+                              aria-label={`Remove identity ${user.username}`}
+                              className="text-text-muted hover:text-red transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100"
                               style={{ background: 'transparent', border: 'none', cursor: 'pointer' }}
                             >
                               <X className="w-3.5 h-3.5" />
@@ -753,7 +731,7 @@ export default function AssetsPage() {
         <div className="bottom-row">
           
           <div className="bottom-card">
-            <h3>Live Asset Ticker <span style={{ color: 'var(--dim)', fontSize: '12px', cursor: 'pointer' }}>⌄</span></h3>
+            <h3>Live Asset Ticker</h3>
             <div className="ticker-top">
               on threat status check by <span className="lnk">Asset Identity Audit</span> - Active Stitching…
             </div>
@@ -767,7 +745,7 @@ export default function AssetsPage() {
           </div>
 
           <div className="bottom-card">
-            <h3>Identity Conflict Feed <span style={{ color: 'var(--dim)', fontSize: '12px', cursor: 'pointer' }}>⌄</span></h3>
+            <h3>Identity Conflict Feed</h3>
             <div className="ticker-list">
               {identityConflicts.length === 0 ? (
                 <div className="ticker-item" style={{ color: 'var(--dim)' }}>No flagged identities detected.</div>
@@ -776,19 +754,6 @@ export default function AssetsPage() {
                   <div key={item.id} className="ticker-item">• <b>Flagged access:</b> {item.username} on {item.assetName}</div>
                 ))
               )}
-            </div>
-          </div>
-
-          <div className="bottom-card">
-            <h3>Asset Investigation Timeline</h3>
-            <div className="invest-flow">
-              <div className="invest-step"><div className="invest-icon blue">👤</div><div className="invest-lbl">Assignment Seen</div></div>
-              <div className="invest-arrow">→</div>
-              <div className="invest-step"><div className="invest-icon cyan">🔍</div><div className="invest-lbl">Inv. Diagnosis</div></div>
-              <div className="invest-arrow">→</div>
-              <div className="invest-step"><div className="invest-icon amber">⏱</div><div className="invest-lbl">Severe Status</div></div>
-              <div className="invest-arrow">→</div>
-              <div className="invest-step"><div className="invest-icon blue">⚠</div><div className="invest-lbl">Report Conflicts</div></div>
             </div>
           </div>
 
@@ -804,6 +769,7 @@ export default function AssetsPage() {
               <h3 className="text-h3 text-heading-color font-bold">Register Corporate Node</h3>
               <button
                 onClick={() => setIsModalOpen(false)}
+                aria-label="Close dialog"
                 style={{ background: 'transparent', border: 'none', cursor: 'pointer' }}
               >
                 <X className="w-5 h-5 text-text-muted hover:text-text-primary" />

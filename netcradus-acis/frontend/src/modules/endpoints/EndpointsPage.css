@@ -1,17 +1,6 @@
 /* ================= ENDPOINTS PAGE ================= */
 .endpoints-page {
-  /* Default Dark Mode Theme */
-  --bg: #070b14;
-  --border-soft: #1b2540;
-  --text: #e7ecf7;
-  --muted: #7c88a8;
-  --dim: #54617f;
-  --blue: #3b82f6;
-  --cyan: #22d3ee;
-  --purple: #a855f7;
-  --green: #22c55e;
-  --amber: #f59e0b;
-  --red: #ef4444;
+  /* Shared color tokens now come from styles/contentTokens.css. */
 
   /* Card and Panel Backgrounds */
   --card-bg: linear-gradient(160deg, rgba(16, 23, 40, 0.85), rgba(9, 13, 24, 0.9));
@@ -23,12 +12,6 @@
   --tr-border: #171f36;
   --heading-color: #ffffff;
   --box-shadow: 0 10px 26px -18px rgba(0, 0, 0, 0.6);
-
-  /* Global Map color variables */
-  --map-dot-color: rgba(94, 170, 190, 0.3);
-  --map-path-color: rgba(217, 119, 6, 0.55);
-  --map-hotspot-color: #f97316;
-  --map-dot-center-color: #fb923c;
 
   background: var(--bg);
   color: var(--text);
@@ -42,18 +25,6 @@
 /* Light Mode Theme Overrides */
 :root[data-theme="light"] .endpoints-page,
 [data-theme="light"] .endpoints-page {
-  --bg: #f4f6fa;
-  --border-soft: #e2e7f1;
-  --text: #12182b;
-  --muted: #66708c;
-  --dim: #96a0ba;
-  --blue: #2563eb;
-  --cyan: #0891b2;
-  --purple: #9333ea;
-  --green: #16a34a;
-  --amber: #d97706;
-  --red: #dc2626;
-
   /* Card and Panel Backgrounds for Light Mode */
   --card-bg: #ffffff;
   --panel-bg: #ffffff;
@@ -64,12 +35,6 @@
   --tr-border: #eef1f9;
   --heading-color: #0e1526;
   --box-shadow: 0 8px 20px -16px rgba(30, 50, 110, 0.16);
-
-  /* Global Map color variables for Light Mode */
-  --map-dot-color: rgba(37, 99, 235, 0.25);
-  --map-path-color: rgba(217, 119, 6, 0.5);
-  --map-hotspot-color: #1e3a5f;
-  --map-dot-center-color: #1e3a5f;
 }
 
 /* Atmospheric Background */
@@ -237,42 +202,6 @@
   margin-bottom: 14px;
 }
 
-.endpoints-page .stat-detail {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  font-size: 11.5px;
-  color: var(--text);
-  font-weight: 600;
-  margin-bottom: 14px;
-  opacity: 0.85;
-}
-
-.endpoints-page .stat-detail div {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-}
-
-.endpoints-page .stat-detail .b {
-  width: 5px;
-  height: 5px;
-  border-radius: 50%;
-  background: #22d3ee;
-  flex: none;
-}
-
-:root[data-theme="light"] .endpoints-page .stat-detail .b,
-[data-theme="light"] .endpoints-page .stat-detail .b {
-  background: #0891b2;
-}
-
-.endpoints-page .stat-detail span.n {
-  margin-left: auto;
-  font-weight: 800;
-  color: var(--heading-color);
-}
-
 .endpoints-page .stat-lbl {
   font-size: 10.5px;
   font-weight: 800;
@@ -291,6 +220,10 @@
   padding: 26px 28px;
   margin-bottom: 22px;
   box-shadow: var(--box-shadow);
+}
+
+.endpoints-page .heal-panel .table-scroll {
+  overflow-x: auto;
 }
 
 .endpoints-page .heal-head {
@@ -318,6 +251,9 @@
 }
 
 .endpoints-page .rollback-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
   padding: 12px 24px;
   border-radius: 10px;
   border: none;
@@ -331,12 +267,18 @@
   transition: all 0.2s ease;
 }
 
+.endpoints-page .rollback-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 .endpoints-page .rollback-btn:hover {
   opacity: 0.9;
 }
 
 .endpoints-page table.ep-table {
   width: 100%;
+  min-width: 640px;
   border-collapse: collapse;
 }
 
@@ -423,7 +365,7 @@
   font-size: 13px;
 }
 
-/* bottom grid: distribution map | trend+gauge | global attack map */
+/* bottom grid: remediation events | rollback gauge */
 .endpoints-page .bottom-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -461,53 +403,6 @@
   color: var(--dim);
   font-size: 13px;
   font-weight: 400;
-}
-
-.endpoints-page .map-box {
-  position: relative;
-  border-radius: 10px;
-  overflow: hidden;
-  height: 260px;
-  background: #081018;
-}
-
-:root[data-theme="light"] .endpoints-page .map-box,
-[data-theme="light"] .endpoints-page .map-box {
-  background: #eef1f8;
-  border: 1px solid var(--border-soft);
-}
-
-.endpoints-page .map-box svg {
-  width: 100%;
-  height: 100%;
-}
-
-.endpoints-page .map-marker {
-  position: absolute;
-  width: 28px;
-  height: 28px;
-  border-radius: 8px;
-  background: rgba(34, 211, 238, 0.15);
-  border: 1px solid rgba(34, 211, 238, 0.5);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 13px;
-  color: #22d3ee;
-  transform: translate(-50%, -50%);
-}
-
-:root[data-theme="light"] .endpoints-page .map-marker,
-[data-theme="light"] .endpoints-page .map-marker {
-  background: rgba(8, 145, 178, 0.1);
-  border-color: rgba(8, 145, 178, 0.4);
-  color: #0891b2;
-}
-
-.endpoints-page .stack-col {
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
 }
 
 .endpoints-page .gauge-wrap {

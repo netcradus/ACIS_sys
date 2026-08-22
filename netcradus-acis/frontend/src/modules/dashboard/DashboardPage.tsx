@@ -5,8 +5,6 @@ import wsClient from '@/lib/wsClient'
 import { useCanRead, MODULES } from '@/store/permissionsStore'
 import { useEntityPivot } from '@/hooks/useEntityPivot'
 import KpiTile from '@/components/ui/KpiTile'
-import { ResponsiveContainer, AreaChart, Area, PieChart, Pie, Cell, Tooltip } from 'recharts'
-import { useChartColors } from '@/hooks/useChartColors'
 import { Zap, PauseCircle } from 'lucide-react'
 
 interface DashboardStats {
@@ -63,7 +61,6 @@ interface SoarExecution {
 }
 
 export default function DashboardPage() {
-  const chartColors = useChartColors()
   const navigate = useNavigate()
   const { pivotTo } = useEntityPivot()
   const canReadSoarPlaybooks = useCanRead(MODULES.SOAR_PLAYBOOKS)
@@ -549,15 +546,6 @@ export default function DashboardPage() {
     return series.map(v => 8 + (v / maxLag) * 47)
   }, [ingestStats])
 
-  // Static Sparklines points
-  const sparklinesPoints = useMemo(() => [
-    "0,16 8,10 16,14 24,6 32,12 40,4 48,10 56,3",
-    "0,10 8,16 16,8 24,12 32,4 40,10 48,6 56,14",
-    "0,4 8,12 16,6 24,16 32,10 40,14 48,8 56,12",
-    "0,14 8,6 16,12 24,4 32,10 40,16 48,8 56,4",
-    "0,8 8,14 16,4 24,10 32,16 40,6 48,12 56,8"
-  ], [])
-
   // Real AI provider-chain metrics, normalized to a 0-100 radar scale.
   // Deliberately no accuracy/recall/novelty axes — those need labeled ground
   // truth this system has none of; these four are all genuinely measured.
@@ -912,8 +900,8 @@ export default function DashboardPage() {
               </div>
 
               <div className="action-tabs">
-                <span className={`action-tab ${actionTab === 'suggested' ? 'on' : ''}`} onClick={() => setActionTab('suggested')} style={{ cursor: 'pointer' }}>Suggested Actions</span>
-                <span className={`action-tab ${actionTab === 'auto' ? 'on' : ''}`} onClick={() => setActionTab('auto')} style={{ cursor: 'pointer' }}>Auto Actions</span>
+                <button type="button" className={`action-tab ${actionTab === 'suggested' ? 'on' : ''}`} onClick={() => setActionTab('suggested')}>Suggested Actions</button>
+                <button type="button" className={`action-tab ${actionTab === 'auto' ? 'on' : ''}`} onClick={() => setActionTab('auto')}>Auto Actions</button>
               </div>
 
               <div className="action-bar">PLAYBOOK · AUTOMATIC ACTIONS</div>
@@ -1022,7 +1010,7 @@ export default function DashboardPage() {
             <div className="card-panel">
               <div className="threat-table-head">
                 <h3><span className="dot-red"></span>Live Threat Feed</h3>
-                <span className="view-all" onClick={() => navigate('/dashboard/alerts')}>View All</span>
+                <button type="button" className="view-all" onClick={() => navigate('/dashboard/alerts')}>View All</button>
               </div>
 
               {incidents.length === 0 ? (
@@ -1035,20 +1023,9 @@ export default function DashboardPage() {
                     <div className="t-desc truncate">
                       {inc.source} · Owner: <b>{inc.owner}</b>
                     </div>
-                    <div className="t-tags">
-                      <span>⛨</span>
-                      <span>◈</span>
-                      <span>Aₒ</span>
-                    </div>
+                    <div className="t-status">{inc.status}</div>
                     <div className="t-cve">{inc.severity}</div>
-                    <svg className="t-spark" viewBox="0 0 60 22">
-                      <polyline 
-                        points={sparklinesPoints[i % sparklinesPoints.length]} 
-                        fill="none" 
-                        stroke={inc.severity === 'Critical' ? 'var(--soc-red)' : 'var(--soc-blue)'} 
-                        strokeWidth="2"
-                      />
-                    </svg>
+                    <div className="t-updated">{inc.updated}</div>
                   </div>
                 ))
               )}
@@ -1108,7 +1085,7 @@ export default function DashboardPage() {
                   })
                 )}
               </div>
-              <div className="view-all-btn" onClick={() => navigate('/dashboard/settings')}>View All →</div>
+              <button type="button" className="view-all-btn" onClick={() => navigate('/dashboard/settings')}>View All →</button>
             </div>
 
           </div>
@@ -1222,15 +1199,24 @@ export default function DashboardPage() {
               <div className="ov-card card-cyan">
                 <h3>
                   Ingest Volume vs Errors
-                  <span className="zoom-btn" onClick={() => setIngestRangeHours(h => (h === 1 ? 24 : h === 24 ? 168 : 1))}>
+                  <button
+                    type="button"
+                    className="zoom-btn"
+                    onClick={() => setIngestRangeHours(h => (h === 1 ? 24 : h === 24 ? 168 : 1))}
+                  >
                     {ingestRangeHours}h ⌄
-                  </span>
+                  </button>
                 </h3>
                 <div className="zoom-tabs">
                   {[1, 24, 168].map(h => (
-                    <span key={h} className={ingestRangeHours === h ? 'on' : ''} style={{ cursor: 'pointer' }} onClick={() => setIngestRangeHours(h)}>
+                    <button
+                      type="button"
+                      key={h}
+                      className={ingestRangeHours === h ? 'on' : ''}
+                      onClick={() => setIngestRangeHours(h)}
+                    >
                       {h === 1 ? '1H' : h === 24 ? '1D' : '7D'}
-                    </span>
+                    </button>
                   ))}
                 </div>
                 {(() => {
@@ -1266,7 +1252,7 @@ export default function DashboardPage() {
               <div className="ov-card card-purple">
                 <h3>Notable Events <span className="chev-r">›</span></h3>
                 <div className="big-num">{openHighSeverityAlerts.length}</div>
-                <div className="live-feed-link" onClick={() => navigate('/dashboard/alerts')}>↗ Live Feed</div>
+                <button type="button" className="live-feed-link" onClick={() => navigate('/dashboard/alerts')}>↗ Live Feed</button>
                 <div className="notable-list">
                   {openHighSeverityAlerts.slice(0, 5).map((a, i) => (
                     <div key={a.id || i}>{a.title}</div>

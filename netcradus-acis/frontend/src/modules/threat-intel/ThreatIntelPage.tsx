@@ -3,6 +3,7 @@ import { ShieldAlert, AlertTriangle, ShieldCheck, Database } from 'lucide-react'
 import apiClient from '@/lib/apiClient'
 import SeverityBadge, { toSeverity } from '@/components/viz/SeverityBadge'
 import PivotChip from '@/components/ui/PivotChip'
+import EmptyState from '@/components/ui/EmptyState'
 import './ThreatIntelPage.css'
 
 function detectIocType(value: string): string {
@@ -293,13 +294,19 @@ export default function ThreatIntelPage() {
               <div className="space-y-4">
                 <div className="flex flex-col gap-2 p-4 rounded-xl bg-input-bg border border-border-soft">
                   <span className="text-label uppercase text-blue">Sources Queried</span>
-                  <div className="grid gap-2 sm:grid-cols-2 mt-1">
-                    {['VirusTotal', 'AbuseIPDB'].map((source) => (
-                      <div key={source} className="flex items-center gap-2 px-3 py-2 bg-background border border-border-soft rounded-lg text-label text-text-secondary uppercase">
-                        <Database size={14} className="text-blue" /> {source}
-                      </div>
-                    ))}
-                  </div>
+                  {demoMode ? (
+                    <div className="text-small text-text-muted mt-1">
+                      No real vendor sources were queried — demo mode is active because no VirusTotal/AbuseIPDB API key is configured.
+                    </div>
+                  ) : (
+                    <div className="grid gap-2 sm:grid-cols-2 mt-1">
+                      {['VirusTotal', 'AbuseIPDB'].map((source) => (
+                        <div key={source} className="flex items-center gap-2 px-3 py-2 bg-background border border-border-soft rounded-lg text-label text-text-secondary uppercase">
+                          <Database size={14} className="text-blue" /> {source}
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
@@ -323,6 +330,13 @@ export default function ThreatIntelPage() {
           <div className="recent-panel">
             <h3>Recent Indicators</h3>
             <table>
+              <colgroup>
+                <col style={{ width: 'auto' }} />
+                <col style={{ width: '90px' }} />
+                <col style={{ width: '110px' }} />
+                <col style={{ width: '130px' }} />
+                <col style={{ width: '170px' }} />
+              </colgroup>
               <thead>
                 <tr>
                   <th>Indicator</th>
@@ -333,33 +347,29 @@ export default function ThreatIntelPage() {
                 </tr>
               </thead>
               <tbody>
-                {indicatorsLoading && (
-                  <tr><td colSpan={5} className="text-center text-text-muted py-6">Loading...</td></tr>
-                )}
+                {indicatorsLoading && <EmptyState variant="loading" colSpan={5} />}
                 {!indicatorsLoading && indicatorsError && (
-                  <tr className="empty-row">
-                    <td colSpan={5}>
-                      <div className="flex flex-col items-center gap-2 py-4">
-                        <span>Unable to load threat indicators. Please try again.</span>
-                        <button className="btn-mission text-small px-3 py-1.5" onClick={fetchRecent}>Retry</button>
-                      </div>
-                    </td>
-                  </tr>
+                  <EmptyState
+                    variant="error"
+                    colSpan={5}
+                    message="Unable to load threat indicators. Please try again."
+                    onRetry={fetchRecent}
+                  />
                 )}
                 {!indicatorsLoading && !indicatorsError && indicators.length === 0 && (
-                  <tr className="empty-row">
-                    <td colSpan={5}>
-                      No indicators enriched yet — paste an IOC above to get started.
-                    </td>
-                  </tr>
+                  <EmptyState
+                    variant="empty"
+                    colSpan={5}
+                    message="No indicators enriched yet — paste an IOC above to get started."
+                  />
                 )}
                 {!indicatorsLoading && !indicatorsError && indicators.slice(0, 20).map((ind) => (
                   <tr key={ind.id}>
-                    <td className="font-mono text-text-secondary">
+                    <td className="font-mono text-text-secondary indicator-cell" title={ind.value}>
                       {ind.type === 'IP' ? (
                         <PivotChip type="ip" value={ind.value} route="/dashboard/assets" />
                       ) : (
-                        ind.value
+                        <span className="indicator-value">{ind.value}</span>
                       )}
                     </td>
                     <td className="text-text-secondary">{ind.type}</td>

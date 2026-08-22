@@ -32,14 +32,6 @@ interface AgentEndpointView {
   status: 'ONLINE' | 'OFFLINE'
 }
 
-function seedRandom(seed: number) {
-  let s = seed
-  return function() {
-    s = (s * 9301 + 49297) % 233280
-    return s / 233280
-  }
-}
-
 export default function EndpointsPage() {
   const canWrite = useCanWrite(MODULES.ASSETS_THREAT_INTEL)
 
@@ -225,21 +217,6 @@ export default function EndpointsPage() {
     return endpoints.filter(ep => ep.name.toLowerCase().includes(searchTerm.toLowerCase()))
   }, [endpoints, searchTerm])
 
-  // Small distribution map silhouette
-  const distMapData = useMemo(() => {
-    const dots = []
-    const rng = seedRandom(7777)
-    for (let i = 0; i < 400; i++) {
-      const x = rng() * 400
-      const y = 10 + rng() * 240
-      const inLand = (x > 20 && x < 110 && y > 60 && y < 200) || (x > 140 && x < 230 && y > 30 && y < 170) || (x > 250 && x < 390 && y > 50 && y < 210)
-      if (inLand && rng() < 0.4) {
-        dots.push({ x, y })
-      }
-    }
-    return dots
-  }, [])
-
   const successRatio = totalCount > 0 ? healthyCount / totalCount : 0
   const needleRotation = -90 + successRatio * 180
 
@@ -271,51 +248,26 @@ export default function EndpointsPage() {
         <div className="stat-row">
           <div className="stat-card">
             <div className="stat-num">{totalCount}</div>
-            <div className="stat-detail">
-              <div><span className="b"></span>Total <span className="n">{totalCount}</span></div>
-              <div><span className="b"></span>Healthy <span className="n">{healthyCount}</span></div>
-              <div><span className="b"></span>Shift <span className="n">{degradedCount}</span></div>
-            </div>
             <div className="stat-lbl">Total Endpoints</div>
           </div>
 
           <div className="stat-card highlight">
             <div className="stat-num">{healthyCount}</div>
-            <div className="stat-detail">
-              <div><span className="b"></span>Asset <span className="n">{totalCount}</span></div>
-              <div><span className="b"></span>Healthy <span className="n">{healthyCount}</span></div>
-              <div><span className="b"></span>Degraded <span className="n">{degradedCount}</span></div>
-            </div>
             <div className="stat-lbl">Healthy</div>
           </div>
 
           <div className="stat-card">
             <div className="stat-num">{degradedCount}</div>
-            <div className="stat-detail">
-              <div><span className="b"></span>Asset <span className="n">{totalCount}</span></div>
-              <div><span className="b"></span>Healthy <span className="n">{healthyCount}</span></div>
-              <div><span className="b"></span>Soft <span className="n">{quarantinedCount}</span></div>
-            </div>
             <div className="stat-lbl">Degraded</div>
           </div>
 
           <div className="stat-card">
             <div className="stat-num">{quarantinedCount}</div>
-            <div className="stat-detail">
-              <div><span className="b"></span>Total <span className="n">{totalCount}</span></div>
-              <div><span className="b"></span>Healthy <span className="n">{healthyCount}</span></div>
-              <div><span className="b"></span>Shift <span className="n">{degradedCount}</span></div>
-            </div>
             <div className="stat-lbl">Quarantined</div>
           </div>
 
           <div className="stat-card">
             <div className="stat-num">{pendingRollbackCount}</div>
-            <div className="stat-detail">
-              <div><span className="b"></span>Data <span className="n">{totalCount}</span></div>
-              <div><span className="b"></span>Healthy <span className="n">{healthyCount}</span></div>
-              <div><span className="b"></span>Shift <span className="n">{degradedCount}</span></div>
-            </div>
             <div className="stat-lbl">Pending Rollback</div>
           </div>
         </div>
@@ -332,10 +284,11 @@ export default function EndpointsPage() {
               disabled={pendingRollbackCount === 0 || !canWrite}
               className="rollback-btn"
             >
-              Rollback All Pending
+              <RefreshCw className="w-3.5 h-3.5" /> Rollback All Pending
             </button>
           </div>
 
+          <div className="table-scroll">
           <table className="ep-table">
             <thead>
               <tr>
@@ -352,13 +305,16 @@ export default function EndpointsPage() {
                 const health = isIsolated ? 'Quarantined' : ep.health === 'DEGRADED' ? 'Degraded' : 'OK'
                 const agent = agentForEndpoint(ep)
 
-                const isLinux = (ep.os || '').toLowerCase().includes('linux')
+                const TypeIcon = ep.type === 'SERVER' ? Server
+                  : ep.type === 'NETWORK_DEVICE' ? Shield
+                  : ep.type === 'CLOUD_INSTANCE' ? Activity
+                  : Cpu
 
                 return (
                   <tr key={ep.id}>
                     <td>
                       <div className="ep-left">
-                        <div className="ep-icon">{isLinux ? '🐧' : '🖥'}</div>
+                        <div className="ep-icon"><TypeIcon className="w-4 h-4" /></div>
                         <div>
                           <div className="ep-title">{ep.name} ({ep.os || 'OS'})</div>
                           <div className="ep-sub">{isIsolated ? 'Quarantined' : ep.status}</div>
@@ -367,7 +323,7 @@ export default function EndpointsPage() {
                     </td>
                     <td>
                       <span className="ep-status">
-                        {health === 'OK' ? '🟢 Secured' : health === 'Degraded' ? '🔴 Degraded' : '🔵 Active'}
+                        {health === 'OK' ? '🟢 Secured' : health === 'Degraded' ? '🔴 Degraded' : '🔵 Quarantined'}
                       </span>
                     </td>
                     <td className="mono">
@@ -388,7 +344,7 @@ export default function EndpointsPage() {
                             disabled={processingId === ep.id || !canWrite}
                             className="rollback-btn py-1.5 px-3 text-small"
                           >
-                            Release
+                            <ShieldCheck className="w-3.5 h-3.5" /> Release
                           </button>
                         ) : ep.health === 'DEGRADED' ? (
                           <button
@@ -397,7 +353,7 @@ export default function EndpointsPage() {
                             className="rollback-btn py-1.5 px-3 text-small bg-amber border-amber"
                             style={{ background: 'var(--amber)', boxShadow: 'none' }}
                           >
-                            Clear &amp; Restore
+                            <RefreshCw className="w-3.5 h-3.5" /> Clear &amp; Restore
                           </button>
                         ) : (
                           <button
@@ -406,7 +362,7 @@ export default function EndpointsPage() {
                             className="rollback-btn py-1.5 px-3 text-small bg-red border-red"
                             style={{ background: 'var(--red)', boxShadow: 'none' }}
                           >
-                            Isolate
+                            <ShieldAlert className="w-3.5 h-3.5" /> Isolate
                           </button>
                         )}
                       </div>
@@ -433,55 +389,39 @@ export default function EndpointsPage() {
               )}
             </tbody>
           </table>
+          </div>
         </div>
 
         {/* bottom widgets columns */}
         <div className="bottom-grid">
-          
+
           <div className="panel-box">
-            <h3>Endpoint Distribution Map</h3>
-            <div className="map-box">
-              <svg viewBox="0 0 400 260">
-                {distMapData.map((dot, idx) => (
-                  <circle key={idx} cx={dot.x} cy={dot.y} r={0.8} fill="var(--map-dot-color)" />
+            <h3>Recent Remediation Events</h3>
+            {remediationEvents.length === 0 ? (
+              <div className="text-small text-text-muted" style={{ padding: '16px 0' }}>No remediation events recorded yet.</div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '160px', overflowY: 'auto' }}>
+                {remediationEvents.slice(0, 6).map((e) => (
+                  <div key={e.id} style={{ fontSize: '11.5px', display: 'flex', justifyContent: 'space-between', gap: '8px', borderBottom: '1px solid var(--tr-border)', paddingBottom: '6px' }}>
+                    <span className="truncate">{e.action} — {e.resource.replace('asset/', '')}</span>
+                    <span style={{ color: 'var(--dim)', whiteSpace: 'nowrap' }}>{new Date(e.timestamp).toLocaleTimeString()}</span>
+                  </div>
                 ))}
-              </svg>
-              <div className="map-marker" style={{ left: '32%', top: '35%' }}>👤</div>
-              <div className="map-marker" style={{ left: '22%', top: '55%' }}>📍</div>
-              <div className="map-marker" style={{ left: '64%', top: '32%' }}>👥</div>
-              <div className="map-marker" style={{ left: '70%', top: '40%' }}>👥</div>
-            </div>
+              </div>
+            )}
           </div>
 
-          <div className="stack-col">
-            <div className="panel-box">
-              <h3>Recent Remediation Events</h3>
-              {remediationEvents.length === 0 ? (
-                <div className="text-small text-text-muted" style={{ padding: '16px 0' }}>No remediation events recorded yet.</div>
-              ) : (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '160px', overflowY: 'auto' }}>
-                  {remediationEvents.slice(0, 6).map((e) => (
-                    <div key={e.id} style={{ fontSize: '11.5px', display: 'flex', justifyContent: 'space-between', gap: '8px', borderBottom: '1px solid var(--tr-border)', paddingBottom: '6px' }}>
-                      <span className="truncate">{e.action} — {e.resource.replace('asset/', '')}</span>
-                      <span style={{ color: 'var(--dim)', whiteSpace: 'nowrap' }}>{new Date(e.timestamp).toLocaleTimeString()}</span>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            <div className="panel-box">
-              <h3>Rollback Success / Failure Gauge</h3>
-              <div className="gauge-wrap">
-                <svg viewBox="0 0 200 110">
-                  <path d="M15,95 A85,85 0 0 1 185,95" fill="none" stroke="var(--tr-border)" strokeWidth="14" />
-                  <path d="M15,95 A85,85 0 0 1 185,95" fill="none" stroke="var(--cyan)" strokeWidth="14" strokeDasharray="220 251" strokeLinecap="round" />
-                  <line x1="100" y1="90" x2="150" y2="45" stroke="var(--heading-color)" strokeWidth="3" strokeLinecap="round" style={{ transform: `rotate(${needleRotation}deg)`, transformOrigin: '100px 90px', transition: 'transform 0.5s ease' }} />
-                  <circle cx="100" cy="90" r="5" fill="var(--heading-color)" />
-                </svg>
-                <div className="gauge-val">{Math.round(successRatio * 100)}% Success</div>
-                <div className="gauge-axis"><span>0</span><span>100</span></div>
-              </div>
+          <div className="panel-box">
+            <h3>Rollback Success / Failure Gauge</h3>
+            <div className="gauge-wrap">
+              <svg viewBox="0 0 200 110">
+                <path d="M15,95 A85,85 0 0 1 185,95" fill="none" stroke="var(--tr-border)" strokeWidth="14" />
+                <path d="M15,95 A85,85 0 0 1 185,95" fill="none" stroke="var(--cyan)" strokeWidth="14" strokeDasharray="220 251" strokeLinecap="round" />
+                <line x1="100" y1="90" x2="150" y2="45" stroke="var(--heading-color)" strokeWidth="3" strokeLinecap="round" style={{ transform: `rotate(${needleRotation}deg)`, transformOrigin: '100px 90px', transition: 'transform 0.5s ease' }} />
+                <circle cx="100" cy="90" r="5" fill="var(--heading-color)" />
+              </svg>
+              <div className="gauge-val">{Math.round(successRatio * 100)}% Success</div>
+              <div className="gauge-axis"><span>0</span><span>100</span></div>
             </div>
           </div>
 

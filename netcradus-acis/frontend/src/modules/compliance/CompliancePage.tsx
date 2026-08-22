@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react'
-import { Shield, CheckCircle2, AlertTriangle, Download, ChevronRight, Activity } from 'lucide-react'
+import { Shield, CheckCircle2, AlertTriangle, Download, Activity } from 'lucide-react'
 import { clsx } from 'clsx'
 import apiClient from '@/lib/apiClient'
 import { useCanWrite, MODULES } from '@/store/permissionsStore'
@@ -185,7 +185,6 @@ export default function CompliancePage() {
 
                 <div className="comp-footer">
                   <span className="l">Continuously Monitored</span>
-                  <span className="r">View Details <ChevronRight size={12} /></span>
                 </div>
               </div>
             ))
@@ -211,7 +210,7 @@ export default function CompliancePage() {
                   <th>ACTION</th>
                   <th>RESOURCE</th>
                   <th>ORIGIN IP</th>
-                  <th style={{ textAlign: 'right' }}>INTEGRITY</th>
+                  <th style={{ textAlign: 'right' }}>DETAIL</th>
                 </tr>
               </thead>
               <tbody>
@@ -242,7 +241,7 @@ export default function CompliancePage() {
                         {log.ip}
                       </td>
                       <td style={{ textAlign: 'right' }}>
-                        <span className="integrity-badge">{log.status}</span>
+                        <span className="detail-badge">{log.status}</span>
                       </td>
                     </tr>
                   ))

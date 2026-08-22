@@ -1,17 +1,6 @@
 /* ================= CORRELATION PAGE ================= */
 .correlation-page {
-  /* Default Dark Mode Theme */
-  --bg: #070b14;
-  --border-soft: #1b2540;
-  --text: #e7ecf7;
-  --muted: #7c88a8;
-  --dim: #54617f;
-  --blue: #3b82f6;
-  --cyan: #22d3ee;
-  --purple: #a855f7;
-  --green: #22c55e;
-  --amber: #f59e0b;
-  --red: #ef4444;
+  /* Shared color tokens now come from styles/contentTokens.css. */
 
   /* Scoped Globe Colors */
   --globe-outer: rgba(120, 160, 230, 0.3);
@@ -31,7 +20,6 @@
   --box-shadow: 0 10px 26px -18px rgba(0, 0, 0, 0.6);
 
   /* Component specific colors */
-  --sparkline-stroke: #5b9dff;
   --alerts-bar-fill: #3b82f6;
   --avg-proc-bar-fill: linear-gradient(180deg, #5eead4, #0891b2);
   --avg-proc-bar-shadow: 0 0 12px -3px rgba(94, 234, 212, 0.5);
@@ -55,18 +43,6 @@
 /* Light Mode Theme Overrides */
 :root[data-theme="light"] .correlation-page,
 [data-theme="light"] .correlation-page {
-  --bg: #f4f6fa;
-  --border-soft: #e2e7f1;
-  --text: #12182b;
-  --muted: #66708c;
-  --dim: #96a0ba;
-  --blue: #2563eb;
-  --cyan: #0891b2;
-  --purple: #9333ea;
-  --green: #16a34a;
-  --amber: #d97706;
-  --red: #dc2626;
-
   /* Scoped Globe Colors for Light Mode */
   --globe-outer: rgba(37, 99, 235, 0.15);
   --globe-lat: rgba(37, 99, 235, 0.08);
@@ -85,7 +61,6 @@
   --box-shadow: 0 10px 26px -18px rgba(30, 50, 110, 0.16);
 
   /* Component specific colors for Light Mode */
-  --sparkline-stroke: #2563eb;
   --alerts-bar-fill: #93c5fd;
   --avg-proc-bar-fill: linear-gradient(180deg, #60a5fa, #2563eb);
   --avg-proc-bar-shadow: none;
@@ -350,27 +325,6 @@
   flex-wrap: wrap;
 }
 
-.correlation-page .filter-btn {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 10px 16px;
-  border-radius: 9px;
-  border: 1px solid var(--border-soft);
-  background: var(--input-bg);
-  font-size: 13px;
-  font-weight: 700;
-  color: #dbe2f5;
-  cursor: pointer;
-  transition: all 0.3s ease;
-}
-
-:root[data-theme="light"] .correlation-page .filter-btn,
-[data-theme="light"] .correlation-page .filter-btn {
-  background: #fff;
-  color: #28324a;
-}
-
 .correlation-page .search-box {
   display: flex;
   align-items: center;
@@ -484,64 +438,6 @@
   border-left: 3px solid var(--blue);
 }
 
-.correlation-page .pr-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  display: inline-block;
-  margin-right: 8px;
-}
-
-.correlation-page .pr-dot.high,
-.correlation-page .pr-dot.critical {
-  background: #ef4444;
-  box-shadow: 0 0 8px rgba(239, 68, 68, 0.6);
-}
-
-:root[data-theme="light"] .correlation-page .pr-dot.high,
-:root[data-theme="light"] .correlation-page .pr-dot.critical,
-[data-theme="light"] .correlation-page .pr-dot.high,
-[data-theme="light"] .correlation-page .pr-dot.critical {
-  background: var(--red);
-  box-shadow: none;
-}
-
-.correlation-page .pr-dot.medium {
-  background: #f59e0b;
-  box-shadow: 0 0 8px rgba(245, 158, 11, 0.6);
-}
-
-:root[data-theme="light"] .correlation-page .pr-dot.medium,
-[data-theme="light"] .correlation-page .pr-dot.medium {
-  background: var(--amber);
-  box-shadow: none;
-}
-
-.correlation-page .pr-dot.low,
-.correlation-page .pr-dot.info {
-  background: var(--blue);
-}
-
-.correlation-page .pr-text.high,
-.correlation-page .pr-text.critical,
-.correlation-page .pr-text.fatal {
-  color: #f87171;
-  font-weight: 700;
-}
-
-.correlation-page .pr-text.medium,
-.correlation-page .pr-text.warn,
-.correlation-page .pr-text.warning {
-  color: #fbbf24;
-  font-weight: 700;
-}
-
-:root[data-theme="light"] .correlation-page .pr-text,
-[data-theme="light"] .correlation-page .pr-text {
-  color: inherit !important;
-  font-weight: normal !important;
-}
-
 /* Custom Sliding Toggle Switch */
 .correlation-page .toggle-btn-wrap {
   background: transparent;
@@ -632,6 +528,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
+  font: inherit;
   font-weight: 700;
   color: var(--text);
   border: 1px solid transparent;
@@ -650,6 +547,9 @@
 }
 
 .correlation-page .page-arrow {
+  font: inherit;
+  background: none;
+  border: none;
   color: var(--dim);
   padding: 0 6px;
   cursor: pointer;
@@ -658,6 +558,11 @@
 
 .correlation-page .page-arrow:hover {
   color: var(--heading-color);
+}
+
+.correlation-page .page-arrow:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
 }
 
 /* ---- Search efficiency + Rule Match + Metadata ---- */
@@ -670,7 +575,13 @@
   margin-top: 22px;
 }
 
-@media (max-width: 1024px) {
+@media (max-width: 1280px) {
+  .correlation-page .mid-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@media (max-width: 768px) {
   .correlation-page .mid-grid {
     grid-template-columns: 1fr;
   }
@@ -881,7 +792,13 @@
   margin-top: 22px;
 }
 
-@media (max-width: 1024px) {
+@media (max-width: 1280px) {
+  .correlation-page .bottom-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@media (max-width: 768px) {
   .correlation-page .bottom-grid {
     grid-template-columns: 1fr;
   }

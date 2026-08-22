@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useMemo } from 'react'
-import { Plus, Search, X, Trash2, Copy, Edit3, AlertTriangle, CheckCircle, Sliders } from 'lucide-react'
+import { Plus, Search, X, Trash2, Copy, Edit3 } from 'lucide-react'
 import apiClient from '@/lib/apiClient'
 import { useCanWrite, MODULES } from '@/store/permissionsStore'
 import ConfirmDialog from '@/components/ui/ConfirmDialog'
+import SeverityBadge, { toSeverity } from '@/components/viz/SeverityBadge'
 import { toast } from '@/store/toastStore'
 import { clsx } from 'clsx'
 import './CorrelationPage.css'
@@ -333,6 +334,15 @@ export default function CorrelationPage() {
     setEditingRuleId(null)
   }
 
+  useEffect(() => {
+    if (!isModalOpen) return
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') closeModal()
+    }
+    document.addEventListener('keydown', handleKey)
+    return () => document.removeEventListener('keydown', handleKey)
+  }, [isModalOpen])
+
   const formatLastRun = (dateStr: string | null) => {
     if (!dateStr) return '—'
     const diff = Date.now() - new Date(dateStr).getTime()
@@ -514,16 +524,6 @@ export default function CorrelationPage() {
           <div className="stat-card amber">
             <div className="l">Active Rules</div>
             <div className="v">{stats?.activeRules ?? 0}</div>
-            <svg viewBox="0 0 220 70" width="100%" height="60">
-              <polyline
-                points="0,50 30,35 60,42 90,20 120,32 150,10 180,25 220,15"
-                fill="none"
-                stroke="var(--sparkline-stroke)"
-                strokeWidth="2"
-              />
-              <circle cx="90" cy="20" r="3" fill="var(--sparkline-stroke)" />
-              <circle cx="150" cy="10" r="3" fill="var(--sparkline-stroke)" />
-            </svg>
             <div className="sub">ACTIVE RULES</div>
           </div>
 
@@ -600,7 +600,6 @@ export default function CorrelationPage() {
               <p>Risk-based alerting — schedule &amp; throttling</p>
             </div>
             <div className="table-actions">
-              <div className="filter-btn">▽ Filter ⌄</div>
               <div className="search-box">
                 <Search width={14} height={14} />
                 <input
@@ -615,7 +614,7 @@ export default function CorrelationPage() {
                 onClick={openCreateModal}
                 disabled={!canWrite}
               >
-                + New Rule
+                <Plus className="w-3.5 h-3.5" /> New Rule
               </button>
             </div>
           </div>
@@ -629,19 +628,20 @@ export default function CorrelationPage() {
                       type="checkbox"
                       checked={isAllSelected}
                       onChange={toggleSelectAll}
+                      aria-label="Select all rules"
                     />
                   </th>
-                  <th className="sortable" onClick={() => handleSort('priority')}>
+                  <th className="sortable" onClick={() => handleSort('priority')} aria-sort={sortField === 'priority' ? (sortAsc ? 'ascending' : 'descending') : 'none'}>
                     PRIORITY {sortField === 'priority' ? (sortAsc ? '▲' : '▼') : '↕'}
                   </th>
-                  <th className="sortable" onClick={() => handleSort('name')}>
+                  <th className="sortable" onClick={() => handleSort('name')} aria-sort={sortField === 'name' ? (sortAsc ? 'ascending' : 'descending') : 'none'}>
                     RULE NAME {sortField === 'name' ? (sortAsc ? '▲' : '▼') : '↕'}
                   </th>
-                  <th className="sortable" onClick={() => handleSort('riskScore')}>
+                  <th className="sortable" onClick={() => handleSort('riskScore')} aria-sort={sortField === 'riskScore' ? (sortAsc ? 'ascending' : 'descending') : 'none'}>
                     RISK SCORE {sortField === 'riskScore' ? (sortAsc ? '▲' : '▼') : '↕'}
                   </th>
                   <th>ENABLED</th>
-                  <th className="sortable" onClick={() => handleSort('lastRun')}>
+                  <th className="sortable" onClick={() => handleSort('lastRun')} aria-sort={sortField === 'lastRun' ? (sortAsc ? 'ascending' : 'descending') : 'none'}>
                     LAST RUN {sortField === 'lastRun' ? (sortAsc ? '▲' : '▼') : '↕'}
                   </th>
                   <th style={{ textAlign: 'right' }}>ACTIONS</th>
@@ -676,13 +676,15 @@ export default function CorrelationPage() {
                             type="checkbox"
                             checked={isChecked}
                             onChange={(e) => toggleSelectRule(rule.id, e)}
+                            aria-label={`Select rule ${rule.name}`}
                           />
                         </td>
                         <td>
-                          <span className={clsx("pr-dot", (rule.severity || 'info').toLowerCase())} />
-                          <span className={clsx("pr-text", (rule.severity || 'info').toLowerCase())}>
-                            {rule.severity ? rule.severity.charAt(0) + rule.severity.slice(1).toLowerCase() : 'Info'}
-                          </span>
+                          <SeverityBadge
+                            severity={toSeverity(rule.severity)}
+                            label={rule.severity ? rule.severity.charAt(0) + rule.severity.slice(1).toLowerCase() : 'Info'}
+                            size="sm"
+                          />
                         </td>
                         <td style={{ fontWeight: 700 }}>{rule.name}</td>
                         <td>{rule.riskScore}</td>
@@ -691,6 +693,9 @@ export default function CorrelationPage() {
                             onClick={(e) => handleToggle(rule.id, e)}
                             disabled={!canWrite}
                             className="toggle-btn-wrap"
+                            role="switch"
+                            aria-checked={rule.enabled}
+                            aria-label={`${rule.enabled ? 'Disable' : 'Enable'} rule ${rule.name}`}
                           >
                             <span className={clsx("toggle", rule.enabled && "active")} />
                           </button>
@@ -701,26 +706,29 @@ export default function CorrelationPage() {
                             <button
                               className="action-icon-btn"
                               title="Edit Rule"
+                              aria-label={`Edit rule ${rule.name}`}
                               onClick={() => openEditModal(rule)}
                               disabled={!canWrite}
                             >
-                              ✎
+                              <Edit3 className="w-3.5 h-3.5" />
                             </button>
                             <button
                               className="action-icon-btn"
                               title="Duplicate Rule"
+                              aria-label={`Duplicate rule ${rule.name}`}
                               onClick={(e) => handleDuplicate(rule, e)}
                               disabled={!canWrite}
                             >
-                              ⧉
+                              <Copy className="w-3.5 h-3.5" />
                             </button>
                             <button
                               className="action-icon-btn"
                               title="Delete Rule"
+                              aria-label={`Delete rule ${rule.name}`}
                               onClick={(e) => handleDelete(rule.id, e)}
                               disabled={!canWrite}
                             >
-                              🗑
+                              <Trash2 className="w-3.5 h-3.5" />
                             </button>
                           </div>
                         </td>
@@ -742,19 +750,21 @@ export default function CorrelationPage() {
 
           <div className="pagination">
             <div className="page-nums">
-              <span className="page-arrow" onClick={() => setCurrentPage(1)}>⏮</span>
-              <span className="page-arrow" onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}>‹</span>
+              <button type="button" className="page-arrow" aria-label="First page" disabled={currentPage === 1} onClick={() => setCurrentPage(1)}>⏮</button>
+              <button type="button" className="page-arrow" aria-label="Previous page" disabled={currentPage === 1} onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}>‹</button>
               {Array.from({ length: totalPages }).map((_, idx) => (
                 <button
                   key={idx}
                   className={clsx("page-btn", currentPage === idx + 1 && "active")}
+                  aria-label={`Page ${idx + 1}`}
+                  aria-current={currentPage === idx + 1 ? 'page' : undefined}
                   onClick={() => setCurrentPage(idx + 1)}
                 >
                   {idx + 1}
                 </button>
               ))}
-              <span className="page-arrow" onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}>›</span>
-              <span className="page-arrow" onClick={() => setCurrentPage(totalPages)}>⏭</span>
+              <button type="button" className="page-arrow" aria-label="Next page" disabled={currentPage === totalPages} onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}>›</button>
+              <button type="button" className="page-arrow" aria-label="Last page" disabled={currentPage === totalPages} onClick={() => setCurrentPage(totalPages)}>⏭</button>
             </div>
             <div>Paging : {currentPage} / {totalPages} pages</div>
           </div>
@@ -972,11 +982,22 @@ export default function CorrelationPage() {
 
       {/* New/Edit Rule Modal */}
       {isModalOpen && (
-        <div className="correlation-page-modal-overlay">
-          <div className="correlation-page-modal">
+        <div className="correlation-page-modal-overlay" onClick={closeModal}>
+          <div
+            className="correlation-page-modal"
+            onClick={(e) => e.stopPropagation()}
+            role="dialog"
+            aria-modal="true"
+            aria-label={editingRuleId ? 'Edit Correlation Rule' : 'Create Correlation Rule'}
+          >
             <div className="modal-head">
               <h3>{editingRuleId ? 'Edit Correlation Rule' : 'Create Correlation Rule'}</h3>
-              <button onClick={closeModal} style={{ background: 'transparent', border: 'none', cursor: 'pointer' }}>
+              <button
+                type="button"
+                onClick={closeModal}
+                aria-label="Close dialog"
+                style={{ background: 'transparent', border: 'none', cursor: 'pointer' }}
+              >
                 <X className="w-5 h-5 text-text-muted" />
               </button>
             </div>
@@ -1084,10 +1105,10 @@ export default function CorrelationPage() {
               </div>
 
               <div className="modal-foot">
-                <button type="button" onClick={closeModal} className="btn ghost" style={{ padding: '8px 16px' }}>
+                <button type="button" onClick={closeModal} className="btn-ghost text-small">
                   Cancel
                 </button>
-                <button type="submit" className="btn blue" style={{ padding: '8px 20px' }}>
+                <button type="submit" className="btn-fire text-small">
                   {editingRuleId ? 'Save Changes' : 'Create'}
                 </button>
               </div>

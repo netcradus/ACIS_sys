@@ -31,12 +31,12 @@ const ACCENT_STYLES = {
 
 /**
  * The single confirm modal for real destructive/state-changing actions
- * across both consoles — promoted out of the platform-admin-only
- * ConfirmDialog (see src/modules/platform-admin/components/ConfirmDialog.tsx,
- * migrated to re-export this in the platform-admin redesign stage) so the
- * ~14 window.confirm()/alert() call sites across SettingsPage/ReportsPage/
- * EndpointsPage/AlertsPage/SoarPage/AiAnalystPage/CompliancePage can be
- * replaced with the same real modal platform-admin already had.
+ * across both consoles. src/modules/platform-admin/components/ConfirmDialog.tsx
+ * is a thin wrapper around this one (accentClass="accent-pa" pinned), not an
+ * independent copy — so the ~14 window.confirm()/alert() call sites across
+ * SettingsPage/ReportsPage/EndpointsPage/AlertsPage/SoarPage/AiAnalystPage/
+ * CompliancePage and both consoles' own destructive actions all share one
+ * real implementation.
  */
 export default function ConfirmDialog({
   open,

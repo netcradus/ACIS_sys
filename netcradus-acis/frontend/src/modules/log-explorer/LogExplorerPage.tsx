@@ -7,6 +7,7 @@ import { LogEntry, FieldSummary, SavedSearch } from '@/types/log'
 import { clsx } from 'clsx'
 import { usePivotSeed, useEntityPivot } from '@/hooks/useEntityPivot'
 import { toast } from '@/store/toastStore'
+import Modal from '@/components/ui/Modal'
 import './LogExplorerPage.css'
 
 function HeroGlobe() {
@@ -103,6 +104,8 @@ export default function LogExplorerPage() {
   const [aiStatus, setAiStatus] = useState<'checking' | 'ready' | 'offline'>('checking')
   const [savedSearches, setSavedSearches] = useState<SavedSearch[]>([])
   const [isSavingSearch, setIsSavingSearch] = useState(false)
+  const [saveSearchModalOpen, setSaveSearchModalOpen] = useState(false)
+  const [saveSearchName, setSaveSearchName] = useState('')
   const [savedSearchesOpen, setSavedSearchesOpen] = useState(false)
   const [fieldExplorerOpen, setFieldExplorerOpen] = useState(false)
   const [fieldSummaries, setFieldSummaries] = useState<FieldSummary[]>([])
@@ -229,15 +232,22 @@ export default function LogExplorerPage() {
     }
   }
 
-  const handleSaveSearch = async () => {
+  const openSaveSearchModal = () => {
     if (!query.trim()) return
-    const name = window.prompt('Name this search:')
-    if (!name || !name.trim()) return
+    setSaveSearchName('')
+    setSaveSearchModalOpen(true)
+  }
+
+  const handleSaveSearch = async (e: React.FormEvent) => {
+    e.preventDefault()
+    const name = saveSearchName.trim()
+    if (!name) return
     setIsSavingSearch(true)
     try {
-      await apiClient.post('/api/logs/saved-searches', { name: name.trim(), query: query.trim() })
-      toast.success(`Saved search "${name.trim()}"`)
+      await apiClient.post('/api/logs/saved-searches', { name, query: query.trim() })
+      toast.success(`Saved search "${name}"`)
       await fetchSavedSearches()
+      setSaveSearchModalOpen(false)
     } catch (e: any) {
       toast.error(e?.message || 'Failed to save search')
     } finally {
@@ -584,7 +594,7 @@ export default function LogExplorerPage() {
             <button onClick={handleExportCSV} className="spl-btn outline" disabled={isExporting} style={{ opacity: isExporting ? 0.6 : 1 }}>
               ⬇ {isExporting ? 'Exporting...' : 'Export CSV'}
             </button>
-            <button onClick={handleSaveSearch} className="spl-btn outline" disabled={isSavingSearch} style={{ opacity: isSavingSearch ? 0.6 : 1 }}>
+            <button onClick={openSaveSearchModal} className="spl-btn outline" disabled={isSavingSearch || !query.trim()} style={{ opacity: isSavingSearch ? 0.6 : 1 }}>
               💾 {isSavingSearch ? 'Saving...' : 'Save Search'}
             </button>
 
@@ -765,6 +775,47 @@ export default function LogExplorerPage() {
           </div>
         </div>
       </div>
+
+      <Modal
+        open={saveSearchModalOpen}
+        onClose={() => setSaveSearchModalOpen(false)}
+        title="Save Search"
+        footer={
+          <>
+            <button
+              type="button"
+              className="btn-ghost py-2 px-4 text-small"
+              onClick={() => setSaveSearchModalOpen(false)}
+              disabled={isSavingSearch}
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              form="save-search-form"
+              className="btn-mission py-2 px-4 text-small"
+              disabled={isSavingSearch || !saveSearchName.trim()}
+            >
+              {isSavingSearch ? 'Saving...' : 'Save'}
+            </button>
+          </>
+        }
+      >
+        <form id="save-search-form" onSubmit={handleSaveSearch} className="space-y-4">
+          <div className="space-y-1.5">
+            <label className="text-small text-text-secondary font-semibold">Search Name</label>
+            <input
+              type="text"
+              value={saveSearchName}
+              onChange={(e) => setSaveSearchName(e.target.value)}
+              placeholder="e.g. Failed logins last hour"
+              className="input-field"
+              required
+              autoFocus
+            />
+          </div>
+        </form>
+      </Modal>
     </div>
   )
 }

@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useMemo } from 'react'
-import { Play, Edit2, Clock, CheckCircle2, XCircle, ChevronRight, Zap, Target, Shield, Server, Plus, MoreHorizontal, Activity, Search, X, GripVertical, Trash2 } from 'lucide-react'
+import { Play, Edit2, ChevronRight, Plus, Search, X, GripVertical, Trash2 } from 'lucide-react'
 import { clsx } from 'clsx'
 import apiClient from '@/lib/apiClient'
 import { useCanWrite, MODULES } from '@/store/permissionsStore'
@@ -198,6 +198,15 @@ export default function SoarPage() {
     setEditingPlaybookId(null)
   }
 
+  useEffect(() => {
+    if (!isModalOpen) return
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') closePlaybookModal()
+    }
+    document.addEventListener('keydown', handleKey)
+    return () => document.removeEventListener('keydown', handleKey)
+  }, [isModalOpen])
+
   const updateStepAt = (index: number, value: string) => {
     setNewPbStepsList(prev => prev.map((s, i) => (i === index ? value : s)))
   }
@@ -331,7 +340,7 @@ export default function SoarPage() {
             disabled={!canWrite}
             className="new-playbook-btn"
           >
-            + New Playbook
+            <Plus className="w-3.5 h-3.5" /> New Playbook
           </button>
         </div>
 
@@ -362,24 +371,23 @@ export default function SoarPage() {
           <table>
             <thead>
               <tr>
-                <th>ASSET</th>
-                <th>TYPE</th>
-                <th>OWNER</th>
-                <th>TRIGGERED BY</th>
-                <th>PRIORITY</th>
+                <th>NAME</th>
+                <th>DESCRIPTION</th>
+                <th>STEPS</th>
+                <th>LAST RUN</th>
                 <th>STATUS</th>
-                <th>DURATION</th>
-                <th>COMPLETED</th>
+                <th>AVG DURATION</th>
+                <th>RUNS</th>
                 <th></th>
               </tr>
             </thead>
             <tbody>
               {loading && (
-                <tr><td colSpan={9} className="text-center text-text-muted py-6">Loading...</td></tr>
+                <tr><td colSpan={8} className="text-center text-text-muted py-6">Loading...</td></tr>
               )}
               {!loading && dataError && (
                 <tr>
-                  <td colSpan={9}>
+                  <td colSpan={8}>
                     <div className="flex flex-col items-center gap-2 py-4">
                       <span>Unable to load SOAR playbooks. Please try again.</span>
                       <button className="btn-mission text-small px-3 py-1.5" onClick={fetchData}>Retry</button>
@@ -389,45 +397,47 @@ export default function SoarPage() {
               )}
               {!loading && !dataError && filteredPlaybooks.length === 0 && (
                 <tr>
-                  <td colSpan={9} style={{ textAlign: 'center', padding: '30px', color: 'var(--dim)' }}>
+                  <td colSpan={8} style={{ textAlign: 'center', padding: '30px', color: 'var(--dim)' }}>
                     No playbooks configured yet — create one to get started.
                   </td>
                 </tr>
               )}
               {!loading && !dataError && filteredPlaybooks.map((pb) => {
-                const isHigh = pb.name.includes('Isolate') || pb.name.includes('Reset')
-                const isSuccess = pb.successCount === pb.runCount && pb.runCount > 0
+                const hasRun = pb.runCount > 0
+                const isSuccess = hasRun && pb.successCount === pb.runCount
                 return (
                   <tr key={pb.id}>
                     <td className="font-semibold">{pb.name}</td>
                     <td>{pb.description}</td>
-                    <td className="owner-name">—</td>
+                    <td>{getStepCount(pb.steps)}</td>
                     <td>{pb.lastRunAt ? formatTimeElapsed(pb.lastRunAt) : '—'}</td>
                     <td>
-                      <span className={clsx("priority-dot", isHigh ? "high" : "medium")} />
-                      {isHigh ? 'High' : 'Medium'}
-                    </td>
-                    <td>
                       <span className="status-badge">
-                        <span className={clsx("status-dot2", isSuccess ? "success" : "failed")} />
-                        {isSuccess ? 'Success' : 'Failed'}
+                        <span className={clsx("status-dot2", hasRun ? (isSuccess ? "success" : "failed") : "idle")} />
+                        {hasRun ? (isSuccess ? 'Success' : 'Failed') : 'Not run yet'}
                       </span>
                     </td>
-                    <td>
-                      <svg viewBox="0 0 60 22" width="60" height="20" style={{ display: 'inline', marginRight: '6px' }}>
-                        <polyline points={isSuccess ? "0,16 10,10 20,14 30,6 40,12 50,4 60,8" : "0,10 10,16 20,8 30,12 40,4 50,10 60,6"} fill="none" stroke={isSuccess ? "#22d3ee" : "#a855f7"} strokeWidth="1.6" />
-                      </svg>
-                      {getAvgDuration(pb.id)}
-                    </td>
+                    <td>{getAvgDuration(pb.id)}</td>
                     <td>{pb.successCount} / {pb.runCount}</td>
                     <td>
-                      <button
-                        onClick={() => setConfirmingRunPlaybookId(pb.id)}
-                        disabled={!canWrite}
-                        className="run-btn"
-                      >
-                        Run ▶
-                      </button>
+                      <div className="action-icons">
+                        <button
+                          className="action-icon-btn"
+                          title="Edit Playbook"
+                          aria-label={`Edit playbook ${pb.name}`}
+                          onClick={() => openEditPlaybookModal(pb)}
+                          disabled={!canWrite}
+                        >
+                          <Edit2 className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          onClick={() => setConfirmingRunPlaybookId(pb.id)}
+                          disabled={!canWrite}
+                          className="run-btn"
+                        >
+                          <Play className="w-3 h-3" fill="currentColor" /> Run
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 )}
@@ -591,23 +601,28 @@ export default function SoarPage() {
 
         {/* Form Modal for creating/editing playbooks */}
         {isModalOpen && (
-          <div className="fixed inset-0 bg-background/85 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="fixed inset-0 bg-background/85 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={closePlaybookModal}>
             <div
+              onClick={(e) => e.stopPropagation()}
+              role="dialog"
+              aria-modal="true"
+              aria-label={editingPlaybookId ? 'Edit SOAR Playbook' : 'Create SOAR Playbook'}
               style={{
                 background: 'var(--card-bg)',
                 border: '1px solid var(--border-soft)',
                 borderRadius: '12px',
                 width: '100%',
                 maxWidth: '460px',
-                boxShadow: '0 24px 60px -14px rgba(0,0,0,0.7)',
-                overflow: 'hidden'
+                maxHeight: '90vh',
+                overflowY: 'auto',
+                boxShadow: '0 24px 60px -14px rgba(0,0,0,0.7)'
               }}
             >
               <div className="flex items-center justify-between p-5 border-b border-border-soft">
                 <h3 className="font-bold text-lg" style={{ color: 'var(--heading-color)' }}>
                   {editingPlaybookId ? 'Edit SOAR Playbook' : 'Create SOAR Playbook'}
                 </h3>
-                <button onClick={closePlaybookModal} style={{ color: 'var(--muted)', background: 'none', border: 'none' }}>
+                <button type="button" onClick={closePlaybookModal} aria-label="Close dialog" style={{ color: 'var(--muted)', background: 'none', border: 'none' }}>
                   <X className="w-5 h-5" />
                 </button>
               </div>
@@ -645,16 +660,17 @@ export default function SoarPage() {
                           required
                           value={step}
                           onChange={(e) => updateStepAt(idx, e.target.value)}
+                          aria-label={`Step ${idx + 1}`}
                           placeholder={`Step ${idx + 1} — e.g. Disable port via SSH`}
                           style={{ background: 'var(--input-bg)', border: '1px solid var(--border-soft)', borderRadius: '8px', padding: '8px 12px', flex: 1, color: 'var(--text)', fontSize: '12.5px' }}
                         />
-                        <button type="button" onClick={() => moveStep(idx, -1)} disabled={idx === 0} style={{ color: 'var(--muted)', background: 'none', border: 'none' }}>
+                        <button type="button" onClick={() => moveStep(idx, -1)} disabled={idx === 0} aria-label={`Move step ${idx + 1} up`} style={{ color: 'var(--muted)', background: 'none', border: 'none', opacity: idx === 0 ? 0.4 : 1, cursor: idx === 0 ? 'not-allowed' : 'pointer' }}>
                           <ChevronRight className="w-4 h-4 -rotate-90" />
                         </button>
-                        <button type="button" onClick={() => moveStep(idx, 1)} disabled={idx === newPbStepsList.length - 1} style={{ color: 'var(--muted)', background: 'none', border: 'none' }}>
+                        <button type="button" onClick={() => moveStep(idx, 1)} disabled={idx === newPbStepsList.length - 1} aria-label={`Move step ${idx + 1} down`} style={{ color: 'var(--muted)', background: 'none', border: 'none', opacity: idx === newPbStepsList.length - 1 ? 0.4 : 1, cursor: idx === newPbStepsList.length - 1 ? 'not-allowed' : 'pointer' }}>
                           <ChevronRight className="w-4 h-4 rotate-90" />
                         </button>
-                        <button type="button" onClick={() => removeStep(idx)} disabled={newPbStepsList.length === 1} style={{ color: 'var(--muted)', background: 'none', border: 'none' }}>
+                        <button type="button" onClick={() => removeStep(idx)} disabled={newPbStepsList.length === 1} aria-label={`Remove step ${idx + 1}`} style={{ color: 'var(--muted)', background: 'none', border: 'none', opacity: newPbStepsList.length === 1 ? 0.4 : 1, cursor: newPbStepsList.length === 1 ? 'not-allowed' : 'pointer' }}>
                           <Trash2 className="w-4 h-4" />
                         </button>
                       </div>

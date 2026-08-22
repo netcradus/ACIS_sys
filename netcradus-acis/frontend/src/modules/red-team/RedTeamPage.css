@@ -1,17 +1,6 @@
 /* ================= RED TEAM PAGE ================= */
 .red-team-page {
-  /* Default Dark Mode Theme */
-  --bg: #070b14;
-  --border-soft: #1b2540;
-  --text: #e7ecf7;
-  --muted: #7c88a8;
-  --dim: #54617f;
-  --blue: #3b82f6;
-  --cyan: #22d3ee;
-  --purple: #a855f7;
-  --green: #22c55e;
-  --amber: #f59e0b;
-  --red: #ef4444;
+  /* Shared color tokens now come from styles/contentTokens.css. */
 
   /* Card and Panel Backgrounds */
   --card-bg: linear-gradient(160deg, rgba(16, 23, 40, 0.85), rgba(9, 13, 24, 0.9));
@@ -45,18 +34,6 @@
 /* Light Mode Theme Overrides */
 :root[data-theme="light"] .red-team-page,
 [data-theme="light"] .red-team-page {
-  --bg: #f4f6fa;
-  --border-soft: #e2e7f1;
-  --text: #12182b;
-  --muted: #66708c;
-  --dim: #96a0ba;
-  --blue: #2563eb;
-  --cyan: #0891b2;
-  --purple: #9333ea;
-  --green: #16a34a;
-  --amber: #d97706;
-  --red: #dc2626;
-
   /* Card and Panel Backgrounds for Light Mode */
   --card-bg: #ffffff;
   --panel-bg: #ffffff;
@@ -302,9 +279,29 @@
   margin-bottom: 20px;
 }
 
-@media (max-width: 768px) {
+@media (max-width: 1024px) {
+  .red-team-page .stat-row {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 640px) {
   .red-team-page .stat-row {
     grid-template-columns: 1fr;
+  }
+}
+
+.red-team-page .stat-row.split {
+  grid-template-columns: 1fr 2.15fr;
+}
+
+@media (max-width: 640px) {
+  .red-team-page .stat-row.split {
+    grid-template-columns: 1fr;
+  }
+
+  .red-team-page .stat-row.split > div:empty {
+    display: none;
   }
 }
 
@@ -560,6 +557,11 @@
 .red-team-page .exec-icon.amber {
   background: rgba(245, 158, 11, 0.14);
   color: #fbbf24;
+}
+
+.red-team-page .exec-icon.red {
+  background: rgba(239, 68, 68, 0.14);
+  color: #f87171;
 }
 
 .red-team-page .exec-title {
