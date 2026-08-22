@@ -2,6 +2,12 @@ server {
     listen 80;
     server_name _;
 
+    # nginx defaults to 1MB, which silently 413'd any file-scan/supply-chain
+    # upload over ~1MB long before it ever reached acis-soar — whose own
+    # multipart config (see acis-soar/application.yml) already allows up to
+    # 26MB. Matched to that same real ceiling, not an arbitrary larger value.
+    client_max_body_size 26m;
+
     # Real security response headers — this container only ever runs behind
     # Caddy's TLS termination in prod (see docker-compose.prod.yml network
     # isolation: only caddy publishes host ports), so HSTS is always accurate
