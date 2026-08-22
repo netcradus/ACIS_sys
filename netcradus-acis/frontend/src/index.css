@@ -1,3 +1,16 @@
+/* Self-hosted fonts (@fontsource) — served from our own origin instead of
+   fonts.googleapis.com, so the app never makes a runtime call out to Google
+   (and never hands Google every visitor's Referer/IP on every page load). */
+@import "@fontsource/inter/300.css";
+@import "@fontsource/inter/400.css";
+@import "@fontsource/inter/500.css";
+@import "@fontsource/inter/600.css";
+@import "@fontsource/inter/700.css";
+@import "@fontsource/inter/800.css";
+@import "@fontsource/jetbrains-mono/400.css";
+@import "@fontsource/jetbrains-mono/500.css";
+@import "@fontsource/jetbrains-mono/600.css";
+
 /* AG Grid CSS */
 @import "ag-grid-community/styles/ag-grid.css";
 @import "ag-grid-community/styles/ag-theme-alpine.css";
