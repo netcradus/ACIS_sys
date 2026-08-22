@@ -259,7 +259,7 @@ export default function ReportsPage() {
             <h1>Reports</h1>
             <p>Executive and technical exports</p>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center flex-wrap gap-3 w-full sm:w-auto">
             <div className="search-wrap">
               <Search className="w-4 h-4" />
               <input
@@ -306,7 +306,7 @@ export default function ReportsPage() {
             </div>
 
             <div className="stats-box">
-              <div className="title">Executive Summary - as of {new Date().toLocaleDateString()}</div>
+              <div className="title" title={`Executive Summary - as of ${new Date().toLocaleDateString()}`}>Executive Summary - as of {new Date().toLocaleDateString()}</div>
               <div className="vals">
                 <span>Threats: <span className="text-red">{totalThreats}</span></span>
                 <span>Resolved: <span className="text-green">{resolvedThreats}</span></span>
@@ -349,7 +349,10 @@ export default function ReportsPage() {
             </div>
 
             <div className="stats-box">
-              <div className="title">
+              <div
+                className="title"
+                title={incidents.length > 0 ? `Incident Report - ${incidents[incidents.length - 1].incidentNumber} through ${incidents[0].incidentNumber}` : 'Incident Report - no incidents recorded'}
+              >
                 {incidents.length > 0 ? `Incident Report - ${incidents[incidents.length - 1].incidentNumber} through ${incidents[0].incidentNumber}` : 'Incident Report - no incidents recorded'}
               </div>
               <div className="vals">
@@ -393,7 +396,7 @@ export default function ReportsPage() {
             </div>
 
             <div className="stats-box">
-              <div className="title">Detection Coverage - as of {new Date().toLocaleDateString()}</div>
+              <div className="title" title={`Detection Coverage - as of ${new Date().toLocaleDateString()}`}>Detection Coverage - as of {new Date().toLocaleDateString()}</div>
               <div className="vals flex-col" style={{ gap: '4px' }}>
                 <span className="text-green" style={{ fontSize: '10.5px' }}>
                   {declaredTechniques.size > 0 ? `Covered: ${executedTechniques.size}/${declaredTechniques.size} techniques (${coveragePercent}%)` : 'No MITRE techniques declared yet'}
@@ -438,10 +441,10 @@ export default function ReportsPage() {
             <table className="sched-table">
               <thead>
                 <tr>
-                  <th style={{ width: '28%' }}>REPORT</th>
-                  <th style={{ width: '12%' }}>FORMAT</th>
-                  <th style={{ width: '18%' }}>FREQUENCY</th>
-                  <th style={{ width: '15%' }}>NEXT RUN</th>
+                  <th style={{ width: '26%' }}>REPORT</th>
+                  <th style={{ width: '10%' }}>FORMAT</th>
+                  <th style={{ width: '16%' }}>FREQUENCY</th>
+                  <th style={{ width: '21%' }}>NEXT RUN</th>
                   <th style={{ width: '15%' }}>RECIPIENTS</th>
                   <th style={{ width: '12%', textAlign: 'right' }}>STATUS</th>
                 </tr>
@@ -463,12 +466,12 @@ export default function ReportsPage() {
                 {!loading && !dataError && filteredSchedules.map(sched => (
                   <tr key={sched.id} className="group">
                     <td className="font-semibold text-text-secondary">
-                      <div className="flex items-center justify-between">
-                        <span>{sched.reportName}</span>
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="nowrap-cell flex-1 min-w-0" title={sched.reportName}>{sched.reportName}</span>
                         {canAdmin && (
                           <button
                             onClick={() => handleDeleteSchedule(sched.id)}
-                            className="opacity-0 group-hover:opacity-100 text-red hover:text-red/80 text-label uppercase ml-2 transition-opacity focus:outline-none"
+                            className="opacity-0 group-hover:opacity-100 text-red hover:text-red/80 text-label uppercase shrink-0 transition-opacity focus:outline-none"
                             style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
                           >
                             Delete
@@ -476,16 +479,16 @@ export default function ReportsPage() {
                         )}
                       </div>
                     </td>
-                    <td className="mono font-semibold text-text-secondary">
+                    <td className="mono font-semibold text-text-secondary nowrap-cell">
                       {sched.format}
                     </td>
-                    <td className="text-text-secondary font-medium">
+                    <td className="text-text-secondary font-medium nowrap-cell" title={sched.frequency}>
                       {sched.frequency}
                     </td>
-                    <td className="text-text-secondary font-mono">
+                    <td className="text-text-secondary font-mono nowrap-cell">
                       {new Date(sched.nextRun).toLocaleDateString()} at {new Date(sched.nextRun).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                     </td>
-                    <td className="text-text-secondary font-medium font-mono">
+                    <td className="text-text-secondary font-medium font-mono nowrap-cell" title={sched.recipients}>
                       {sched.recipients}
                     </td>
                     <td style={{ textAlign: 'right' }}>
